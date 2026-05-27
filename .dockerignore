@@ -1,0 +1,11 @@
+.git
+node_modules
+dist
+test-results
+playwright-report
+playwright/.cache
+.lighthouseci
+.env
+README.md
+specs
+tests
