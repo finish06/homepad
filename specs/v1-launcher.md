@@ -44,6 +44,21 @@ A prettier launcher: tile-based service catalog with **live uptime status** per 
 - **Auth:** Server-side sessions in HttpOnly cookies (v1 simple). Bcrypt for passwords.
 - **Deploy:** K8s, single replica, ConfigMap + Secret, Pangolin Ingress.
 
+## Repository layout (polyrepo)
+
+- `Code/homepad` — **frontend** (React + Vite + TS + Tailwind). User-facing app. Holds the canonical spec at `specs/v1-launcher.md`.
+- `Code/homepad-api` — **backend** (Go). Postgres client, Gatus poller, session auth, REST API. Its `README.md` links back to the spec in `Code/homepad`.
+- `Code/homepad-deploy` *(TBD — see open questions)* — K8s manifests (Deployment, Service, Ingress, Secret/ConfigMap, Postgres connection wiring).
+
+**Same-domain deployment (recommended).** The Pangolin Ingress for the homepad hostname proxies `/api/*` to the `homepad-api` Service and everything else to the `homepad` (web) Service. This keeps session cookies same-site without CORS gymnastics:
+
+```
+homepad.calebdunn.tech/        → homepad (web) Service     (port 80, static SPA)
+homepad.calebdunn.tech/api/*   → homepad-api Service       (port 8080, Go)
+```
+
+Locally during dev, the Vite dev server proxies `/api/*` to `http://localhost:8080` so the dev loop matches prod.
+
 ## Visual direction (v1)
 
 "Prettier than Dashlet" without copying it. Stitch's pick (Caleb gave latitude — refinable in frontend phase):
