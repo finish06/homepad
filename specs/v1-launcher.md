@@ -48,16 +48,48 @@ A prettier launcher: tile-based service catalog with **live uptime status** per 
 
 - `Code/homepad` — **frontend** (React + Vite + TS + Tailwind). User-facing app. Holds the canonical spec at `specs/v1-launcher.md`.
 - `Code/homepad-api` — **backend** (Go). Postgres client, Gatus poller, session auth, REST API. Its `README.md` links back to the spec in `Code/homepad`.
-- `Code/homepad-deploy` *(TBD — see open questions)* — K8s manifests (Deployment, Service, Ingress, Secret/ConfigMap, Postgres connection wiring).
 
-**Same-domain deployment (recommended).** The Pangolin Ingress for the homepad hostname proxies `/api/*` to the `homepad-api` Service and everything else to the `homepad` (web) Service. This keeps session cookies same-site without CORS gymnastics:
+**Deployment manifests are owned by Joe (homie / SRE bot), not Stitch.** Each app repo ships:
+
+- A `Dockerfile`
+- A `.env.example` documenting required env vars
+- This spec's "Deployment contract" section (below) so Joe knows exactly what the cluster needs to provide
+
+## Deployment contract (for Joe)
+
+What `homepad-api` (Go backend) needs from the cluster:
+
+| Concern | Value |
+|---|---|
+| Container image | `<registry>/code/homepad-api:<tag>` (registry TBD per cluster policy) |
+| Listen port | `8080` (HTTP) |
+| Health probe | `GET /health` → 200 when ready (DB + Gatus reachable); `GET /live` → 200 always-on |
+| Required env vars | `DATABASE_URL`, `GATUS_BASE_URL`, `SESSION_SECRET`, `HOMEPAD_REGISTRATION` (`open` / `invite_only`) |
+| Required secrets | Postgres credentials inside `DATABASE_URL`; `SESSION_SECRET` (32+ random bytes) |
+| Egress needed | Postgres service, `gatus.10.17.2.213.nip.io` (cluster-internal) |
+| Replicas | 1 (v1; sessions are in-memory until we add a session store) |
+| Persistent storage | None — all state in Postgres |
+
+What `homepad` (web/static) needs:
+
+| Concern | Value |
+|---|---|
+| Container image | `<registry>/code/homepad:<tag>` (nginx-served static build) |
+| Listen port | `80` |
+| Health probe | `GET /` → 200 |
+| Required env vars | none at runtime (env baked at build) |
+| Replicas | 1+ (stateless) |
+
+**Routing (recommendation for Joe — final call his).** Single hostname, path-routed:
 
 ```
 homepad.calebdunn.tech/        → homepad (web) Service     (port 80, static SPA)
 homepad.calebdunn.tech/api/*   → homepad-api Service       (port 8080, Go)
 ```
 
-Locally during dev, the Vite dev server proxies `/api/*` to `http://localhost:8080` so the dev loop matches prod.
+Why same-domain matters for the app: session cookies stay same-site → no CORS gymnastics and no token-in-localStorage. If Joe wants subdomains instead, the API needs a CORS allowlist + cookies need `SameSite=None; Secure` — doable, but slightly more surface area. Stitch defaults to same-domain in code; flag if Joe needs subdomains.
+
+Locally during dev, the Vite dev server proxies `/api/*` to `http://localhost:8080` so the dev loop matches the prod routing model.
 
 ## Visual direction (v1)
 
