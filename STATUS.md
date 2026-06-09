@@ -2,6 +2,30 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-09 — A5 layout reorder wired in the web app (test-first)
+
+The last foundational web slice. Personal tile order is now reorderable and
+persists; mirrors the favorites optimistic+rollback pattern.
+
+**Done this run**
+- **api.ts — `setLayout(order)`.** `PUT /api/layout` with `{"order":[ids]}` →
+  true on 204, false otherwise (incl. 404 unknown id). 2 new mocked-`fetch`
+  tests; URL assertion stays under `/api` (A11 unit half).
+- **Catalog.tsx — reorder UI.** Per-tile ↑/↓ buttons (`move-up`/`move-down`),
+  disabled at the boundaries. `moveItem` swaps the tile one slot, sets state
+  optimistically, persists the full id order via `setLayout`, and rolls back to
+  the pre-move snapshot if the API rejects — snapshot captured up front so the
+  rollback can't race a later render (same fix shape as the favorites bug).
+- **Load order.** No client-side sort — tiles render in the exact order
+  `services()` returns, so the order-aware `GET /api/services` drives it.
+- **5 new Catalog tests:** load-order, move-down+persist, move-up+persist,
+  rollback-on-reject, boundary-disable.
+- **A11 (web half) still PASS.** `npm run build` clean; `grep -ri gatus dist/`
+  empty.
+
+**Build/test state:** `npm run build` clean (tsc + vite) · `vitest run` 37/37
+green · bundle 150 kB (48 kB gzip).
+
 ## 2026-06-09 — Component-test harness + A2/A3 verified against a mocked API
 
 Pivoted from the (alpha-complete) API to the web app. The browser talks only
@@ -37,8 +61,8 @@ to the same-domain `/api` proxy — never to Gatus.
 bundle 149 kB (48 kB gzip).
 
 **Remaining web checklist for alpha**
-- [ ] Layout reorder → `PUT /api/layout` with the new order (up/down or drag).
-      Not yet wired in `api.ts` or `Catalog.tsx`. **Next foundational slice.**
+- [x] Layout reorder → `PUT /api/layout` with the new order (up/down buttons,
+      optimistic + rollback). Wired in `api.ts` + `Catalog.tsx`, component-tested.
 - [ ] A7 responsive — 390 / 1440, no horizontal scroll (Playwright e2e exists;
       needs a live run — Joe).
 - [ ] A8 perf budgets — Lighthouse CI wired (`lighthouserc.cjs`); needs a CI/live

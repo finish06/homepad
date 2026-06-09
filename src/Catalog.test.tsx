@@ -2,15 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Catalog from './Catalog';
-import { services, setFavorite, type Service, type ServiceStatus } from './api';
+import { services, setFavorite, setLayout, type Service, type ServiceStatus } from './api';
 
 vi.mock('./api', () => ({
   services: vi.fn(),
   setFavorite: vi.fn(),
+  setLayout: vi.fn(),
 }));
 
 const mockedServices = vi.mocked(services);
 const mockedSetFavorite = vi.mocked(setFavorite);
+const mockedSetLayout = vi.mocked(setLayout);
 
 function svc(over: Partial<Service> = {}): Service {
   return {
@@ -29,6 +31,7 @@ function svc(over: Partial<Service> = {}): Service {
 beforeEach(() => {
   mockedServices.mockResolvedValue([svc()]);
   mockedSetFavorite.mockResolvedValue(true);
+  mockedSetLayout.mockResolvedValue(true);
 });
 
 afterEach(() => {
@@ -118,5 +121,85 @@ describe('favorites toggle', () => {
     await user.click(toggle);
 
     await waitFor(() => expect(toggle).toHaveAttribute('data-favorite', 'false'));
+  });
+});
+
+describe('A5 — personal layout reorder', () => {
+  function names() {
+    return screen.getAllByTestId('service-tile-name').map((n) => n.textContent);
+  }
+
+  it('reflects the saved order on load (GET /api/services is order-aware)', async () => {
+    mockedServices.mockResolvedValue([
+      svc({ id: 'b', name: 'Grafana' }),
+      svc({ id: 'a', name: 'Plex' }),
+    ]);
+    render(<Catalog />);
+    await screen.findAllByTestId('service-tile');
+    // Rendered in the exact order the API returned them — no client-side sort.
+    expect(names()).toEqual(['Grafana', 'Plex']);
+  });
+
+  it('moves a tile down and persists the new order via setLayout', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex' }),
+      svc({ id: 'b', name: 'Grafana' }),
+    ]);
+    render(<Catalog />);
+    const tiles = await screen.findAllByTestId('service-tile');
+
+    // Move the first tile (Plex) down a slot.
+    await user.click(within(tiles[0]).getByTestId('move-down'));
+
+    expect(names()).toEqual(['Grafana', 'Plex']);
+    expect(mockedSetLayout).toHaveBeenCalledWith(['b', 'a']);
+  });
+
+  it('moves a tile up and persists the new order via setLayout', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex' }),
+      svc({ id: 'b', name: 'Grafana' }),
+    ]);
+    render(<Catalog />);
+    const tiles = await screen.findAllByTestId('service-tile');
+
+    // Move the second tile (Grafana) up a slot.
+    await user.click(within(tiles[1]).getByTestId('move-up'));
+
+    expect(names()).toEqual(['Grafana', 'Plex']);
+    expect(mockedSetLayout).toHaveBeenCalledWith(['b', 'a']);
+  });
+
+  it('rolls back to the prior order when the API rejects the reorder', async () => {
+    const user = userEvent.setup();
+    mockedSetLayout.mockResolvedValue(false);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex' }),
+      svc({ id: 'b', name: 'Grafana' }),
+    ]);
+    render(<Catalog />);
+    const tiles = await screen.findAllByTestId('service-tile');
+
+    await user.click(within(tiles[0]).getByTestId('move-down'));
+
+    // Optimistically flipped, then reverted once the rejection lands.
+    await waitFor(() => expect(names()).toEqual(['Plex', 'Grafana']));
+    expect(mockedSetLayout).toHaveBeenCalledWith(['b', 'a']);
+  });
+
+  it('disables move-up on the first tile and move-down on the last', async () => {
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex' }),
+      svc({ id: 'b', name: 'Grafana' }),
+    ]);
+    render(<Catalog />);
+    const tiles = await screen.findAllByTestId('service-tile');
+
+    expect(within(tiles[0]).getByTestId('move-up')).toBeDisabled();
+    expect(within(tiles[0]).getByTestId('move-down')).toBeEnabled();
+    expect(within(tiles[1]).getByTestId('move-up')).toBeEnabled();
+    expect(within(tiles[1]).getByTestId('move-down')).toBeDisabled();
   });
 });

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { login, logout, me, register, services, setFavorite } from './api';
+import { login, logout, me, register, services, setFavorite, setLayout } from './api';
 
 // The client talks ONLY to the same-domain /api proxy — never to Gatus. These
 // tests mock global fetch and assert both the URL and the response mapping.
@@ -120,5 +120,21 @@ describe('setFavorite', () => {
   it('returns false on a non-204', async () => {
     mockFetch(null, 500);
     await expect(setFavorite('s1', true)).resolves.toBe(false);
+  });
+});
+
+describe('setLayout', () => {
+  it('PUTs /api/layout with the order and returns true on 204', async () => {
+    const fn = mockFetch(null, 204);
+    await expect(setLayout(['a', 'b', 'c'])).resolves.toBe(true);
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/layout');
+    expect(opts).toMatchObject({ method: 'PUT', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ order: ['a', 'b', 'c'] });
+  });
+
+  it('returns false on a non-204 (e.g. 404 unknown id)', async () => {
+    mockFetch('no such service in order', 404);
+    await expect(setLayout(['nope'])).resolves.toBe(false);
   });
 });

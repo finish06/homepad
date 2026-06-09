@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { services, setFavorite, type Service, type ServiceStatus } from './api';
+import { services, setFavorite, setLayout, type Service, type ServiceStatus } from './api';
 
 // Small colored dot per tile — UP green, DOWN red, DEGRADED amber, UNKNOWN gray.
 const statusDot: Record<ServiceStatus, string> = {
@@ -31,6 +31,23 @@ export default function Catalog() {
     }
   }
 
+  // Move a tile one slot up (dir -1) or down (dir +1), then persist the new
+  // order. Optimistic with rollback to the prior order if the API rejects —
+  // same shape as toggleFavorite. The pre-move snapshot is captured up front so
+  // the rollback can't race a later render.
+  async function moveItem(id: string, dir: -1 | 1) {
+    const prev = items;
+    if (!prev) return;
+    const idx = prev.findIndex((s) => s.id === id);
+    const target = idx + dir;
+    if (idx < 0 || target < 0 || target >= prev.length) return;
+    const next = [...prev];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    setItems(next);
+    const ok = await setLayout(next.map((s) => s.id));
+    if (!ok) setItems(prev);
+  }
+
   if (items === null) {
     return <p className="text-sm text-neutral-400">loading services…</p>;
   }
@@ -44,8 +61,15 @@ export default function Catalog() {
 
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
-      {items.map((s) => (
-        <ServiceTile key={s.id} service={s} onToggleFavorite={toggleFavorite} />
+      {items.map((s, i) => (
+        <ServiceTile
+          key={s.id}
+          service={s}
+          index={i}
+          total={items.length}
+          onToggleFavorite={toggleFavorite}
+          onMove={moveItem}
+        />
       ))}
     </div>
   );
@@ -53,10 +77,16 @@ export default function Catalog() {
 
 function ServiceTile({
   service,
+  index,
+  total,
   onToggleFavorite,
+  onMove,
 }: {
   service: Service;
+  index: number;
+  total: number;
   onToggleFavorite: (id: string) => void;
+  onMove: (id: string, dir: -1 | 1) => void;
 }) {
   const icon = `https://cdn.jsdelivr.net/gh/selfhst/icons/svg/${service.icon || 'cog'}.svg`;
   return (
@@ -107,6 +137,30 @@ function ServiceTile({
           {service.description}
         </span>
       </a>
+      <div className="absolute bottom-2 right-2 flex gap-1">
+        <button
+          type="button"
+          data-testid="move-up"
+          aria-label="Move up"
+          title="Move up"
+          disabled={index === 0}
+          onClick={() => onMove(service.id, -1)}
+          className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:pointer-events-none disabled:opacity-30"
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          data-testid="move-down"
+          aria-label="Move down"
+          title="Move down"
+          disabled={index === total - 1}
+          onClick={() => onMove(service.id, 1)}
+          className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:pointer-events-none disabled:opacity-30"
+        >
+          ↓
+        </button>
+      </div>
     </div>
   );
 }

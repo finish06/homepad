@@ -73,3 +73,16 @@ export async function setFavorite(id: string, on: boolean): Promise<boolean> {
   });
   return res.status === 204;
 }
+
+// setLayout persists the current user's personal tile order (A5). `order` is the
+// list of service ids, position 0 first. Returns true on success so the caller
+// can roll back an optimistic reorder.
+export async function setLayout(order: string[]): Promise<boolean> {
+  const res = await fetch('/api/layout', {
+    method: 'PUT',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify({ order }),
+  });
+  return res.status === 204;
+}
