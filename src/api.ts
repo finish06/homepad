@@ -14,6 +14,7 @@ export type Service = {
   url: string;
   icon: string;
   status: ServiceStatus;
+  favorite: boolean;
 };
 
 export type Result = { ok: boolean; status: number; error?: string };
@@ -61,4 +62,14 @@ export async function services(): Promise<Service[]> {
   if (res.status !== 200) return [];
   const data = (await res.json()) as { services: Service[] };
   return data.services ?? [];
+}
+
+// setFavorite marks (on) or unmarks (off) a service for the current user.
+// Returns true on success so the caller can roll back an optimistic update.
+export async function setFavorite(id: string, on: boolean): Promise<boolean> {
+  const res = await fetch(`/api/favorites/${id}`, {
+    method: on ? 'POST' : 'DELETE',
+    credentials: 'include',
+  });
+  return res.status === 204;
 }

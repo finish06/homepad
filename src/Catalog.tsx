@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { services, type Service, type ServiceStatus } from './api';
+import { services, setFavorite, type Service, type ServiceStatus } from './api';
 
 // Small colored dot per tile — UP green, DOWN red, DEGRADED amber, UNKNOWN gray.
 const statusDot: Record<ServiceStatus, string> = {
@@ -16,6 +16,22 @@ export default function Catalog() {
     services().then(setItems);
   }, []);
 
+  // Optimistically flip the star, then persist. Roll back if the API rejects.
+  async function toggleFavorite(id: string) {
+    let next = false;
+    setItems((cur) =>
+      cur?.map((s) => {
+        if (s.id !== id) return s;
+        next = !s.favorite;
+        return { ...s, favorite: next };
+      }) ?? cur,
+    );
+    const ok = await setFavorite(id, next);
+    if (!ok) {
+      setItems((cur) => cur?.map((s) => (s.id === id ? { ...s, favorite: !next } : s)) ?? cur);
+    }
+  }
+
   if (items === null) {
     return <p className="text-sm text-neutral-400">loading services…</p>;
   }
@@ -30,13 +46,19 @@ export default function Catalog() {
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
       {items.map((s) => (
-        <ServiceTile key={s.id} service={s} />
+        <ServiceTile key={s.id} service={s} onToggleFavorite={toggleFavorite} />
       ))}
     </div>
   );
 }
 
-function ServiceTile({ service }: { service: Service }) {
+function ServiceTile({
+  service,
+  onToggleFavorite,
+}: {
+  service: Service;
+  onToggleFavorite: (id: string) => void;
+}) {
   const icon = `https://cdn.jsdelivr.net/gh/selfhst/icons/svg/${service.icon || 'cog'}.svg`;
   return (
     <div
@@ -50,6 +72,20 @@ function ServiceTile({ service }: { service: Service }) {
         aria-label={`status: ${service.status}`}
         className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${statusDot[service.status] ?? statusDot.UNKNOWN}`}
       />
+      <button
+        type="button"
+        data-testid="favorite-toggle"
+        data-favorite={service.favorite ? 'true' : 'false'}
+        aria-pressed={service.favorite}
+        aria-label={service.favorite ? 'Unfavorite' : 'Favorite'}
+        title={service.favorite ? 'Unfavorite' : 'Favorite'}
+        onClick={() => onToggleFavorite(service.id)}
+        className={`absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-full text-lg leading-none outline-none transition hover:bg-neutral-100 focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+          service.favorite ? 'text-amber-400' : 'text-neutral-300 hover:text-neutral-400'
+        }`}
+      >
+        {service.favorite ? '★' : '☆'}
+      </button>
       <a
         href={service.url}
         target="_blank"
