@@ -132,7 +132,7 @@ function ServiceTile({
         </span>
         <span
           data-testid="service-tile-description"
-          className="mt-0.5 truncate text-sm text-neutral-500"
+          className="mt-0.5 truncate pr-14 text-sm text-neutral-500"
         >
           {service.description}
         </span>
