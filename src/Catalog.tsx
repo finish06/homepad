@@ -17,15 +17,14 @@ export default function Catalog() {
   }, []);
 
   // Optimistically flip the star, then persist. Roll back if the API rejects.
+  // `next` is derived from current state up front — not from inside the setItems
+  // updater — because that updater runs on a later render, so reading a value it
+  // mutated would race with the persist call below.
   async function toggleFavorite(id: string) {
-    let next = false;
-    setItems((cur) =>
-      cur?.map((s) => {
-        if (s.id !== id) return s;
-        next = !s.favorite;
-        return { ...s, favorite: next };
-      }) ?? cur,
-    );
+    const current = items?.find((s) => s.id === id);
+    if (!current) return;
+    const next = !current.favorite;
+    setItems((cur) => cur?.map((s) => (s.id === id ? { ...s, favorite: next } : s)) ?? cur);
     const ok = await setFavorite(id, next);
     if (!ok) {
       setItems((cur) => cur?.map((s) => (s.id === id ? { ...s, favorite: !next } : s)) ?? cur);
