@@ -2,6 +2,53 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-10 — v2 spec: custom app icons via edit mode (SPEC ONLY)
+
+Wrote **`specs/v2-app-icons.md`** — an ADD-methodology spec (same style as
+`specs/v1-launcher.md`) for the next feature. **No app code, tests, or
+implementation** this run; spec doc only.
+
+**What the feature is:** an admin-gated **edit mode** where, per service tile,
+the admin uploads **two PNGs** — a light-mode and a dark-mode icon — stored
+server-side; the catalog renders the variant matching the active theme. It
+augments (doesn't remove) the existing `services.icon` text field, which stays
+as a fallback.
+
+**Decisions captured in the spec**
+- **Edit mode:** admin-only toggle in the catalog header (client-ephemeral),
+  with every mutating endpoint independently 403-gated server-side (same
+  pattern as v1 catalog CRUD). Recommends folding v1's add/edit/delete-service
+  controls into the same toggle (Q1, NEEDS JOE).
+- **Icon model:** light + dark PNG per service; **PNG-only** via magic-byte
+  sniff, ≤ 512×512, ≤ 256 KB, square recommended-not-required. Deterministic
+  precedence: variant-T upload → other-variant upload → legacy `icon` text →
+  **bundled local default**. The local default + an `<img> onError` handler
+  **fixes today's broken-image fallback** (the remote `cog.svg`).
+- **Storage:** laid out bytea vs PVC vs object-store; **recommends Postgres
+  `bytea`** — kilobyte-scale data (< 20 MB worst case), rides existing
+  backups, keeps the backend **stateless** (preserves v1's "no persistent
+  storage" deploy contract). New additive table `service_icons` (migration
+  `0002`).
+- **Serving:** `GET /api/services/{id}/icon/{light|dark}` → `image/png` +
+  ETag/304, session-gated; `GET /api/services` gains `iconLight`/`iconDark`
+  booleans (never the blob bytes).
+- **API:** `PUT`/`DELETE` icon endpoints, admin-only; **raw PNG body** on PUT
+  (not multipart/base64) so upload == replace == idempotent upsert. Create/edit
+  service unchanged; delete cascades to icons.
+- **Frontend:** per-tile light+dark upload slots in edit mode (client pre-check
+  + preview + remove); theme-aware rendering that re-points `src` on
+  light↔dark switch with no reload.
+- **Acceptance criteria:** A1–A14, testable (API integration + component).
+- **Back-compat:** additive-only; the 39 seeded apps render unchanged; the only
+  visible delta with no uploads is the improved local fallback.
+
+**NEEDS JOE (open product calls):** Q1 fold-in vs separate Settings surface ·
+Q2 validation caps · Q3 reject vs auto-downscale oversized · Q4 PNG-only vs
+also SVG/WebP. (References `homepad-api` for all backend work — migration `0002`,
+`service_icons` store, 4 handlers, list-endpoint flags.)
+
+**Build/test state:** unchanged — no source touched.
+
 ## 2026-06-10 — README glow-up: banner, diagrams, badges, screenshot slots
 
 Docs-only run (no app code touched). Made the README something you can actually
