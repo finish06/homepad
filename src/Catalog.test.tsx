@@ -98,8 +98,8 @@ afterEach(() => {
 describe('A2 — catalog tiles render', () => {
   it('renders name, description, link-out URL and an icon for each service', async () => {
     mockedServices.mockResolvedValue([
-      svc({ id: 'a', name: 'Plex', description: 'Media', url: 'https://plex.x', icon: 'plex' }),
-      svc({ id: 'b', name: 'Grafana', description: 'Dashboards', url: 'https://graf.x', icon: 'grafana' }),
+      svc({ id: 'a', name: 'Plex', description: 'Media', url: 'https://plex.x', icon: 'https://plex.x/icon.png' }),
+      svc({ id: 'b', name: 'Grafana', description: 'Dashboards', url: 'https://graf.x', icon: 'https://graf.x/icon.png' }),
     ]);
     render(<Catalog />);
 
@@ -114,10 +114,10 @@ describe('A2 — catalog tiles render', () => {
     expect(within(plex).getByRole('link')).toHaveAttribute('href', 'https://plex.x');
     // Link-outs open in a new tab safely.
     expect(within(plex).getByRole('link')).toHaveAttribute('rel', expect.stringContaining('noopener'));
-    // No upload + legacy icon text → selfh.st CDN URL (precedence step 3).
+    // No upload + legacy icon text → the icon field's full URL verbatim (precedence step 3).
     expect(within(plex).getByTestId('service-tile-icon')).toHaveAttribute(
       'src',
-      'https://cdn.jsdelivr.net/gh/selfhst/icons/svg/plex.svg',
+      'https://plex.x/icon.png',
     );
   });
 
@@ -410,11 +410,11 @@ describe('A7 — theme-aware rendering (prefers-color-scheme)', () => {
 
 describe('A9 — never a broken image', () => {
   it('falls back to the bundled local default on an <img> error', async () => {
-    mockedServices.mockResolvedValue([svc({ id: 's1', icon: 'plex' })]);
+    mockedServices.mockResolvedValue([svc({ id: 's1', icon: 'https://plex.x/icon.png' })]);
     render(<Catalog />);
     const icon = await screen.findByTestId('service-tile-icon');
-    // Starts on the CDN URL…
-    expect(icon).toHaveAttribute('src', 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg/plex.svg');
+    // Starts on the icon field's full URL…
+    expect(icon).toHaveAttribute('src', 'https://plex.x/icon.png');
 
     fireEvent.error(icon);
 

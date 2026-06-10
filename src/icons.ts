@@ -69,8 +69,10 @@ async function readDimensions(file: File): Promise<{ width: number; height: numb
 
 // iconSrc resolves a tile's icon URL under the active theme via the
 // deterministic precedence chain (spec): uploaded variant-T → uploaded other
-// variant → legacy `icon` text (selfh.st CDN) → bundled local default. `rev`
+// variant → the `icon` field as a full URL → bundled local default. `rev`
 // busts the browser cache after an upload/delete so a replaced icon re-renders.
+// The `icon` field holds whatever full URL the admin provided; a broken or
+// unreachable one degrades to DEFAULT_ICON via the <img> onError handler.
 export function iconSrc(service: Service, theme: IconVariant, rev: number): string {
   const order: IconVariant[] = theme === 'light' ? ['light', 'dark'] : ['dark', 'light'];
   for (const variant of order) {
@@ -81,7 +83,7 @@ export function iconSrc(service: Service, theme: IconVariant, rev: number): stri
     }
   }
   if (service.icon) {
-    return `https://cdn.jsdelivr.net/gh/selfhst/icons/svg/${service.icon}.svg`;
+    return service.icon;
   }
   return DEFAULT_ICON;
 }

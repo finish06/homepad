@@ -95,9 +95,9 @@ describe('iconSrc precedence chain', () => {
     expect(iconSrc(svc({ iconDark: true }), 'light', 0)).toBe('/api/services/s1/icon/dark');
   });
 
-  it('falls back to the legacy icon text (selfh.st CDN) when no upload', () => {
-    expect(iconSrc(svc({ icon: 'plex' }), 'light', 0)).toBe(
-      'https://cdn.jsdelivr.net/gh/selfhst/icons/svg/plex.svg',
+  it('returns the icon field verbatim as a full URL when no upload', () => {
+    expect(iconSrc(svc({ icon: 'https://example.com/icon.png' }), 'light', 0)).toBe(
+      'https://example.com/icon.png',
     );
   });
 
