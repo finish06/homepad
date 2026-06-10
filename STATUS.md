@@ -45,13 +45,27 @@ was already complete + tested — this is web-only.
   appended; 409 collision inline; required-field validation blocks submit) and
   edit (prefill → PATCH omits blank gatus_key + favorite preserved; gatus_key
   included only when typed). +5 cases.
+- `tests/e2e/admin-service-form.spec.ts` (new) — route-mocked Playwright e2e in
+  the runnable `status-badge.spec.ts` style (no live backend): admin opens edit
+  mode → Add app → POST payload asserted + new tile shown; 409 collision and 422
+  validation surface inline with no tile added; Edit app prefills, PATCHes the
+  changed field, reflects the update. Typechecks via the build's `tsc`.
 
-**Build/test state:** `npm run build` clean (tsc + vite) · `vitest run`
-**85/85** green · A11 intact — the no-gatus-leak sentinel URL
-(`gatus.10.17.2.213.nip.io`) is absent from `dist/`. (The new `gatus_key` field
-name + "Gatus key" label are API/UI text, not the monitoring URL.)
+**Build/test state:** `npm run build` clean (tsc over `src` **and** `tests` +
+vite) · `vitest run` **85/85** green · A11 intact — the no-gatus-leak sentinel
+URL (`gatus.10.17.2.213.nip.io`) is absent from `dist/`. (The new `gatus_key`
+field name + "Gatus key" label are API/UI text, not the monitoring URL.)
 
 A6 is now **UI-complete + tested**: create / edit / delete all in the browser.
+
+**NEEDS JOE:** the new A6 e2e (and the other `tests/e2e/*` specs) can't run in
+this container — chromium fails to launch on missing system libs
+(`libglib-2.0.so.0`), and `playwright install-deps` needs a root password we
+don't have. CI doesn't run e2e either (`.gitea/workflows/ci.yml` is build +
+vitest only). The spec is GREEN-by-construction (mirrors the runnable
+status-badge mocking) and typechecks; please run `npx playwright test
+admin-service-form` where browser deps exist to confirm, or add a deps install
+to the e2e environment.
 
 ## 2026-06-10 — icon field is now a FULL URL (was selfh.st slug)
 
