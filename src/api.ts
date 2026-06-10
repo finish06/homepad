@@ -19,11 +19,26 @@ export type Service = {
 
 export type Result = { ok: boolean; status: number; error?: string };
 
+export type AuthConfig = { oidcEnabled: boolean };
+
 const jsonHeaders = { 'Content-Type': 'application/json' };
 
 async function errorText(res: Response): Promise<string> {
   const text = (await res.text()).trim();
   return text || `request failed (${res.status})`;
+}
+
+// authConfig reports which login methods the API offers. A non-200 or failed
+// request is treated as "OIDC off" so the PocketID button stays hidden.
+export async function authConfig(): Promise<AuthConfig> {
+  try {
+    const res = await fetch('/api/auth/config', { credentials: 'include' });
+    if (res.status !== 200) return { oidcEnabled: false };
+    const data = (await res.json()) as { oidcEnabled?: boolean };
+    return { oidcEnabled: data.oidcEnabled === true };
+  } catch {
+    return { oidcEnabled: false };
+  }
 }
 
 export async function me(): Promise<User | null> {

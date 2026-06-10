@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { login, logout, me, register, type User } from './api';
+import { authConfig, login, logout, me, register, type User } from './api';
 import Catalog from './Catalog';
 
 export default function App() {
@@ -67,6 +67,11 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [oidcEnabled, setOidcEnabled] = useState(false);
+
+  useEffect(() => {
+    authConfig().then((c) => setOidcEnabled(c.oidcEnabled));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -146,6 +151,23 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
         >
           {mode === 'login' ? 'Need an account? Register' : 'Have an account? Sign in'}
         </button>
+
+        {oidcEnabled && (
+          <>
+            <div className="my-4 flex items-center gap-3 text-xs text-neutral-400">
+              <span className="h-px flex-1 bg-neutral-200" />
+              or
+              <span className="h-px flex-1 bg-neutral-200" />
+            </div>
+            <button
+              type="button"
+              onClick={() => window.location.assign('/api/auth/oidc/login')}
+              className="w-full rounded-lg border border-neutral-300 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+            >
+              Log in with PocketID
+            </button>
+          </>
+        )}
       </form>
     </main>
   );

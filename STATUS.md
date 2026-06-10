@@ -2,6 +2,31 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-10 — PocketID web button shipped (test-first, additive)
+
+The web half of the OIDC slice scoped below. Local email/password login is
+untouched; the PocketID button sits beneath it, gated on the API config.
+
+**Done this run**
+- **api.ts — `authConfig()`.** `GET /api/auth/config` → `{oidcEnabled:bool}`.
+  A non-200 or a thrown `fetch` both map to `{oidcEnabled:false}` so the button
+  fails *closed* (hidden). 4 new mocked-`fetch` tests; URL assertion stays under
+  `/api` (A11 unit half).
+- **App.tsx — PocketID button.** `AuthForm` fetches `authConfig()` on mount and
+  renders "Log in with PocketID" only when `oidcEnabled`. Activating it is a full
+  navigation — `window.location.assign('/api/auth/oidc/login')`, **not** `fetch`
+  — so the 302 to PocketID happens in the browser. After the callback the API
+  sets `homepad_session` and 302s to `/`; the existing `me()` gate lands the user
+  on the catalog, no extra web code.
+- **3 new App tests:** button visible when `oidcEnabled:true` (local Sign in
+  still present), hidden when `false`, and that activating it navigates to
+  `/api/auth/oidc/login`.
+- **A11 web half still PASS.** `npm run build` clean; `grep -ri gatus dist/`
+  empty.
+
+**Build/test state:** `npm run build` clean (tsc + vite) · `vitest run` 44/44
+green · bundle 151 kB (49 kB gzip).
+
 ## 2026-06-10 — PocketID / OIDC: backend ready, web button is the next slice
 
 New requirement: a "Log in with PocketID" option on the login screen, **additive**

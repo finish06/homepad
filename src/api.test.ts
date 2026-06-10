@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { login, logout, me, register, services, setFavorite, setLayout } from './api';
+import { authConfig, login, logout, me, register, services, setFavorite, setLayout } from './api';
 
 // The client talks ONLY to the same-domain /api proxy — never to Gatus. These
 // tests mock global fetch and assert both the URL and the response mapping.
@@ -16,6 +16,32 @@ function mockFetch(body: BodyInit | null, status: number) {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+describe('authConfig', () => {
+  it('reports oidcEnabled:true from /api/auth/config', async () => {
+    const fn = mockFetch(JSON.stringify({ oidcEnabled: true }), 200);
+    await expect(authConfig()).resolves.toEqual({ oidcEnabled: true });
+    expect(fn).toHaveBeenCalledWith('/api/auth/config', { credentials: 'include' });
+  });
+
+  it('reports oidcEnabled:false when the API says so', async () => {
+    mockFetch(JSON.stringify({ oidcEnabled: false }), 200);
+    await expect(authConfig()).resolves.toEqual({ oidcEnabled: false });
+  });
+
+  it('treats a non-200 as oidcEnabled:false', async () => {
+    mockFetch(null, 500);
+    await expect(authConfig()).resolves.toEqual({ oidcEnabled: false });
+  });
+
+  it('treats a fetch failure as oidcEnabled:false', async () => {
+    const fn = vi.fn(async () => {
+      throw new Error('network down');
+    });
+    vi.stubGlobal('fetch', fn);
+    await expect(authConfig()).resolves.toEqual({ oidcEnabled: false });
+  });
 });
 
 describe('me', () => {

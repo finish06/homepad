@@ -2,19 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
-import { login, logout, me, register, type User } from './api';
+import { authConfig, login, logout, me, register, type User } from './api';
 
 // Catalog has its own tests; stub it so the auth-gate tests stay isolated from
 // the /api/services fetch.
 vi.mock('./Catalog', () => ({ default: () => <div data-testid="catalog-stub" /> }));
 
 vi.mock('./api', () => ({
+  authConfig: vi.fn(),
   me: vi.fn(),
   login: vi.fn(),
   register: vi.fn(),
   logout: vi.fn(),
 }));
 
+const mockedAuthConfig = vi.mocked(authConfig);
 const mockedMe = vi.mocked(me);
 const mockedLogin = vi.mocked(login);
 const mockedRegister = vi.mocked(register);
@@ -24,6 +26,7 @@ const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'user' };
 
 beforeEach(() => {
   mockedMe.mockResolvedValue(null);
+  mockedAuthConfig.mockResolvedValue({ oidcEnabled: false });
 });
 
 afterEach(() => {
@@ -122,5 +125,42 @@ describe('auth gate', () => {
     expect(await screen.findByRole('button', { name: /sign in/i })).toBeInTheDocument();
     expect(mockedLogout).toHaveBeenCalled();
     expect(screen.queryByTestId('catalog-stub')).not.toBeInTheDocument();
+  });
+});
+
+describe('PocketID login button', () => {
+  const pocketId = () => screen.queryByRole('button', { name: /log in with pocketid/i });
+
+  it('shows the button when oidc is enabled', async () => {
+    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true });
+    render(<App />);
+    await dropLoading();
+    expect(await screen.findByRole('button', { name: /log in with pocketid/i })).toBeInTheDocument();
+    // local login stays intact alongside it
+    expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
+  });
+
+  it('hides the button when oidc is disabled', async () => {
+    mockedAuthConfig.mockResolvedValue({ oidcEnabled: false });
+    render(<App />);
+    await dropLoading();
+    // give the config effect a chance to resolve before asserting absence
+    expect(await screen.findByRole('button', { name: /sign in/i })).toBeInTheDocument();
+    expect(pocketId()).not.toBeInTheDocument();
+  });
+
+  it('navigates to /api/auth/oidc/login when activated', async () => {
+    const user = userEvent.setup();
+    // jsdom's location.assign is non-configurable; swap the whole object.
+    const assign = vi.fn();
+    vi.stubGlobal('location', { assign });
+    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true });
+    render(<App />);
+    await dropLoading();
+
+    await user.click(await screen.findByRole('button', { name: /log in with pocketid/i }));
+
+    expect(assign).toHaveBeenCalledWith('/api/auth/oidc/login');
+    vi.unstubAllGlobals();
   });
 });
