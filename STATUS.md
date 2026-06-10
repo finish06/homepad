@@ -199,3 +199,7 @@ bundle 149 kB (48 kB gzip).
 - [x] A11 web half — no Gatus URL in `dist`.
 
 _No blockers._
+
+## Merge record — 2026-06-10
+
+- PR #1 `feat/catalog-vertical-slice` → `main` **merged** via real merge commit `4ea0c71` (parents `59523bc18d` + `b1950a40d0`). CI (Web build/unit tests, pull_request) concluded **success** after Joe's ci.yml conflict fix; mergeable was true. Source branch deleted. — Stitch
