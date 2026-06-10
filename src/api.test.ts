@@ -1,5 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { authConfig, login, logout, me, register, services, setFavorite, setLayout } from './api';
+import {
+  authConfig,
+  deleteIcon,
+  deleteService,
+  login,
+  logout,
+  me,
+  register,
+  services,
+  setFavorite,
+  setLayout,
+  uploadIcon,
+} from './api';
 
 // The client talks ONLY to the same-domain /api proxy — never to Gatus. These
 // tests mock global fetch and assert both the URL and the response mapping.
@@ -162,5 +174,60 @@ describe('setLayout', () => {
   it('returns false on a non-204 (e.g. 404 unknown id)', async () => {
     mockFetch('no such service in order', 404);
     await expect(setLayout(['nope'])).resolves.toBe(false);
+  });
+});
+
+describe('uploadIcon', () => {
+  it('PUTs raw PNG bytes with image/png and returns ok on 204', async () => {
+    const fn = mockFetch(null, 204);
+    const png = new Blob([new Uint8Array([0x89, 0x50])], { type: 'image/png' });
+    await expect(uploadIcon('s1', 'light', png)).resolves.toEqual({ ok: true, status: 204 });
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/services/s1/icon/light');
+    expect(opts).toMatchObject({ method: 'PUT', credentials: 'include' });
+    expect((opts!.headers as Record<string, string>)['Content-Type']).toBe('image/png');
+    expect(opts!.body).toBe(png);
+  });
+
+  it('surfaces the server validation error on a non-204 (e.g. 415)', async () => {
+    mockFetch('not a png', 415);
+    const png = new Blob([new Uint8Array([1])], { type: 'image/png' });
+    await expect(uploadIcon('s1', 'dark', png)).resolves.toEqual({
+      ok: false,
+      status: 415,
+      error: 'not a png',
+    });
+  });
+});
+
+describe('deleteIcon', () => {
+  it('DELETEs the variant and returns true on 204', async () => {
+    const fn = mockFetch(null, 204);
+    await expect(deleteIcon('s1', 'dark')).resolves.toBe(true);
+    expect(fn).toHaveBeenCalledWith('/api/services/s1/icon/dark', {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+  });
+
+  it('returns false on a non-204 (e.g. 403 non-admin)', async () => {
+    mockFetch(null, 403);
+    await expect(deleteIcon('s1', 'light')).resolves.toBe(false);
+  });
+});
+
+describe('deleteService', () => {
+  it('DELETEs the service and returns true on 204', async () => {
+    const fn = mockFetch(null, 204);
+    await expect(deleteService('s1')).resolves.toBe(true);
+    expect(fn).toHaveBeenCalledWith('/api/services/s1', {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+  });
+
+  it('returns false on a non-204 (e.g. 403 non-admin)', async () => {
+    mockFetch(null, 403);
+    await expect(deleteService('s1')).resolves.toBe(false);
   });
 });
