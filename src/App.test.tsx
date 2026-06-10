@@ -23,6 +23,7 @@ const mockedRegister = vi.mocked(register);
 const mockedLogout = vi.mocked(logout);
 
 const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'user' };
+const ADMIN: User = { id: 'a1', email: 'lilo@ohana.io', role: 'admin' };
 
 beforeEach(() => {
   mockedMe.mockResolvedValue(null);
@@ -125,6 +126,43 @@ describe('auth gate', () => {
     expect(await screen.findByRole('button', { name: /sign in/i })).toBeInTheDocument();
     expect(mockedLogout).toHaveBeenCalled();
     expect(screen.queryByTestId('catalog-stub')).not.toBeInTheDocument();
+  });
+});
+
+describe('A1 — admin edit-mode toggle', () => {
+  const editToggle = () => screen.queryByTestId('edit-toggle');
+
+  it('shows the Edit toggle for an admin', async () => {
+    mockedMe.mockResolvedValue(ADMIN);
+    render(<App />);
+    await dropLoading();
+    expect(await screen.findByTestId('edit-toggle')).toHaveTextContent('Edit');
+  });
+
+  it('hides the Edit toggle for a non-admin', async () => {
+    mockedMe.mockResolvedValue(USER);
+    render(<App />);
+    await dropLoading();
+    expect(screen.getByTestId('catalog-stub')).toBeInTheDocument();
+    expect(editToggle()).not.toBeInTheDocument();
+  });
+
+  it('flips edit mode on and back off when the admin clicks it', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(ADMIN);
+    render(<App />);
+    await dropLoading();
+
+    const toggle = await screen.findByTestId('edit-toggle');
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(toggle).toHaveTextContent('Done');
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(toggle).toHaveTextContent('Edit');
   });
 });
 

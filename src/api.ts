@@ -6,6 +6,8 @@ export type User = { id: string; email: string; role: string };
 
 export type ServiceStatus = 'UP' | 'DOWN' | 'DEGRADED' | 'UNKNOWN';
 
+export type IconVariant = 'light' | 'dark';
+
 export type Service = {
   id: string;
   slug: string;
@@ -15,6 +17,10 @@ export type Service = {
   icon: string;
   status: ServiceStatus;
   favorite: boolean;
+  // Whether an admin-uploaded PNG exists for each variant (bytes are never in
+  // the list response — only these flags). Default false for older payloads.
+  iconLight: boolean;
+  iconDark: boolean;
 };
 
 export type Result = { ok: boolean; status: number; error?: string };
@@ -84,6 +90,42 @@ export async function services(): Promise<Service[]> {
 export async function setFavorite(id: string, on: boolean): Promise<boolean> {
   const res = await fetch(`/api/favorites/${id}`, {
     method: on ? 'POST' : 'DELETE',
+    credentials: 'include',
+  });
+  return res.status === 204;
+}
+
+// uploadIcon PUTs a raw PNG for a service's light/dark variant (admin-only;
+// the server 403s a non-admin). The bytes ARE the body — no multipart, no
+// base64. Same idempotent upsert covers first upload and replace. Returns the
+// Result so the caller can surface the server's validation error inline.
+export async function uploadIcon(id: string, variant: IconVariant, png: Blob): Promise<Result> {
+  const res = await fetch(`/api/services/${id}/icon/${variant}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'image/png' },
+    credentials: 'include',
+    body: png,
+  });
+  if (res.status === 204) return { ok: true, status: 204 };
+  return { ok: false, status: res.status, error: await errorText(res) };
+}
+
+// deleteIcon removes a service's uploaded variant (admin-only; idempotent 204).
+// The tile then falls back per the precedence chain. Returns true on success.
+export async function deleteIcon(id: string, variant: IconVariant): Promise<boolean> {
+  const res = await fetch(`/api/services/${id}/icon/${variant}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  return res.status === 204;
+}
+
+// deleteService removes a service from the shared catalog (admin-only; the
+// server 403s a non-admin). Its uploaded icons cascade away server-side.
+// Returns true on success so the caller can roll back an optimistic removal.
+export async function deleteService(id: string): Promise<boolean> {
+  const res = await fetch(`/api/services/${id}`, {
+    method: 'DELETE',
     credentials: 'include',
   });
   return res.status === 204;

@@ -2,6 +2,60 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-10 — v2 app-icons: WEB edit-mode UI (A1/A2/A3/A7/A8/A9)
+
+Built the **web edit-mode UI** for v2 custom app icons against the mocked API
+(test-first). Branched off latest `main`. The backend slice (migration `0002`,
+4 handlers, list `iconLight`/`iconDark` flags) already landed in
+`homepad-api@feat/app-icons`; this run wires the UI to it.
+
+**Shipped**
+- **Admin edit-mode toggle** (`App.tsx`): an admin-only header toggle
+  (`Edit`/`Done`, `aria-pressed`), gated on `/api/me` `role === 'admin'`.
+  Client-ephemeral. Passes `isAdmin`+`editMode` into `Catalog`. Non-admins
+  never see it; server stays the authoritative gate. **(A1)**
+- **Per-tile icon controls** (`Catalog.tsx`, edit mode only): a **Light** and a
+  **Dark** PNG slot (`accept="image/png"`) with **upload / replace / remove**,
+  wired to `uploadIcon` (PUT raw bytes) / `deleteIcon`. **(A2, A3)**
+- **Client-side validation** (`icons.ts` `validateIconFile`, mirrors backend
+  Q2/Q3/Q4): PNG **magic-byte sniff** + **≤512×512** + **≤256 KB**, checked
+  *before* upload; rejects render an **inline error** and never hit the
+  network. Server-side rejections (e.g. 413) also surface inline.
+- **Theme-aware rendering** (`useActiveTheme`): active variant derived from the
+  **OS** via `prefers-color-scheme` (live `matchMedia` listener). Flipping the
+  OS theme re-points the `<img>` `src` with no reload. v3's explicit
+  System/Light/Dark toggle will override this later. **(A7)**
+- **Precedence chain** (`iconSrc`): active-variant upload → other-variant
+  upload → legacy `icon` text (selfh.st CDN) → **bundled local default**. **(A8)**
+- **Broken-image fix** (done regardless): a **bundled local default** icon
+  (in-bundle SVG data URI — zero network) + an `<img> onError` handler so a
+  tile **never** renders a broken image. This replaces the old implicit remote
+  `cog.svg` fallback that the seeded catalog shows today. **(A9)**
+
+**Tests (test-first, all green):** 75 vitest passing —
+`icons.test.ts` (validation caps + precedence + local default),
+`api.test.ts` (`uploadIcon`/`deleteIcon`/`deleteService` URL+mapping),
+`Catalog.test.tsx` (edit-mode slots, upload/replace/remove, client+server
+reject, delete-service optimistic+rollback, theme swap, onError fallback),
+`App.test.tsx` (admin toggle visible/hidden/flips). Existing view-mode tests
+updated: the empty-icon case now asserts the **local default** (cog CDN is
+gone, per spec). `npm run build` clean (tsc + vite); **dist has no Gatus URL**.
+
+**Scope call (Stitch's, since the question couldn't be put to Joe live):** the
+prompt's "edit mode surfaces BOTH the v1 add/edit/delete-service controls AND
+icon controls" assumes a v1 service-CRUD **web** surface that **does not exist
+yet** — only `homepad-api` has those endpoints; the web only ever shipped
+render/favorites/reorder. To keep this one focused, well-tested increment
+(Simplicity First), edit mode surfaces the **full v2 icon controls + a
+delete-service** button (its endpoint exists, trivial). **NEEDS JOE:** confirm
+whether **add-service / edit-service-fields forms** should be a follow-up web
+slice (recommended — they're really v1 A6 web work, distinct from v2 icons),
+or folded in next. `api.ts` already exposes `deleteService`; create/patch
+client fns are not added yet.
+
+**Deferred (not this run):** explicit theme toggle (v3); icon preview-against-
+swatch is implicit via the slot styling, not a live render of the picked file.
+
 ## 2026-06-10 — v2 spec: custom app icons via edit mode (SPEC ONLY)
 
 Wrote **`specs/v2-app-icons.md`** — an ADD-methodology spec (same style as
