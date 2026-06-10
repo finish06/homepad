@@ -2,6 +2,36 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-10 — README glow-up: banner, diagrams, badges, screenshot slots
+
+Docs-only run (no app code touched). Made the README something you can actually
+show off and that matches what's built.
+
+**Done this run (`Code/homepad`, README + new assets only)**
+- **`docs/banner.svg`** — clean hand-authored SVG logo/banner (2×2 launcher mark
+  + live status dot, wordmark, tagline, UP/DEGRADED/DOWN/UNKNOWN legend),
+  embedded at the very top of the README.
+- **Shields.io badges** — Go 1.25, React+Vite, Tailwind, tests
+  (70 passing · 26 Go + 44 Vitest), license.
+- **Mermaid ARCHITECTURE diagram** — browser → web (nginx/SPA) → `/api` →
+  homepad-api (Go) → Postgres; poller → Gatus (server-side only); PocketID OIDC.
+  Renders as an image in Gitea markdown.
+- **Mermaid AUTH-FLOW sequence** — both paths: local email/password, and the
+  PocketID OIDC Authorization-Code + PKCE round trip (login → PocketID →
+  callback → `homepad_session` cookie).
+- **`## Screenshots`** — embeds `docs/screenshots/{login,catalog,mobile}.png`.
+  Committed tiny wireframe placeholders (pure-stdlib PNG, 3–5 KB each) so the
+  layout renders now. **NEEDS JOE:** swap these for real captures from the live
+  deploy (same paths/filenames — no README edit needed).
+- **Prose corrected to reality** — dropped the stale "scaffold / RED only" status;
+  now documents local + PocketID login, shared catalog with live Gatus badges,
+  per-user favorites, personal reorder (up/down, persisted), admin catalog CRUD,
+  A1–A11.
+- Also tidied the **`Code/homepad-api`** README the same way (badges, accurate
+  alpha-complete status, endpoint list, layout incl. `internal/oidc`).
+
+**Build/test state:** unchanged — no source touched. `vitest run` still 44/44.
+
 ## 2026-06-10 — PocketID web button shipped (test-first, additive)
 
 The web half of the OIDC slice scoped below. Local email/password login is

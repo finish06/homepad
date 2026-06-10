@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="260" viewBox="0 0 1000 260" role="img" aria-label="homepad — self-hosted launcher for your homelab">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#6366f1"/>
+    </linearGradient>
+    <linearGradient id="word" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#e2e8f0"/>
+      <stop offset="1" stop-color="#94a3b8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1000" height="260" rx="20" fill="url(#bg)"/>
+  <rect x="1" y="1" width="998" height="258" rx="19" fill="none" stroke="#1e293b" stroke-width="2"/>
+
+  <!-- launcher mark: 2x2 tile grid with a live status dot -->
+  <g transform="translate(64 70)">
+    <rect x="0" y="0" width="120" height="120" rx="26" fill="#0b1220" stroke="#1e293b" stroke-width="2"/>
+    <rect x="22" y="22" width="34" height="34" rx="9" fill="url(#mark)"/>
+    <rect x="64" y="22" width="34" height="34" rx="9" fill="#334155"/>
+    <rect x="22" y="64" width="34" height="34" rx="9" fill="#334155"/>
+    <rect x="64" y="64" width="34" height="34" rx="9" fill="url(#mark)"/>
+    <circle cx="98" cy="30" r="9" fill="#34d399" stroke="#0b1220" stroke-width="3"/>
+  </g>
+
+  <!-- wordmark + tagline -->
+  <g transform="translate(232 0)">
+    <text x="0" y="118" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="76" font-weight="800" fill="url(#word)" letter-spacing="-2">homepad</text>
+    <text x="3" y="160" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="23" font-weight="500" fill="#7dd3fc">Self-hosted launcher for your homelab.</text>
+    <text x="3" y="192" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="18" font-weight="400" fill="#64748b">One page · live status · favorites &amp; your own order.</text>
+
+    <!-- status legend chips -->
+    <g transform="translate(3 214)" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600">
+      <circle cx="6" cy="-4" r="6" fill="#34d399"/><text x="18" y="0" fill="#94a3b8">UP</text>
+      <circle cx="66" cy="-4" r="6" fill="#fbbf24"/><text x="78" y="0" fill="#94a3b8">DEGRADED</text>
+      <circle cx="176" cy="-4" r="6" fill="#f87171"/><text x="188" y="0" fill="#94a3b8">DOWN</text>
+      <circle cx="246" cy="-4" r="6" fill="#94a3b8"/><text x="258" y="0" fill="#94a3b8">UNKNOWN</text>
+    </g>
+  </g>
+</svg>
