@@ -293,3 +293,26 @@ _No blockers._
 ## Merge record — 2026-06-10
 
 - PR #1 `feat/catalog-vertical-slice` → `main` **merged** via real merge commit `4ea0c71` (parents `59523bc18d` + `b1950a40d0`). CI (Web build/unit tests, pull_request) concluded **success** after Joe's ci.yml conflict fix; mergeable was true. Source branch deleted. — Stitch
+
+## Coverage review — 2026-06-10 (v1 + v2)
+
+Full AC-by-AC + measured-coverage review written to
+[`docs/coverage-v1-v2.md`](docs/coverage-v1-v2.md). Honest verdict: **not 100%.**
+
+- **Measured:** backend `go test ./...` = **36 pass, 66.7% total stmts**
+  (`-coverpkg=./...`); web `vitest run --coverage` (v8) = **75 pass, 98.3% stmts
+  / 89.6% branch / 95.8% funcs**.
+- **Real gaps (severity):**
+  - 🔴 HIGH — `homepad-api` v2 (icons + OIDC) is **not merged to `main`** —
+    `origin/main` is `fcef7fa` (v1 only); v2 lives on `feat/app-icons`.
+  - 🟠 MEDIUM — v1 A6 **web create/edit-service UI missing** (only delete is
+    wired; `api.ts` has no `createService`/`updateService`). Backend CRUD +
+    RBAC fully tested.
+  - 🟡 LOW–MED — A7 (responsive) + A8 (perf/Lighthouse) are Playwright/LHCI-only
+    and **not executed in this pass**.
+  - 🟡 LOW — OIDC failure-mode branches, `gatus.FetchAll` success-parse, and
+    `0002…down.sql` rollback are untested (none are v1/v2 ACs).
+- **Closed during review (test-only, green):** rewrote `TestLogoutClearsSession`
+  into the full A1 login→logout→401 round-trip (`session.Destroy` 0%→100%);
+  added `TestRemoveFavoritePersistsAcrossSessions` for `DELETE /api/favorites`
+  (was 0%). Backend total 65.2% → 66.7%.
