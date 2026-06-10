@@ -2,6 +2,28 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-10 — PocketID / OIDC: backend ready, web button is the next slice
+
+New requirement: a "Log in with PocketID" option on the login screen, **additive**
+to local login. This run I built the **backend** end of it in `homepad-api`
+(OIDC login + callback + account-link, tests green on the test DB — see that
+repo's STATUS). No web code changed yet; capturing the contract so the next web
+run is a quick, test-first slice:
+
+- **Gate the button:** `GET /api/auth/config` → `{"oidcEnabled":bool}`. Show
+  "Log in with PocketID" only when `true`. (Endpoint already live.)
+- **Start login:** the button navigates the browser to `/api/auth/oidc/login`
+  (a full navigation, not `fetch` — it 302s to PocketID).
+- **After callback:** homepad-api sets the same `homepad_session` cookie and
+  302s to `/`, so the app lands logged-in on the catalog with no extra web work
+  beyond the existing session handling.
+- **Component tests to add:** button visible when `oidcEnabled:true`, hidden when
+  `false`, and that it points at `/api/auth/oidc/login` — against a mocked api,
+  same harness as the existing api.ts/Catalog tests.
+
+No `NEEDS JOE` on the web side. (Backend has one: the real `OIDC_ADMIN_GROUP`
+name — env-driven, set at deploy.)
+
 ## 2026-06-09 — A5 layout reorder wired in the web app (test-first)
 
 The last foundational web slice. Personal tile order is now reorderable and
