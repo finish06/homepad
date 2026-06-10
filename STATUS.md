@@ -2,6 +2,42 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-10 — icon field is now a FULL URL (was selfh.st slug)
+
+Design change: the service `icon` text field holds a **full URL** (any image
+URL the admin provides), not a selfh.st slug. Branched `feat/icon-url` off
+latest `main`. Backend needed **no** change (`services.icon` is already free
+text); this is web + spec only. Test-first.
+
+**Shipped**
+- **`icons.ts` `iconSrc`** — precedence chain **unchanged** (uploaded
+  light/dark variant → `service.icon` → `DEFAULT_ICON`), but the `service.icon`
+  step now returns the field **verbatim as the `<img src>` URL** — no selfh.st
+  CDN template, no string-building. The existing `<img> onError → DEFAULT_ICON`
+  handler (`Catalog.tsx`) still degrades a broken/invalid/unreachable URL to the
+  bundled local default, so a bad URL never shows a broken glyph.
+- **Tests updated** (`icons.test.ts`, `Catalog.test.tsx`): the precedence step-3
+  case now asserts `iconSrc` returns the raw full URL when `icon` is set; still
+  prefers uploaded variants; still falls back to `DEFAULT_ICON` when empty.
+- **Spec** (`specs/v2-app-icons.md`): the data-model, precedence step 3, and
+  view-mode rendering descriptions of the `icon` field now say "**full URL**"
+  (used verbatim) instead of "selfh.st slug / CDN URL". (The historical
+  "Problem" section still narrates the original v1 selfh.st design as the
+  motivation for v2 — left as-is.)
+
+**Form relabel — N/A (nothing to relabel).** The prompt asked to relabel the
+admin create/edit-service form's icon input to "Icon URL". That **web form does
+not exist**: edit mode only surfaces per-tile PNG upload/remove + delete-service
+(see the 2026-06-10 edit-mode-UI entry below — the v1 A6 add/edit-service forms
+were never built on the web side; only `homepad-api` has those endpoints). So
+there is no slug-labelled input to change. When the add/edit-service web form is
+eventually built, its icon input should be a full "Icon URL" field
+(`placeholder="https://example.com/icon.png"`) — noted for that follow-up.
+
+**Tests (test-first, all green):** `vitest run` **75/75**. `npm run build`
+clean (tsc + vite). **dist has no Gatus URL** (and no `selfhst`/`jsdelivr`
+substring either).
+
 ## 2026-06-10 — v2 app-icons: WEB edit-mode UI (A1/A2/A3/A7/A8/A9)
 
 Built the **web edit-mode UI** for v2 custom app icons against the mocked API

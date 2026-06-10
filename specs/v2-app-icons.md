@@ -132,9 +132,9 @@ render.
 
 Each service may have up to **two** uploaded icons, keyed by `variant ∈
 {light, dark}`. Each stored icon carries its bytes plus derived metadata
-(width, height, byte size, content hash for ETag). The legacy `services.icon`
-text (selfh.st slug or arbitrary URL) is retained as a lower-precedence
-fallback.
+(width, height, byte size, content hash for ETag). The `services.icon`
+text (a **full URL** the admin provides — any image URL) is retained as a
+lower-precedence fallback.
 
 ### Validation (enforced server-side; mirrored client-side as a courtesy)
 
@@ -164,8 +164,9 @@ is the first of these that exists:
 2. **Uploaded PNG for the *other* variant** — if only one was uploaded, use it
    for both themes (better than falling further back; an admin who set one icon
    meant it).
-3. **Legacy `icon` text** — the existing selfh.st CDN URL behavior, unchanged
-   (so all 39 seeded apps keep their current look with zero migration).
+3. **`icon` text** — used **verbatim as a full URL** (the admin supplies any
+   image URL); the `<img src>` is the field value with no template or
+   string-building.
 4. **Bundled local default** — a neutral monochrome placeholder shipped *in the
    web bundle* (served by nginx, no network), used when nothing above resolves
    **and** as the `onError` target for steps 1–3 so a failed load never shows a
@@ -321,7 +322,7 @@ Optimistic-with-rollback, matching the favorites/reorder pattern already in
   source via the precedence chain above.
 - Concretely, for theme `T`: if `icon{T}` flag is true, `src =
   /api/services/{id}/icon/{T}?v={etag}`; else if the other flag is true, use
-  that; else if `icon` text is set, use the selfh.st CDN URL; the `<img>` always
+  that; else if `icon` text is set, use it verbatim as the full URL; the `<img>` always
   carries `onError` → swap to the **bundled local default**.
 - **Switching theme re-points the `src`** to the other variant with no reload
   (a derived value off the theme state), so toggling light↔dark swaps icons
