@@ -15,7 +15,7 @@
     "isolatedModules": true,
     "useDefineForClassFields": true,
     "noEmit": true,
-    "types": ["node", "@playwright/test"]
+    "types": ["node", "@playwright/test", "vitest/globals", "@testing-library/jest-dom"]
   },
   "include": ["src", "tests", "vite.config.ts", "playwright.config.ts", "tailwind.config.ts"]
 }

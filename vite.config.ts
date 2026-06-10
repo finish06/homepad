@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -18,5 +19,15 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: false,
+  },
+  // Component tests run in jsdom with a mocked API (global fetch / mocked
+  // ./api module) — no running backend required. Playwright e2e stays separate
+  // under tests/e2e and is excluded here.
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/test/setup.ts',
+    include: ['src/**/*.test.{ts,tsx}'],
+    css: false,
   },
 });
