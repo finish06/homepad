@@ -25,6 +25,19 @@ export type Service = {
 
 export type Result = { ok: boolean; status: number; error?: string };
 
+// The admin-editable catalog fields for create/update (A6), keyed by their
+// snake_case wire names. The server never returns `gatus_key` (it stays
+// server-side, resolved into `status`), so the edit form can't prefill it —
+// see ServiceForm for how a blank key is omitted from a PATCH.
+export type ServiceInput = {
+  slug: string;
+  name: string;
+  description: string;
+  url: string;
+  icon: string;
+  gatus_key: string;
+};
+
 export type AuthConfig = { oidcEnabled: boolean };
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
@@ -129,6 +142,39 @@ export async function deleteService(id: string): Promise<boolean> {
     credentials: 'include',
   });
   return res.status === 204;
+}
+
+// createService adds a new entry to the shared catalog (admin-only; the server
+// 403s a non-admin, 409s a slug collision, 400s missing required fields). On
+// success it returns the created service so the caller can append it without a
+// refetch; on failure it surfaces the server's message inline, like uploadIcon.
+export async function createService(input: ServiceInput): Promise<Result & { service?: Service }> {
+  const res = await fetch('/api/services', {
+    method: 'POST',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify(input),
+  });
+  if (res.status === 201) return { ok: true, status: 201, service: (await res.json()) as Service };
+  return { ok: false, status: res.status, error: await errorText(res) };
+}
+
+// updateService patches an existing catalog entry (admin-only; same 403/409 as
+// create, plus 404 for an unknown id). Only the fields present in `patch` are
+// changed server-side. Returns the updated service on success so the caller can
+// reflect the change inline.
+export async function updateService(
+  id: string,
+  patch: Partial<ServiceInput>,
+): Promise<Result & { service?: Service }> {
+  const res = await fetch(`/api/services/${id}`, {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify(patch),
+  });
+  if (res.status === 200) return { ok: true, status: 200, service: (await res.json()) as Service };
+  return { ok: false, status: res.status, error: await errorText(res) };
 }
 
 // setLayout persists the current user's personal tile order (A5). `order` is the

@@ -2,6 +2,57 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-10 — A6 admin ADD / EDIT app UI (test-first)
+
+Closes the v1 **A6** gap: the web could only *delete* a service; now an admin can
+**create** and **edit** catalog entries in the browser. Branched `feat/a6-admin-ui`
+off latest `main`. Backend CRUD (`POST /api/services`, `PATCH /api/services/{id}`)
+was already complete + tested — this is web-only.
+
+**Shipped**
+- **`api.ts`** — `createService(input)` → `POST /api/services` (201 → created
+  service); `updateService(id, patch)` → `PATCH /api/services/{id}` (200 →
+  updated service). Both return `Result & { service? }` (like `login`), surfacing
+  the server's message inline on failure (403 forbidden / 409 slug collision /
+  400 missing-required — the backend returns **400, not 422**, for empty
+  required fields; the inline path handles any non-success status's body either
+  way). New `ServiceInput` type keys the wire fields incl. snake_case `gatus_key`.
+- **`ServiceForm.tsx`** (new) — one form for both add and edit (passing a
+  `service` = edit, prefilled). Fields: name, slug, url, description, icon (full
+  URL), gatus_key. Client-side required-field validation (name/slug/url) shows an
+  inline error before any request; server errors render inline too. Reuses the
+  AuthForm card/label/input idiom.
+- **`Catalog.tsx`** — admin **+ Add app** affordance (edit mode) above the grid
+  (also shown on the empty-state so the first app can be added); per-tile **Edit
+  app** button alongside Delete. On success the list reflects the change with no
+  refetch — create appends, edit replaces in place.
+
+**Two correctness traps handled (and why):**
+- The create/update response serializes `favorite/iconLight/iconDark` as their
+  zero values (the server only populates those on the *list* endpoint). So an
+  edit **merges** — it keeps the existing favorite star + icon flags rather than
+  letting the response's `false` clobber them. Covered by a test.
+- The API **never returns `gatus_key`** (it stays server-side, resolved into
+  `status`). So the edit form can't prefill it: it starts blank and a blank key
+  is **omitted** from the PATCH (the existing key is preserved). Typing a value
+  sets/changes it. **Limitation:** the UI can't *clear* an existing gatus_key or
+  show its current value — acceptable for v1; flag if Joe wants a clear control.
+
+**Tests (vitest, all green):**
+- `api.test.ts` — createService (success body+payload, 409, 403) and
+  updateService (success, 409). +5 cases.
+- `Catalog.test.tsx` — add (success → POST payload incl. gatus_key + tile
+  appended; 409 collision inline; required-field validation blocks submit) and
+  edit (prefill → PATCH omits blank gatus_key + favorite preserved; gatus_key
+  included only when typed). +5 cases.
+
+**Build/test state:** `npm run build` clean (tsc + vite) · `vitest run`
+**85/85** green · A11 intact — the no-gatus-leak sentinel URL
+(`gatus.10.17.2.213.nip.io`) is absent from `dist/`. (The new `gatus_key` field
+name + "Gatus key" label are API/UI text, not the monitoring URL.)
+
+A6 is now **UI-complete + tested**: create / edit / delete all in the browser.
+
 ## 2026-06-10 — icon field is now a FULL URL (was selfh.st slug)
 
 Design change: the service `icon` text field holds a **full URL** (any image
