@@ -173,11 +173,14 @@ describe('A3 — status badge color per state', () => {
   });
 });
 
+// The star toggle now lives behind Arrange mode (A5.1), so these favoriting
+// tests render with `arrange` on — the toggle/persist/rollback logic itself is
+// unchanged from before the gating.
 describe('favorites toggle', () => {
   it('optimistically flips the star and persists via setFavorite', async () => {
     const user = userEvent.setup();
     mockedServices.mockResolvedValue([svc({ id: 'fav-me', favorite: false })]);
-    render(<Catalog />);
+    render(<Catalog arrange />);
 
     const toggle = await screen.findByTestId('favorite-toggle');
     expect(toggle).toHaveAttribute('data-favorite', 'false');
@@ -192,12 +195,55 @@ describe('favorites toggle', () => {
     const user = userEvent.setup();
     mockedSetFavorite.mockResolvedValue(false);
     mockedServices.mockResolvedValue([svc({ id: 'fav-me', favorite: false })]);
-    render(<Catalog />);
+    render(<Catalog arrange />);
 
     const toggle = await screen.findByTestId('favorite-toggle');
     await user.click(toggle);
 
     await waitFor(() => expect(toggle).toHaveAttribute('data-favorite', 'false'));
+  });
+});
+
+// A5.1 — the favorite ★ toggle is a personalization control, revealed only in
+// Arrange mode alongside the reorder arrows. The favorites *feature* (persist +
+// top-pinning, A5) is untouched; only the editable control is gated.
+describe('A5.1 — favorite star gated behind Arrange mode', () => {
+  it('hides the favorite star by default (Arrange off — decluttered view)', async () => {
+    mockedServices.mockResolvedValue([svc({ id: 'a', favorite: false })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+    expect(screen.queryByTestId('favorite-toggle')).not.toBeInTheDocument();
+  });
+
+  it('keeps a favorited tile visibly favorited in the normal view, just without the editable star', async () => {
+    // Pinning/ordering is server-driven (GET /api/services), so a favorite in
+    // the normal view still renders — there's simply no toggle control to edit it.
+    mockedServices.mockResolvedValue([svc({ id: 'a', favorite: true })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+    expect(screen.queryByTestId('favorite-toggle')).not.toBeInTheDocument();
+  });
+
+  it('shows the favorite star when Arrange is on', async () => {
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', favorite: false }),
+      svc({ id: 'b', favorite: true }),
+    ]);
+    render(<Catalog arrange />);
+    await screen.findAllByTestId('service-tile');
+    expect(screen.getAllByTestId('favorite-toggle').length).toBe(2);
+  });
+
+  it('lets a non-admin toggle + persist the star when Arrange is on (A5 preserved — not admin-gated)', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([svc({ id: 'fav-me', favorite: false })]);
+    render(<Catalog isAdmin={false} arrange />);
+
+    const toggle = await screen.findByTestId('favorite-toggle');
+    await user.click(toggle);
+
+    expect(toggle).toHaveAttribute('data-favorite', 'true');
+    expect(mockedSetFavorite).toHaveBeenCalledWith('fav-me', true);
   });
 });
 
@@ -537,7 +583,8 @@ describe('A6 — edit app (admin edit mode)', () => {
       // that clobber the existing star.
       service: svc({ id: 's1', name: 'Plex HD', slug: 'plex', url: 'https://plex.x', favorite: false }),
     });
-    render(<Catalog isAdmin editMode />);
+    // Arrange on so the favorite star renders — we assert the merge keeps it set.
+    render(<Catalog isAdmin editMode arrange />);
 
     await user.click(await screen.findByTestId('edit-service'));
     const form = await screen.findByTestId('service-form');

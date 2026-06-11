@@ -2,6 +2,33 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-11 — DONE ✅: favorite ★ toggle gated behind Arrange mode (A5.1)
+
+**Refinement (Joe, per Caleb).** The favorite star control now lives behind the
+same per-user settings gear / Arrange mode that reveals the reorder arrows, so
+the normal view is fully decluttered.
+
+**Implemented test-first on `feat/favorite-star-arrange-gating` (branched off
+`main`).**
+
+- **Normal view = clean tiles:** no star toggle, no reorder arrows. **Arrange on
+  (gear) = personalization controls:** both the reorder arrows AND the favorite
+  ★, so a user can star top apps and reorder in one mode.
+- **A5 / data model preserved:** favoriting stays personal, persists per-user
+  (`POST`/`DELETE /api/favorites/{id}`), works for non-admins, and **favorited
+  tiles still pin to the top in the normal view** (server-driven order). Only the
+  editable star *control's* visibility is gated — favorites feature + pinning
+  untouched.
+- **Surgical change:** star `<button>` in `ServiceTile` wrapped in `{arrange &&
+  …}`; favorites API, `toggleFavorite`, and pinning logic unchanged.
+- **Tests (RED→GREEN):** new `Catalog.test.tsx` A5.1 block — star hidden by
+  default, shown when Arrange on, favorited-in-normal-view still renders pinned
+  (no control), non-admin toggles + persists with Arrange on. Existing favorites
+  + edit-keeps-favorite tests render with `arrange`. **Full suite: 114 vitest
+  green; build clean.**
+- **Spec:** v1 A5.1 row + Personalization flow updated; decision logged in
+  `specs/DECISIONS.md`.
+
 ## 2026-06-11 — DONE ✅: per-user Arrange toggle → settings **gear** (controls entry point)
 
 **Refinement of PR #8 (Caleb's framing, via Joe).** The Arrange text toggle is
