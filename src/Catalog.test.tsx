@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import Catalog from './Catalog';
 import {
+  categories,
   createService,
   deleteIcon,
   deleteService,
@@ -12,6 +13,7 @@ import {
   setThemePref,
   updateService,
   uploadIcon,
+  type Category,
   type Service,
   type ServiceStatus,
 } from './api';
@@ -29,6 +31,7 @@ vi.mock('./api', () => ({
   createService: vi.fn(),
   updateService: vi.fn(),
   setThemePref: vi.fn(),
+  categories: vi.fn(),
 }));
 
 // Keep the real precedence resolver + bundled default; only the async
@@ -48,6 +51,11 @@ const mockedCreateService = vi.mocked(createService);
 const mockedUpdateService = vi.mocked(updateService);
 const mockedValidate = vi.mocked(validateIconFile);
 const mockedSetThemePref = vi.mocked(setThemePref);
+const mockedCategories = vi.mocked(categories);
+
+function cat(over: Partial<Category> = {}): Category {
+  return { id: 'c1', name: 'Media', sortIndex: 0, ...over };
+}
 
 function svc(over: Partial<Service> = {}): Service {
   return {
@@ -61,6 +69,8 @@ function svc(over: Partial<Service> = {}): Service {
     favorite: false,
     iconLight: false,
     iconDark: false,
+    categoryId: null,
+    categoryName: null,
     ...over,
   };
 }
@@ -102,6 +112,9 @@ beforeEach(() => {
   mockedUpdateService.mockResolvedValue({ ok: true, status: 200, service: svc() });
   mockedValidate.mockResolvedValue(null);
   mockedSetThemePref.mockResolvedValue(true);
+  // Default: no categories → the catalog renders the flat v1 grid (A10), so
+  // every pre-v4 suite below exercises the unchanged flat behavior.
+  mockedCategories.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -681,5 +694,137 @@ describe('A9 — never a broken image', () => {
     // …then collapses to the local default (not a CDN URL) when it fails.
     expect(icon.getAttribute('src')).toBe(DEFAULT_ICON);
     expect(icon.getAttribute('src')?.startsWith('http')).toBe(false);
+  });
+});
+
+// ── v4 app categories (grouped render + admin management) ────────────────────
+
+// Find a section by its header text, tolerant of duplicate texts elsewhere on
+// the page (e.g. the same name appearing in a per-tile category <select>).
+function sectionByHeader(title: string): HTMLElement {
+  const header = screen
+    .getAllByTestId('category-header')
+    .find((h) => h.textContent === title);
+  return header!.closest('section') as HTMLElement;
+}
+
+function headerOrder(): (string | null)[] {
+  return screen.getAllByTestId('category-header').map((h) => h.textContent);
+}
+
+describe('v4 A10 — flat v1 render when no categories defined', () => {
+  it('renders no section headers and a single flat grid', async () => {
+    mockedCategories.mockResolvedValue([]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex' }),
+      svc({ id: 'b', name: 'Grafana' }),
+    ]);
+    render(<Catalog />);
+    await screen.findAllByTestId('service-tile');
+    expect(screen.queryByTestId('category-header')).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('service-tile')).toHaveLength(2);
+  });
+});
+
+describe('v4 A9 — grouped catalog render', () => {
+  it('renders Favorites first, categories in admin order, Uncategorized last', async () => {
+    mockedCategories.mockResolvedValue([
+      cat({ id: 'media', name: 'Media', sortIndex: 0 }),
+      cat({ id: 'infra', name: 'Infra', sortIndex: 1 }),
+    ]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media', favorite: true }),
+      svc({ id: 'b', name: 'Grafana', categoryId: 'infra', categoryName: 'Infra' }),
+      svc({ id: 'c', name: 'Notion' }), // uncategorized
+    ]);
+    render(<Catalog />);
+    await screen.findAllByTestId('service-tile');
+    expect(headerOrder()).toEqual(['Favorites', 'Media', 'Infra', 'Uncategorized']);
+  });
+
+  it('omits Favorites when nothing is favorited and Uncategorized when all are categorized', async () => {
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
+    ]);
+    render(<Catalog />);
+    await screen.findAllByTestId('service-tile');
+    expect(headerOrder()).toEqual(['Media']);
+  });
+
+  it('shows a favorited categorized app in BOTH Favorites and its category (Q3)', async () => {
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media', favorite: true }),
+    ]);
+    render(<Catalog />);
+    await screen.findAllByTestId('service-tile');
+    expect(headerOrder()).toEqual(['Favorites', 'Media']);
+    // One tile in Favorites + one in Media = two Plex tiles.
+    expect(screen.getAllByText('Plex')).toHaveLength(2);
+    expect(within(sectionByHeader('Favorites')).getByText('Plex')).toBeInTheDocument();
+    expect(within(sectionByHeader('Media')).getByText('Plex')).toBeInTheDocument();
+  });
+
+  it('renders an empty category section header even with no apps assigned', async () => {
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([svc({ id: 'c', name: 'Notion' })]); // uncategorized only
+    render(<Catalog />);
+    await screen.findAllByTestId('service-tile');
+    expect(headerOrder()).toEqual(['Media', 'Uncategorized']);
+    expect(within(sectionByHeader('Media')).queryByTestId('service-tile')).not.toBeInTheDocument();
+  });
+});
+
+describe('v4 A11 — tile behavior + reorder scoped within a section', () => {
+  it('reorders within a section, swapping the section-neighbor (not the global neighbor)', async () => {
+    const user = userEvent.setup();
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    // Global order: Plex(media), Notion(uncat), Jellyfin(media). Within Media: Plex, Jellyfin.
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
+      svc({ id: 'c', name: 'Notion' }),
+      svc({ id: 'd', name: 'Jellyfin', categoryId: 'media', categoryName: 'Media' }),
+    ]);
+    render(<Catalog arrange />);
+    await screen.findAllByTestId('service-tile');
+
+    const media = sectionByHeader('Media');
+    const plexTile = within(media).getAllByTestId('service-tile')[0];
+    await user.click(within(plexTile).getByTestId('move-down'));
+
+    // Plex swaps with Jellyfin (its Media neighbor), NOT Notion (its global
+    // neighbor) — the persisted global order reflects that scoped swap.
+    expect(mockedSetLayout).toHaveBeenCalledWith(['d', 'c', 'a']);
+    const mediaNames = within(sectionByHeader('Media'))
+      .getAllByTestId('service-tile-name')
+      .map((n) => n.textContent);
+    expect(mediaNames).toEqual(['Jellyfin', 'Plex']);
+  });
+
+  it('disables move-up on the first and move-down on the last tile WITHIN a section', async () => {
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
+      svc({ id: 'd', name: 'Jellyfin', categoryId: 'media', categoryName: 'Media' }),
+    ]);
+    render(<Catalog arrange />);
+    await screen.findAllByTestId('service-tile');
+    const tiles = within(sectionByHeader('Media')).getAllByTestId('service-tile');
+    expect(within(tiles[0]).getByTestId('move-up')).toBeDisabled();
+    expect(within(tiles[1]).getByTestId('move-down')).toBeDisabled();
+  });
+
+  it('keeps status badge, favorite star and icon within a section', async () => {
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media', status: 'DOWN', favorite: true }),
+    ]);
+    render(<Catalog arrange />);
+    await screen.findAllByTestId('service-tile');
+    const media = sectionByHeader('Media');
+    expect(within(media).getByTestId('status-badge')).toHaveAttribute('data-status', 'DOWN');
+    expect(within(media).getByTestId('favorite-toggle')).toHaveAttribute('data-favorite', 'true');
+    expect(within(media).getByTestId('service-tile-icon')).toBeInTheDocument();
   });
 });

@@ -26,7 +26,17 @@ export type Service = {
   // the list response — only these flags). Default false for older payloads.
   iconLight: boolean;
   iconDark: boolean;
+  // v4: the tile's category (null/absent → Uncategorized). Denormalized
+  // `categoryName` rides along so the client can render section headers without
+  // a second lookup. Optional so older payloads (and test fixtures) read as
+  // Uncategorized without churn.
+  categoryId?: string | null;
+  categoryName?: string | null;
 };
+
+// A v4 category: admin-managed shared-catalog metadata. `sortIndex` is the
+// admin-controlled order (not alphabetical).
+export type Category = { id: string; name: string; sortIndex: number };
 
 export type Result = { ok: boolean; status: number; error?: string };
 
@@ -180,6 +190,16 @@ export async function updateService(
   });
   if (res.status === 200) return { ok: true, status: 200, service: (await res.json()) as Service };
   return { ok: false, status: res.status, error: await errorText(res) };
+}
+
+// categories lists the shared catalog's categories in admin sort_index order
+// (v4). Session-gated server-side; a non-200 yields [] so the catalog falls back
+// to the flat v1 render rather than erroring.
+export async function categories(): Promise<Category[]> {
+  const res = await fetch('/api/categories', { credentials: 'include' });
+  if (res.status !== 200) return [];
+  const data = (await res.json()) as { categories: Category[] };
+  return data.categories ?? [];
 }
 
 // setLayout persists the current user's personal tile order (A5). `order` is the

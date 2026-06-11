@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   authConfig,
+  categories,
   createService,
   deleteIcon,
   deleteService,
@@ -296,6 +297,30 @@ describe('deleteService', () => {
   it('returns false on a non-204 (e.g. 403 non-admin)', async () => {
     mockFetch(null, 403);
     await expect(deleteService('s1')).resolves.toBe(false);
+  });
+});
+
+// ── v4 categories ──────────────────────────────────────────────────────────
+
+describe('categories (v4)', () => {
+  it('unwraps the categories array on 200', async () => {
+    const list = [
+      { id: 'c1', name: 'Media', sortIndex: 0 },
+      { id: 'c2', name: 'Infra', sortIndex: 1 },
+    ];
+    const fn = mockFetch(JSON.stringify({ categories: list }), 200);
+    await expect(categories()).resolves.toEqual(list);
+    expect(fn).toHaveBeenCalledWith('/api/categories', { credentials: 'include' });
+  });
+
+  it('returns [] on a non-200 (falls back to flat render)', async () => {
+    mockFetch(null, 401);
+    await expect(categories()).resolves.toEqual([]);
+  });
+
+  it('returns [] when the payload has no categories key', async () => {
+    mockFetch(JSON.stringify({}), 200);
+    await expect(categories()).resolves.toEqual([]);
   });
 });
 
