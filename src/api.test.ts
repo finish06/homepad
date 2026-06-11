@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   authConfig,
+  createService,
   deleteIcon,
   deleteService,
   login,
@@ -10,6 +11,7 @@ import {
   services,
   setFavorite,
   setLayout,
+  updateService,
   uploadIcon,
 } from './api';
 
@@ -158,6 +160,70 @@ describe('setFavorite', () => {
   it('returns false on a non-204', async () => {
     mockFetch(null, 500);
     await expect(setFavorite('s1', true)).resolves.toBe(false);
+  });
+});
+
+describe('createService', () => {
+  const input = {
+    slug: 'plex',
+    name: 'Plex',
+    description: 'Media',
+    url: 'https://plex.x',
+    icon: 'https://plex.x/icon.png',
+    gatus_key: 'plex',
+  };
+
+  it('POSTs the catalog fields and returns the created service on 201', async () => {
+    const created = { id: 's1', ...input, status: 'UNKNOWN', favorite: false, iconLight: false, iconDark: false };
+    const fn = mockFetch(JSON.stringify(created), 201);
+    const r = await createService(input);
+    expect(r).toEqual({ ok: true, status: 201, service: created });
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/services');
+    expect(opts).toMatchObject({ method: 'POST', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual(input);
+  });
+
+  it('surfaces the server error inline on a 409 slug collision', async () => {
+    mockFetch('a service with that slug already exists', 409);
+    await expect(createService(input)).resolves.toEqual({
+      ok: false,
+      status: 409,
+      error: 'a service with that slug already exists',
+    });
+  });
+
+  it('surfaces a 403 forbidden for a non-admin', async () => {
+    mockFetch('admin role required', 403);
+    const r = await createService(input);
+    expect(r.ok).toBe(false);
+    expect(r.status).toBe(403);
+    expect(r.service).toBeUndefined();
+  });
+});
+
+describe('updateService', () => {
+  it('PATCHes only the given fields and returns the updated service on 200', async () => {
+    const updated = {
+      id: 's1', slug: 'plex', name: 'Plex Media', description: 'Media', url: 'https://plex.x',
+      icon: '', status: 'UP', favorite: false, iconLight: false, iconDark: false,
+    };
+    const fn = mockFetch(JSON.stringify(updated), 200);
+    const r = await updateService('s1', { name: 'Plex Media' });
+    expect(r).toEqual({ ok: true, status: 200, service: updated });
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/services/s1');
+    expect(opts).toMatchObject({ method: 'PATCH', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ name: 'Plex Media' });
+  });
+
+  it('surfaces the server error inline on a 409 slug collision', async () => {
+    mockFetch('a service with that slug already exists', 409);
+    await expect(updateService('s1', { slug: 'taken' })).resolves.toEqual({
+      ok: false,
+      status: 409,
+      error: 'a service with that slug already exists',
+    });
   });
 });
 

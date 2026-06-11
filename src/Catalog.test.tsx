@@ -3,11 +3,13 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import Catalog from './Catalog';
 import {
+  createService,
   deleteIcon,
   deleteService,
   services,
   setFavorite,
   setLayout,
+  updateService,
   uploadIcon,
   type Service,
   type ServiceStatus,
@@ -21,6 +23,8 @@ vi.mock('./api', () => ({
   uploadIcon: vi.fn(),
   deleteIcon: vi.fn(),
   deleteService: vi.fn(),
+  createService: vi.fn(),
+  updateService: vi.fn(),
 }));
 
 // Keep the real precedence resolver + bundled default; only the async
@@ -36,6 +40,8 @@ const mockedSetLayout = vi.mocked(setLayout);
 const mockedUploadIcon = vi.mocked(uploadIcon);
 const mockedDeleteIcon = vi.mocked(deleteIcon);
 const mockedDeleteService = vi.mocked(deleteService);
+const mockedCreateService = vi.mocked(createService);
+const mockedUpdateService = vi.mocked(updateService);
 const mockedValidate = vi.mocked(validateIconFile);
 
 function svc(over: Partial<Service> = {}): Service {
@@ -87,6 +93,8 @@ beforeEach(() => {
   mockedUploadIcon.mockResolvedValue({ ok: true, status: 204 });
   mockedDeleteIcon.mockResolvedValue(true);
   mockedDeleteService.mockResolvedValue(true);
+  mockedCreateService.mockResolvedValue({ ok: true, status: 201, service: svc() });
+  mockedUpdateService.mockResolvedValue({ ok: true, status: 200, service: svc() });
   mockedValidate.mockResolvedValue(null);
 });
 
@@ -390,6 +398,138 @@ describe('delete service (edit mode)', () => {
     await user.click(within(tile).getByTestId('delete-service'));
 
     await waitFor(() => expect(screen.getByText('Plex')).toBeInTheDocument());
+  });
+});
+
+describe('A6 — add app (admin edit mode)', () => {
+  it('opens the form, POSTs the catalog fields and appends the new tile on success', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex' })]);
+    mockedCreateService.mockResolvedValue({
+      ok: true,
+      status: 201,
+      service: svc({ id: 'new', name: 'Grafana', slug: 'grafana', url: 'https://graf.x' }),
+    });
+    render(<Catalog isAdmin editMode />);
+
+    await user.click(await screen.findByTestId('add-service'));
+    const form = await screen.findByTestId('service-form');
+
+    await user.type(within(form).getByTestId('field-name'), 'Grafana');
+    await user.type(within(form).getByTestId('field-slug'), 'grafana');
+    await user.type(within(form).getByTestId('field-url'), 'https://graf.x');
+    await user.type(within(form).getByTestId('field-icon'), 'https://graf.x/i.png');
+    await user.type(within(form).getByTestId('field-gatus_key'), 'grafana');
+    await user.click(within(form).getByTestId('form-submit'));
+
+    // Full create payload incl. the snake_case gatus_key; description blank.
+    expect(mockedCreateService).toHaveBeenCalledWith({
+      name: 'Grafana',
+      slug: 'grafana',
+      url: 'https://graf.x',
+      description: '',
+      icon: 'https://graf.x/i.png',
+      gatus_key: 'grafana',
+    });
+    // New tile reflected without a refetch; the form closes.
+    expect(await screen.findByText('Grafana')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByTestId('service-form')).not.toBeInTheDocument());
+  });
+
+  it('surfaces a 409 slug collision inline and does not add a tile', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex' })]);
+    mockedCreateService.mockResolvedValue({
+      ok: false,
+      status: 409,
+      error: 'a service with that slug already exists',
+    });
+    render(<Catalog isAdmin editMode />);
+
+    await user.click(await screen.findByTestId('add-service'));
+    const form = await screen.findByTestId('service-form');
+    await user.type(within(form).getByTestId('field-name'), 'Plex Two');
+    await user.type(within(form).getByTestId('field-slug'), 'plex');
+    await user.type(within(form).getByTestId('field-url'), 'https://plex2.x');
+    await user.click(within(form).getByTestId('form-submit'));
+
+    expect(await screen.findByTestId('form-error')).toHaveTextContent(/already exists/);
+    // Form stays open; the catalog is unchanged (still just Plex).
+    expect(screen.getByTestId('service-form')).toBeInTheDocument();
+    expect(screen.getAllByTestId('service-tile')).toHaveLength(1);
+  });
+
+  it('blocks submit on a missing required field and never calls createService', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([svc()]);
+    render(<Catalog isAdmin editMode />);
+
+    await user.click(await screen.findByTestId('add-service'));
+    const form = await screen.findByTestId('service-form');
+    // Fill slug + url but leave the required name blank.
+    await user.type(within(form).getByTestId('field-slug'), 'grafana');
+    await user.type(within(form).getByTestId('field-url'), 'https://graf.x');
+    await user.click(within(form).getByTestId('form-submit'));
+
+    expect(await screen.findByTestId('form-error')).toHaveTextContent(/required/i);
+    expect(mockedCreateService).not.toHaveBeenCalled();
+  });
+});
+
+describe('A6 — edit app (admin edit mode)', () => {
+  it('prefills the form, PATCHes the fields and reflects the update (keeping favorite)', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([
+      svc({ id: 's1', name: 'Plex', slug: 'plex', url: 'https://plex.x', favorite: true }),
+    ]);
+    mockedUpdateService.mockResolvedValue({
+      ok: true,
+      status: 200,
+      // The API serializes favorite as false on update — the merge must not let
+      // that clobber the existing star.
+      service: svc({ id: 's1', name: 'Plex HD', slug: 'plex', url: 'https://plex.x', favorite: false }),
+    });
+    render(<Catalog isAdmin editMode />);
+
+    await user.click(await screen.findByTestId('edit-service'));
+    const form = await screen.findByTestId('service-form');
+    // Prefilled from the service.
+    expect(within(form).getByTestId('field-name')).toHaveValue('Plex');
+    expect(within(form).getByTestId('field-slug')).toHaveValue('plex');
+    expect(within(form).getByTestId('field-url')).toHaveValue('https://plex.x');
+
+    const name = within(form).getByTestId('field-name');
+    await user.clear(name);
+    await user.type(name, 'Plex HD');
+    await user.click(within(form).getByTestId('form-submit'));
+
+    // Blank gatus_key on edit is OMITTED so the existing key is preserved.
+    expect(mockedUpdateService).toHaveBeenCalledWith('s1', {
+      name: 'Plex HD',
+      slug: 'plex',
+      url: 'https://plex.x',
+      description: 'Media server',
+      icon: 'plex',
+    });
+    expect(await screen.findByText('Plex HD')).toBeInTheDocument();
+    // Favorite survives the update response's zero-value favorite.
+    expect(screen.getByTestId('favorite-toggle')).toHaveAttribute('data-favorite', 'true');
+  });
+
+  it('includes gatus_key in the PATCH only when the admin types one', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([svc({ id: 's1', name: 'Plex' })]);
+    render(<Catalog isAdmin editMode />);
+
+    await user.click(await screen.findByTestId('edit-service'));
+    const form = await screen.findByTestId('service-form');
+    await user.type(within(form).getByTestId('field-gatus_key'), 'plex-probe');
+    await user.click(within(form).getByTestId('form-submit'));
+
+    expect(mockedUpdateService).toHaveBeenCalledWith(
+      's1',
+      expect.objectContaining({ gatus_key: 'plex-probe' }),
+    );
   });
 });
 
