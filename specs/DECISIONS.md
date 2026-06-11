@@ -2,6 +2,26 @@
 
 Decisions made under authority delegated by Caleb → Joe (2026-06-11). Newest on top.
 
+## 2026-06-11 — Favorite ★ toggle gated behind Arrange mode (A5.1)
+
+Refinement (Joe, per Caleb). The normal view should be clean: the favorite star
+*control* shouldn't always show, same as the reorder arrows.
+
+- **The favorite ★ toggle is now revealed only in Arrange mode** — the same
+  per-user settings gear that reveals the reorder arrows. Normal view → no star,
+  no arrows; Arrange on → both the star and the arrows, so a user can star their
+  top apps and reorder in one mode.
+- **Data model untouched (A5 preserved).** Favoriting stays personal, persists
+  per-user (`POST`/`DELETE /api/favorites/{id}`), and works for non-admins.
+  **Favorited tiles still pin to the top section in the normal view** — ordering
+  is server-driven (`GET /api/services`). We gate *only the editable star
+  control's visibility*, never the favorites feature or the pinning.
+- **Surgical:** the star `<button>` in `ServiceTile` is wrapped in `{arrange &&
+  …}`; the favorites API, `toggleFavorite` logic, and pinning are unchanged.
+- Implemented test-first on `feat/favorite-star-arrange-gating` (star hidden in
+  normal view, shown in Arrange; favoriting still toggles/persists; non-admin
+  works; edit-keeps-favorite merge unchanged).
+
 ## 2026-06-11 — v4 app-categories (Q1–Q4): all confirmed as Stitch recommended
 
 Unblocks the v4 build. All four open NEEDS-JOE calls resolved to Stitch's

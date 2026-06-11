@@ -212,20 +212,26 @@ function ServiceTile({
         aria-label={`status: ${service.status}`}
         className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${statusDot[service.status] ?? statusDot.UNKNOWN}`}
       />
-      <button
-        type="button"
-        data-testid="favorite-toggle"
-        data-favorite={service.favorite ? 'true' : 'false'}
-        aria-pressed={service.favorite}
-        aria-label={service.favorite ? 'Unfavorite' : 'Favorite'}
-        title={service.favorite ? 'Unfavorite' : 'Favorite'}
-        onClick={() => onToggleFavorite(service.id)}
-        className={`absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-full text-lg leading-none outline-none transition hover:bg-neutral-100 focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-          service.favorite ? 'text-amber-400' : 'text-neutral-300 hover:text-neutral-400'
-        }`}
-      >
-        {service.favorite ? '★' : '☆'}
-      </button>
+      {/* A5.1: the favorite ★ toggle is a personalization control, revealed only
+          in Arrange mode alongside the reorder arrows. Favorited tiles still pin
+          to the top in the normal view (server-driven order) — only this editable
+          control is gated, never the favorites feature or the pinning. */}
+      {arrange && (
+        <button
+          type="button"
+          data-testid="favorite-toggle"
+          data-favorite={service.favorite ? 'true' : 'false'}
+          aria-pressed={service.favorite}
+          aria-label={service.favorite ? 'Unfavorite' : 'Favorite'}
+          title={service.favorite ? 'Unfavorite' : 'Favorite'}
+          onClick={() => onToggleFavorite(service.id)}
+          className={`absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-full text-lg leading-none outline-none transition hover:bg-neutral-100 focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+            service.favorite ? 'text-amber-400' : 'text-neutral-300 hover:text-neutral-400'
+          }`}
+        >
+          {service.favorite ? '★' : '☆'}
+        </button>
+      )}
       <a
         href={service.url}
         target="_blank"
