@@ -202,6 +202,84 @@ export async function categories(): Promise<Category[]> {
   return data.categories ?? [];
 }
 
+// createCategory adds a category to the shared catalog (v4; admin-only — the
+// server 403s a non-admin, 409s a duplicate name, 400s an empty name). On
+// success it returns the created category (appended last) so the caller can add
+// it without a refetch; on failure it surfaces the server message inline.
+export async function createCategory(
+  name: string,
+): Promise<Result & { category?: Category }> {
+  const res = await fetch('/api/categories', {
+    method: 'POST',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify({ name }),
+  });
+  if (res.status === 201) return { ok: true, status: 201, category: (await res.json()) as Category };
+  return { ok: false, status: res.status, error: await errorText(res) };
+}
+
+// renameCategory changes a category's name (v4; admin-only — 403 non-admin, 409
+// duplicate name, 404 unknown id). Returns the updated category on 200 so the
+// caller can reflect it inline.
+export async function renameCategory(
+  id: string,
+  name: string,
+): Promise<Result & { category?: Category }> {
+  const res = await fetch(`/api/categories/${id}`, {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify({ name }),
+  });
+  if (res.status === 200) return { ok: true, status: 200, category: (await res.json()) as Category };
+  return { ok: false, status: res.status, error: await errorText(res) };
+}
+
+// deleteCategory removes a category (v4; admin-only; idempotent 204). The FK is
+// ON DELETE SET NULL, so its apps fall back to Uncategorized — none are deleted.
+// Returns true on success so the caller can roll back an optimistic removal.
+export async function deleteCategory(id: string): Promise<boolean> {
+  const res = await fetch(`/api/categories/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  return res.status === 204;
+}
+
+// setCategoryOrder persists the admin category order (v4) — the same whole-array
+// contract as setLayout. `order` is the list of category ids, position 0 first;
+// the server rewrites each `sort_index`. Returns true on 204 so the caller can
+// roll back an optimistic reorder.
+export async function setCategoryOrder(order: string[]): Promise<boolean> {
+  const res = await fetch('/api/categories/order', {
+    method: 'PUT',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify({ order }),
+  });
+  return res.status === 204;
+}
+
+// assignCategory sets (or clears) a service's category via the v4-extended
+// PATCH /api/services/{id} (admin-only). `categoryId` is the target category, or
+// `null` to clear to Uncategorized — always sent, so the change is explicit (a
+// bogus id → 400). Returns the updated service on 200 so the caller can reflect
+// the new categoryId/categoryName inline.
+export async function assignCategory(
+  serviceId: string,
+  categoryId: string | null,
+): Promise<Result & { service?: Service }> {
+  const res = await fetch(`/api/services/${serviceId}`, {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify({ categoryId }),
+  });
+  if (res.status === 200) return { ok: true, status: 200, service: (await res.json()) as Service };
+  return { ok: false, status: res.status, error: await errorText(res) };
+}
+
 // setLayout persists the current user's personal tile order (A5). `order` is the
 // list of service ids, position 0 first. Returns true on success so the caller
 // can roll back an optimistic reorder.
