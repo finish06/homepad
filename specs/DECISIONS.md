@@ -2,6 +2,25 @@
 
 Decisions made under authority delegated by Caleb → Joe (2026-06-11). Newest on top.
 
+## 2026-06-11 — Per-user "Arrange" toggle becomes a settings **gear** (entry point)
+
+Refinement of the PR #8 Arrange toggle (Caleb's framing, via Joe). The per-user
+control is now a **settings-gear icon button** in the header — the **non-admin
+settings/controls entry point**, not just a renamed toggle.
+
+- **Gear shown to ALL logged-in users** (not admin-gated), distinct from the
+  admin **Edit** toggle, which is untouched.
+- **For now the gear toggles personal arrange mode** — same per-user behavior as
+  PR #8: off by default → reorder arrows hidden (decluttered view); on → arrows
+  shown. **A5 preserved** — a non-admin can still reorder (`PUT /api/layout` is
+  not admin-gated). The gear only gates arrow *visibility*.
+- **Built as an extensible affordance**, positioned to host future per-user
+  controls — deliberately **not** over-built into a settings menu yet.
+- **Accessible:** icon button with `aria-label="Personal settings"` and
+  `aria-pressed` reflecting arrange state; the gear `<svg>` is `aria-hidden`.
+- Implemented test-first on `feat/settings-gear` (replaces the PR #8 text
+  toggle; Catalog reorder logic untouched).
+
 ## 2026-06-11 — Reorder arrows gated behind a per-user "Arrange" toggle (A5)
 
 Caleb wanted the normal view decluttered — the reorder arrows shouldn't always
