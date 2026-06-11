@@ -3,11 +3,16 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import Catalog from './Catalog';
 import {
+  assignCategory,
   categories,
+  createCategory,
   createService,
+  deleteCategory,
   deleteIcon,
   deleteService,
+  renameCategory,
   services,
+  setCategoryOrder,
   setFavorite,
   setLayout,
   setThemePref,
@@ -32,6 +37,11 @@ vi.mock('./api', () => ({
   updateService: vi.fn(),
   setThemePref: vi.fn(),
   categories: vi.fn(),
+  createCategory: vi.fn(),
+  renameCategory: vi.fn(),
+  deleteCategory: vi.fn(),
+  setCategoryOrder: vi.fn(),
+  assignCategory: vi.fn(),
 }));
 
 // Keep the real precedence resolver + bundled default; only the async
@@ -52,6 +62,11 @@ const mockedUpdateService = vi.mocked(updateService);
 const mockedValidate = vi.mocked(validateIconFile);
 const mockedSetThemePref = vi.mocked(setThemePref);
 const mockedCategories = vi.mocked(categories);
+const mockedCreateCategory = vi.mocked(createCategory);
+const mockedRenameCategory = vi.mocked(renameCategory);
+const mockedDeleteCategory = vi.mocked(deleteCategory);
+const mockedSetCategoryOrder = vi.mocked(setCategoryOrder);
+const mockedAssignCategory = vi.mocked(assignCategory);
 
 function cat(over: Partial<Category> = {}): Category {
   return { id: 'c1', name: 'Media', sortIndex: 0, ...over };
@@ -115,6 +130,11 @@ beforeEach(() => {
   // Default: no categories → the catalog renders the flat v1 grid (A10), so
   // every pre-v4 suite below exercises the unchanged flat behavior.
   mockedCategories.mockResolvedValue([]);
+  mockedCreateCategory.mockResolvedValue({ ok: true, status: 201, category: cat() });
+  mockedRenameCategory.mockResolvedValue({ ok: true, status: 200, category: cat() });
+  mockedDeleteCategory.mockResolvedValue(true);
+  mockedSetCategoryOrder.mockResolvedValue(true);
+  mockedAssignCategory.mockResolvedValue({ ok: true, status: 200, service: svc() });
 });
 
 afterEach(() => {
@@ -826,5 +846,261 @@ describe('v4 A11 — tile behavior + reorder scoped within a section', () => {
     expect(within(media).getByTestId('status-badge')).toHaveAttribute('data-status', 'DOWN');
     expect(within(media).getByTestId('favorite-toggle')).toHaveAttribute('data-favorite', 'true');
     expect(within(media).getByTestId('service-tile-icon')).toBeInTheDocument();
+  });
+});
+
+// ── v4 admin category management (PART 2) ────────────────────────────────────
+// The CRUD/reorder/assign controls live behind the EXISTING admin Edit mode —
+// the same toggle that gates Add/Edit/Delete service + icon controls.
+
+function managerRow(name: string): HTMLElement {
+  const input = screen
+    .getAllByTestId('category-rename-input')
+    .find((i) => (i as HTMLInputElement).value === name);
+  return input!.closest('[data-testid="category-row"]') as HTMLElement;
+}
+
+describe('v4 — category manager visibility (admin Edit mode)', () => {
+  it('shows the category manager only in admin Edit mode', async () => {
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('service-tile');
+    expect(screen.getByTestId('category-manager')).toBeInTheDocument();
+  });
+
+  it('hides it in view mode and for a non-admin even with editMode forced on', async () => {
+    const { rerender } = render(<Catalog isAdmin editMode={false} />);
+    await screen.findByTestId('service-tile');
+    expect(screen.queryByTestId('category-manager')).not.toBeInTheDocument();
+
+    rerender(<Catalog isAdmin={false} editMode />);
+    await screen.findByTestId('service-tile');
+    expect(screen.queryByTestId('category-manager')).not.toBeInTheDocument();
+  });
+
+  it('shows the manager even with zero categories so the first one can be created', async () => {
+    mockedCategories.mockResolvedValue([]);
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('category-manager');
+    expect(screen.queryByTestId('category-row')).not.toBeInTheDocument();
+    expect(screen.getByTestId('category-name-input')).toBeInTheDocument();
+  });
+});
+
+describe('v4 A1 — create category', () => {
+  it('POSTs the typed name and renders the new section on success', async () => {
+    const user = userEvent.setup();
+    mockedCategories.mockResolvedValue([]);
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex' })]); // uncategorized
+    mockedCreateCategory.mockResolvedValue({
+      ok: true,
+      status: 201,
+      category: cat({ id: 'media', name: 'Media', sortIndex: 0 }),
+    });
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('category-manager');
+
+    await user.type(screen.getByTestId('category-name-input'), 'Media');
+    await user.click(screen.getByTestId('category-create'));
+
+    expect(mockedCreateCategory).toHaveBeenCalledWith('Media');
+    // The new category drives a grouped render: a Media section appears.
+    await waitFor(() => expect(headerOrder()).toEqual(['Media', 'Uncategorized']));
+    // Input clears for the next create.
+    expect(screen.getByTestId('category-name-input')).toHaveValue('');
+  });
+
+  it('surfaces a 409 duplicate-name error inline and adds no section', async () => {
+    const user = userEvent.setup();
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' })]);
+    mockedCreateCategory.mockResolvedValue({
+      ok: false,
+      status: 409,
+      error: 'a category with that name already exists',
+    });
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('category-manager');
+
+    await user.type(screen.getByTestId('category-name-input'), 'Media');
+    await user.click(screen.getByTestId('category-create'));
+
+    expect(await screen.findByTestId('category-create-error')).toHaveTextContent(/already exists/);
+    expect(headerOrder()).toEqual(['Media']); // still just the one
+  });
+});
+
+describe('v4 A3 — rename category', () => {
+  it('PATCHes the new name and updates the section header', async () => {
+    const user = userEvent.setup();
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' })]);
+    mockedRenameCategory.mockResolvedValue({
+      ok: true,
+      status: 200,
+      category: cat({ id: 'media', name: 'Infra', sortIndex: 0 }),
+    });
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('category-manager');
+
+    const row = managerRow('Media');
+    const input = within(row).getByTestId('category-rename-input');
+    await user.clear(input);
+    await user.type(input, 'Infra');
+    await user.click(within(row).getByTestId('category-rename'));
+
+    expect(mockedRenameCategory).toHaveBeenCalledWith('media', 'Infra');
+    await waitFor(() => expect(headerOrder()).toEqual(['Infra']));
+  });
+
+  it('surfaces a rename error (409/404) inline on the row', async () => {
+    const user = userEvent.setup();
+    mockedCategories.mockResolvedValue([
+      cat({ id: 'media', name: 'Media', sortIndex: 0 }),
+      cat({ id: 'infra', name: 'Infra', sortIndex: 1 }),
+    ]);
+    mockedRenameCategory.mockResolvedValue({
+      ok: false,
+      status: 409,
+      error: 'a category with that name already exists',
+    });
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('category-manager');
+
+    const row = managerRow('Media');
+    const input = within(row).getByTestId('category-rename-input');
+    await user.clear(input);
+    await user.type(input, 'Infra');
+    await user.click(within(row).getByTestId('category-rename'));
+
+    expect(await within(row).findByTestId('category-row-error')).toHaveTextContent(/already exists/);
+  });
+});
+
+describe('v4 A7 — delete category', () => {
+  it('deletes the category and its apps fall back to Uncategorized (no app deleted)', async () => {
+    const user = userEvent.setup();
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
+    ]);
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('category-manager');
+
+    await user.click(within(managerRow('Media')).getByTestId('category-delete'));
+
+    expect(mockedDeleteCategory).toHaveBeenCalledWith('media');
+    // Only category gone → flat render, no headers; the app survives.
+    await waitFor(() => expect(screen.queryByTestId('category-row')).not.toBeInTheDocument());
+    expect(screen.queryByTestId('category-header')).not.toBeInTheDocument();
+    expect(screen.getByText('Plex')).toBeInTheDocument();
+  });
+
+  it('rolls back the manager + apps when the delete API rejects', async () => {
+    const user = userEvent.setup();
+    mockedDeleteCategory.mockResolvedValue(false);
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
+    ]);
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('category-manager');
+
+    await user.click(within(managerRow('Media')).getByTestId('category-delete'));
+
+    await waitFor(() => expect(managerRow('Media')).toBeInTheDocument());
+    expect(headerOrder()).toEqual(['Media']);
+  });
+});
+
+describe('v4 A4 — reorder categories', () => {
+  it('moves a category down, persists the new order and reorders the sections', async () => {
+    const user = userEvent.setup();
+    mockedCategories.mockResolvedValue([
+      cat({ id: 'media', name: 'Media', sortIndex: 0 }),
+      cat({ id: 'infra', name: 'Infra', sortIndex: 1 }),
+    ]);
+    mockedServices.mockResolvedValue([svc({ id: 'c', name: 'Notion' })]); // uncategorized
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('category-manager');
+    expect(headerOrder()).toEqual(['Media', 'Infra', 'Uncategorized']);
+
+    await user.click(within(managerRow('Media')).getByTestId('category-move-down'));
+
+    expect(mockedSetCategoryOrder).toHaveBeenCalledWith(['infra', 'media']);
+    expect(headerOrder()).toEqual(['Infra', 'Media', 'Uncategorized']);
+  });
+
+  it('disables move-up on the first row and move-down on the last', async () => {
+    mockedCategories.mockResolvedValue([
+      cat({ id: 'media', name: 'Media', sortIndex: 0 }),
+      cat({ id: 'infra', name: 'Infra', sortIndex: 1 }),
+    ]);
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('category-manager');
+    expect(within(managerRow('Media')).getByTestId('category-move-up')).toBeDisabled();
+    expect(within(managerRow('Infra')).getByTestId('category-move-down')).toBeDisabled();
+  });
+});
+
+describe('v4 A5 — assign a service to a category (per-tile, edit mode)', () => {
+  it('assigns an uncategorized app to a category and moves its tile there', async () => {
+    const user = userEvent.setup();
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex' })]); // uncategorized
+    mockedAssignCategory.mockResolvedValue({
+      ok: true,
+      status: 200,
+      service: svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
+    });
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('service-tile');
+
+    // The tile starts in Uncategorized; pick Media from its assign <select>.
+    const tile = within(sectionByHeader('Uncategorized')).getByTestId('service-tile');
+    await user.selectOptions(within(tile).getByTestId('category-select'), 'media');
+
+    expect(mockedAssignCategory).toHaveBeenCalledWith('a', 'media');
+    await waitFor(() =>
+      expect(within(sectionByHeader('Media')).getByText('Plex')).toBeInTheDocument(),
+    );
+  });
+
+  it('clears a categorized app back to Uncategorized (categoryId → null)', async () => {
+    const user = userEvent.setup();
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
+    ]);
+    mockedAssignCategory.mockResolvedValue({
+      ok: true,
+      status: 200,
+      service: svc({ id: 'a', name: 'Plex', categoryId: null, categoryName: null }),
+    });
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('service-tile');
+
+    const tile = within(sectionByHeader('Media')).getByTestId('service-tile');
+    await user.selectOptions(within(tile).getByTestId('category-select'), '');
+
+    expect(mockedAssignCategory).toHaveBeenCalledWith('a', null);
+    await waitFor(() =>
+      expect(within(sectionByHeader('Uncategorized')).getByText('Plex')).toBeInTheDocument(),
+    );
+  });
+
+  it('surfaces a 400 (bogus category) inline and leaves the tile put', async () => {
+    const user = userEvent.setup();
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex' })]); // uncategorized
+    mockedAssignCategory.mockResolvedValue({ ok: false, status: 400, error: 'no such category' });
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('service-tile');
+
+    const tile = within(sectionByHeader('Uncategorized')).getByTestId('service-tile');
+    await user.selectOptions(within(tile).getByTestId('category-select'), 'media');
+
+    expect(await within(tile).findByTestId('category-select-error')).toHaveTextContent(/no such category/);
+    // Still Uncategorized — the failed assign didn't move it.
+    expect(within(sectionByHeader('Uncategorized')).getByText('Plex')).toBeInTheDocument();
   });
 });

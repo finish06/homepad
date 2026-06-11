@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react';
 import {
+  assignCategory,
   categories,
+  createCategory,
+  deleteCategory,
   deleteIcon,
   deleteService,
+  renameCategory,
   services,
+  setCategoryOrder,
   setFavorite,
   setLayout,
   uploadIcon,
   type Category,
   type IconVariant,
+  type Result,
   type Service,
   type ServiceStatus,
 } from './api';
@@ -131,6 +137,75 @@ export default function Catalog({
     setForm(null);
   }
 
+  // v4 admin category management. All mutations are independently admin-gated
+  // server-side; these handlers reflect the result locally without a refetch and
+  // return the Result so the manager can surface 403/404/409/400 inline.
+
+  // Create appends the new category last (server sets sort_index = max+1).
+  async function createCat(name: string): Promise<Result> {
+    const r = await createCategory(name);
+    if (r.ok && r.category) setCats((cur) => [...cur, r.category!]);
+    return r;
+  }
+
+  // Rename replaces the category in place, keeping its position.
+  async function renameCat(id: string, name: string): Promise<Result> {
+    const r = await renameCategory(id, name);
+    if (r.ok && r.category) setCats((cur) => cur.map((c) => (c.id === id ? r.category! : c)));
+    return r;
+  }
+
+  // Delete is optimistic: drop the category AND fall its apps back to
+  // Uncategorized (FK ON DELETE SET NULL — no app is deleted). Roll both back if
+  // the API rejects. Snapshots are captured up front so rollback can't race.
+  async function removeCat(id: string) {
+    const prevCats = cats;
+    const prevItems = items;
+    setCats((cur) => cur.filter((c) => c.id !== id));
+    setItems(
+      (cur) =>
+        cur?.map((s) => (s.categoryId === id ? { ...s, categoryId: null, categoryName: null } : s)) ??
+        cur,
+    );
+    const ok = await deleteCategory(id);
+    if (!ok) {
+      setCats(prevCats);
+      setItems(prevItems);
+    }
+  }
+
+  // Reorder one slot up (dir -1) / down (dir +1), then persist the whole-array
+  // order (same contract as the per-user layout). Optimistic with rollback.
+  async function moveCat(id: string, dir: -1 | 1) {
+    const i = cats.findIndex((c) => c.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= cats.length) return;
+    const prev = cats;
+    const next = [...cats];
+    [next[i], next[j]] = [next[j], next[i]];
+    setCats(next);
+    const ok = await setCategoryOrder(next.map((c) => c.id));
+    if (!ok) setCats(prev);
+  }
+
+  // Assign (or clear) a service's category. On success only categoryId/Name are
+  // updated from the response — favorite/icon flags are preserved (the PATCH
+  // response serializes them as zero values, like onSaved's edit merge).
+  async function assignCat(serviceId: string, categoryId: string | null): Promise<Result> {
+    const r = await assignCategory(serviceId, categoryId);
+    if (r.ok && r.service) {
+      setItems(
+        (cur) =>
+          cur?.map((s) =>
+            s.id === serviceId
+              ? { ...s, categoryId: r.service!.categoryId ?? null, categoryName: r.service!.categoryName ?? null }
+              : s,
+          ) ?? cur,
+      );
+    }
+    return r;
+  }
+
   if (items === null) {
     return <p className="text-sm text-neutral-400">loading services…</p>;
   }
@@ -155,11 +230,13 @@ export default function Catalog({
             rev={rev}
             editMode={adminEdit}
             arrange={arrange}
+            cats={cats}
             onToggleFavorite={toggleFavorite}
             onMove={moveItem}
             onIconFlag={setIconFlag}
             onRemoveService={removeService}
             onEditService={() => setForm({ service: s })}
+            onAssignCategory={assignCat}
           />
         ))}
       </div>
@@ -178,7 +255,7 @@ export default function Catalog({
   return (
     <>
       {adminEdit && (
-        <div className="mb-4">
+        <div className="mb-4 space-y-4">
           <button
             type="button"
             data-testid="add-service"
@@ -187,6 +264,13 @@ export default function Catalog({
           >
             + Add app
           </button>
+          <CategoryManager
+            cats={cats}
+            onCreate={createCat}
+            onRename={renameCat}
+            onDelete={removeCat}
+            onMove={moveCat}
+          />
         </div>
       )}
 
@@ -245,11 +329,13 @@ function ServiceTile({
   rev,
   editMode,
   arrange,
+  cats,
   onToggleFavorite,
   onMove,
   onIconFlag,
   onRemoveService,
   onEditService,
+  onAssignCategory,
 }: {
   service: Service;
   index: number;
@@ -259,11 +345,13 @@ function ServiceTile({
   rev: number;
   editMode: boolean;
   arrange: boolean;
+  cats: Category[];
   onToggleFavorite: (id: string) => void;
   onMove: (id: string, dir: -1 | 1, sectionIds: string[]) => void;
   onIconFlag: (id: string, variant: IconVariant, present: boolean) => void;
   onRemoveService: (id: string) => void;
   onEditService: () => void;
+  onAssignCategory: (serviceId: string, categoryId: string | null) => Promise<Result>;
 }) {
   return (
     <div
@@ -324,9 +412,11 @@ function ServiceTile({
       {editMode ? (
         <IconControls
           service={service}
+          cats={cats}
           onIconFlag={onIconFlag}
           onRemoveService={onRemoveService}
           onEditService={onEditService}
+          onAssignCategory={onAssignCategory}
         />
       ) : arrange ? (
         <div className="absolute bottom-2 right-2 flex gap-1">
@@ -372,14 +462,18 @@ function handleIconError(e: React.SyntheticEvent<HTMLImageElement>) {
 // an inline error on reject.
 function IconControls({
   service,
+  cats,
   onIconFlag,
   onRemoveService,
   onEditService,
+  onAssignCategory,
 }: {
   service: Service;
+  cats: Category[];
   onIconFlag: (id: string, variant: IconVariant, present: boolean) => void;
   onRemoveService: (id: string) => void;
   onEditService: () => void;
+  onAssignCategory: (serviceId: string, categoryId: string | null) => Promise<Result>;
 }) {
   return (
     <div data-testid="icon-controls" className="mt-3 border-t border-neutral-100 pt-3">
@@ -397,6 +491,12 @@ function IconControls({
           onIconFlag={onIconFlag}
         />
       </div>
+      {/* v4: assign this app to a category (or clear to Uncategorized). Only
+          shown once at least one category exists — otherwise there's nothing to
+          assign to and the catalog renders flat. */}
+      {cats.length > 0 && (
+        <CategorySelect service={service} cats={cats} onAssign={onAssignCategory} />
+      )}
       <button
         type="button"
         data-testid="edit-service"
@@ -500,6 +600,234 @@ function IconSlot({
       )}
       {error && (
         <p data-testid={`icon-error-${variant}`} className="mt-1 text-red-600">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// v4 admin category manager (edit mode): create a category, and per existing
+// category rename / reorder / delete. Mirrors the edit-mode card idiom; every
+// action surfaces the server's 403/404/409/400 inline. Shown even with zero
+// categories so the first one can be created.
+function CategoryManager({
+  cats,
+  onCreate,
+  onRename,
+  onDelete,
+  onMove,
+}: {
+  cats: Category[];
+  onCreate: (name: string) => Promise<Result>;
+  onRename: (id: string, name: string) => Promise<Result>;
+  onDelete: (id: string) => void;
+  onMove: (id: string, dir: -1 | 1) => void;
+}) {
+  const [name, setName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function create() {
+    const n = name.trim();
+    if (!n) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const r = await onCreate(n);
+      if (!r.ok) setError(r.error ?? 'Could not create category.');
+      else setName('');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div
+      data-testid="category-manager"
+      className="rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900"
+    >
+      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+        Categories
+      </h3>
+      <div className="space-y-2">
+        {cats.map((c, i) => (
+          <CategoryRow
+            key={c.id}
+            cat={c}
+            index={i}
+            total={cats.length}
+            onRename={onRename}
+            onDelete={onDelete}
+            onMove={onMove}
+          />
+        ))}
+      </div>
+      <div className="mt-3 flex gap-2">
+        <input
+          data-testid="category-name-input"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="New category"
+          className="flex-1 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm outline-none focus:border-indigo-500"
+        />
+        <button
+          type="button"
+          data-testid="category-create"
+          disabled={busy}
+          onClick={create}
+          className="rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-60"
+        >
+          Add category
+        </button>
+      </div>
+      {error && (
+        <p data-testid="category-create-error" className="mt-2 text-sm text-red-600">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// A single category row: an inline rename field + Save, reorder arrows, and
+// Delete. Local rename state is seeded from the category name; the row keys on
+// the category id so it survives reorder.
+function CategoryRow({
+  cat,
+  index,
+  total,
+  onRename,
+  onDelete,
+  onMove,
+}: {
+  cat: Category;
+  index: number;
+  total: number;
+  onRename: (id: string, name: string) => Promise<Result>;
+  onDelete: (id: string) => void;
+  onMove: (id: string, dir: -1 | 1) => void;
+}) {
+  const [name, setName] = useState(cat.name);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    const n = name.trim();
+    if (!n) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const r = await onRename(cat.id, n);
+      if (!r.ok) setError(r.error ?? 'Could not rename category.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div data-testid="category-row" data-category-id={cat.id} className="flex items-center gap-1">
+      <input
+        data-testid="category-rename-input"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        aria-label={`Rename ${cat.name}`}
+        className="min-w-0 flex-1 rounded-lg border border-neutral-300 px-2 py-1 text-sm outline-none focus:border-indigo-500"
+      />
+      <button
+        type="button"
+        data-testid="category-rename"
+        disabled={busy}
+        onClick={save}
+        className="rounded-md border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
+      >
+        Save
+      </button>
+      <button
+        type="button"
+        data-testid="category-move-up"
+        aria-label={`Move ${cat.name} up`}
+        disabled={index === 0}
+        onClick={() => onMove(cat.id, -1)}
+        className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 disabled:pointer-events-none disabled:opacity-30"
+      >
+        ↑
+      </button>
+      <button
+        type="button"
+        data-testid="category-move-down"
+        aria-label={`Move ${cat.name} down`}
+        disabled={index === total - 1}
+        onClick={() => onMove(cat.id, 1)}
+        className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 disabled:pointer-events-none disabled:opacity-30"
+      >
+        ↓
+      </button>
+      <button
+        type="button"
+        data-testid="category-delete"
+        aria-label={`Delete ${cat.name}`}
+        onClick={() => onDelete(cat.id)}
+        className="rounded-md border border-red-200 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+      >
+        Delete
+      </button>
+      {error && (
+        <p data-testid="category-row-error" className="ml-1 text-xs text-red-600">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// v4 per-tile category assignment (edit mode). Picking an option PATCHes the
+// service's categoryId (empty value → null, i.e. Uncategorized); a server
+// rejection (e.g. 400 bogus category) surfaces inline, like an icon error.
+function CategorySelect({
+  service,
+  cats,
+  onAssign,
+}: {
+  service: Service;
+  cats: Category[];
+  onAssign: (serviceId: string, categoryId: string | null) => Promise<Result>;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function onChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const value = e.target.value || null;
+    setError(null);
+    setBusy(true);
+    try {
+      const r = await onAssign(service.id, value);
+      if (!r.ok) setError(r.error ?? 'Could not assign category.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-2 text-xs">
+      <span className="mb-1 block font-medium text-neutral-500">Category</span>
+      <select
+        data-testid="category-select"
+        aria-label="Category"
+        value={service.categoryId ?? ''}
+        disabled={busy}
+        onChange={onChange}
+        className="w-full rounded-md border border-neutral-300 px-2 py-1 text-xs outline-none focus:border-indigo-500"
+      >
+        <option value="">Uncategorized</option>
+        {cats.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+      {error && (
+        <p data-testid="category-select-error" className="mt-1 text-red-600">
           {error}
         </p>
       )}

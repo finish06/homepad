@@ -1,15 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  assignCategory,
   authConfig,
   categories,
+  createCategory,
   createService,
+  deleteCategory,
   deleteIcon,
   deleteService,
   login,
   logout,
   me,
   register,
+  renameCategory,
   services,
+  setCategoryOrder,
   setFavorite,
   setLayout,
   setThemePref,
@@ -321,6 +326,133 @@ describe('categories (v4)', () => {
   it('returns [] when the payload has no categories key', async () => {
     mockFetch(JSON.stringify({}), 200);
     await expect(categories()).resolves.toEqual([]);
+  });
+});
+
+describe('createCategory (v4)', () => {
+  it('POSTs the name and returns the created category on 201', async () => {
+    const created = { id: 'c1', name: 'Media', sortIndex: 0 };
+    const fn = mockFetch(JSON.stringify(created), 201);
+    const r = await createCategory('Media');
+    expect(r).toEqual({ ok: true, status: 201, category: created });
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/categories');
+    expect(opts).toMatchObject({ method: 'POST', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ name: 'Media' });
+  });
+
+  it('surfaces a 409 duplicate-name error inline', async () => {
+    mockFetch('a category with that name already exists', 409);
+    await expect(createCategory('Media')).resolves.toEqual({
+      ok: false,
+      status: 409,
+      error: 'a category with that name already exists',
+    });
+  });
+
+  it('surfaces a 403 forbidden for a non-admin', async () => {
+    mockFetch('admin role required', 403);
+    const r = await createCategory('Media');
+    expect(r.ok).toBe(false);
+    expect(r.status).toBe(403);
+    expect(r.category).toBeUndefined();
+  });
+});
+
+describe('renameCategory (v4)', () => {
+  it('PATCHes the name and returns the updated category on 200', async () => {
+    const updated = { id: 'c1', name: 'Infra', sortIndex: 0 };
+    const fn = mockFetch(JSON.stringify(updated), 200);
+    const r = await renameCategory('c1', 'Infra');
+    expect(r).toEqual({ ok: true, status: 200, category: updated });
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/categories/c1');
+    expect(opts).toMatchObject({ method: 'PATCH', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ name: 'Infra' });
+  });
+
+  it('surfaces a 404 unknown id inline', async () => {
+    mockFetch('no such category', 404);
+    await expect(renameCategory('nope', 'Infra')).resolves.toEqual({
+      ok: false,
+      status: 404,
+      error: 'no such category',
+    });
+  });
+
+  it('surfaces a 409 duplicate-name inline', async () => {
+    mockFetch('a category with that name already exists', 409);
+    const r = await renameCategory('c1', 'Media');
+    expect(r.ok).toBe(false);
+    expect(r.status).toBe(409);
+  });
+});
+
+describe('deleteCategory (v4)', () => {
+  it('DELETEs the category and returns true on 204', async () => {
+    const fn = mockFetch(null, 204);
+    await expect(deleteCategory('c1')).resolves.toBe(true);
+    expect(fn).toHaveBeenCalledWith('/api/categories/c1', {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+  });
+
+  it('returns false on a non-204 (e.g. 403 non-admin)', async () => {
+    mockFetch(null, 403);
+    await expect(deleteCategory('c1')).resolves.toBe(false);
+  });
+});
+
+describe('setCategoryOrder (v4)', () => {
+  it('PUTs /api/categories/order with the order and returns true on 204', async () => {
+    const fn = mockFetch(null, 204);
+    await expect(setCategoryOrder(['c2', 'c1'])).resolves.toBe(true);
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/categories/order');
+    expect(opts).toMatchObject({ method: 'PUT', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ order: ['c2', 'c1'] });
+  });
+
+  it('returns false on a non-204 (e.g. 404 unknown id in order)', async () => {
+    mockFetch('no such category in order', 404);
+    await expect(setCategoryOrder(['nope'])).resolves.toBe(false);
+  });
+});
+
+describe('assignCategory (v4)', () => {
+  it('PATCHes the service categoryId and returns the updated service on 200', async () => {
+    const updated = {
+      id: 's1', slug: 'plex', name: 'Plex', description: 'd', url: 'https://plex.x',
+      icon: '', status: 'UP', favorite: false, iconLight: false, iconDark: false,
+      categoryId: 'c1', categoryName: 'Media',
+    };
+    const fn = mockFetch(JSON.stringify(updated), 200);
+    const r = await assignCategory('s1', 'c1');
+    expect(r).toEqual({ ok: true, status: 200, service: updated });
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/services/s1');
+    expect(opts).toMatchObject({ method: 'PATCH', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ categoryId: 'c1' });
+  });
+
+  it('sends categoryId:null to clear back to Uncategorized', async () => {
+    const fn = mockFetch(
+      JSON.stringify({ id: 's1', categoryId: null, categoryName: null }),
+      200,
+    );
+    await assignCategory('s1', null);
+    const [, opts] = fn.mock.calls[0];
+    expect(JSON.parse(opts!.body as string)).toEqual({ categoryId: null });
+  });
+
+  it('surfaces a 400 for a categoryId naming no category', async () => {
+    mockFetch('no such category', 400);
+    await expect(assignCategory('s1', 'bogus')).resolves.toEqual({
+      ok: false,
+      status: 400,
+      error: 'no such category',
+    });
   });
 });
 
