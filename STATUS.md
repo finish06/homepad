@@ -2,6 +2,57 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-10 — v3–v6 specs: theme mode, categories, collapsible sections, admin settings (SPEC ONLY)
+
+Wrote **four** ADD-methodology spec docs (same style as `v1-launcher.md` /
+`v2-app-icons.md`). **No app code, tests, or implementation** this run —
+spec docs only. Branched off latest `main`.
+
+**New docs**
+- **`specs/v3-theme-mode.md`** — user-facing **System / Light / Dark** theme
+  setting (default System). Persists **per-user in Postgres** (`users.theme_pref`,
+  migration `0003`) — recommended over localStorage to match favorites/layout;
+  localStorage used only as a first-paint anti-flash cache. New `PATCH /api/me`
+  (session-gated) + `themePref` on the `userView`. Defines the **"active theme"**
+  that v2's light/dark **icon variant** selection depends on (v2 A7/A8 become
+  testable end-to-end). Live OS-following under System. ACs A1–A12.
+- **`specs/v4-app-categories.md`** — first-class **category** model
+  (`categories` table + nullable `services.category_id`, FK `ON DELETE SET NULL`,
+  migration `0004`). Admin-gated CRUD/reorder/assign; catalog renders
+  **grouped-by-category** with Favorites first + Uncategorized last; flat-v1
+  render when no categories exist. ACs A1–A12. **NEEDS JOE (real product
+  call):** seed categories from the existing Gatus groups (kube/media/external)
+  vs. start fresh — Stitch recommends **start fresh** in the model; the 39-app
+  seed lives in **Joe's deploy**, so any group→category seed is a separate
+  one-time data step Joe owns, not a homepad-api migration.
+- **`specs/v5-collapsible-categories.md`** — per-category **collapse/expand**,
+  persisted **per-user** (`user_collapsed_categories`, migration `0005`,
+  must run after `0004`). Default **expanded**; stores the *collapsed* set so new
+  categories auto-expand. `GET/PUT /api/me/collapsed-categories` (session-gated).
+  Accessible disclosure; FK cascade kills orphan state on category delete. ACs
+  A1–A12.
+- **`specs/v6-admin-settings.md`** — consolidates existing admin app-management
+  (v1 already ships admin-gated `POST/PATCH/DELETE /api/services`; v2 folds
+  controls into edit mode) into a dedicated **admin Settings page**. Names the
+  real gaps (settings page, clean URL-update UX, optional bulk ops) rather than
+  re-specifying existing endpoints. States the **server-side admin
+  authorization invariant** explicitly and makes it a `requireAdmin` middleware
+  refactor + a **cross-cutting** 401/403 test over every mutating route. ACs
+  A1–A11 (+ conditional A12/A13).
+
+**NEEDS JOE (open product calls across the four)**
+- v3: control placement (header user-menu vs user-settings page); `PATCH /api/me`
+  vs `PUT /api/preferences`.
+- v4: **seed from Gatus groups vs start fresh** (real call); per-category
+  icon/color; favorites-in-both-sections; one-category vs tags.
+- v5: dedicated collapse endpoint vs fold into `/api/me`; are Favorites/
+  Uncategorized collapsible too (lean: not for v5).
+- v6: keep both edit-mode + Settings (lean: yes); include admin role-assignment?
+  include bulk ops?
+
+**Build/test state:** unchanged — no source touched. Specs reference
+`homepad-api` for all backend work (migrations `0003`–`0005`, new handlers, the
+`requireAdmin` refactor).
 ## 2026-06-10 — A6 admin ADD / EDIT app UI (test-first)
 
 Closes the v1 **A6** gap: the web could only *delete* a service; now an admin can
