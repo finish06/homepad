@@ -2,6 +2,48 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-11 — NEEDS JOE: "reorder arrows only in edit mode" conflicts with A5 (per-user reorder)
+
+**Requested rule:** the per-tile reorder ↑/↓ arrows should show **only in edit
+mode** — hidden in normal view, visible when edit mode is on (same toggle that
+gates Add/Edit/Delete + icon controls).
+
+**Blocker — this plainly breaks A5, so it is NOT implemented yet** (surfaced per
+the task's think-before-coding instruction; nothing silently changed).
+
+The semantic conflict, confirmed three ways:
+- **Spec:** v1 A5 is _"Per-user favorites + **manual sort order** persist across
+  sessions"_; the personalization flow says **any logged-in user** reorders
+  their own tiles. `setLayout` (`api.ts`) is documented as persisting _"the
+  current user's **personal** tile order (A5)"_.
+- **Code:** edit mode is **admin-only** — the `Edit`/`Done` toggle in `App.tsx`
+  renders only for `isAdmin`, and `Catalog` gates on `adminEdit = isAdmin &&
+  editMode`. A non-admin family member can never enter edit mode.
+- **History:** A5 reorder shipped 2026-06-09 for **every** logged-in user; the
+  arrows currently live in the **non-edit** branch of `ServiceTile`
+  (`Catalog.tsx`), so today everyone can reorder in normal view.
+
+Gating the arrows behind the existing **admin** edit-mode toggle would therefore
+make reordering **admin-only** — regular users would lose personal reordering
+entirely, regressing a shipped, tested AC.
+
+**Options for Joe (pick one):**
+1. **Per-user "Arrange" toggle (Stitch's recommendation).** Add a lightweight
+   arrange/edit toggle available to **all** logged-in users that gates the
+   arrows (hidden by default, shown when on). Satisfies the "hide in normal
+   view" intent **and** keeps reorder personal — A5 stays intact. The admin
+   edit-mode toggle is untouched (still gates Add/Edit/Delete + icons).
+2. **Gate behind the existing admin edit-mode toggle (literal request).**
+   Accepts that reorder becomes **admin-only** — an intentional A5 change. If
+   chosen, the v1 spec A5 wording + acceptance test get updated to say "admin
+   reorders the shared order" (note: `setLayout` is still per-user server-side,
+   so this would also need a backend product call about whose order is edited).
+3. **Leave arrows always visible (status quo).** Reject the de-clutter change;
+   A5 fully preserved but the normal view keeps the arrows.
+
+Once Joe picks, this same branch gets the spec update + tests
+(arrows hidden when toggle off / shown when on) + implementation, then PR + CI.
+
 ## 2026-06-11 — v3 theme mode WEB slice (System / Light / Dark) (test-first)
 
 Closes the v3 **web** gap. The backend (`migration 0003` + `GET`/`PATCH /api/me
