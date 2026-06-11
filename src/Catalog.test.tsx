@@ -9,12 +9,15 @@ import {
   services,
   setFavorite,
   setLayout,
+  setThemePref,
   updateService,
   uploadIcon,
   type Service,
   type ServiceStatus,
 } from './api';
 import { DEFAULT_ICON, validateIconFile } from './icons';
+import { ThemeProvider } from './theme';
+import ThemeControl from './ThemeControl';
 
 vi.mock('./api', () => ({
   services: vi.fn(),
@@ -25,6 +28,7 @@ vi.mock('./api', () => ({
   deleteService: vi.fn(),
   createService: vi.fn(),
   updateService: vi.fn(),
+  setThemePref: vi.fn(),
 }));
 
 // Keep the real precedence resolver + bundled default; only the async
@@ -43,6 +47,7 @@ const mockedDeleteService = vi.mocked(deleteService);
 const mockedCreateService = vi.mocked(createService);
 const mockedUpdateService = vi.mocked(updateService);
 const mockedValidate = vi.mocked(validateIconFile);
+const mockedSetThemePref = vi.mocked(setThemePref);
 
 function svc(over: Partial<Service> = {}): Service {
   return {
@@ -96,11 +101,14 @@ beforeEach(() => {
   mockedCreateService.mockResolvedValue({ ok: true, status: 201, service: svc() });
   mockedUpdateService.mockResolvedValue({ ok: true, status: 200, service: svc() });
   mockedValidate.mockResolvedValue(null);
+  mockedSetThemePref.mockResolvedValue(true);
 });
 
 afterEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
+  document.documentElement.classList.remove('dark');
+  localStorage.clear();
 });
 
 describe('A2 — catalog tiles render', () => {
@@ -545,6 +553,31 @@ describe('A7 — theme-aware rendering (prefers-color-scheme)', () => {
     // OS flips to dark → the same <img> re-points with no reload.
     act(() => media.set(true));
     expect(icon).toHaveAttribute('src', '/api/services/s1/icon/dark');
+  });
+});
+
+describe('A9 — icon variant follows the resolved theme (driven by the control)', () => {
+  it('swaps /icon/light ↔ /icon/dark when the theme control flips, no reload', async () => {
+    const user = userEvent.setup();
+    stubMatchMedia(false); // OS light; pref starts at light so resolved = light
+    mockedServices.mockResolvedValue([svc({ id: 's1', iconLight: true, iconDark: true, icon: '' })]);
+    render(
+      <ThemeProvider userPref="light">
+        <ThemeControl />
+        <Catalog />
+      </ThemeProvider>,
+    );
+
+    const icon = await screen.findByTestId('service-tile-icon');
+    expect(icon).toHaveAttribute('src', '/api/services/s1/icon/light');
+
+    // Flip the real control to Dark — the SAME <img> re-points to the dark
+    // variant in place (this is v2 A7 now exercised by a user-facing control).
+    await user.click(screen.getByTestId('theme-dark'));
+    expect(icon).toHaveAttribute('src', '/api/services/s1/icon/dark');
+
+    await user.click(screen.getByTestId('theme-light'));
+    expect(icon).toHaveAttribute('src', '/api/services/s1/icon/light');
   });
 });
 

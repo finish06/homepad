@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { authConfig, login, logout, me, register, type User } from './api';
 import Catalog from './Catalog';
+import ThemeControl from './ThemeControl';
+import { ThemeProvider } from './theme';
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -13,18 +15,21 @@ export default function App() {
     });
   }, []);
 
-  if (loading) {
-    return (
-      <main className="min-h-screen flex items-center justify-center font-sans text-neutral-500">
-        loading…
-      </main>
-    );
-  }
-
-  return user ? (
-    <Home user={user} onLogout={() => setUser(null)} />
-  ) : (
-    <AuthForm onAuthed={setUser} />
+  // The provider wraps every state (loading/auth/home) so the resolved theme is
+  // applied throughout. Pre-auth has no stored pref, so it falls back to System
+  // (OS/cache); once /api/me resolves, the user's themePref flows in via the prop.
+  return (
+    <ThemeProvider userPref={user?.themePref}>
+      {loading ? (
+        <main className="min-h-screen flex items-center justify-center font-sans text-neutral-500">
+          loading…
+        </main>
+      ) : user ? (
+        <Home user={user} onLogout={() => setUser(null)} />
+      ) : (
+        <AuthForm onAuthed={setUser} />
+      )}
+    </ThemeProvider>
   );
 }
 
@@ -42,13 +47,14 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   }
 
   return (
-    <main className="min-h-screen bg-neutral-50 font-sans">
-      <header className="sticky top-0 z-10 border-b border-neutral-200 bg-white/80 backdrop-blur">
+    <main className="min-h-screen bg-neutral-50 font-sans dark:bg-neutral-950">
+      <header className="sticky top-0 z-10 border-b border-neutral-200 bg-white/80 backdrop-blur dark:border-neutral-800 dark:bg-neutral-900/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <h1 className="text-lg font-semibold">homepad</h1>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-neutral-500 sm:inline">{user.email}</span>
-            <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-600">
+            <ThemeControl />
+            <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">
               {user.role}
             </span>
             {isAdmin && (
@@ -60,7 +66,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
                 className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
                   editMode
                     ? 'border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700'
-                    : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50'
+                    : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800'
                 }`}
               >
                 {editMode ? 'Done' : 'Edit'}
@@ -68,7 +74,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             )}
             <button
               onClick={handleLogout}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
             >
               Log out
             </button>
@@ -122,7 +128,7 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
     <main className="min-h-screen flex items-center justify-center p-6 font-sans">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm"
+        className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
       >
         <h1 className="text-xl font-semibold">homepad</h1>
         <p className="mt-1 text-sm text-neutral-500">

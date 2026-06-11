@@ -2,7 +2,12 @@
 // session cookie is sent automatically; credentials:'include' keeps that
 // working through the Vite dev proxy too.
 
-export type User = { id: string; email: string; role: string };
+// The per-user theme preference (v3). `system` follows the OS; `light`/`dark`
+// pin a surface. Stored server-side on the user row, surfaced on every auth
+// touchpoint (`me`/`login`/`register`) so the client never needs an extra read.
+export type ThemePref = 'system' | 'light' | 'dark';
+
+export type User = { id: string; email: string; role: string; themePref: ThemePref };
 
 export type ServiceStatus = 'UP' | 'DOWN' | 'DEGRADED' | 'UNKNOWN';
 
@@ -188,4 +193,18 @@ export async function setLayout(order: string[]): Promise<boolean> {
     body: JSON.stringify({ order }),
   });
   return res.status === 204;
+}
+
+// setThemePref persists the current user's theme choice (v3) via PATCH /api/me.
+// Session-gated server-side (a user sets only their own theme); an invalid value
+// is rejected 400. Returns true on 200 so the caller can roll back an optimistic
+// update — same shape as setFavorite/setLayout.
+export async function setThemePref(pref: ThemePref): Promise<boolean> {
+  const res = await fetch('/api/me', {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify({ themePref: pref }),
+  });
+  return res.status === 200;
 }

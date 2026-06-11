@@ -12,6 +12,7 @@ import {
 } from './api';
 import { DEFAULT_ICON, iconSrc, validateIconFile } from './icons';
 import ServiceForm from './ServiceForm';
+import { useResolvedTheme } from './theme';
 
 // Small colored dot per tile — UP green, DOWN red, DEGRADED amber, UNKNOWN gray.
 const statusDot: Record<ServiceStatus, string> = {
@@ -20,27 +21,6 @@ const statusDot: Record<ServiceStatus, string> = {
   DEGRADED: 'bg-amber-400',
   UNKNOWN: 'bg-neutral-300',
 };
-
-// Active theme derived from the OS (prefers-color-scheme). v3 will add an
-// explicit System/Light/Dark toggle that overrides this; for v2 the OS query is
-// the only source. matchMedia is guarded so jsdom/older runtimes default light.
-function systemTheme(): IconVariant {
-  const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
-  return mq?.matches ? 'dark' : 'light';
-}
-
-function useActiveTheme(): IconVariant {
-  const [theme, setTheme] = useState<IconVariant>(systemTheme);
-  useEffect(() => {
-    const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
-    if (!mq) return;
-    const onChange = () => setTheme(mq.matches ? 'dark' : 'light');
-    onChange();
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
-  return theme;
-}
 
 export default function Catalog({
   isAdmin = false,
@@ -55,7 +35,10 @@ export default function Catalog({
   const [rev, setRev] = useState(0);
   // null = closed; {} = add; { service } = edit that service (A6 admin form).
   const [form, setForm] = useState<{ service?: Service } | null>(null);
-  const theme = useActiveTheme();
+  // v3: the active theme is now the resolved theme from ThemeProvider (pref +
+  // OS), so the icon variant follows the System/Light/Dark control — not just
+  // the OS. Without a provider (isolated tests) it falls back to the live OS.
+  const theme = useResolvedTheme();
 
   useEffect(() => {
     services().then(setItems);
@@ -215,7 +198,7 @@ function ServiceTile({
   return (
     <div
       data-testid="service-tile"
-      className="relative rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+      className="relative rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900"
     >
       <span
         data-testid="status-badge"
@@ -251,7 +234,7 @@ function ServiceTile({
           onError={handleIconError}
           className="h-12 w-12 rounded-lg object-contain"
         />
-        <span data-testid="service-tile-name" className="mt-3 truncate font-semibold text-neutral-800">
+        <span data-testid="service-tile-name" className="mt-3 truncate font-semibold text-neutral-800 dark:text-neutral-100">
           {service.name}
         </span>
         <span

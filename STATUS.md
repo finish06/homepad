@@ -2,6 +2,69 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-11 — v3 theme mode WEB slice (System / Light / Dark) (test-first)
+
+Closes the v3 **web** gap. The backend (`migration 0003` + `GET`/`PATCH /api/me
+{themePref}`) was merged in homepad-api (PR #5); this is the browser slice.
+Branched `feat/v3-theme-web` off latest `main` (which carries Joe's
+`specs/DECISIONS.md` confirming Q1–Q3 = Stitch's leans: **header user-menu**,
+**`PATCH /api/me`**, **per-user Postgres + localStorage anti-flash cache**).
+Q4 = **live** OS following.
+
+**Shipped**
+- **`theme.tsx`** (new) — `ThemeProvider` holding the three distinct concepts:
+  stored `pref` (system|light|dark) ← `user.themePref`, the live OS preference
+  (`matchMedia`), and the `resolved` surface (light|dark). It mirrors `resolved`
+  onto `<html class="dark">` (Tailwind class strategy) **before paint**
+  (`useLayoutEffect`) and into a `localStorage` cache (`homepad.theme`), and
+  follows the OS **live** only while `pref==='system'`. `setPref` is optimistic
+  with rollback (favorites pattern). `useResolvedTheme()` reads the provider, or
+  **falls back to the live OS** when there's no provider (pre-auth, isolated
+  tests). `resolveBootTheme()` is the shared anti-flash precedence (cache → OS).
+- **`ThemeControl.tsx`** (new) — three-segment System / Light / Dark control in
+  the **header user-menu**, rendered for **every** logged-in user (not
+  admin-gated, unlike the v2 Edit toggle). Active segment marked
+  (`aria-pressed`); when System is active it shows the OS resolution hint
+  ("System · Dark"). Optimistic select → `PATCH /api/me`, inline error +
+  rollback on failure.
+- **`api.ts`** — `ThemePref` type; `themePref` added to `User`; `setThemePref()`
+  → `PATCH /api/me` (200 → true), the rollback signal.
+- **`Catalog.tsx`** — the v2 icon precedence now reads `useResolvedTheme()` (was
+  OS-only), so the light/dark tile variant follows the **resolved** theme and
+  switches when the control (or the OS, under System) flips — **no reload**.
+- **`index.html`** — anti-flash inline boot script (mirrors `resolveBootTheme`):
+  sets the dark class from the `localStorage` cache / OS before the bundle
+  paints. **`tailwind.config.ts`** `darkMode: 'media' → 'class'`. Dark `dark:`
+  variants added to the primary chrome (page, header, tiles, auth card, name).
+
+**Tests (vitest, all green — 103/103, was 85):**
+- `theme.test.tsx` (new) — A2 (System→OS), A3 (Light/Dark pin), A4 (System
+  follows OS live, pinned ignores OS), A8 (dark on first paint + cached;
+  `resolveBootTheme` precedence), A10 (optimistic rollback / keep), A12
+  (no-provider OS fallback). 11 cases.
+- `api.test.ts` — `setThemePref` PATCH payload/200→true; 400/401→false. +2.
+- `App.test.tsx` — A1 (three-option control for a non-admin), active segment
+  reflects stored pref, **A12** (no control pre-auth), select Dark → `PATCH` +
+  dark surface. +4 (USER/ADMIN fixtures gain `themePref`).
+- `Catalog.test.tsx` — **A9** (v2 A7 driven by the real control: both icon
+  flags true → toggle Dark/Light swaps `src` `/icon/light`↔`/icon/dark` in
+  place). +1.
+- `tests/e2e/theme-mode.spec.ts` (new) — route-mocked Playwright (admin-form
+  style): control flips surface + asserts `PATCH /api/me` bodies; System follows
+  `emulateMedia` live; A8 anti-flash from a seeded `localStorage` cache.
+
+**Build/test state:** `npm run build` clean (tsc over `src`+`tests` + vite) ·
+`vitest run` **103/103** green · bundle 163 kB (52 kB gzip) · A11 intact — the
+Gatus monitoring URL sentinel (`10.17.2.213`) is absent from `dist/` (the four
+`gatus` substrings are the pre-existing `gatus_key` field text, not the URL).
+
+**NEEDS JOE:** the new e2e (like the other `tests/e2e/*`) can't run in this
+container — chromium fails to launch on missing system libs
+(`libglib-2.0.so.0`); CI is build + vitest only. The spec is
+GREEN-by-construction (mirrors the runnable `admin-service-form` mocking) and
+typechecks. Please run `npx playwright test theme-mode` where browser deps
+exist to confirm the anti-flash first-paint + live-OS assertions end-to-end.
+
 ## 2026-06-10 — v3–v6 specs: theme mode, categories, collapsible sections, admin settings (SPEC ONLY)
 
 Wrote **four** ADD-methodology spec docs (same style as `v1-launcher.md` /
