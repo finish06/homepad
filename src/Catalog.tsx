@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
+  categories,
   deleteIcon,
   deleteService,
   services,
   setFavorite,
   setLayout,
   uploadIcon,
+  type Category,
   type IconVariant,
   type Service,
   type ServiceStatus,
@@ -32,6 +34,9 @@ export default function Catalog({
   arrange?: boolean;
 }) {
   const [items, setItems] = useState<Service[] | null>(null);
+  // v4: the admin-managed categories, in sort_index order. Empty → the catalog
+  // renders the flat v1 grid (A10), so v4 is invisible until an admin makes one.
+  const [cats, setCats] = useState<Category[]>([]);
   // Bumped on every icon mutation to bust the <img> cache so a replaced or
   // deleted icon re-renders the new bytes (the GET URL is otherwise stable).
   const [rev, setRev] = useState(0);
@@ -44,6 +49,7 @@ export default function Catalog({
 
   useEffect(() => {
     services().then(setItems);
+    categories().then(setCats);
   }, []);
 
   // Optimistically flip the star, then persist. Roll back if the API rejects.
@@ -61,18 +67,24 @@ export default function Catalog({
     }
   }
 
-  // Move a tile one slot up (dir -1) or down (dir +1), then persist the new
-  // order. Optimistic with rollback to the prior order if the API rejects —
-  // same shape as toggleFavorite. The pre-move snapshot is captured up front so
-  // the rollback can't race a later render.
-  async function moveItem(id: string, dir: -1 | 1) {
+  // Move a tile one slot up (dir -1) or down (dir +1) WITHIN its section, then
+  // persist the new global order. `sectionIds` is the ordered id list of the
+  // section the arrow lives in, so a tile swaps with its section-neighbor — it
+  // never jumps category (v4 A11). For the flat v1 grid the section is the whole
+  // catalog, so this reduces to v1's adjacent swap. Optimistic with rollback to
+  // the prior order if the API rejects — the pre-move snapshot is captured up
+  // front so the rollback can't race a later render.
+  async function moveItem(id: string, dir: -1 | 1, sectionIds: string[]) {
     const prev = items;
     if (!prev) return;
-    const idx = prev.findIndex((s) => s.id === id);
-    const target = idx + dir;
-    if (idx < 0 || target < 0 || target >= prev.length) return;
+    const sIdx = sectionIds.indexOf(id);
+    const targetId = sectionIds[sIdx + dir];
+    if (sIdx < 0 || targetId === undefined) return;
+    const gi = prev.findIndex((s) => s.id === id);
+    const gj = prev.findIndex((s) => s.id === targetId);
+    if (gi < 0 || gj < 0) return;
     const next = [...prev];
-    [next[idx], next[target]] = [next[target], next[idx]];
+    [next[gi], next[gj]] = [next[gj], next[gi]];
     setItems(next);
     const ok = await setLayout(next.map((s) => s.id));
     if (!ok) setItems(prev);
@@ -125,6 +137,44 @@ export default function Catalog({
 
   const adminEdit = isAdmin && editMode;
 
+  // A section's responsive tile grid. `sectionIds` scopes reorder to the section
+  // so a tile only swaps with its section-neighbors (v4 A11); for the flat v1
+  // grid the section is the whole catalog.
+  function renderGrid(sectionItems: Service[]) {
+    const ids = sectionItems.map((s) => s.id);
+    return (
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+        {sectionItems.map((s, i) => (
+          <ServiceTile
+            key={s.id}
+            service={s}
+            index={i}
+            total={sectionItems.length}
+            sectionIds={ids}
+            theme={theme}
+            rev={rev}
+            editMode={adminEdit}
+            arrange={arrange}
+            onToggleFavorite={toggleFavorite}
+            onMove={moveItem}
+            onIconFlag={setIconFlag}
+            onRemoveService={removeService}
+            onEditService={() => setForm({ service: s })}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // v4 grouped render: Favorites first (a favorited app shows here AND in its
+  // category — taxonomy vs. shortcut), then each category in admin order, then
+  // Uncategorized last (omitted when empty). With NO categories the catalog
+  // renders exactly as v1 — one flat grid, no headers (A10) — so the day-one
+  // seeded catalog is unchanged until an admin curates.
+  const grouped = cats.length > 0;
+  const favorites = items.filter((s) => s.favorite);
+  const uncategorized = items.filter((s) => s.categoryId == null);
+
   return (
     <>
       {adminEdit && (
@@ -140,29 +190,25 @@ export default function Catalog({
         </div>
       )}
 
-      {items.length === 0 ? (
-        <p className="text-sm text-neutral-400">
-          No services in the catalog yet — an admin can add them.
-        </p>
+      {!grouped ? (
+        items.length === 0 ? (
+          <p className="text-sm text-neutral-400">
+            No services in the catalog yet — an admin can add them.
+          </p>
+        ) : (
+          renderGrid(items)
+        )
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
-          {items.map((s, i) => (
-            <ServiceTile
-              key={s.id}
-              service={s}
-              index={i}
-              total={items.length}
-              theme={theme}
-              rev={rev}
-              editMode={adminEdit}
-              arrange={arrange}
-              onToggleFavorite={toggleFavorite}
-              onMove={moveItem}
-              onIconFlag={setIconFlag}
-              onRemoveService={removeService}
-              onEditService={() => setForm({ service: s })}
-            />
+        <div className="space-y-8">
+          {favorites.length > 0 && <Section title="Favorites">{renderGrid(favorites)}</Section>}
+          {cats.map((c) => (
+            <Section key={c.id} title={c.name}>
+              {renderGrid(items.filter((s) => s.categoryId === c.id))}
+            </Section>
           ))}
+          {uncategorized.length > 0 && (
+            <Section title="Uncategorized">{renderGrid(uncategorized)}</Section>
+          )}
         </div>
       )}
 
@@ -173,10 +219,28 @@ export default function Catalog({
   );
 }
 
+// A catalog section: a header (the category / Favorites / Uncategorized name) and
+// its tile grid beneath. The header is where v5 will attach the collapse control;
+// v4 ships it static.
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h2
+        data-testid="category-header"
+        className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500"
+      >
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
 function ServiceTile({
   service,
   index,
   total,
+  sectionIds,
   theme,
   rev,
   editMode,
@@ -190,12 +254,13 @@ function ServiceTile({
   service: Service;
   index: number;
   total: number;
+  sectionIds: string[];
   theme: IconVariant;
   rev: number;
   editMode: boolean;
   arrange: boolean;
   onToggleFavorite: (id: string) => void;
-  onMove: (id: string, dir: -1 | 1) => void;
+  onMove: (id: string, dir: -1 | 1, sectionIds: string[]) => void;
   onIconFlag: (id: string, variant: IconVariant, present: boolean) => void;
   onRemoveService: (id: string) => void;
   onEditService: () => void;
@@ -271,7 +336,7 @@ function ServiceTile({
             aria-label="Move up"
             title="Move up"
             disabled={index === 0}
-            onClick={() => onMove(service.id, -1)}
+            onClick={() => onMove(service.id, -1, sectionIds)}
             className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:pointer-events-none disabled:opacity-30"
           >
             ↑
@@ -282,7 +347,7 @@ function ServiceTile({
             aria-label="Move down"
             title="Move down"
             disabled={index === total - 1}
-            onClick={() => onMove(service.id, 1)}
+            onClick={() => onMove(service.id, 1, sectionIds)}
             className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:pointer-events-none disabled:opacity-30"
           >
             ↓
