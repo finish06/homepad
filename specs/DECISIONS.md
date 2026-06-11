@@ -2,6 +2,30 @@
 
 Decisions made under authority delegated by Caleb → Joe (2026-06-11). Newest on top.
 
+## 2026-06-11 — v4 app-categories (Q1–Q4): all confirmed as Stitch recommended
+
+Unblocks the v4 build. All four open NEEDS-JOE calls resolved to Stitch's
+recommendation (same posture as v3); rationale one-liners:
+
+- **Q1 — Seed from Gatus groups → Start fresh.** Categories ship empty; the
+  catalog renders exactly as v1 until an admin makes one (v4 invisible pre-seed).
+  A Gatus-group head-start, if ever wanted, is a separate one-time step in Joe's
+  seed data — **not** in migration `0004`. Keeps the model clean and reversible.
+- **Q2 — Per-category icon/accent in v4 → No.** Name + `sort_index` only.
+  Additive later if Caleb wants it; don't pre-build.
+- **Q3 — Favorites placement → Show in both.** A favorited app stays in its
+  category section AND in the pinned Favorites row (taxonomy vs. shortcut — how
+  most launchers behave). **Uncategorized header copy = "Uncategorized"** (Joe's
+  call: clearer than "Other"; matches the spec default).
+- **Q4 — One category per app → Yes.** Nullable FK, at most one. Many-to-many
+  tags stay a separate later spec; no speculative join table.
+
+**Build order (v2/v3 pattern):** backend slice FIRST — migration `0004`
+(`categories` table + `services.category_id` FK `ON DELETE SET NULL` + index),
+the category CRUD/reorder endpoints, `categoryId` on `PATCH /api/services/{id}`,
+and `categoryId`/`categoryName` on the `GET /api/services` view — then the web
+grouped render in a later slice.
+
 ## 2026-06-11 — Per-user "Arrange" toggle becomes a settings **gear** (entry point)
 
 Refinement of the PR #8 Arrange toggle (Caleb's framing, via Joe). The per-user
