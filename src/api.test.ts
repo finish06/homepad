@@ -11,6 +11,7 @@ import {
   services,
   setFavorite,
   setLayout,
+  setThemePref,
   updateService,
   uploadIcon,
 } from './api';
@@ -295,5 +296,23 @@ describe('deleteService', () => {
   it('returns false on a non-204 (e.g. 403 non-admin)', async () => {
     mockFetch(null, 403);
     await expect(deleteService('s1')).resolves.toBe(false);
+  });
+});
+
+describe('setThemePref (v3)', () => {
+  it('PATCHes /api/me with the themePref and returns true on 200', async () => {
+    const fn = mockFetch(JSON.stringify({ id: 'u1', themePref: 'dark' }), 200);
+    await expect(setThemePref('dark')).resolves.toBe(true);
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/me');
+    expect(opts).toMatchObject({ method: 'PATCH', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ themePref: 'dark' });
+  });
+
+  it('returns false on a non-200 (e.g. 400 invalid value / 401 no session)', async () => {
+    mockFetch('invalid themePref', 400);
+    await expect(setThemePref('system')).resolves.toBe(false);
+    mockFetch(null, 401);
+    await expect(setThemePref('light')).resolves.toBe(false);
   });
 });

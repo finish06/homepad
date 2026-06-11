@@ -16,6 +16,9 @@ export default {
       },
     },
   },
-  darkMode: 'media',
+  // v3 theme mode: the resolved theme is driven by a `dark` class on <html>
+  // (toggled by ThemeProvider from the user's pref + OS), not the raw OS media
+  // query — so Light/Dark/System can override what the OS prefers.
+  darkMode: 'class',
   plugins: [],
 } satisfies Config;

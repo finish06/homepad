@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
-import { authConfig, login, logout, me, register, type User } from './api';
+import { authConfig, login, logout, me, register, setThemePref, type User } from './api';
 
 // Catalog has its own tests; stub it so the auth-gate tests stay isolated from
 // the /api/services fetch.
@@ -14,6 +14,7 @@ vi.mock('./api', () => ({
   login: vi.fn(),
   register: vi.fn(),
   logout: vi.fn(),
+  setThemePref: vi.fn(),
 }));
 
 const mockedAuthConfig = vi.mocked(authConfig);
@@ -21,17 +22,21 @@ const mockedMe = vi.mocked(me);
 const mockedLogin = vi.mocked(login);
 const mockedRegister = vi.mocked(register);
 const mockedLogout = vi.mocked(logout);
+const mockedSetThemePref = vi.mocked(setThemePref);
 
-const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'user' };
-const ADMIN: User = { id: 'a1', email: 'lilo@ohana.io', role: 'admin' };
+const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'user', themePref: 'system' };
+const ADMIN: User = { id: 'a1', email: 'lilo@ohana.io', role: 'admin', themePref: 'system' };
 
 beforeEach(() => {
   mockedMe.mockResolvedValue(null);
   mockedAuthConfig.mockResolvedValue({ oidcEnabled: false });
+  mockedSetThemePref.mockResolvedValue(true);
 });
 
 afterEach(() => {
   vi.clearAllMocks();
+  document.documentElement.classList.remove('dark');
+  localStorage.clear();
 });
 
 async function dropLoading() {
@@ -163,6 +168,45 @@ describe('A1 — admin edit-mode toggle', () => {
     await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-pressed', 'false');
     expect(toggle).toHaveTextContent('Edit');
+  });
+});
+
+describe('v3 — theme control in the header (A1, A12)', () => {
+  it('shows the three-option control for a logged-in user (A1)', async () => {
+    mockedMe.mockResolvedValue(USER); // non-admin — control is not admin-gated
+    render(<App />);
+    await dropLoading();
+    expect(await screen.findByTestId('theme-control')).toBeInTheDocument();
+    expect(screen.getByTestId('theme-system')).toBeInTheDocument();
+    expect(screen.getByTestId('theme-light')).toBeInTheDocument();
+    expect(screen.getByTestId('theme-dark')).toBeInTheDocument();
+  });
+
+  it('marks the segment matching the user stored themePref active', async () => {
+    mockedMe.mockResolvedValue({ ...USER, themePref: 'dark' });
+    render(<App />);
+    await dropLoading();
+    expect(await screen.findByTestId('theme-dark')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('theme-system')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('does NOT show the control on the pre-auth screen (A12)', async () => {
+    render(<App />); // logged out
+    await dropLoading();
+    expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('theme-control')).not.toBeInTheDocument();
+  });
+
+  it('selecting Dark fires PATCH /api/me and applies the dark surface', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(USER);
+    render(<App />);
+    await dropLoading();
+
+    await user.click(await screen.findByTestId('theme-dark'));
+
+    expect(mockedSetThemePref).toHaveBeenCalledWith('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
 });
 
