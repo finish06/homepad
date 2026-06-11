@@ -29,6 +29,13 @@ export default function App() {
 }
 
 function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
+  // Edit mode is admin-only and client-ephemeral — a reload returns to view
+  // mode. It surfaces the per-tile icon controls (and delete-service). Every
+  // mutating endpoint is independently admin-gated server-side, so this toggle
+  // is a convenience surface, not the security boundary.
+  const isAdmin = user.role === 'admin';
+  const [editMode, setEditMode] = useState(false);
+
   async function handleLogout() {
     await logout();
     onLogout();
@@ -44,6 +51,21 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-600">
               {user.role}
             </span>
+            {isAdmin && (
+              <button
+                type="button"
+                data-testid="edit-toggle"
+                aria-pressed={editMode}
+                onClick={() => setEditMode((on) => !on)}
+                className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                  editMode
+                    ? 'border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700'
+                    : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50'
+                }`}
+              >
+                {editMode ? 'Done' : 'Edit'}
+              </button>
+            )}
             <button
               onClick={handleLogout}
               className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
@@ -55,7 +77,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
       </header>
 
       <section className="mx-auto max-w-6xl px-4 py-6">
-        <Catalog />
+        <Catalog isAdmin={isAdmin} editMode={editMode} />
       </section>
     </main>
   );

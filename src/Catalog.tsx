@@ -1,5 +1,17 @@
 import { useEffect, useState } from 'react';
-import { services, setFavorite, setLayout, type Service, type ServiceStatus } from './api';
+import {
+  deleteIcon,
+  deleteService,
+  services,
+  setFavorite,
+  setLayout,
+  uploadIcon,
+  type IconVariant,
+  type Service,
+  type ServiceStatus,
+} from './api';
+import { DEFAULT_ICON, iconSrc, validateIconFile } from './icons';
+import ServiceForm from './ServiceForm';
 
 // Small colored dot per tile — UP green, DOWN red, DEGRADED amber, UNKNOWN gray.
 const statusDot: Record<ServiceStatus, string> = {
@@ -9,8 +21,41 @@ const statusDot: Record<ServiceStatus, string> = {
   UNKNOWN: 'bg-neutral-300',
 };
 
-export default function Catalog() {
+// Active theme derived from the OS (prefers-color-scheme). v3 will add an
+// explicit System/Light/Dark toggle that overrides this; for v2 the OS query is
+// the only source. matchMedia is guarded so jsdom/older runtimes default light.
+function systemTheme(): IconVariant {
+  const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
+  return mq?.matches ? 'dark' : 'light';
+}
+
+function useActiveTheme(): IconVariant {
+  const [theme, setTheme] = useState<IconVariant>(systemTheme);
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
+    if (!mq) return;
+    const onChange = () => setTheme(mq.matches ? 'dark' : 'light');
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return theme;
+}
+
+export default function Catalog({
+  isAdmin = false,
+  editMode = false,
+}: {
+  isAdmin?: boolean;
+  editMode?: boolean;
+}) {
   const [items, setItems] = useState<Service[] | null>(null);
+  // Bumped on every icon mutation to bust the <img> cache so a replaced or
+  // deleted icon re-renders the new bytes (the GET URL is otherwise stable).
+  const [rev, setRev] = useState(0);
+  // null = closed; {} = add; { service } = edit that service (A6 admin form).
+  const [form, setForm] = useState<{ service?: Service } | null>(null);
+  const theme = useActiveTheme();
 
   useEffect(() => {
     services().then(setItems);
@@ -48,30 +93,97 @@ export default function Catalog() {
     if (!ok) setItems(prev);
   }
 
+  // Flip a service's local variant flag and bust the icon cache. Called after a
+  // successful upload (present=true) or delete (present=false) so the tile
+  // re-resolves its src without a full catalog refetch.
+  function setIconFlag(id: string, variant: IconVariant, present: boolean) {
+    const key = variant === 'light' ? 'iconLight' : 'iconDark';
+    setItems((cur) => cur?.map((s) => (s.id === id ? { ...s, [key]: present } : s)) ?? cur);
+    setRev((r) => r + 1);
+  }
+
+  // Remove a service from the catalog. Optimistic with rollback — the server
+  // cascades its uploaded icons away.
+  async function removeService(id: string) {
+    const prev = items;
+    if (!prev) return;
+    setItems(prev.filter((s) => s.id !== id));
+    const ok = await deleteService(id);
+    if (!ok) setItems(prev);
+  }
+
+  // Reflect a created/updated service in the local list without a refetch. A
+  // create appends; an edit replaces in place but KEEPS the existing favorite +
+  // icon flags, because the create/update response serializes those as their
+  // zero values (the server only sets them on the list endpoint). `rev` bumps so
+  // a changed icon URL re-renders past the <img> cache.
+  function onSaved(saved: Service, mode: 'add' | 'edit') {
+    if (mode === 'add') {
+      setItems((cur) => [...(cur ?? []), saved]);
+    } else {
+      setItems(
+        (cur) =>
+          cur?.map((s) =>
+            s.id === saved.id
+              ? { ...saved, favorite: s.favorite, iconLight: s.iconLight, iconDark: s.iconDark }
+              : s,
+          ) ?? cur,
+      );
+    }
+    setRev((r) => r + 1);
+    setForm(null);
+  }
+
   if (items === null) {
     return <p className="text-sm text-neutral-400">loading services…</p>;
   }
-  if (items.length === 0) {
-    return (
-      <p className="text-sm text-neutral-400">
-        No services in the catalog yet — an admin can add them.
-      </p>
-    );
-  }
+
+  const adminEdit = isAdmin && editMode;
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
-      {items.map((s, i) => (
-        <ServiceTile
-          key={s.id}
-          service={s}
-          index={i}
-          total={items.length}
-          onToggleFavorite={toggleFavorite}
-          onMove={moveItem}
-        />
-      ))}
-    </div>
+    <>
+      {adminEdit && (
+        <div className="mb-4">
+          <button
+            type="button"
+            data-testid="add-service"
+            onClick={() => setForm({})}
+            className="rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
+          >
+            + Add app
+          </button>
+        </div>
+      )}
+
+      {items.length === 0 ? (
+        <p className="text-sm text-neutral-400">
+          No services in the catalog yet — an admin can add them.
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+          {items.map((s, i) => (
+            <ServiceTile
+              key={s.id}
+              service={s}
+              index={i}
+              total={items.length}
+              theme={theme}
+              rev={rev}
+              editMode={adminEdit}
+              onToggleFavorite={toggleFavorite}
+              onMove={moveItem}
+              onIconFlag={setIconFlag}
+              onRemoveService={removeService}
+              onEditService={() => setForm({ service: s })}
+            />
+          ))}
+        </div>
+      )}
+
+      {form && (
+        <ServiceForm service={form.service} onClose={() => setForm(null)} onSaved={onSaved} />
+      )}
+    </>
   );
 }
 
@@ -79,16 +191,27 @@ function ServiceTile({
   service,
   index,
   total,
+  theme,
+  rev,
+  editMode,
   onToggleFavorite,
   onMove,
+  onIconFlag,
+  onRemoveService,
+  onEditService,
 }: {
   service: Service;
   index: number;
   total: number;
+  theme: IconVariant;
+  rev: number;
+  editMode: boolean;
   onToggleFavorite: (id: string) => void;
   onMove: (id: string, dir: -1 | 1) => void;
+  onIconFlag: (id: string, variant: IconVariant, present: boolean) => void;
+  onRemoveService: (id: string) => void;
+  onEditService: () => void;
 }) {
-  const icon = `https://cdn.jsdelivr.net/gh/selfhst/icons/svg/${service.icon || 'cog'}.svg`;
   return (
     <div
       data-testid="service-tile"
@@ -123,8 +246,9 @@ function ServiceTile({
       >
         <img
           data-testid="service-tile-icon"
-          src={icon}
+          src={iconSrc(service, theme, rev)}
           alt=""
+          onError={handleIconError}
           className="h-12 w-12 rounded-lg object-contain"
         />
         <span data-testid="service-tile-name" className="mt-3 truncate font-semibold text-neutral-800">
@@ -137,30 +261,189 @@ function ServiceTile({
           {service.description}
         </span>
       </a>
-      <div className="absolute bottom-2 right-2 flex gap-1">
-        <button
-          type="button"
-          data-testid="move-up"
-          aria-label="Move up"
-          title="Move up"
-          disabled={index === 0}
-          onClick={() => onMove(service.id, -1)}
-          className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:pointer-events-none disabled:opacity-30"
-        >
-          ↑
-        </button>
-        <button
-          type="button"
-          data-testid="move-down"
-          aria-label="Move down"
-          title="Move down"
-          disabled={index === total - 1}
-          onClick={() => onMove(service.id, 1)}
-          className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:pointer-events-none disabled:opacity-30"
-        >
-          ↓
-        </button>
+
+      {editMode ? (
+        <IconControls
+          service={service}
+          onIconFlag={onIconFlag}
+          onRemoveService={onRemoveService}
+          onEditService={onEditService}
+        />
+      ) : (
+        <div className="absolute bottom-2 right-2 flex gap-1">
+          <button
+            type="button"
+            data-testid="move-up"
+            aria-label="Move up"
+            title="Move up"
+            disabled={index === 0}
+            onClick={() => onMove(service.id, -1)}
+            className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:pointer-events-none disabled:opacity-30"
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            data-testid="move-down"
+            aria-label="Move down"
+            title="Move down"
+            disabled={index === total - 1}
+            onClick={() => onMove(service.id, 1)}
+            className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:pointer-events-none disabled:opacity-30"
+          >
+            ↓
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// onError fallback: a failed icon load collapses to the bundled local default
+// so a tile never shows the browser's broken-image glyph. onerror is cleared
+// first so the default (which can't fail) can't loop.
+function handleIconError(e: React.SyntheticEvent<HTMLImageElement>) {
+  const img = e.currentTarget;
+  img.onerror = null;
+  img.src = DEFAULT_ICON;
+}
+
+// Per-tile edit-mode controls: upload/replace/remove a light and a dark PNG,
+// plus remove the service. Client-validates each pick before upload and shows
+// an inline error on reject.
+function IconControls({
+  service,
+  onIconFlag,
+  onRemoveService,
+  onEditService,
+}: {
+  service: Service;
+  onIconFlag: (id: string, variant: IconVariant, present: boolean) => void;
+  onRemoveService: (id: string) => void;
+  onEditService: () => void;
+}) {
+  return (
+    <div data-testid="icon-controls" className="mt-3 border-t border-neutral-100 pt-3">
+      <div className="grid grid-cols-2 gap-2">
+        <IconSlot
+          service={service}
+          variant="light"
+          present={service.iconLight}
+          onIconFlag={onIconFlag}
+        />
+        <IconSlot
+          service={service}
+          variant="dark"
+          present={service.iconDark}
+          onIconFlag={onIconFlag}
+        />
       </div>
+      <button
+        type="button"
+        data-testid="edit-service"
+        onClick={onEditService}
+        className="mt-2 w-full rounded-lg border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+      >
+        Edit app
+      </button>
+      <button
+        type="button"
+        data-testid="delete-service"
+        onClick={() => onRemoveService(service.id)}
+        className="mt-2 w-full rounded-lg border border-red-200 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+      >
+        Delete service
+      </button>
+    </div>
+  );
+}
+
+function IconSlot({
+  service,
+  variant,
+  present,
+  onIconFlag,
+}: {
+  service: Service;
+  variant: IconVariant;
+  present: boolean;
+  onIconFlag: (id: string, variant: IconVariant, present: boolean) => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-picking the same file after a reject
+    if (!file) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const problem = await validateIconFile(file);
+      if (problem) {
+        setError(problem);
+        return;
+      }
+      const res = await uploadIcon(service.id, variant, file);
+      if (!res.ok) {
+        setError(res.error ?? 'Upload failed.');
+        return;
+      }
+      onIconFlag(service.id, variant, true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onRemove() {
+    setError(null);
+    setBusy(true);
+    try {
+      const ok = await deleteIcon(service.id, variant);
+      if (ok) onIconFlag(service.id, variant, false);
+      else setError('Remove failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const label = variant === 'light' ? 'Light' : 'Dark';
+  return (
+    <div className="text-xs">
+      <span className="mb-1 block font-medium text-neutral-500">{label}</span>
+      <label
+        className={`flex cursor-pointer items-center justify-center rounded-md border border-dashed px-2 py-1.5 text-center text-neutral-500 hover:bg-neutral-50 ${
+          variant === 'dark' ? 'bg-neutral-900 text-neutral-300 hover:bg-neutral-800' : 'bg-white'
+        }`}
+      >
+        {present ? 'Replace' : 'Upload'} PNG
+        <input
+          type="file"
+          accept="image/png"
+          data-testid={`icon-input-${variant}`}
+          aria-label={`${label} icon`}
+          disabled={busy}
+          onChange={onPick}
+          className="sr-only"
+        />
+      </label>
+      {present && (
+        <button
+          type="button"
+          data-testid={`icon-remove-${variant}`}
+          aria-label={`Remove ${label.toLowerCase()} icon`}
+          disabled={busy}
+          onClick={onRemove}
+          className="mt-1 w-full rounded-md px-2 py-0.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+        >
+          × Remove
+        </button>
+      )}
+      {error && (
+        <p data-testid={`icon-error-${variant}`} className="mt-1 text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

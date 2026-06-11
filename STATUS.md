@@ -53,6 +53,160 @@ spec docs only. Branched off latest `main`.
 **Build/test state:** unchanged — no source touched. Specs reference
 `homepad-api` for all backend work (migrations `0003`–`0005`, new handlers, the
 `requireAdmin` refactor).
+## 2026-06-10 — A6 admin ADD / EDIT app UI (test-first)
+
+Closes the v1 **A6** gap: the web could only *delete* a service; now an admin can
+**create** and **edit** catalog entries in the browser. Branched `feat/a6-admin-ui`
+off latest `main`. Backend CRUD (`POST /api/services`, `PATCH /api/services/{id}`)
+was already complete + tested — this is web-only.
+
+**Shipped**
+- **`api.ts`** — `createService(input)` → `POST /api/services` (201 → created
+  service); `updateService(id, patch)` → `PATCH /api/services/{id}` (200 →
+  updated service). Both return `Result & { service? }` (like `login`), surfacing
+  the server's message inline on failure (403 forbidden / 409 slug collision /
+  400 missing-required — the backend returns **400, not 422**, for empty
+  required fields; the inline path handles any non-success status's body either
+  way). New `ServiceInput` type keys the wire fields incl. snake_case `gatus_key`.
+- **`ServiceForm.tsx`** (new) — one form for both add and edit (passing a
+  `service` = edit, prefilled). Fields: name, slug, url, description, icon (full
+  URL), gatus_key. Client-side required-field validation (name/slug/url) shows an
+  inline error before any request; server errors render inline too. Reuses the
+  AuthForm card/label/input idiom.
+- **`Catalog.tsx`** — admin **+ Add app** affordance (edit mode) above the grid
+  (also shown on the empty-state so the first app can be added); per-tile **Edit
+  app** button alongside Delete. On success the list reflects the change with no
+  refetch — create appends, edit replaces in place.
+
+**Two correctness traps handled (and why):**
+- The create/update response serializes `favorite/iconLight/iconDark` as their
+  zero values (the server only populates those on the *list* endpoint). So an
+  edit **merges** — it keeps the existing favorite star + icon flags rather than
+  letting the response's `false` clobber them. Covered by a test.
+- The API **never returns `gatus_key`** (it stays server-side, resolved into
+  `status`). So the edit form can't prefill it: it starts blank and a blank key
+  is **omitted** from the PATCH (the existing key is preserved). Typing a value
+  sets/changes it. **Limitation:** the UI can't *clear* an existing gatus_key or
+  show its current value — acceptable for v1; flag if Joe wants a clear control.
+
+**Tests (vitest, all green):**
+- `api.test.ts` — createService (success body+payload, 409, 403) and
+  updateService (success, 409). +5 cases.
+- `Catalog.test.tsx` — add (success → POST payload incl. gatus_key + tile
+  appended; 409 collision inline; required-field validation blocks submit) and
+  edit (prefill → PATCH omits blank gatus_key + favorite preserved; gatus_key
+  included only when typed). +5 cases.
+- `tests/e2e/admin-service-form.spec.ts` (new) — route-mocked Playwright e2e in
+  the runnable `status-badge.spec.ts` style (no live backend): admin opens edit
+  mode → Add app → POST payload asserted + new tile shown; 409 collision and 422
+  validation surface inline with no tile added; Edit app prefills, PATCHes the
+  changed field, reflects the update. Typechecks via the build's `tsc`.
+
+**Build/test state:** `npm run build` clean (tsc over `src` **and** `tests` +
+vite) · `vitest run` **85/85** green · A11 intact — the no-gatus-leak sentinel
+URL (`gatus.10.17.2.213.nip.io`) is absent from `dist/`. (The new `gatus_key`
+field name + "Gatus key" label are API/UI text, not the monitoring URL.)
+
+A6 is now **UI-complete + tested**: create / edit / delete all in the browser.
+
+**NEEDS JOE:** the new A6 e2e (and the other `tests/e2e/*` specs) can't run in
+this container — chromium fails to launch on missing system libs
+(`libglib-2.0.so.0`), and `playwright install-deps` needs a root password we
+don't have. CI doesn't run e2e either (`.gitea/workflows/ci.yml` is build +
+vitest only). The spec is GREEN-by-construction (mirrors the runnable
+status-badge mocking) and typechecks; please run `npx playwright test
+admin-service-form` where browser deps exist to confirm, or add a deps install
+to the e2e environment.
+
+## 2026-06-10 — icon field is now a FULL URL (was selfh.st slug)
+
+Design change: the service `icon` text field holds a **full URL** (any image
+URL the admin provides), not a selfh.st slug. Branched `feat/icon-url` off
+latest `main`. Backend needed **no** change (`services.icon` is already free
+text); this is web + spec only. Test-first.
+
+**Shipped**
+- **`icons.ts` `iconSrc`** — precedence chain **unchanged** (uploaded
+  light/dark variant → `service.icon` → `DEFAULT_ICON`), but the `service.icon`
+  step now returns the field **verbatim as the `<img src>` URL** — no selfh.st
+  CDN template, no string-building. The existing `<img> onError → DEFAULT_ICON`
+  handler (`Catalog.tsx`) still degrades a broken/invalid/unreachable URL to the
+  bundled local default, so a bad URL never shows a broken glyph.
+- **Tests updated** (`icons.test.ts`, `Catalog.test.tsx`): the precedence step-3
+  case now asserts `iconSrc` returns the raw full URL when `icon` is set; still
+  prefers uploaded variants; still falls back to `DEFAULT_ICON` when empty.
+- **Spec** (`specs/v2-app-icons.md`): the data-model, precedence step 3, and
+  view-mode rendering descriptions of the `icon` field now say "**full URL**"
+  (used verbatim) instead of "selfh.st slug / CDN URL". (The historical
+  "Problem" section still narrates the original v1 selfh.st design as the
+  motivation for v2 — left as-is.)
+
+**Form relabel — N/A (nothing to relabel).** The prompt asked to relabel the
+admin create/edit-service form's icon input to "Icon URL". That **web form does
+not exist**: edit mode only surfaces per-tile PNG upload/remove + delete-service
+(see the 2026-06-10 edit-mode-UI entry below — the v1 A6 add/edit-service forms
+were never built on the web side; only `homepad-api` has those endpoints). So
+there is no slug-labelled input to change. When the add/edit-service web form is
+eventually built, its icon input should be a full "Icon URL" field
+(`placeholder="https://example.com/icon.png"`) — noted for that follow-up.
+
+**Tests (test-first, all green):** `vitest run` **75/75**. `npm run build`
+clean (tsc + vite). **dist has no Gatus URL** (and no `selfhst`/`jsdelivr`
+substring either).
+
+## 2026-06-10 — v2 app-icons: WEB edit-mode UI (A1/A2/A3/A7/A8/A9)
+
+Built the **web edit-mode UI** for v2 custom app icons against the mocked API
+(test-first). Branched off latest `main`. The backend slice (migration `0002`,
+4 handlers, list `iconLight`/`iconDark` flags) already landed in
+`homepad-api@feat/app-icons`; this run wires the UI to it.
+
+**Shipped**
+- **Admin edit-mode toggle** (`App.tsx`): an admin-only header toggle
+  (`Edit`/`Done`, `aria-pressed`), gated on `/api/me` `role === 'admin'`.
+  Client-ephemeral. Passes `isAdmin`+`editMode` into `Catalog`. Non-admins
+  never see it; server stays the authoritative gate. **(A1)**
+- **Per-tile icon controls** (`Catalog.tsx`, edit mode only): a **Light** and a
+  **Dark** PNG slot (`accept="image/png"`) with **upload / replace / remove**,
+  wired to `uploadIcon` (PUT raw bytes) / `deleteIcon`. **(A2, A3)**
+- **Client-side validation** (`icons.ts` `validateIconFile`, mirrors backend
+  Q2/Q3/Q4): PNG **magic-byte sniff** + **≤512×512** + **≤256 KB**, checked
+  *before* upload; rejects render an **inline error** and never hit the
+  network. Server-side rejections (e.g. 413) also surface inline.
+- **Theme-aware rendering** (`useActiveTheme`): active variant derived from the
+  **OS** via `prefers-color-scheme` (live `matchMedia` listener). Flipping the
+  OS theme re-points the `<img>` `src` with no reload. v3's explicit
+  System/Light/Dark toggle will override this later. **(A7)**
+- **Precedence chain** (`iconSrc`): active-variant upload → other-variant
+  upload → legacy `icon` text (selfh.st CDN) → **bundled local default**. **(A8)**
+- **Broken-image fix** (done regardless): a **bundled local default** icon
+  (in-bundle SVG data URI — zero network) + an `<img> onError` handler so a
+  tile **never** renders a broken image. This replaces the old implicit remote
+  `cog.svg` fallback that the seeded catalog shows today. **(A9)**
+
+**Tests (test-first, all green):** 75 vitest passing —
+`icons.test.ts` (validation caps + precedence + local default),
+`api.test.ts` (`uploadIcon`/`deleteIcon`/`deleteService` URL+mapping),
+`Catalog.test.tsx` (edit-mode slots, upload/replace/remove, client+server
+reject, delete-service optimistic+rollback, theme swap, onError fallback),
+`App.test.tsx` (admin toggle visible/hidden/flips). Existing view-mode tests
+updated: the empty-icon case now asserts the **local default** (cog CDN is
+gone, per spec). `npm run build` clean (tsc + vite); **dist has no Gatus URL**.
+
+**Scope call (Stitch's, since the question couldn't be put to Joe live):** the
+prompt's "edit mode surfaces BOTH the v1 add/edit/delete-service controls AND
+icon controls" assumes a v1 service-CRUD **web** surface that **does not exist
+yet** — only `homepad-api` has those endpoints; the web only ever shipped
+render/favorites/reorder. To keep this one focused, well-tested increment
+(Simplicity First), edit mode surfaces the **full v2 icon controls + a
+delete-service** button (its endpoint exists, trivial). **NEEDS JOE:** confirm
+whether **add-service / edit-service-fields forms** should be a follow-up web
+slice (recommended — they're really v1 A6 web work, distinct from v2 icons),
+or folded in next. `api.ts` already exposes `deleteService`; create/patch
+client fns are not added yet.
+
+**Deferred (not this run):** explicit theme toggle (v3); icon preview-against-
+swatch is implicit via the slot styling, not a live render of the picked file.
 
 ## 2026-06-10 — v2 spec: custom app icons via edit mode (SPEC ONLY)
 
@@ -255,3 +409,26 @@ _No blockers._
 ## Merge record — 2026-06-10
 
 - PR #1 `feat/catalog-vertical-slice` → `main` **merged** via real merge commit `4ea0c71` (parents `59523bc18d` + `b1950a40d0`). CI (Web build/unit tests, pull_request) concluded **success** after Joe's ci.yml conflict fix; mergeable was true. Source branch deleted. — Stitch
+
+## Coverage review — 2026-06-10 (v1 + v2)
+
+Full AC-by-AC + measured-coverage review written to
+[`docs/coverage-v1-v2.md`](docs/coverage-v1-v2.md). Honest verdict: **not 100%.**
+
+- **Measured:** backend `go test ./...` = **36 pass, 66.7% total stmts**
+  (`-coverpkg=./...`); web `vitest run --coverage` (v8) = **75 pass, 98.3% stmts
+  / 89.6% branch / 95.8% funcs**.
+- **Real gaps (severity):**
+  - 🔴 HIGH — `homepad-api` v2 (icons + OIDC) is **not merged to `main`** —
+    `origin/main` is `fcef7fa` (v1 only); v2 lives on `feat/app-icons`.
+  - 🟠 MEDIUM — v1 A6 **web create/edit-service UI missing** (only delete is
+    wired; `api.ts` has no `createService`/`updateService`). Backend CRUD +
+    RBAC fully tested.
+  - 🟡 LOW–MED — A7 (responsive) + A8 (perf/Lighthouse) are Playwright/LHCI-only
+    and **not executed in this pass**.
+  - 🟡 LOW — OIDC failure-mode branches, `gatus.FetchAll` success-parse, and
+    `0002…down.sql` rollback are untested (none are v1/v2 ACs).
+- **Closed during review (test-only, green):** rewrote `TestLogoutClearsSession`
+  into the full A1 login→logout→401 round-trip (`session.Destroy` 0%→100%);
+  added `TestRemoveFavoritePersistsAcrossSessions` for `DELETE /api/favorites`
+  (was 0%). Backend total 65.2% → 66.7%.
