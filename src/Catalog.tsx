@@ -25,9 +25,11 @@ const statusDot: Record<ServiceStatus, string> = {
 export default function Catalog({
   isAdmin = false,
   editMode = false,
+  arrange = false,
 }: {
   isAdmin?: boolean;
   editMode?: boolean;
+  arrange?: boolean;
 }) {
   const [items, setItems] = useState<Service[] | null>(null);
   // Bumped on every icon mutation to bust the <img> cache so a replaced or
@@ -153,6 +155,7 @@ export default function Catalog({
               theme={theme}
               rev={rev}
               editMode={adminEdit}
+              arrange={arrange}
               onToggleFavorite={toggleFavorite}
               onMove={moveItem}
               onIconFlag={setIconFlag}
@@ -177,6 +180,7 @@ function ServiceTile({
   theme,
   rev,
   editMode,
+  arrange,
   onToggleFavorite,
   onMove,
   onIconFlag,
@@ -189,6 +193,7 @@ function ServiceTile({
   theme: IconVariant;
   rev: number;
   editMode: boolean;
+  arrange: boolean;
   onToggleFavorite: (id: string) => void;
   onMove: (id: string, dir: -1 | 1) => void;
   onIconFlag: (id: string, variant: IconVariant, present: boolean) => void;
@@ -252,7 +257,7 @@ function ServiceTile({
           onRemoveService={onRemoveService}
           onEditService={onEditService}
         />
-      ) : (
+      ) : arrange ? (
         <div className="absolute bottom-2 right-2 flex gap-1">
           <button
             type="button"
@@ -277,7 +282,7 @@ function ServiceTile({
             ↓
           </button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
