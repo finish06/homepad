@@ -180,39 +180,47 @@ describe('A1 — admin edit-mode toggle', () => {
   });
 });
 
-describe('A5 — per-user Arrange toggle (reorder mode)', () => {
-  const arrangeToggle = () => screen.queryByTestId('arrange-toggle');
+describe('A5.1 — per-user settings gear (hosts Arrange / reorder mode)', () => {
+  // The gear is the non-admin settings/controls entry point. Today it toggles
+  // personal arrange mode (gates the reorder arrows); it is built to grow into
+  // the home for future per-user controls.
+  const gear = () => screen.queryByTestId('settings-gear');
   const stub = () => screen.getByTestId('catalog-stub');
 
-  it('shows the Arrange toggle for a non-admin (not admin-gated)', async () => {
+  it('shows the gear for a non-admin, with an accessible label (not admin-gated)', async () => {
     mockedMe.mockResolvedValue(USER);
     render(<App />);
     await dropLoading();
-    expect(await screen.findByTestId('arrange-toggle')).toBeInTheDocument();
+    // Discoverable by an assistive-tech name, not just a test id — it's an icon
+    // button, so the aria-label carries the meaning.
+    expect(await screen.findByRole('button', { name: /personal settings/i })).toBeInTheDocument();
+    expect(gear()).toBeInTheDocument();
   });
 
-  it('shows the Arrange toggle for an admin too', async () => {
+  it('shows the gear for an admin too (alongside the admin Edit toggle)', async () => {
     mockedMe.mockResolvedValue(ADMIN);
     render(<App />);
     await dropLoading();
-    expect(await screen.findByTestId('arrange-toggle')).toBeInTheDocument();
+    expect(await screen.findByTestId('settings-gear')).toBeInTheDocument();
+    // The admin Edit toggle is a separate, untouched affordance.
+    expect(screen.getByTestId('edit-toggle')).toBeInTheDocument();
   });
 
-  it('starts with Arrange off so the catalog hides the reorder arrows', async () => {
+  it('starts with arrange off so the catalog hides the reorder arrows', async () => {
     mockedMe.mockResolvedValue(USER);
     render(<App />);
     await dropLoading();
-    expect(arrangeToggle()).toHaveAttribute('aria-pressed', 'false');
+    expect(gear()).toHaveAttribute('aria-pressed', 'false');
     expect(stub()).toHaveAttribute('data-arrange', 'false');
   });
 
-  it('flips Arrange on and back off, wiring it into the catalog', async () => {
+  it('toggles arrange on and back off when clicked, wiring it into the catalog', async () => {
     const user = userEvent.setup();
     mockedMe.mockResolvedValue(USER);
     render(<App />);
     await dropLoading();
 
-    const toggle = await screen.findByTestId('arrange-toggle');
+    const toggle = await screen.findByTestId('settings-gear');
     await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-pressed', 'true');
     expect(stub()).toHaveAttribute('data-arrange', 'true');

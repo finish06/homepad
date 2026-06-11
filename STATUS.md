@@ -2,6 +2,34 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-11 — DONE ✅: per-user Arrange toggle → settings **gear** (controls entry point)
+
+**Refinement of PR #8 (Caleb's framing, via Joe).** The Arrange text toggle is
+now a **settings-gear icon button** in the header — the **non-admin
+settings/controls entry point**, built to grow, not just a renamed toggle.
+
+**Implemented test-first on `feat/settings-gear` (branched off `main`, which now
+has PR #8):**
+- **Gear button for ALL logged-in users** (NOT admin-gated),
+  `data-testid="settings-gear"`, `aria-label="Personal settings"`,
+  `aria-pressed` = arrange state; the gear `<svg>` is `aria-hidden`. Replaces the
+  old `arrange-toggle` text button. Cog-6-tooth (Heroicons-outline) icon.
+- **For now it toggles personal arrange mode** — off by default → reorder arrows
+  hidden (clean view); on → arrows shown. Same per-user behavior as PR #8.
+- **A5 preserved + Catalog untouched:** the `arrange` prop and arrow-gating logic
+  are unchanged; `PUT /api/layout` is not admin-gated, so a non-admin still
+  reorders (covered by the existing `Catalog.test.tsx` test).
+- **Admin Edit toggle untouched.** Deliberately **not** over-built into a
+  settings menu — just the extensible gear affordance that hosts arrange today.
+- **Tests (RED→GREEN):** `App.test.tsx` A5.1 block now asserts the gear renders
+  for both roles (found by accessible name `/personal settings/i`), starts off,
+  toggles arrange and wires it into Catalog. **Full suite: 110 vitest green;
+  `npm run build` (tsc + vite) clean.**
+- **Spec:** v1 A5.1 row + Personalization flow rewritten around the gear;
+  decision logged in `specs/DECISIONS.md`.
+
+---
+
 ## 2026-06-11 — RESOLVED ✅: reorder arrows gated behind a per-user "Arrange" toggle (Option 1)
 
 **Decision (Joe, delegated):** went with **Option 1** below — Caleb's intent was

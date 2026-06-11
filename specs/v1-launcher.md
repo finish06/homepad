@@ -146,7 +146,7 @@ Implications baked into the design:
 | A3 | Each tile shows a live status badge: UP (green), DOWN (red), DEGRADED (yellow), UNKNOWN (gray) | E2E with mocked Gatus: assert badge color per state |
 | A4 | Status staleness < 60s relative to latest Gatus probe | Backend test: poll loop ≤ 30s; status response includes `as_of` timestamp |
 | A5 | Per-user favorites + manual sort order persist across sessions | Integration: mark favorite, log out, log in, favorite & order persist |
-| A5.1 | Reorder arrows are hidden in the normal (decluttered) view and revealed by a per-user **Arrange** toggle in the header — available to every logged-in user, not admin-gated. Reordering itself stays personal and works for non-admins. | Component: arrows absent by default, present when Arrange on; non-admin can reorder with Arrange on (`PUT /api/layout`). Header: Arrange toggle shown for both roles. |
+| A5.1 | Reorder arrows are hidden in the normal (decluttered) view and revealed by a per-user **settings gear** button in the header — the non-admin settings/controls entry point, available to every logged-in user, not admin-gated. The gear hosts personal Arrange (reorder) today and is the home for future per-user controls. Reordering itself stays personal and works for non-admins. | Component: arrows absent by default, present when Arrange on; non-admin can reorder with Arrange on (`PUT /api/layout`). Header: gear button (accessible label, e.g. "Personal settings") shown for both roles; activating it toggles arrange. |
 | A6 | Admin can create / edit / delete catalog entries via the UI; non-admin gets 403 | Integration test for both roles |
 | A7 | Layout is usable on 390×844 (iPhone 13) and 1440×900 (desktop) without horizontal scroll or overlap | Playwright visual + functional test at both viewports |
 | A8 | Cold LAN load: TTI < 1.5s desktop, FCP < 800ms | Lighthouse run in CI |
@@ -158,7 +158,7 @@ Implications baked into the design:
 
 1. **Bootstrap:** First registered user → auto-promoted to `admin`. Subsequent users default to `user`. Admin can toggle a `HOMEPAD_REGISTRATION` setting between `open` / `invite_only` after onboarding.
 2. **Daily use:** Open `homepad.calebdunn.tech` (or LAN URL) → see catalog → glance at status badges → click tile to launch service.
-3. **Personalization:** Star icon toggles favorite. The header **Arrange** toggle (any logged-in user) reveals per-tile up/down reorder arrows — hidden by default so the normal view stays clean; toggling off returns to the decluttered view. Reordering persists per-user.
+3. **Personalization:** Star icon toggles favorite. The header **settings gear** (any logged-in user) is the per-user controls entry point; activating it reveals per-tile up/down reorder arrows — hidden by default so the normal view stays clean; toggling off returns to the decluttered view. Reordering persists per-user. Future personal controls will live behind this same gear.
 4. **Admin edits:** Settings → Catalog → add/edit/delete entries. Optional `gatus_key` binds a tile to a Gatus endpoint.
 
 ## Edge cases
