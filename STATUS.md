@@ -2,7 +2,32 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
-## 2026-06-11 — NEEDS JOE: "reorder arrows only in edit mode" conflicts with A5 (per-user reorder)
+## 2026-06-11 — RESOLVED ✅: reorder arrows gated behind a per-user "Arrange" toggle (Option 1)
+
+**Decision (Joe, delegated):** went with **Option 1** below — Caleb's intent was
+to *declutter* the normal view (arrows shouldn't always show), NOT to restrict
+who can reorder. So A5 personal reorder stays intact.
+
+**Implemented test-first on `feat/reorder-edit-mode-gating` (PR #8):**
+- **`Arrange` toggle in the header for ALL logged-in users** (NOT admin-gated),
+  `data-testid="arrange-toggle"`. Off by default → arrows hidden (clean view);
+  on → arrows shown. Client-ephemeral, mirrors the admin Edit toggle's style.
+- **Admin Edit toggle untouched** — still gates Add/Edit/Delete + icon controls,
+  and edit mode still hides the arrows.
+- **A5 preserved:** `Catalog` now takes an `arrange` prop; arrows render only
+  when `arrange && !adminEdit`. Reorder (`PUT /api/layout`) is not admin-gated,
+  so a non-admin can still reorder with Arrange on. Verified by a new test.
+- **Tests:** `Catalog.test.tsx` — arrows hidden by default, shown when Arrange
+  on, non-admin reorders with Arrange on; existing A5 move tests now pass
+  `arrange`. `App.test.tsx` — Arrange toggle shown for both roles, starts off,
+  flips and wires into Catalog. **Full suite: 110 vitest green; `npm run build`
+  (tsc + vite) clean.**
+- **Spec:** v1 A5 row + Personalization flow updated; decision logged in
+  `specs/DECISIONS.md`.
+
+---
+
+### Original conflict write-up (kept for context)
 
 **Requested rule:** the per-tile reorder ↑/↓ arrows should show **only in edit
 mode** — hidden in normal view, visible when edit mode is on (same toggle that

@@ -5,8 +5,17 @@ import App from './App';
 import { authConfig, login, logout, me, register, setThemePref, type User } from './api';
 
 // Catalog has its own tests; stub it so the auth-gate tests stay isolated from
-// the /api/services fetch.
-vi.mock('./Catalog', () => ({ default: () => <div data-testid="catalog-stub" /> }));
+// the /api/services fetch. The stub reflects the props App passes down so we
+// can assert the Arrange toggle wires through.
+vi.mock('./Catalog', () => ({
+  default: (props: { isAdmin?: boolean; editMode?: boolean; arrange?: boolean }) => (
+    <div
+      data-testid="catalog-stub"
+      data-arrange={String(!!props.arrange)}
+      data-edit={String(!!props.editMode)}
+    />
+  ),
+}));
 
 vi.mock('./api', () => ({
   authConfig: vi.fn(),
@@ -168,6 +177,49 @@ describe('A1 — admin edit-mode toggle', () => {
     await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-pressed', 'false');
     expect(toggle).toHaveTextContent('Edit');
+  });
+});
+
+describe('A5 — per-user Arrange toggle (reorder mode)', () => {
+  const arrangeToggle = () => screen.queryByTestId('arrange-toggle');
+  const stub = () => screen.getByTestId('catalog-stub');
+
+  it('shows the Arrange toggle for a non-admin (not admin-gated)', async () => {
+    mockedMe.mockResolvedValue(USER);
+    render(<App />);
+    await dropLoading();
+    expect(await screen.findByTestId('arrange-toggle')).toBeInTheDocument();
+  });
+
+  it('shows the Arrange toggle for an admin too', async () => {
+    mockedMe.mockResolvedValue(ADMIN);
+    render(<App />);
+    await dropLoading();
+    expect(await screen.findByTestId('arrange-toggle')).toBeInTheDocument();
+  });
+
+  it('starts with Arrange off so the catalog hides the reorder arrows', async () => {
+    mockedMe.mockResolvedValue(USER);
+    render(<App />);
+    await dropLoading();
+    expect(arrangeToggle()).toHaveAttribute('aria-pressed', 'false');
+    expect(stub()).toHaveAttribute('data-arrange', 'false');
+  });
+
+  it('flips Arrange on and back off, wiring it into the catalog', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(USER);
+    render(<App />);
+    await dropLoading();
+
+    const toggle = await screen.findByTestId('arrange-toggle');
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(stub()).toHaveAttribute('data-arrange', 'true');
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(stub()).toHaveAttribute('data-arrange', 'false');
   });
 });
 

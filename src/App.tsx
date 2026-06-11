@@ -40,6 +40,10 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // is a convenience surface, not the security boundary.
   const isAdmin = user.role === 'admin';
   const [editMode, setEditMode] = useState(false);
+  // Arrange mode is per-user and available to everyone (not admin-gated): it
+  // reveals the personal reorder arrows (A5). Off by default so the normal view
+  // stays decluttered. Client-ephemeral — a reload returns to the clean view.
+  const [arrange, setArrange] = useState(false);
 
   async function handleLogout() {
     await logout();
@@ -57,6 +61,19 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">
               {user.role}
             </span>
+            <button
+              type="button"
+              data-testid="arrange-toggle"
+              aria-pressed={arrange}
+              onClick={() => setArrange((on) => !on)}
+              className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                arrange
+                  ? 'border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700'
+                  : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800'
+              }`}
+            >
+              {arrange ? 'Done' : 'Arrange'}
+            </button>
             {isAdmin && (
               <button
                 type="button"
@@ -83,7 +100,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
       </header>
 
       <section className="mx-auto max-w-6xl px-4 py-6">
-        <Catalog isAdmin={isAdmin} editMode={editMode} />
+        <Catalog isAdmin={isAdmin} editMode={editMode} arrange={arrange} />
       </section>
     </main>
   );

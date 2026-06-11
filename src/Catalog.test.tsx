@@ -223,7 +223,7 @@ describe('A5 — personal layout reorder', () => {
       svc({ id: 'a', name: 'Plex' }),
       svc({ id: 'b', name: 'Grafana' }),
     ]);
-    render(<Catalog />);
+    render(<Catalog arrange />);
     const tiles = await screen.findAllByTestId('service-tile');
 
     // Move the first tile (Plex) down a slot.
@@ -239,7 +239,7 @@ describe('A5 — personal layout reorder', () => {
       svc({ id: 'a', name: 'Plex' }),
       svc({ id: 'b', name: 'Grafana' }),
     ]);
-    render(<Catalog />);
+    render(<Catalog arrange />);
     const tiles = await screen.findAllByTestId('service-tile');
 
     // Move the second tile (Grafana) up a slot.
@@ -256,7 +256,7 @@ describe('A5 — personal layout reorder', () => {
       svc({ id: 'a', name: 'Plex' }),
       svc({ id: 'b', name: 'Grafana' }),
     ]);
-    render(<Catalog />);
+    render(<Catalog arrange />);
     const tiles = await screen.findAllByTestId('service-tile');
 
     await user.click(within(tiles[0]).getByTestId('move-down'));
@@ -271,13 +271,53 @@ describe('A5 — personal layout reorder', () => {
       svc({ id: 'a', name: 'Plex' }),
       svc({ id: 'b', name: 'Grafana' }),
     ]);
-    render(<Catalog />);
+    render(<Catalog arrange />);
     const tiles = await screen.findAllByTestId('service-tile');
 
     expect(within(tiles[0]).getByTestId('move-up')).toBeDisabled();
     expect(within(tiles[0]).getByTestId('move-down')).toBeEnabled();
     expect(within(tiles[1]).getByTestId('move-up')).toBeEnabled();
     expect(within(tiles[1]).getByTestId('move-down')).toBeDisabled();
+  });
+
+  // v3 declutter: the reorder arrows are gated behind a per-user "Arrange"
+  // toggle so the normal view stays clean. Default (Arrange off) hides them;
+  // the personal-reorder capability itself (A5) is unchanged — see below.
+  it('hides the reorder arrows by default (Arrange off — decluttered view)', async () => {
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex' }),
+      svc({ id: 'b', name: 'Grafana' }),
+    ]);
+    render(<Catalog />);
+    await screen.findAllByTestId('service-tile');
+    expect(screen.queryByTestId('move-up')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('move-down')).not.toBeInTheDocument();
+  });
+
+  it('shows the reorder arrows when Arrange is on', async () => {
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex' }),
+      svc({ id: 'b', name: 'Grafana' }),
+    ]);
+    render(<Catalog arrange />);
+    await screen.findAllByTestId('service-tile');
+    expect(screen.getAllByTestId('move-up').length).toBe(2);
+    expect(screen.getAllByTestId('move-down').length).toBe(2);
+  });
+
+  it('lets a non-admin reorder when Arrange is on (A5 preserved — not admin-gated)', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex' }),
+      svc({ id: 'b', name: 'Grafana' }),
+    ]);
+    render(<Catalog isAdmin={false} arrange />);
+    const tiles = await screen.findAllByTestId('service-tile');
+
+    await user.click(within(tiles[0]).getByTestId('move-down'));
+
+    expect(names()).toEqual(['Grafana', 'Plex']);
+    expect(mockedSetLayout).toHaveBeenCalledWith(['b', 'a']);
   });
 });
 
@@ -295,8 +335,8 @@ describe('A2(v2) — edit-mode icon controls', () => {
     expect(screen.queryByTestId('move-up')).not.toBeInTheDocument();
   });
 
-  it('does not show icon controls in view mode (reorder arrows instead)', async () => {
-    render(<Catalog isAdmin editMode={false} />);
+  it('does not show icon controls in view mode (reorder arrows instead when arranging)', async () => {
+    render(<Catalog isAdmin editMode={false} arrange />);
     await screen.findByTestId('service-tile');
     expect(screen.queryByTestId('icon-controls')).not.toBeInTheDocument();
     expect(screen.getByTestId('move-up')).toBeInTheDocument();
