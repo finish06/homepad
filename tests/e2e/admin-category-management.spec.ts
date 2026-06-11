@@ -111,7 +111,7 @@ test.describe('v4 — admin renames a category', () => {
 
     await page.goto('/');
     await page.getByTestId('edit-toggle').click();
-    const row = page.getByTestId('category-row').filter({ has: page.getByDisplayValue('Media') });
+    const row = page.locator('[data-category-id="media"]');
     await row.getByTestId('category-rename-input').fill('Infra');
     await row.getByTestId('category-rename').click();
 
@@ -138,7 +138,7 @@ test.describe('v4 — admin reorders categories', () => {
     await page.getByTestId('edit-toggle').click();
     await expect(page.getByTestId('category-header')).toHaveText(['Media', 'Infra', 'Uncategorized']);
 
-    const mediaRow = page.getByTestId('category-row').filter({ has: page.getByDisplayValue('Media') });
+    const mediaRow = page.locator('[data-category-id="media"]');
     await mediaRow.getByTestId('category-move-down').click();
 
     expect(ordered).toEqual({ order: ['infra', 'media'] });
@@ -161,7 +161,7 @@ test.describe('v4 — admin deletes a category', () => {
 
     await page.goto('/');
     await page.getByTestId('edit-toggle').click();
-    const row = page.getByTestId('category-row').filter({ has: page.getByDisplayValue('Media') });
+    const row = page.locator('[data-category-id="media"]');
     await row.getByTestId('category-delete').click();
 
     await expect.poll(() => deleted).toBe(true);
