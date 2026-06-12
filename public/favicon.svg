@@ -1,0 +1,18 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="homepad">
+  <defs>
+    <linearGradient id="hp-bg" x1="80" y1="56" x2="432" y2="456" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4F46E5"/><stop offset="0.55" stop-color="#6366F1"/><stop offset="1" stop-color="#A855F7"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#hp-bg)"/>
+  <!-- house outline -->
+  <path d="M150 394 V250 L256 152 L362 250 V394 Z"
+        fill="none" stroke="#FFFFFF" stroke-width="38" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- 2x2 launchpad tiles -->
+  <g fill="#FFFFFF">
+    <rect x="202" y="266" width="46" height="46" rx="11"/>
+    <rect x="264" y="266" width="46" height="46" rx="11"/>
+    <rect x="202" y="328" width="46" height="46" rx="11"/>
+    <rect x="264" y="328" width="46" height="46" rx="11"/>
+  </g>
+</svg>
