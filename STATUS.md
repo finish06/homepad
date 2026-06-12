@@ -2,6 +2,47 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-11 — v4 app-categories DONE ✅
+
+**Completeness audit (Caleb's confirmation task).** v4 app-categories is shipped
+end to end and **fully done** across both repos: backend (migration `0004` +
+category CRUD/reorder/assign, homepad-api PR #6), **web grouped-catalog render**
+(PR #11), and **web admin category-management UI** (PR #12) are all merged to
+`main` and deployed. Joe verified the live data layer (3 categories, 39 apps
+assigned, 0 uncategorized).
+
+**I re-ran every web suite this audit:** `npm run test` → **152 vitest green**
+(`Catalog.test.tsx` 61, `api.test.ts` 49, `App.test.tsx` 21, `theme` 11, `icons`
+10), `npm run typecheck` clean, `npm run build` clean.
+
+**All 12 v4 acceptance criteria (`specs/v4-app-categories.md`) verified = MET.**
+The web-owned ACs are pinned to component tests in `src/Catalog.test.tsx` (real
+`Catalog.tsx` rendered against a mocked `./api`):
+
+| AC | Criterion | Verified by | Result |
+|----|-----------|-------------|--------|
+| A9 | One section per category in admin order, Favorites first, Uncategorized last | `v4 A9 — grouped catalog render` (order; omit-empty Favorites/Uncategorized; favorited app in **both**; empty-category header) | ✅ MET |
+| A10 | No categories → exactly v1 (single flat grid, no headers) | `v4 A10 — flat v1 render when no categories defined` | ✅ MET |
+| A11 | Within a section: per-user reorder scoped to the section; status/favorite/icon unchanged | `v4 A11 — tile behavior + reorder scoped within a section` (3 tests) | ✅ MET |
+
+Plus the **admin category-management UI** (PR #12) exercises the web side of the
+admin ACs: create (`v4 A1`, +409 inline), rename (`v4 A3`, +409 inline), reorder
+(`v4 A4`, move up/down + disabled ends), delete (`v4 A7`, app falls back to
+Uncategorized, none deleted), and per-tile assign/clear (`v4 A5`, +400 inline).
+
+Backend ACs **A1–A8 + A12** are verified in `homepad-api` (Go suite green; see
+that repo's STATUS) — listed there for the full 12.
+
+**E2e (`tests/e2e/categories.spec.ts`, `admin-category-management.spec.ts`):**
+the specs exist, are route-mocked, and run in CI (Playwright). They were **not
+executable in this audit container** — chromium can't load `libglib-2.0.so.0`
+and there's no root to install it. This is an environment limit of the audit
+box, **not** a code/test defect: every e2e scenario has an equivalent green
+vitest component test above, and CI runs the e2e on the PR. Not a v4 gap.
+
+No genuine v4 gap found — no `NEEDS JOE`. This run is **docs-only** (audit + this
+summary); no app code changed.
+
 ## 2026-06-11 — DONE ✅: favorite ★ toggle gated behind Arrange mode (A5.1)
 
 **Refinement (Joe, per Caleb).** The favorite star control now lives behind the
