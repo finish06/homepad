@@ -1,3 +1,124 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* v7 ux-redesign (specs/v7-ux-redesign.md §2–5). The gradients, soft shadows,
+   status glow and accent chip are expressed as @layer component classes so the
+   JSX keeps a single readable hook each (.tile, .tile-icon, .status-dot,
+   .cat-head, .app-surface). Values are copied verbatim from the spec tokens. */
+@layer components {
+  /* §3 Global surface — radial indigo/violet accents over a light base. */
+  .app-surface {
+    background:
+      radial-gradient(1100px 560px at 12% -12%, rgba(99, 102, 241, 0.12), transparent 60%),
+      radial-gradient(900px 520px at 102% -6%, rgba(168, 85, 247, 0.1), transparent 55%),
+      linear-gradient(180deg, #f6f8fd 0%, #eceffa 100%);
+  }
+  .dark .app-surface {
+    background:
+      radial-gradient(1100px 560px at 12% -12%, rgba(99, 102, 241, 0.1), transparent 60%),
+      radial-gradient(900px 520px at 102% -6%, rgba(168, 85, 247, 0.1), transparent 55%),
+      linear-gradient(180deg, #0b0d12 0%, #0e1117 100%);
+  }
+
+  /* §4 Service tile — radius/gradient/rest+hover shadow, hover lift. */
+  .tile {
+    border-radius: 18px;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    padding: 15px 15px 13px;
+    background: linear-gradient(180deg, #fff, #fbfcff);
+    box-shadow:
+      0 1px 2px rgba(16, 24, 40, 0.04),
+      0 8px 20px -10px rgba(16, 24, 40, 0.12);
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.25s ease,
+      border-color 0.25s ease;
+  }
+  .tile:hover {
+    transform: translateY(-3px);
+    border-color: rgba(99, 102, 241, 0.45);
+    box-shadow:
+      0 1px 2px rgba(16, 24, 40, 0.04),
+      0 18px 34px -14px rgba(79, 70, 229, 0.3),
+      0 0 0 1px rgba(99, 102, 241, 0.12);
+  }
+  .dark .tile {
+    background: linear-gradient(180deg, #12161e, #0e1117);
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  /* §4 Icon plate — tinted so monochrome/transparent logos read as deliberate. */
+  .tile-icon {
+    width: 46px;
+    height: 46px;
+    padding: 7px;
+    border-radius: 13px;
+    object-fit: contain;
+    background: linear-gradient(135deg, #f2f4fc, #e9edf9);
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+    transition: transform 0.2s ease;
+  }
+  .tile:hover .tile-icon {
+    transform: scale(1.07);
+  }
+  .dark .tile-icon {
+    background: linear-gradient(135deg, #1b2130, #161b26);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+
+  /* §4 Status dot — 9×9, green glow for UP, rose glow for any non-UP. */
+  .status-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 9999px;
+  }
+  .status-dot[data-status='UP'] {
+    box-shadow:
+      0 0 0 3px rgba(16, 185, 129, 0.16),
+      0 0 9px rgba(16, 185, 129, 0.55);
+  }
+  .status-dot:not([data-status='UP']) {
+    box-shadow:
+      0 0 0 3px rgba(244, 63, 94, 0.16),
+      0 0 9px rgba(244, 63, 94, 0.5);
+  }
+
+  /* §5 Category header — muted text, accent chip (::before), hairline divider. */
+  .cat-head {
+    font-size: 0.82rem;
+    letter-spacing: 0.13em;
+    color: #475069;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding-bottom: 0.7rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  }
+  .cat-head::before {
+    content: '';
+    flex: none;
+    width: 15px;
+    height: 15px;
+    border-radius: 5px;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    box-shadow: 0 3px 8px rgba(99, 102, 241, 0.45);
+  }
+  .dark .cat-head {
+    color: #9aa3b8;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  /* §2 Motion — disable transforms under prefers-reduced-motion, keep opacity. */
+  @media (prefers-reduced-motion: reduce) {
+    .tile,
+    .tile-icon {
+      transition: none;
+    }
+    .tile:hover,
+    .tile:hover .tile-icon {
+      transform: none;
+    }
+  }
+}

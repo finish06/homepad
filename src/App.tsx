@@ -53,7 +53,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   }
 
   return (
-    <main className="min-h-screen bg-neutral-50 font-sans dark:bg-neutral-950">
+    <main className="app-surface min-h-screen font-sans">
       <header className="sticky top-0 z-10 border-b border-neutral-200 bg-white/80 backdrop-blur dark:border-neutral-800 dark:bg-neutral-900/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <h1 className="text-lg font-semibold">homepad</h1>
