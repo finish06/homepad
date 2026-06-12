@@ -2,6 +2,28 @@
 
 Decisions made under authority delegated by Caleb → Joe (2026-06-11). Newest on top.
 
+## 2026-06-11 — v5 collapsible-categories (Q1–Q4): all confirmed as Stitch recommended
+
+Unblocks the v5 build (backend slice in flight). Same posture as v3/v4 — every
+open NEEDS-JOE call resolves to Stitch's lean; rationale one-liners:
+
+- **Q1 — Collapsed-set transport → Dedicated `GET/PUT /api/me/collapsed-categories`.**
+  Keeps `/api/me` lean; one cheap parallel fetch on catalog load. Don't fold the
+  set into `/api/me`.
+- **Q2 — Are Favorites + Uncategorized collapsible too → No, always-expanded for v5.**
+  Simplest correct; avoids the sentinel-keyed text-flags table. Add per-bucket
+  collapse later only if Caleb asks.
+- **Q3 — Admin-set default collapse per category → Out of v5.** Uniform expanded
+  default for everyone; revisit as a shared-catalog property in a later version.
+- **Q4 — Persist collapsed set vs. expanded → Persist the collapsed set.** Empty
+  by default, new categories auto-expand, less storage. Migration `0005`
+  `user_collapsed_categories` (per-user × category, cascade on category delete).
+
+Flow: backend slice first (migration 0005 + `user_collapsed_categories` store +
+the two `/api/me/collapsed-categories` handlers, 401 cases) → web disclosure
+(default-expanded, optimistic toggle + rollback, persistence on boot). Backend
+lands before web so the disclosure reads/writes a real per-user store.
+
 ## 2026-06-11 — Favorite ★ toggle gated behind Arrange mode (A5.1)
 
 Refinement (Joe, per Caleb). The normal view should be clean: the favorite star
