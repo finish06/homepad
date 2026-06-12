@@ -414,10 +414,7 @@ function Section({
   if (!collapsible) {
     return (
       <section>
-        <h2
-          data-testid="category-header"
-          className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500"
-        >
+        <h2 data-testid="category-header" className="cat-head font-semibold uppercase">
           {title}
         </h2>
         {children}
@@ -429,14 +426,14 @@ function Section({
   // is omitted when expanded so the header text stays just the name (v4 parity).
   return (
     <section>
-      <h2 className="mb-3">
+      <h2>
         <button
           type="button"
           data-testid="category-header"
           aria-expanded={!collapsed}
           aria-controls={controlsId}
           onClick={onToggle}
-          className="flex w-full items-center gap-1.5 rounded text-sm font-semibold uppercase tracking-wide text-neutral-500 outline-none hover:text-neutral-700 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:text-neutral-300"
+          className="cat-head w-full rounded font-semibold uppercase outline-none hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:text-slate-300"
         >
           {/* A right-pointing chevron that rotates to point down when expanded.
               An SVG (no text content) keeps the header's textContent == title.
@@ -505,14 +502,14 @@ function ServiceTile({
   return (
     <div
       data-testid="service-tile"
-      className="relative rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900"
+      className="tile relative"
     >
       <span
         data-testid="status-badge"
         data-status={service.status}
         title={service.status}
         aria-label={`status: ${service.status}`}
-        className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${statusDot[service.status] ?? statusDot.UNKNOWN}`}
+        className={`status-dot absolute right-3 top-3 ${statusDot[service.status] ?? statusDot.UNKNOWN}`}
       />
       {/* A5.1: the favorite ★ toggle is a personalization control, revealed only
           in Arrange mode alongside the reorder arrows. Favorited tiles still pin
@@ -545,7 +542,7 @@ function ServiceTile({
           src={iconSrc(service, theme, rev)}
           alt=""
           onError={handleIconError}
-          className="h-12 w-12 rounded-lg object-contain"
+          className="tile-icon"
         />
         <span data-testid="service-tile-name" className="mt-3 truncate font-semibold text-neutral-800 dark:text-neutral-100">
           {service.name}
