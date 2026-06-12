@@ -66,7 +66,8 @@ test.describe('v4 — admin creates a category', () => {
     });
 
     await page.goto('/');
-    await page.getByTestId('edit-toggle').click();
+    await page.getByTestId('user-menu-trigger').click();
+    await page.getByTestId('menu-edit').click();
     await page.getByTestId('category-name-input').fill('Media');
     await page.getByTestId('category-create').click();
 
@@ -84,7 +85,8 @@ test.describe('v4 — admin creates a category', () => {
     });
 
     await page.goto('/');
-    await page.getByTestId('edit-toggle').click();
+    await page.getByTestId('user-menu-trigger').click();
+    await page.getByTestId('menu-edit').click();
     await page.getByTestId('category-name-input').fill('Media');
     await page.getByTestId('category-create').click();
 
@@ -110,7 +112,8 @@ test.describe('v4 — admin renames a category', () => {
     });
 
     await page.goto('/');
-    await page.getByTestId('edit-toggle').click();
+    await page.getByTestId('user-menu-trigger').click();
+    await page.getByTestId('menu-edit').click();
     const row = page.locator('[data-category-id="media"]');
     await row.getByTestId('category-rename-input').fill('Infra');
     await row.getByTestId('category-rename').click();
@@ -135,7 +138,8 @@ test.describe('v4 — admin reorders categories', () => {
     });
 
     await page.goto('/');
-    await page.getByTestId('edit-toggle').click();
+    await page.getByTestId('user-menu-trigger').click();
+    await page.getByTestId('menu-edit').click();
     await expect(page.getByTestId('category-header')).toHaveText(['Media', 'Infra', 'Uncategorized']);
 
     const mediaRow = page.locator('[data-category-id="media"]');
@@ -160,7 +164,8 @@ test.describe('v4 — admin deletes a category', () => {
     });
 
     await page.goto('/');
-    await page.getByTestId('edit-toggle').click();
+    await page.getByTestId('user-menu-trigger').click();
+    await page.getByTestId('menu-edit').click();
     const row = page.locator('[data-category-id="media"]');
     await row.getByTestId('category-delete').click();
 
@@ -189,7 +194,8 @@ test.describe('v4 — admin assigns an app to a category', () => {
     });
 
     await page.goto('/');
-    await page.getByTestId('edit-toggle').click();
+    await page.getByTestId('user-menu-trigger').click();
+    await page.getByTestId('menu-edit').click();
 
     // Plex starts in Uncategorized; assign it to Media via the tile's <select>.
     const uncat = page.locator('section', { has: page.getByText('Uncategorized') });

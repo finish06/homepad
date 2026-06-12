@@ -42,10 +42,12 @@ async function seedAdmin(page: Page) {
   });
 }
 
-// Open edit mode, then the add/edit form.
+// Open edit mode, then the add/edit form. v7 §6: the admin Edit affordance moved
+// from a bar button into the avatar menu (open the menu, then "Edit dashboard").
 async function openEditMode(page: Page) {
   await page.goto('/');
-  await page.getByTestId('edit-toggle').click();
+  await page.getByTestId('user-menu-trigger').click();
+  await page.getByTestId('menu-edit').click();
 }
 
 test.describe('A6 — admin create service', () => {
