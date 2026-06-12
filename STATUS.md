@@ -2,6 +2,46 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-12 — v5 collapsible-categories WEB slice ✅ (PR open)
+
+Branch `feat/v5-collapsible-web`. The v5 backend (migration `0005` + GET/PUT
+`/api/me/collapsed-categories`, stores the collapsed set) is already merged to
+homepad-api `main`; this is the **web disclosure slice**, test-first per
+`specs/v5-collapsible-categories.md` + DECISIONS (Q1 dedicated endpoint, Q2
+Favorites+Uncategorized always-expanded, Q3 no admin defaults, Q4 store the
+collapsed set).
+
+**What shipped (surgical — v4 grouping/theme/gear/arrange/star all intact):**
+- `api.ts` — `getCollapsedCategories()` (GET; any non-200/offline → `[]` so the
+  catalog renders fully expanded = v4 behavior) and `setCollapsedCategories(ids)`
+  (whole-set PUT, same contract as `setLayout`).
+- `Catalog.tsx` — each **category** section header is now a real disclosure:
+  `<button aria-expanded aria-controls>` with a rotating SVG chevron, collapsing
+  the tile region (A1, A9). **Default expanded** (empty set; A2). Per-user state
+  loaded on mount and mirrored to a `localStorage` first-paint cache so the right
+  open/closed state paints on **first render — no flash** (A3). Toggle is
+  **optimistic with rollback + inline "couldn't save"** on a failed PUT (A10).
+  Keyed on category id, so v4 rename/reorder are transparent and a deleted
+  category just stops rendering (A8/A11). **Favorites + Uncategorized stay static
+  `<h2>` headers — no toggle** (Q2). Flat (no-category) mode has no disclosures
+  (A12).
+
+**Verified — the CI gates (build + vitest) are green:**
+- `npm run build` (tsc --noEmit && vite build) → clean.
+- `npm run test` → **169 vitest green** (`Catalog.test.tsx` 72, `api.test.ts` 55,
+  `App.test.tsx` 21, `theme` 11, `icons` 10). New: 6 api tests
+  (get/set collapsed, incl. offline/parse fallback + 401) and 12 component tests
+  across v5 A1/A2/A3/A9/A10/A11/A12 + Q2 (disclosure toggle, default-expanded,
+  persist-on-boot, first-paint cache anti-flash, keyboard Enter/Space, optimistic
+  rollback, new-category-expands, no-flat-disclosures).
+
+**E2e (`tests/e2e/collapse.spec.ts`):** written to the proven route-mock pattern
+of `categories.spec.ts` (stateful collapsed-set store so A3 survives a reload).
+**Not executable in this container** — chromium can't load `libglib-2.0.so.0` and
+there's no root to install it (same environment limit noted for v4 above; CI runs
+build + vitest, not e2e). Every e2e scenario has an equivalent green component
+test, so coverage isn't lost — but the browser run is Joe's live verify.
+
 ## 2026-06-11 — v4 app-categories DONE ✅
 
 **Completeness audit (Caleb's confirmation task).** v4 app-categories is shipped
