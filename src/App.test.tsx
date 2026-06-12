@@ -52,6 +52,19 @@ async function dropLoading() {
   await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
 }
 
+// v7 ux-redesign §3 — the authenticated dashboard surface carries the .app-surface
+// gradient class (radial accents over a light/dark base) instead of the flat
+// bg-neutral-50. jsdom can't compute the gradient; we assert the class hook on
+// the <main> region (verified visually against specs/screenshots/).
+describe('v7 §3 — global gradient surface', () => {
+  it('applies .app-surface to the authenticated dashboard main region', async () => {
+    mockedMe.mockResolvedValue(USER);
+    render(<App />);
+    await dropLoading();
+    expect(screen.getByRole('main').className).toContain('app-surface');
+  });
+});
+
 describe('auth gate', () => {
   it('shows the login form for an unauthenticated visitor', async () => {
     render(<App />);
