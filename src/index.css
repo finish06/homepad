@@ -110,6 +110,168 @@
     border-color: rgba(255, 255, 255, 0.08);
   }
 
+  /* §6.1 Wordmark — indigo→violet gradient text via background-clip. */
+  .wordmark {
+    font-size: 1.125rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #4f46e5, #a855f7);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* §6.2 Avatar trigger — 34×34 gradient circle, white initials, auth ring. */
+  .user-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, #4f46e5, #a855f7);
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+    box-shadow:
+      0 0 0 2px #fff,
+      0 0 0 4px rgba(99, 102, 241, 0.35),
+      0 4px 10px -2px rgba(79, 70, 229, 0.5);
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.25s ease;
+  }
+  .user-avatar:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 0 0 2px #fff,
+      0 0 0 4px rgba(99, 102, 241, 0.5),
+      0 6px 14px -2px rgba(79, 70, 229, 0.6);
+  }
+  .dark .user-avatar {
+    box-shadow:
+      0 0 0 2px #0e1117,
+      0 0 0 4px rgba(99, 102, 241, 0.35),
+      0 4px 10px -2px rgba(79, 70, 229, 0.5);
+  }
+
+  /* §6.3 Dropdown — 248px, right-aligned under the avatar, menu shadow. */
+  .user-menu {
+    position: absolute;
+    top: 46px;
+    right: 0;
+    z-index: 50;
+    width: 248px;
+    padding: 6px;
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 14px;
+    box-shadow:
+      0 18px 40px -12px rgba(16, 24, 40, 0.28),
+      0 0 0 1px rgba(15, 23, 42, 0.03);
+    animation: user-menu-in 0.14s ease;
+  }
+  .dark .user-menu {
+    background: #12161e;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  @keyframes user-menu-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* §6.3.1 Identity — email + role pill. */
+  .user-menu-email {
+    font-size: 13px;
+    font-weight: 650;
+    color: #0f172a;
+    word-break: break-all;
+  }
+  .dark .user-menu-email {
+    color: #f1f5f9;
+  }
+  .role-pill {
+    display: inline-block;
+    margin-top: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #4f46e5;
+    background: #eef0fe;
+    padding: 2px 8px;
+    border-radius: 9999px;
+  }
+  .dark .role-pill {
+    color: #c7d2fe;
+    background: rgba(99, 102, 241, 0.18);
+  }
+
+  /* §6.3.2 Separator. */
+  .menu-sep {
+    height: 1px;
+    background: rgba(15, 23, 42, 0.07);
+    margin: 6px 4px;
+  }
+  .dark .menu-sep {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  /* §6.3.3 Appearance group label. */
+  .menu-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    padding: 8px 12px 3px;
+  }
+
+  /* §6.3 Menu item — base row + danger (logout) variant + leading icon. */
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    padding: 9px 12px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 550;
+    color: #334155;
+    transition: background-color 0.12s ease;
+  }
+  .menu-item:hover {
+    background: #f4f5fb;
+  }
+  .dark .menu-item {
+    color: #cbd5e1;
+  }
+  .dark .menu-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .menu-item-danger {
+    color: #e11d48;
+  }
+  .menu-item-danger:hover {
+    background: #fef2f3;
+  }
+  .dark .menu-item-danger:hover {
+    background: rgba(225, 29, 72, 0.12);
+  }
+  .menu-icon {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    opacity: 0.8;
+  }
+
   /* §2 Motion — disable transforms under prefers-reduced-motion, keep opacity. */
   @media (prefers-reduced-motion: reduce) {
     .tile,
@@ -119,6 +281,23 @@
     .tile:hover,
     .tile:hover .tile-icon {
       transform: none;
+    }
+    .user-avatar {
+      transition: box-shadow 0.25s ease;
+    }
+    .user-avatar:hover {
+      transform: none;
+    }
+    .user-menu {
+      animation-name: user-menu-fade;
+    }
+  }
+  @keyframes user-menu-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
     }
   }
 }

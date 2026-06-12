@@ -78,7 +78,9 @@ describe('auth gate', () => {
     render(<App />);
     await dropLoading();
     expect(screen.getByTestId('catalog-stub')).toBeInTheDocument();
-    expect(screen.getByText(USER.email)).toBeInTheDocument();
+    // v7 §6: the email moved into the avatar menu; identity is still always
+    // present via the trigger (its title carries the email per §8).
+    expect(screen.getByTestId('user-menu-trigger')).toHaveAttribute('title', USER.email);
   });
 
   it('logs in and reveals the catalog', async () => {
@@ -148,7 +150,9 @@ describe('auth gate', () => {
     render(<App />);
     await dropLoading();
 
-    await user.click(screen.getByRole('button', { name: /log out/i }));
+    // v7 §6: Log out now lives inside the avatar menu.
+    await user.click(await screen.findByTestId('user-menu-trigger'));
+    await user.click(screen.getByTestId('menu-logout'));
 
     expect(await screen.findByRole('button', { name: /sign in/i })).toBeInTheDocument();
     expect(mockedLogout).toHaveBeenCalled();
@@ -284,110 +288,132 @@ describe('v7 §6 — top bar declutter + user menu', () => {
   });
 });
 
-describe('A1 — admin edit-mode toggle', () => {
-  const editToggle = () => screen.queryByTestId('edit-toggle');
+// v7 §6 relocated the admin Edit affordance from a bar button (`edit-toggle`)
+// into the avatar menu as `menu-edit` ("Edit dashboard"). These A1 cases now
+// drive it through the menu; gating + single-shot wiring also live in the §6
+// block, while the on→off round trip below is unique to A1.
+describe('A1 — admin edit-mode (via the avatar menu)', () => {
+  async function openMenu(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByTestId('user-menu-trigger'));
+  }
 
-  it('shows the Edit toggle for an admin', async () => {
-    mockedMe.mockResolvedValue(ADMIN);
-    render(<App />);
-    await dropLoading();
-    expect(await screen.findByTestId('edit-toggle')).toHaveTextContent('Edit');
-  });
-
-  it('hides the Edit toggle for a non-admin', async () => {
-    mockedMe.mockResolvedValue(USER);
-    render(<App />);
-    await dropLoading();
-    expect(screen.getByTestId('catalog-stub')).toBeInTheDocument();
-    expect(editToggle()).not.toBeInTheDocument();
-  });
-
-  it('flips edit mode on and back off when the admin clicks it', async () => {
+  it('shows Edit dashboard in the menu for an admin', async () => {
     const user = userEvent.setup();
     mockedMe.mockResolvedValue(ADMIN);
     render(<App />);
     await dropLoading();
-
-    const toggle = await screen.findByTestId('edit-toggle');
-    expect(toggle).toHaveAttribute('aria-pressed', 'false');
-
-    await user.click(toggle);
-    expect(toggle).toHaveAttribute('aria-pressed', 'true');
-    expect(toggle).toHaveTextContent('Done');
-
-    await user.click(toggle);
-    expect(toggle).toHaveAttribute('aria-pressed', 'false');
-    expect(toggle).toHaveTextContent('Edit');
+    await openMenu(user);
+    expect(screen.getByTestId('menu-edit')).toHaveTextContent(/edit dashboard/i);
   });
-});
 
-describe('A5.1 — per-user settings gear (hosts Arrange / reorder mode)', () => {
-  // The gear is the non-admin settings/controls entry point. Today it toggles
-  // personal arrange mode (gates the reorder arrows); it is built to grow into
-  // the home for future per-user controls.
-  const gear = () => screen.queryByTestId('settings-gear');
-  const stub = () => screen.getByTestId('catalog-stub');
-
-  it('shows the gear for a non-admin, with an accessible label (not admin-gated)', async () => {
+  it('omits Edit dashboard from the menu for a non-admin', async () => {
+    const user = userEvent.setup();
     mockedMe.mockResolvedValue(USER);
     render(<App />);
     await dropLoading();
-    // Discoverable by an assistive-tech name, not just a test id — it's an icon
-    // button, so the aria-label carries the meaning.
-    expect(await screen.findByRole('button', { name: /personal settings/i })).toBeInTheDocument();
-    expect(gear()).toBeInTheDocument();
+    await openMenu(user);
+    expect(screen.queryByTestId('menu-edit')).not.toBeInTheDocument();
   });
 
-  it('shows the gear for an admin too (alongside the admin Edit toggle)', async () => {
+  it('flips edit mode on and back off across two menu visits', async () => {
+    const user = userEvent.setup();
     mockedMe.mockResolvedValue(ADMIN);
     render(<App />);
     await dropLoading();
-    expect(await screen.findByTestId('settings-gear')).toBeInTheDocument();
-    // The admin Edit toggle is a separate, untouched affordance.
-    expect(screen.getByTestId('edit-toggle')).toBeInTheDocument();
+    const stub = () => screen.getByTestId('catalog-stub');
+
+    // Selecting Edit closes the menu (per §6.4), so the round trip reopens it.
+    await openMenu(user);
+    await user.click(screen.getByTestId('menu-edit'));
+    expect(stub()).toHaveAttribute('data-edit', 'true');
+
+    await openMenu(user);
+    await user.click(screen.getByTestId('menu-edit'));
+    expect(stub()).toHaveAttribute('data-edit', 'false');
+  });
+});
+
+// v7 §6 relocated the per-user settings affordance from the bar gear
+// (`settings-gear`) into the avatar menu as `menu-settings` ("Personal
+// settings"). It still toggles the same client-side arrange mode (gating the
+// reorder arrows) for every role. These A5.1 cases drive it through the menu.
+describe('A5.1 — per-user settings (via the avatar menu, hosts Arrange mode)', () => {
+  const stub = () => screen.getByTestId('catalog-stub');
+  async function openMenu(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByTestId('user-menu-trigger'));
+  }
+
+  it('shows Personal settings in the menu for a non-admin (not admin-gated)', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(USER);
+    render(<App />);
+    await dropLoading();
+    await openMenu(user);
+    expect(screen.getByTestId('menu-settings')).toHaveTextContent(/personal settings/i);
+  });
+
+  it('shows Personal settings for an admin too (alongside Edit dashboard)', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(ADMIN);
+    render(<App />);
+    await dropLoading();
+    await openMenu(user);
+    expect(screen.getByTestId('menu-settings')).toBeInTheDocument();
+    // The admin Edit affordance is a separate menu item.
+    expect(screen.getByTestId('menu-edit')).toBeInTheDocument();
   });
 
   it('starts with arrange off so the catalog hides the reorder arrows', async () => {
     mockedMe.mockResolvedValue(USER);
     render(<App />);
     await dropLoading();
-    expect(gear()).toHaveAttribute('aria-pressed', 'false');
     expect(stub()).toHaveAttribute('data-arrange', 'false');
   });
 
-  it('toggles arrange on and back off when clicked, wiring it into the catalog', async () => {
+  it('toggles arrange on and back off across two menu visits', async () => {
     const user = userEvent.setup();
     mockedMe.mockResolvedValue(USER);
     render(<App />);
     await dropLoading();
 
-    const toggle = await screen.findByTestId('settings-gear');
-    await user.click(toggle);
-    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    // Selecting a menu item closes the menu (§6.4), so reopen for the off flip.
+    await openMenu(user);
+    await user.click(screen.getByTestId('menu-settings'));
     expect(stub()).toHaveAttribute('data-arrange', 'true');
 
-    await user.click(toggle);
-    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await openMenu(user);
+    await user.click(screen.getByTestId('menu-settings'));
     expect(stub()).toHaveAttribute('data-arrange', 'false');
   });
 });
 
-describe('v3 — theme control in the header (A1, A12)', () => {
+// v7 §6.3 relocated the three-segment theme control from the bar into the
+// avatar menu's Appearance group (the same ThemeControl/useTheme — no duplicated
+// state). These v3 cases open the menu first, then exercise the control.
+describe('v3 — theme control (now in the avatar menu) (A1, A12)', () => {
+  async function openMenu(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByTestId('user-menu-trigger'));
+  }
+
   it('shows the three-option control for a logged-in user (A1)', async () => {
+    const user = userEvent.setup();
     mockedMe.mockResolvedValue(USER); // non-admin — control is not admin-gated
     render(<App />);
     await dropLoading();
-    expect(await screen.findByTestId('theme-control')).toBeInTheDocument();
+    await openMenu(user);
+    expect(screen.getByTestId('theme-control')).toBeInTheDocument();
     expect(screen.getByTestId('theme-system')).toBeInTheDocument();
     expect(screen.getByTestId('theme-light')).toBeInTheDocument();
     expect(screen.getByTestId('theme-dark')).toBeInTheDocument();
   });
 
   it('marks the segment matching the user stored themePref active', async () => {
+    const user = userEvent.setup();
     mockedMe.mockResolvedValue({ ...USER, themePref: 'dark' });
     render(<App />);
     await dropLoading();
-    expect(await screen.findByTestId('theme-dark')).toHaveAttribute('aria-pressed', 'true');
+    await openMenu(user);
+    expect(screen.getByTestId('theme-dark')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('theme-system')).toHaveAttribute('aria-pressed', 'false');
   });
 
@@ -404,7 +430,8 @@ describe('v3 — theme control in the header (A1, A12)', () => {
     render(<App />);
     await dropLoading();
 
-    await user.click(await screen.findByTestId('theme-dark'));
+    await openMenu(user);
+    await user.click(screen.getByTestId('theme-dark'));
 
     expect(mockedSetThemePref).toHaveBeenCalledWith('dark');
     expect(document.documentElement.classList.contains('dark')).toBe(true);

@@ -7,7 +7,10 @@
 // touchpoint (`me`/`login`/`register`) so the client never needs an extra read.
 export type ThemePref = 'system' | 'light' | 'dark';
 
-export type User = { id: string; email: string; role: string; themePref: ThemePref };
+// v7 §6.2: `name` is the optional display name surfaced by /api/me (empty when
+// unset). The avatar derives real initials from it, falling back to the email's
+// first letter. Optional so older payloads / fixtures read as "no name".
+export type User = { id: string; email: string; role: string; themePref: ThemePref; name?: string };
 
 export type ServiceStatus = 'UP' | 'DOWN' | 'DEGRADED' | 'UNKNOWN';
 
