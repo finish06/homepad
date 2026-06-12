@@ -280,6 +280,37 @@ export async function assignCategory(
   return { ok: false, status: res.status, error: await errorText(res) };
 }
 
+// getCollapsedCategories reads the current user's collapsed category-id set (v5;
+// session-gated server-side). A row means "this user folded this category";
+// absence = expanded, the default. Any non-200 (incl. 401) or a parse failure
+// yields [] so the catalog renders fully expanded — identical to v4 — rather
+// than erroring. This is also the first-paint fallback when no backend answers.
+export async function getCollapsedCategories(): Promise<string[]> {
+  try {
+    const res = await fetch('/api/me/collapsed-categories', { credentials: 'include' });
+    if (res.status !== 200) return [];
+    const data = (await res.json()) as { collapsed?: string[] };
+    return data.collapsed ?? [];
+  } catch {
+    return [];
+  }
+}
+
+// setCollapsedCategories replaces the user's collapsed set with exactly `ids`
+// (v5; whole-set PUT, same contract as setLayout/setCategoryOrder). The server
+// silently drops unknown/stale ids (a category deleted between read and write),
+// so this only fails on a real error. Returns true on 204 so the caller can roll
+// back an optimistic toggle.
+export async function setCollapsedCategories(ids: string[]): Promise<boolean> {
+  const res = await fetch('/api/me/collapsed-categories', {
+    method: 'PUT',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify({ collapsed: ids }),
+  });
+  return res.status === 204;
+}
+
 // setLayout persists the current user's personal tile order (A5). `order` is the
 // list of service ids, position 0 first. Returns true on success so the caller
 // can roll back an optimistic reorder.

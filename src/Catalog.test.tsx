@@ -10,9 +10,11 @@ import {
   deleteCategory,
   deleteIcon,
   deleteService,
+  getCollapsedCategories,
   renameCategory,
   services,
   setCategoryOrder,
+  setCollapsedCategories,
   setFavorite,
   setLayout,
   setThemePref,
@@ -42,6 +44,8 @@ vi.mock('./api', () => ({
   deleteCategory: vi.fn(),
   setCategoryOrder: vi.fn(),
   assignCategory: vi.fn(),
+  getCollapsedCategories: vi.fn(),
+  setCollapsedCategories: vi.fn(),
 }));
 
 // Keep the real precedence resolver + bundled default; only the async
@@ -67,6 +71,8 @@ const mockedRenameCategory = vi.mocked(renameCategory);
 const mockedDeleteCategory = vi.mocked(deleteCategory);
 const mockedSetCategoryOrder = vi.mocked(setCategoryOrder);
 const mockedAssignCategory = vi.mocked(assignCategory);
+const mockedGetCollapsed = vi.mocked(getCollapsedCategories);
+const mockedSetCollapsed = vi.mocked(setCollapsedCategories);
 
 function cat(over: Partial<Category> = {}): Category {
   return { id: 'c1', name: 'Media', sortIndex: 0, ...over };
@@ -135,6 +141,9 @@ beforeEach(() => {
   mockedDeleteCategory.mockResolvedValue(true);
   mockedSetCategoryOrder.mockResolvedValue(true);
   mockedAssignCategory.mockResolvedValue({ ok: true, status: 200, service: svc() });
+  // v5: default = nothing collapsed (every section expanded), persist succeeds.
+  mockedGetCollapsed.mockResolvedValue([]);
+  mockedSetCollapsed.mockResolvedValue(true);
 });
 
 afterEach(() => {
@@ -1102,5 +1111,206 @@ describe('v4 A5 — assign a service to a category (per-tile, edit mode)', () =>
     expect(await within(tile).findByTestId('category-select-error')).toHaveTextContent(/no such category/);
     // Still Uncategorized — the failed assign didn't move it.
     expect(within(sectionByHeader('Uncategorized')).getByText('Plex')).toBeInTheDocument();
+  });
+});
+
+// ── v5 collapsible categories (disclosure interaction + per-user persistence) ─
+
+// The collapsible category header is a <button> (Favorites/Uncategorized stay a
+// static <h2>). Find it by its title text, tolerant of the trailing "· count".
+function catHeaderButton(title: string): HTMLButtonElement {
+  return screen
+    .getAllByTestId('category-header')
+    .find((h) => h.tagName === 'BUTTON' && h.textContent!.startsWith(title)) as HTMLButtonElement;
+}
+
+// Like sectionByHeader but tolerant of a collapsed header's trailing "· count".
+function catSection(title: string): HTMLElement {
+  const header = screen
+    .getAllByTestId('category-header')
+    .find((h) => h.textContent!.startsWith(title));
+  return header!.closest('section') as HTMLElement;
+}
+
+describe('v5 A1 — header is a disclosure: click toggles collapsed↔expanded', () => {
+  beforeEach(() => {
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
+    ]);
+  });
+
+  it('hides the tiles when collapsed and shows them again when re-expanded', async () => {
+    const user = userEvent.setup();
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+    // Default expanded — the tile is shown.
+    expect(within(catSection('Media')).getByTestId('service-tile')).toBeInTheDocument();
+
+    await user.click(catHeaderButton('Media'));
+    // Collapsed — tiles hidden, count shown.
+    expect(within(catSection('Media')).queryByTestId('service-tile')).not.toBeInTheDocument();
+    expect(screen.getByTestId('category-count')).toHaveTextContent('· 1');
+
+    await user.click(catHeaderButton('Media'));
+    // Expanded again — tiles back.
+    expect(within(catSection('Media')).getByTestId('service-tile')).toBeInTheDocument();
+  });
+
+  it('PUTs the whole collapsed set on toggle (whole-set replace contract)', async () => {
+    const user = userEvent.setup();
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+    await user.click(catHeaderButton('Media'));
+    expect(mockedSetCollapsed).toHaveBeenCalledWith(['media']);
+    // Re-expanding sends the empty set.
+    await user.click(catHeaderButton('Media'));
+    expect(mockedSetCollapsed).toHaveBeenLastCalledWith([]);
+  });
+});
+
+describe('v5 A2 — default is expanded (no stored collapse state)', () => {
+  it('renders every section open and the chevron rotated (expanded) when the set is empty', async () => {
+    mockedGetCollapsed.mockResolvedValue([]);
+    mockedCategories.mockResolvedValue([
+      cat({ id: 'media', name: 'Media', sortIndex: 0 }),
+      cat({ id: 'infra', name: 'Infra', sortIndex: 1 }),
+    ]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
+      svc({ id: 'b', name: 'Grafana', categoryId: 'infra', categoryName: 'Infra' }),
+    ]);
+    render(<Catalog />);
+    await screen.findAllByTestId('service-tile');
+    expect(catHeaderButton('Media')).toHaveAttribute('aria-expanded', 'true');
+    expect(catHeaderButton('Infra')).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryByTestId('category-count')).not.toBeInTheDocument();
+  });
+});
+
+describe('v5 A3 — collapse state persists per-user (rendered on boot)', () => {
+  it('renders a stored-collapsed category folded on load', async () => {
+    mockedGetCollapsed.mockResolvedValue(['media']);
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
+    ]);
+    render(<Catalog />);
+    await waitFor(() =>
+      expect(catHeaderButton('Media')).toHaveAttribute('aria-expanded', 'false'),
+    );
+    expect(within(catSection('Media')).queryByTestId('service-tile')).not.toBeInTheDocument();
+  });
+
+  it('paints from the localStorage cache on first render — no flash before the server resolves', async () => {
+    // Cache says Media is folded; the server fetch is left pending.
+    localStorage.setItem('homepad.collapsedCategories', JSON.stringify(['media']));
+    mockedGetCollapsed.mockReturnValue(new Promise(() => {}));
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
+    ]);
+    render(<Catalog />);
+    // Media is folded the moment the section first renders (cache-seeded state).
+    await waitFor(() => expect(catHeaderButton('Media')).toBeInTheDocument());
+    expect(catHeaderButton('Media')).toHaveAttribute('aria-expanded', 'false');
+    expect(within(catSection('Media')).queryByTestId('service-tile')).not.toBeInTheDocument();
+  });
+});
+
+describe('v5 Q2 — Favorites and Uncategorized are always-expanded (no toggle)', () => {
+  it('renders their headers as static, non-button headers', async () => {
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media', favorite: true }),
+      svc({ id: 'b', name: 'Notion' }), // uncategorized
+    ]);
+    render(<Catalog />);
+    await screen.findAllByTestId('service-tile');
+    const headers = screen.getAllByTestId('category-header');
+    const fav = headers.find((h) => h.textContent === 'Favorites')!;
+    const unc = headers.find((h) => h.textContent === 'Uncategorized')!;
+    expect(fav.tagName).toBe('H2');
+    expect(unc.tagName).toBe('H2');
+    expect(fav).not.toHaveAttribute('aria-expanded');
+    expect(unc).not.toHaveAttribute('aria-expanded');
+    // Only the real category exposes a disclosure button.
+    expect(screen.getByRole('button', { expanded: true })).toBe(catHeaderButton('Media'));
+  });
+});
+
+describe('v5 A9 — disclosure is keyboard + screen-reader operable', () => {
+  beforeEach(() => {
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
+    ]);
+  });
+
+  it('the header is a button with aria-expanded controlling the tile region', async () => {
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+    const btn = catHeaderButton('Media');
+    expect(btn.tagName).toBe('BUTTON');
+    expect(btn).toHaveAttribute('aria-expanded', 'true');
+    const controls = btn.getAttribute('aria-controls');
+    expect(controls).toBeTruthy();
+    // The controlled region exists and holds the tiles while expanded.
+    expect(document.getElementById(controls!)).toContainElement(screen.getByTestId('service-tile'));
+  });
+
+  it('toggles on Enter and Space (native button keyboard semantics)', async () => {
+    const user = userEvent.setup();
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+    catHeaderButton('Media').focus();
+    await user.keyboard('{Enter}');
+    expect(catHeaderButton('Media')).toHaveAttribute('aria-expanded', 'false');
+    await user.keyboard(' ');
+    expect(catHeaderButton('Media')).toHaveAttribute('aria-expanded', 'true');
+  });
+});
+
+describe('v5 A10 — toggle is optimistic with rollback on a failed PUT', () => {
+  it('reverts the section to its prior state and shows an inline error', async () => {
+    const user = userEvent.setup();
+    mockedSetCollapsed.mockResolvedValue(false); // PUT fails
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
+    ]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+
+    await user.click(catHeaderButton('Media'));
+    // Rolled back to expanded, with an inline "couldn't save".
+    await waitFor(() =>
+      expect(catHeaderButton('Media')).toHaveAttribute('aria-expanded', 'true'),
+    );
+    expect(within(catSection('Media')).getByTestId('service-tile')).toBeInTheDocument();
+    expect(screen.getByTestId('collapse-error')).toBeInTheDocument();
+  });
+});
+
+describe('v5 A11/A12 — new category expands by default; no categories → no disclosure', () => {
+  it('a category absent from the collapsed set renders expanded', async () => {
+    mockedGetCollapsed.mockResolvedValue(['media']); // only Media folded
+    mockedCategories.mockResolvedValue([
+      cat({ id: 'media', name: 'Media', sortIndex: 0 }),
+      cat({ id: 'fresh', name: 'Fresh', sortIndex: 1 }), // brand-new, not in the set
+    ]);
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex', categoryId: 'fresh', categoryName: 'Fresh' })]);
+    render(<Catalog />);
+    await waitFor(() => expect(catHeaderButton('Fresh')).toHaveAttribute('aria-expanded', 'true'));
+    expect(within(sectionByHeader('Fresh')).getByTestId('service-tile')).toBeInTheDocument();
+  });
+
+  it('renders no disclosure controls in flat (no-category) mode', async () => {
+    mockedCategories.mockResolvedValue([]);
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex' })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+    expect(screen.queryByTestId('category-header')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { expanded: true })).not.toBeInTheDocument();
   });
 });

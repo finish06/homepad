@@ -8,6 +8,7 @@ import {
   deleteCategory,
   deleteIcon,
   deleteService,
+  getCollapsedCategories,
   login,
   logout,
   me,
@@ -15,6 +16,7 @@ import {
   renameCategory,
   services,
   setCategoryOrder,
+  setCollapsedCategories,
   setFavorite,
   setLayout,
   setThemePref,
@@ -471,5 +473,46 @@ describe('setThemePref (v3)', () => {
     await expect(setThemePref('system')).resolves.toBe(false);
     mockFetch(null, 401);
     await expect(setThemePref('light')).resolves.toBe(false);
+  });
+});
+
+// ── v5 collapsible categories (per-user collapse set) ────────────────────────
+
+describe('getCollapsedCategories (v5)', () => {
+  it('unwraps the collapsed id array on 200', async () => {
+    const fn = mockFetch(JSON.stringify({ collapsed: ['media', 'infra'] }), 200);
+    await expect(getCollapsedCategories()).resolves.toEqual(['media', 'infra']);
+    expect(fn).toHaveBeenCalledWith('/api/me/collapsed-categories', { credentials: 'include' });
+  });
+
+  it('returns [] when the payload has no collapsed key', async () => {
+    mockFetch(JSON.stringify({}), 200);
+    await expect(getCollapsedCategories()).resolves.toEqual([]);
+  });
+
+  it('returns [] on a non-200 (e.g. 401 no session) — catalog renders fully expanded', async () => {
+    mockFetch(null, 401);
+    await expect(getCollapsedCategories()).resolves.toEqual([]);
+  });
+
+  it('returns [] on a fetch/parse failure rather than throwing (first-paint fallback)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline'); }));
+    await expect(getCollapsedCategories()).resolves.toEqual([]);
+  });
+});
+
+describe('setCollapsedCategories (v5)', () => {
+  it('PUTs /api/me/collapsed-categories with the whole set and returns true on 204', async () => {
+    const fn = mockFetch(null, 204);
+    await expect(setCollapsedCategories(['media', 'infra'])).resolves.toBe(true);
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/me/collapsed-categories');
+    expect(opts).toMatchObject({ method: 'PUT', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ collapsed: ['media', 'infra'] });
+  });
+
+  it('returns false on a non-204 (e.g. 401 no session)', async () => {
+    mockFetch(null, 401);
+    await expect(setCollapsedCategories(['media'])).resolves.toBe(false);
   });
 });

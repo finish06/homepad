@@ -6,9 +6,11 @@ import {
   deleteCategory,
   deleteIcon,
   deleteService,
+  getCollapsedCategories,
   renameCategory,
   services,
   setCategoryOrder,
+  setCollapsedCategories,
   setFavorite,
   setLayout,
   uploadIcon,
@@ -21,6 +23,30 @@ import {
 import { DEFAULT_ICON, iconSrc, validateIconFile } from './icons';
 import ServiceForm from './ServiceForm';
 import { useResolvedTheme } from './theme';
+
+// v5: localStorage mirrors the last-known collapsed-category set so the catalog
+// paints the right open/closed state on the FIRST render — no flash of the wrong
+// state while the per-user server value loads. The server set is authoritative
+// once fetched; this is purely a first-paint cache (same role as v3's theme cache).
+const COLLAPSE_CACHE_KEY = 'homepad.collapsedCategories';
+
+function loadCachedCollapsed(): Set<string> {
+  try {
+    const raw = localStorage.getItem(COLLAPSE_CACHE_KEY);
+    const ids = raw ? (JSON.parse(raw) as unknown) : [];
+    return new Set(Array.isArray(ids) ? (ids as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function cacheCollapsed(set: Set<string>) {
+  try {
+    localStorage.setItem(COLLAPSE_CACHE_KEY, JSON.stringify([...set]));
+  } catch {
+    // ignore quota / disabled storage — the server set stays authoritative
+  }
+}
 
 // Small colored dot per tile — UP green, DOWN red, DEGRADED amber, UNKNOWN gray.
 const statusDot: Record<ServiceStatus, string> = {
@@ -48,6 +74,15 @@ export default function Catalog({
   const [rev, setRev] = useState(0);
   // null = closed; {} = add; { service } = edit that service (A6 admin form).
   const [form, setForm] = useState<{ service?: Service } | null>(null);
+  // v5: the set of collapsed category ids (a row = "this user folded it"; absence
+  // = expanded, the default). Seeded synchronously from the localStorage cache so
+  // first paint is correct, then reconciled with the authoritative server set on
+  // load. Keyed on id so v4 rename/reorder are transparent; a deleted category
+  // simply stops rendering (and the server cascades its row away).
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => loadCachedCollapsed());
+  // The category id whose last toggle failed to persist — shown inline so a
+  // rolled-back optimistic collapse tells the user it didn't save (A10).
+  const [collapseError, setCollapseError] = useState<string | null>(null);
   // v3: the active theme is now the resolved theme from ThemeProvider (pref +
   // OS), so the icon variant follows the System/Light/Dark control — not just
   // the OS. Without a provider (isolated tests) it falls back to the live OS.
@@ -56,6 +91,13 @@ export default function Catalog({
   useEffect(() => {
     services().then(setItems);
     categories().then(setCats);
+    // v5: load the authoritative per-user collapsed set, then refresh the cache.
+    // A non-200 / offline yields [] (every section expanded — v4 behavior).
+    getCollapsedCategories().then((ids) => {
+      const set = new Set(ids);
+      setCollapsed(set);
+      cacheCollapsed(set);
+    });
   }, []);
 
   // Optimistically flip the star, then persist. Roll back if the API rejects.
@@ -70,6 +112,28 @@ export default function Catalog({
     const ok = await setFavorite(id, next);
     if (!ok) {
       setItems((cur) => cur?.map((s) => (s.id === id ? { ...s, favorite: !next } : s)) ?? cur);
+    }
+  }
+
+  // v5: fold/unfold a category section, optimistically. The whole collapsed set
+  // is captured up front so a rollback can't race a later render (same idiom as
+  // toggleFavorite). Mirrors the new set into the first-paint cache immediately,
+  // then PUTs it; on failure it reverts state + cache and flags the section so an
+  // inline "couldn't save" shows (A10). Only real categories toggle — Favorites
+  // and Uncategorized are always-expanded (Q2), so this is never called for them.
+  async function toggleCollapse(id: string) {
+    const prev = collapsed;
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setCollapsed(next);
+    setCollapseError(null);
+    cacheCollapsed(next);
+    const ok = await setCollapsedCategories([...next]);
+    if (!ok) {
+      setCollapsed(prev);
+      cacheCollapsed(prev);
+      setCollapseError(id);
     }
   }
 
@@ -284,14 +348,33 @@ export default function Catalog({
         )
       ) : (
         <div className="space-y-8">
-          {favorites.length > 0 && <Section title="Favorites">{renderGrid(favorites)}</Section>}
-          {cats.map((c) => (
-            <Section key={c.id} title={c.name}>
-              {renderGrid(items.filter((s) => s.categoryId === c.id))}
-            </Section>
-          ))}
+          {/* Favorites + Uncategorized are render-time buckets, not categories
+              rows, so they have no id to key collapse state on — they stay
+              always-expanded for v5 (Q2). Only real category sections collapse. */}
+          {favorites.length > 0 && (
+            <Section title="Favorites" count={favorites.length}>{renderGrid(favorites)}</Section>
+          )}
+          {cats.map((c) => {
+            const sectionItems = items.filter((s) => s.categoryId === c.id);
+            return (
+              <Section
+                key={c.id}
+                title={c.name}
+                count={sectionItems.length}
+                collapsible
+                collapsed={collapsed.has(c.id)}
+                error={collapseError === c.id}
+                controlsId={`section-${c.id}`}
+                onToggle={() => toggleCollapse(c.id)}
+              >
+                {renderGrid(sectionItems)}
+              </Section>
+            );
+          })}
           {uncategorized.length > 0 && (
-            <Section title="Uncategorized">{renderGrid(uncategorized)}</Section>
+            <Section title="Uncategorized" count={uncategorized.length}>
+              {renderGrid(uncategorized)}
+            </Section>
           )}
         </div>
       )}
@@ -304,18 +387,84 @@ export default function Catalog({
 }
 
 // A catalog section: a header (the category / Favorites / Uncategorized name) and
-// its tile grid beneath. The header is where v5 will attach the collapse control;
-// v4 ships it static.
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+// its tile grid beneath. v5: a `collapsible` section's header is a real disclosure
+// — a <button aria-expanded> controlling the tile region (aria-controls), operable
+// by click/Enter/Space — that folds the tiles away when collapsed. Favorites and
+// Uncategorized pass collapsible=false and render the v4 static header unchanged.
+function Section({
+  title,
+  count,
+  collapsible = false,
+  collapsed = false,
+  error = false,
+  controlsId,
+  onToggle,
+  children,
+}: {
+  title: string;
+  count: number;
+  collapsible?: boolean;
+  collapsed?: boolean;
+  error?: boolean;
+  controlsId?: string;
+  onToggle?: () => void;
+  children: React.ReactNode;
+}) {
+  // v4 static header (Favorites / Uncategorized): no toggle, always shows tiles.
+  if (!collapsible) {
+    return (
+      <section>
+        <h2
+          data-testid="category-header"
+          className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500"
+        >
+          {title}
+        </h2>
+        {children}
+      </section>
+    );
+  }
+
+  // A folded section shows a count so it still says how much is inside; the count
+  // is omitted when expanded so the header text stays just the name (v4 parity).
   return (
     <section>
-      <h2
-        data-testid="category-header"
-        className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500"
-      >
-        {title}
+      <h2 className="mb-3">
+        <button
+          type="button"
+          data-testid="category-header"
+          aria-expanded={!collapsed}
+          aria-controls={controlsId}
+          onClick={onToggle}
+          className="flex w-full items-center gap-1.5 rounded text-sm font-semibold uppercase tracking-wide text-neutral-500 outline-none hover:text-neutral-700 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:text-neutral-300"
+        >
+          {/* A right-pointing chevron that rotates to point down when expanded.
+              An SVG (no text content) keeps the header's textContent == title.
+              motion-reduce disables the rotation transition (prefers-reduced-motion). */}
+          <svg
+            data-testid="disclosure-chevron"
+            aria-hidden="true"
+            viewBox="0 0 12 12"
+            className={`h-3 w-3 shrink-0 transition-transform motion-reduce:transition-none ${
+              collapsed ? '' : 'rotate-90'
+            }`}
+          >
+            <path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span>{title}</span>
+          {collapsed && (
+            <span data-testid="category-count" className="font-normal text-neutral-400">
+              · {count}
+            </span>
+          )}
+          {error && (
+            <span data-testid="collapse-error" className="font-normal normal-case text-red-600">
+              couldn’t save
+            </span>
+          )}
+        </button>
       </h2>
-      {children}
+      {!collapsed && <div id={controlsId}>{children}</div>}
     </section>
   );
 }
