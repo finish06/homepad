@@ -2,9 +2,32 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>homepad</title>
+
+    <!-- Favicons: modern browsers prefer the scalable SVG; favicon.ico is the
+         legacy fallback; the sized PNGs cover bitmap-only contexts. Assets live
+         in public/ and are served from the site root. -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- PWA web manifest (name/icons/theme) for installable home-screen use. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#6366F1" />
+
+    <!-- Social preview (Open Graph + Twitter card). -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="homepad" />
+    <meta property="og:description" content="Your homelab launchpad." />
+    <meta property="og:image" content="/icon-hero-1024.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="homepad" />
+    <meta name="twitter:description" content="Your homelab launchpad." />
+    <meta name="twitter:image" content="/icon-hero-1024.png" />
     <!-- v3 anti-flash: set the dark class before the bundle paints so a
          dark-preferring user never flashes a light surface. Mirrors
          resolveBootTheme() in src/theme.tsx — uses the localStorage cache (last
