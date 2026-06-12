@@ -2,27 +2,42 @@
 
 Decisions made under authority delegated by Caleb → Joe (2026-06-11). Newest on top.
 
-## 2026-06-11 — v5 collapsible-categories (Q1–Q4): all confirmed as Stitch recommended
+## 2026-06-12 — v5 collapsible-categories (Q1–Q4): Joe's calls (delegated)
 
-Unblocks the v5 build (backend slice in flight). Same posture as v3/v4 — every
-open NEEDS-JOE call resolves to Stitch's lean; rationale one-liners:
+Unblocks the v5 build. The four open NEEDS-JOE calls in
+`specs/v5-collapsible-categories.md` are resolved:
 
-- **Q1 — Collapsed-set transport → Dedicated `GET/PUT /api/me/collapsed-categories`.**
-  Keeps `/api/me` lean; one cheap parallel fetch on catalog load. Don't fold the
-  set into `/api/me`.
-- **Q2 — Are Favorites + Uncategorized collapsible too → No, always-expanded for v5.**
-  Simplest correct; avoids the sentinel-keyed text-flags table. Add per-bucket
-  collapse later only if Caleb asks.
-- **Q3 — Admin-set default collapse per category → Out of v5.** Uniform expanded
-  default for everyone; revisit as a shared-catalog property in a later version.
-- **Q4 — Persist collapsed set vs. expanded → Persist the collapsed set.** Empty
-  by default, new categories auto-expand, less storage. Migration `0005`
-  `user_collapsed_categories` (per-user × category, cascade on category delete).
+- **Q1 — Read/write endpoint → dedicated `GET/PUT /api/me/collapsed-categories`**
+  (NOT folded into `GET /api/me`). Keeps `/api/me` lean; the catalog already
+  fetches `/api/services` + `/api/categories` on load, so the collapsed set is
+  one more cheap parallel fetch, not a serial boot blocker. (Matches Stitch's
+  lean.)
+- **Q2 — Favorites + Uncategorized → ALWAYS-EXPANDED in v5.** They are
+  render-time buckets, not `categories` rows, so they have no `category_id` to
+  key on. v5 does **not** make them collapsible and ships **no** sentinel-keyed
+  flags (`__favorites__`/`__uncategorized__`) or text-keyed flags table. Only
+  real category sections collapse. Sentinel buckets stay a later nicety if Caleb
+  ever wants them folded.
+- **Q3 — Admin-set default-collapse per category → OUT of v5.** Uniform expanded
+  default for everyone; "ship External collapsed" is a shared-catalog property
+  and a separate later feature.
+- **Q4 — Persist the COLLAPSED set** (not the expanded set). Empty by default →
+  no rows for a fresh user, new categories auto-expand (they're in no one's
+  collapsed set), less storage. Presence-as-boolean, same pattern as v1
+  favorites.
 
-Flow: backend slice first (migration 0005 + `user_collapsed_categories` store +
-the two `/api/me/collapsed-categories` handlers, 401 cases) → web disclosure
-(default-expanded, optimistic toggle + rollback, persistence on boot). Backend
-lands before web so the disclosure reads/writes a real per-user store.
+**Build order (v2/v3/v4 pattern):** backend slice FIRST — migration `0005`
+(`user_collapsed_categories`, PK `(user_id, category_id)`, both FKs
+`ON DELETE CASCADE`, additive up+down), the two session-gated
+`/api/me/collapsed-categories` handlers (GET returns the set; PUT whole-set
+replaces, 204, unknown/stale/malformed ids silently dropped; 401 unauthed; a
+user only reads/writes their own set) — then the web disclosure interaction
+(collapse toggle on category headers, accessible disclosure, anti-flash) in the
+next increment.
+
+> Supersedes the earlier 2026-06-11 "all confirmed as Stitch recommended" note
+> for v5 — same Q1–Q4 outcomes, restated as Joe's delegated calls now that the
+> backend slice has landed.
 
 ## 2026-06-11 — Favorite ★ toggle gated behind Arrange mode (A5.1)
 
