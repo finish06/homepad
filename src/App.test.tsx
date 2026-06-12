@@ -156,6 +156,134 @@ describe('auth gate', () => {
   });
 });
 
+// v7 ux-redesign §6 — top-bar declutter. The six bar controls collapse into a
+// single avatar UserMenu: theme, Edit (admin), Personal settings, identity,
+// role, Log out all move INTO the dropdown. The bar shows only the wordmark and
+// the avatar. Avatar shows real initials (§6.2) with an email-first-letter
+// fallback. Full a11y per §8.
+describe('v7 §6 — top bar declutter + user menu', () => {
+  const NAMED_ADMIN: User = { ...ADMIN, name: 'Caleb Dunn' } as User;
+
+  async function openMenu(user: ReturnType<typeof userEvent.setup>) {
+    const trigger = await screen.findByTestId('user-menu-trigger');
+    await user.click(trigger);
+    return trigger;
+  }
+
+  it('shows only the wordmark + avatar in the bar (old inline controls removed)', async () => {
+    mockedMe.mockResolvedValue(ADMIN);
+    render(<App />);
+    await dropLoading();
+    expect(await screen.findByTestId('user-menu-trigger')).toBeInTheDocument();
+    // Everything that used to sit in the bar is gone from the bar (it now lives
+    // in the menu, which is closed by default).
+    expect(screen.queryByTestId('edit-toggle')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('settings-gear')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('theme-control')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('user-menu')).not.toBeInTheDocument();
+  });
+
+  it('avatar derives real initials from the display name (Caleb Dunn → CD)', async () => {
+    mockedMe.mockResolvedValue(NAMED_ADMIN);
+    render(<App />);
+    await dropLoading();
+    expect(await screen.findByTestId('user-menu-trigger')).toHaveTextContent('CD');
+  });
+
+  it('avatar falls back to the email first letter when no name is set', async () => {
+    mockedMe.mockResolvedValue({ ...USER, email: 'nani@ohana.io' });
+    render(<App />);
+    await dropLoading();
+    expect(await screen.findByTestId('user-menu-trigger')).toHaveTextContent('N');
+  });
+
+  it('trigger advertises a menu popup and reflects open state via aria-expanded', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(USER);
+    render(<App />);
+    await dropLoading();
+    const trigger = await screen.findByTestId('user-menu-trigger');
+    expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('user-menu')).toHaveAttribute('role', 'menu');
+  });
+
+  it('menu carries identity, role, theme control, settings and logout for every user', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(USER);
+    render(<App />);
+    await dropLoading();
+    await openMenu(user);
+    expect(screen.getByTestId('user-menu-email')).toHaveTextContent('nani@ohana.io');
+    expect(screen.getByTestId('user-menu-role')).toHaveTextContent('user');
+    expect(screen.getByTestId('theme-control')).toBeInTheDocument();
+    expect(screen.getByTestId('menu-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('menu-logout')).toBeInTheDocument();
+  });
+
+  it('shows Edit dashboard in the menu for an admin, omits it for a non-admin', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(ADMIN);
+    const { unmount } = render(<App />);
+    await dropLoading();
+    await openMenu(user);
+    expect(screen.getByTestId('menu-edit')).toBeInTheDocument();
+    unmount();
+
+    mockedMe.mockResolvedValue(USER);
+    render(<App />);
+    await dropLoading();
+    await openMenu(user);
+    expect(screen.queryByTestId('menu-edit')).not.toBeInTheDocument();
+  });
+
+  it('menu Edit toggles admin edit mode through to the catalog', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(ADMIN);
+    render(<App />);
+    await dropLoading();
+    await openMenu(user);
+    await user.click(screen.getByTestId('menu-edit'));
+    expect(screen.getByTestId('catalog-stub')).toHaveAttribute('data-edit', 'true');
+  });
+
+  it('menu Personal settings toggles arrange mode through to the catalog', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(USER);
+    render(<App />);
+    await dropLoading();
+    await openMenu(user);
+    await user.click(screen.getByTestId('menu-settings'));
+    expect(screen.getByTestId('catalog-stub')).toHaveAttribute('data-arrange', 'true');
+  });
+
+  it('menu Log out performs the logout and returns to the login form', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(USER);
+    mockedLogout.mockResolvedValue();
+    render(<App />);
+    await dropLoading();
+    await openMenu(user);
+    await user.click(screen.getByTestId('menu-logout'));
+    expect(mockedLogout).toHaveBeenCalled();
+    expect(await screen.findByRole('button', { name: /sign in/i })).toBeInTheDocument();
+  });
+
+  it('Esc closes the menu and restores focus to the trigger (§8)', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(USER);
+    render(<App />);
+    await dropLoading();
+    const trigger = await openMenu(user);
+    expect(screen.getByTestId('user-menu')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByTestId('user-menu')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+});
+
 describe('A1 — admin edit-mode toggle', () => {
   const editToggle = () => screen.queryByTestId('edit-toggle');
 
