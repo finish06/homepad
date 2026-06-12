@@ -56,13 +56,19 @@ async function seedUser(page: Page, patched: Record<string, unknown>[], pref = '
 const htmlIsDark = (page: Page) =>
   page.evaluate(() => document.documentElement.classList.contains('dark'));
 
+// v7 §6.3 — the theme control moved into the avatar menu's Appearance group, so
+// open the menu before reaching the segments. (Selecting a theme keeps the menu
+// open for quick A/B per §6.4.)
+const openMenu = (page: Page) => page.getByTestId('user-menu-trigger').click();
+
 test.describe('v3 — theme control', () => {
   test('Dark / Light segments flip the surface and PATCH /api/me', async ({ page }) => {
     const patched: Record<string, unknown>[] = [];
     await seedUser(page, patched);
     await page.goto('/');
+    await openMenu(page);
 
-    // The control renders for the logged-in user, all three segments present.
+    // The control renders inside the menu, all three segments present.
     await expect(page.getByTestId('theme-control')).toBeVisible();
     await expect(page.getByTestId('theme-system')).toBeVisible();
     await expect(page.getByTestId('theme-light')).toBeVisible();
@@ -86,6 +92,7 @@ test.describe('v3 — theme control', () => {
     await seedUser(page, patched, 'system');
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto('/');
+    await openMenu(page);
 
     await expect(page.getByTestId('theme-system')).toHaveAttribute('aria-pressed', 'true');
     expect(await htmlIsDark(page)).toBe(false);
