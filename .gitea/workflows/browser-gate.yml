@@ -1,0 +1,66 @@
+name: Browser gate
+
+# #35 regression gate. A PR that touches the tile / menu / drag-and-drop
+# interaction must pass a REAL Chromium (Playwright) check — jsdom-green is not
+# enough (z-index hit-testing + synthetic-event ordering are invisible to jsdom).
+# Kept in its own workflow + job so it can be made a *required* status check.
+#
+# Path-filtering note: branch protection requires a status to be REPORTED, so a
+# workflow that simply doesn't trigger on unrelated PRs would block them forever
+# waiting for a check that never arrives. Instead this job ALWAYS runs on PRs but
+# detects whether tile/menu/dnd-relevant files changed and only does the heavy
+# install+build+browser-test work when they did — otherwise it passes as a no-op.
+# Either way the same check ("Browser gate / browser-gate") is reported, so it is
+# safe to require.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  browser-gate:
+    name: Browser gate (#35 tile/menu/dnd)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect tile/menu/dnd changes
+        id: filter
+        run: |
+          # On push (e.g. main) always run. On a PR, run only when the changed
+          # files touch the tile/menu/dnd surface or this gate's own harness.
+          PATTERN='^src/Catalog\.tsx$|^tests/browser-gate/|^playwright\.gate\.config\.ts$|^src/.*([Tt]ile|[Mm]enu|[Dd]nd|[Dd]rag|[Ss]ortable)|^package(-lock)?\.json$'
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "push event — running browser gate"
+          elif git diff --name-only "${{ github.event.pull_request.base.sha }}...HEAD" | grep -qE "$PATTERN"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "tile/menu/dnd files changed — running browser gate"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "no tile/menu/dnd changes — browser gate is a no-op pass"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.filter.outputs.run == 'true'
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install deps
+        if: steps.filter.outputs.run == 'true'
+        run: npm ci
+
+      - name: Install Chromium (+ OS deps)
+        if: steps.filter.outputs.run == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Build app
+        if: steps.filter.outputs.run == 'true'
+        run: npm run build
+
+      - name: Run real-browser gate
+        if: steps.filter.outputs.run == 'true'
+        run: npm run test:gate

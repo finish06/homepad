@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install --with-deps chromium",
+    "test:gate": "playwright test --config=playwright.gate.config.ts",
     "lhci": "lhci autorun"
   },
   "dependencies": {
