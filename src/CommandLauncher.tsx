@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Service } from './api';
+import type { Service, ServiceStatus } from './api';
 import { DEFAULT_ICON, iconSrc } from './icons';
 import { rankServices } from './ranker';
 import { useLauncher } from './launcher';
@@ -13,6 +13,16 @@ import { useResolvedTheme } from './theme';
 // A row's DOM id, referenced by aria-activedescendant (§8) and by Enter to
 // activate the selected anchor.
 const optionId = (id: string) => `launcher-option-${id}`;
+
+// OQ3 — per-row status dot, mirroring the tile's status-badge colours so a row
+// reads identically to its tile (UP green, DOWN red, DEGRADED amber, else gray).
+// The colour is never the only signal: an sr-only "status …" text rides along.
+const statusDot: Record<ServiceStatus, string> = {
+  UP: 'bg-emerald-500',
+  DOWN: 'bg-red-500',
+  DEGRADED: 'bg-amber-400',
+  UNKNOWN: 'bg-neutral-300',
+};
 
 type Section = { label: string | null; items: Service[] };
 
@@ -39,6 +49,7 @@ export default function CommandLauncher({ services }: { services: Service[] }) {
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   // Reopen is always empty (D5): clear query + selection whenever the launcher
   // closes, so the next open starts blank.
@@ -66,6 +77,11 @@ export default function CommandLauncher({ services }: { services: Service[] }) {
   const selectedIndex = hasResults ? Math.min(selected, flat.length - 1) : -1;
   const activeId = selectedIndex >= 0 ? optionId(flat[selectedIndex].id) : undefined;
   const noMatches = query.trim() !== '' && !hasResults;
+  // §8 — the result count, announced politely to screen readers on every query
+  // change (and "no services match" for the empty state).
+  const liveMessage = noMatches
+    ? `No services match ${query.trim()}.`
+    : `${flat.length} result${flat.length === 1 ? '' : 's'}`;
 
   // Keep the selected row scrolled into view as the selection moves (§6.4).
   useEffect(() => {
@@ -79,6 +95,30 @@ export default function CommandLauncher({ services }: { services: Service[] }) {
   function onQueryChange(value: string) {
     setQuery(value);
     setSelected(0); // typing re-selects rank 0 (§6.4)
+  }
+
+  // §8 focus trap — Tab/Shift+Tab cycle only within the dialog; focus can never
+  // reach the page behind the scrim. The input keeps focus during normal use
+  // (combobox pattern); this only fires when the user actually tabs.
+  function onModalKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key !== 'Tab' || !modalRef.current) return;
+    const focusables = Array.from(
+      modalRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input, [tabindex]:not([tabindex="-1"])',
+      ),
+    );
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+    const inside = modalRef.current.contains(active);
+    if (e.shiftKey && (active === first || !inside)) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && (active === last || !inside)) {
+      e.preventDefault();
+      first.focus();
+    }
   }
 
   function activateSelected() {
@@ -139,12 +179,18 @@ export default function CommandLauncher({ services }: { services: Service[] }) {
       }}
     >
       <div
+        ref={modalRef}
         data-testid="launcher-modal"
         role="dialog"
         aria-modal="true"
         aria-label="Quick launcher"
         className="launcher-panel"
+        onKeyDown={onModalKeyDown}
       >
+        {/* §8 — polite result-count announcement, visually hidden. */}
+        <div data-testid="launcher-live" aria-live="polite" role="status" className="sr-only">
+          {liveMessage}
+        </div>
         <div className="launcher-input-row">
           <SearchGlyph />
           <input
@@ -273,6 +319,15 @@ function ResultRow({
       <span data-testid="launcher-result-category" className="launcher-row-category">
         {category}
       </span>
+      <span
+        data-testid="launcher-result-status"
+        data-status={service.status}
+        aria-hidden="true"
+        className={`launcher-row-status status-dot ${statusDot[service.status] ?? statusDot.UNKNOWN}`}
+      />
+      {/* §8 — fold status into the option's accessible name (name, category,
+          status …) without relying on the colour of the dot above. */}
+      <span className="sr-only">status {service.status.toLowerCase()}</span>
       {selected && (
         <span data-testid="launcher-enter-hint" aria-hidden="true" className="launcher-row-enter">
           ⏎

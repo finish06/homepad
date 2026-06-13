@@ -493,4 +493,112 @@
     font-size: 11px;
     color: #9aa3b8;
   }
+
+  /* OQ3 — per-row status dot. Sits between the category and the ⏎ chip; the
+     bg-* colour comes from the JSX (shared with the tile), glow from .status-dot. */
+  .launcher-row-status {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+  }
+
+  /* §4.2 — the header trigger. Pill on desktop (glyph + "Search…" + chord hint),
+     icon-only on phones (the hint span is `hidden sm:flex`). Built from v7
+     hairline/faint tokens; hover raises the hairline + a faint accent tint. */
+  .launcher-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 6px 8px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 9999px;
+    color: #9aa3b8;
+    transition:
+      border-color 0.18s ease,
+      background 0.18s ease,
+      color 0.18s ease;
+  }
+  .launcher-trigger:hover {
+    border-color: rgba(99, 102, 241, 0.35);
+    background: rgba(99, 102, 241, 0.06);
+    color: #475069;
+  }
+  .launcher-trigger-glyph {
+    flex: none;
+    width: 16px;
+    height: 16px;
+  }
+  .launcher-trigger-hint {
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .launcher-trigger-placeholder {
+    color: #9aa3b8;
+  }
+  .launcher-trigger-kbd {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: 6px;
+    padding: 1px 6px;
+  }
+
+  /* §2 — dark theme. Reuses the v7 dark surfaces/tokens; no new palette. */
+  .dark .launcher-overlay {
+    background: rgba(2, 4, 10, 0.6);
+  }
+  .dark .launcher-panel {
+    background: #0e1117;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  .dark .launcher-input-row {
+    border-bottom-color: rgba(255, 255, 255, 0.07);
+  }
+  .dark .launcher-input {
+    color: #e6e9f2;
+  }
+  .dark .launcher-clear:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #c7ccda;
+  }
+  .dark .launcher-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .dark .launcher-row[data-selected='true'] {
+    background: rgba(99, 102, 241, 0.18);
+  }
+  .dark .launcher-row-name {
+    color: #e6e9f2;
+  }
+  .dark .launcher-row-category {
+    color: #aab2c5;
+  }
+  .dark .launcher-no-results-title {
+    color: #aab2c5;
+  }
+  .dark .launcher-footer {
+    border-top-color: rgba(255, 255, 255, 0.07);
+  }
+  .dark .launcher-trigger {
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  .dark .launcher-trigger:hover {
+    border-color: rgba(129, 140, 248, 0.45);
+    background: rgba(99, 102, 241, 0.12);
+  }
+
+  /* §2 Motion — reduced-motion disables the launcher open transforms, keeping
+     the opacity fades only (same rule as the v7 menu/tiles). */
+  @media (prefers-reduced-motion: reduce) {
+    .launcher-overlay {
+      animation-name: launcher-scrim-in;
+    }
+    .launcher-panel {
+      animation: launcher-scrim-in 0.14s ease;
+    }
+  }
 }
