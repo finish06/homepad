@@ -1372,3 +1372,83 @@ describe('v5 A11/A12 — new category expands by default; no categories → no d
     expect(screen.queryByRole('button', { expanded: true })).not.toBeInTheDocument();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v10 slice 1 — arrange-mode teardown + favorite relocated to a "⋯" overflow menu
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('A8 — arrange-mode reorder arrows are gone (no mode renders them)', () => {
+  it('renders no tile move-up / move-down arrows on the dashboard', async () => {
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex' }),
+      svc({ id: 'b', name: 'Grafana' }),
+    ]);
+    render(<Catalog />);
+    await screen.findAllByTestId('service-tile');
+    expect(screen.queryByTestId('move-up')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('move-down')).not.toBeInTheDocument();
+  });
+
+  it('renders no category move-up / move-down arrows in the admin edit surface', async () => {
+    mockedCategories.mockResolvedValue([
+      cat({ id: 'c1', name: 'Media', sortIndex: 0 }),
+      cat({ id: 'c2', name: 'Infra', sortIndex: 1 }),
+    ]);
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex', categoryId: 'c1', categoryName: 'Media' })]);
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('category-manager');
+    expect(screen.queryByTestId('category-move-up')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('category-move-down')).not.toBeInTheDocument();
+  });
+});
+
+describe('A11 — favorite toggle lives in a per-tile "⋯" overflow menu (no mode)', () => {
+  it('renders a tile-menu button at rest, with the favorite toggle hidden until opened', async () => {
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex', favorite: false })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+    expect(screen.getByTestId('tile-menu')).toBeInTheDocument();
+    expect(screen.queryByTestId('favorite-toggle')).not.toBeInTheDocument();
+  });
+
+  it('opens the menu and optimistically toggles + persists the favorite via setFavorite', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([svc({ id: 'fav-me', name: 'Plex', favorite: false })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+
+    await user.click(screen.getByTestId('tile-menu'));
+    const toggle = await screen.findByTestId('favorite-toggle');
+    expect(toggle).toHaveAttribute('data-favorite', 'false');
+
+    await user.click(toggle);
+    expect(mockedSetFavorite).toHaveBeenCalledWith('fav-me', true);
+  });
+
+  it('rolls back the favorite when the API rejects the change', async () => {
+    const user = userEvent.setup();
+    mockedSetFavorite.mockResolvedValue(false);
+    mockedServices.mockResolvedValue([svc({ id: 'fav-me', name: 'Plex', favorite: false })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+
+    await user.click(screen.getByTestId('tile-menu'));
+    await user.click(await screen.findByTestId('favorite-toggle'));
+
+    await user.click(screen.getByTestId('tile-menu'));
+    await waitFor(() =>
+      expect(screen.getByTestId('favorite-toggle')).toHaveAttribute('data-favorite', 'false'),
+    );
+  });
+
+  it('clicking the "⋯" button does not navigate the tile link', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex' })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+
+    const menu = screen.getByTestId('tile-menu');
+    expect(menu.tagName).toBe('BUTTON');
+    expect(menu.closest('a')).toBeNull();
+  });
+});

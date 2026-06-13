@@ -283,6 +283,21 @@ describe('v7 §6 — top bar declutter + user menu', () => {
     expect(screen.getByTestId('catalog-stub')).toHaveAttribute('data-arrange', 'true');
   });
 
+  // v10 A9 — arrange mode is gone, so the empty "Personal settings" item that
+  // only toggled it is removed from the menu (the other items are untouched).
+  it('A9 — no Personal settings item; Edit/admin-settings/logout/theme remain', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(ADMIN);
+    render(<App />);
+    await dropLoading();
+    await openMenu(user);
+    expect(screen.queryByTestId('menu-settings')).not.toBeInTheDocument();
+    expect(screen.getByTestId('menu-edit')).toBeInTheDocument();
+    expect(screen.getByTestId('menu-admin-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('menu-logout')).toBeInTheDocument();
+    expect(screen.getByTestId('theme-control')).toBeInTheDocument();
+  });
+
   it('menu Log out performs the logout and returns to the login form', async () => {
     const user = userEvent.setup();
     mockedMe.mockResolvedValue(USER);
