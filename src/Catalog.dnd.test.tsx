@@ -296,6 +296,47 @@ describe('A12 — click-vs-drag safety', () => {
   });
 });
 
+describe('A3 — category-section drag reorders folders via setCategoryOrder', () => {
+  it('keyboard-dragging a category header grip past a sibling PUTs the new order once', async () => {
+    const user = userEvent.setup();
+    vi.mocked(categories).mockResolvedValue([
+      cat({ id: 'c1', name: 'Media', sortIndex: 0 }),
+      cat({ id: 'c2', name: 'Tools', sortIndex: 1 }),
+      cat({ id: 'c3', name: 'Net', sortIndex: 2 }),
+    ]);
+    vi.mocked(services).mockResolvedValue([
+      svc({ id: 'm', name: 'Plex', categoryId: 'c1', categoryName: 'Media' }),
+      svc({ id: 't', name: 'Toolio', categoryId: 'c2', categoryName: 'Tools' }),
+      svc({ id: 'n', name: 'Netty', categoryId: 'c3', categoryName: 'Net' }),
+    ]);
+    render(<Catalog />);
+    const grip = await screen.findByRole('button', { name: 'Reorder Media section' });
+    expect(grip).toHaveAttribute('data-drag-type', 'category');
+    await keyboardDrag(user, grip, 'ArrowDown');
+
+    await waitFor(() => expect(vi.mocked(setCategoryOrder)).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(setCategoryOrder)).toHaveBeenCalledWith(['c2', 'c1', 'c3']);
+    expect(mockedSetLayout).not.toHaveBeenCalled();
+  });
+
+  it('Favorites stays first and Uncategorized last, neither carries a category grip', async () => {
+    vi.mocked(categories).mockResolvedValue([cat({ id: 'c1', name: 'Media', sortIndex: 0 })]);
+    vi.mocked(services).mockResolvedValue([
+      svc({ id: 'f', name: 'Faved', favorite: true, categoryId: 'c1', categoryName: 'Media' }),
+      svc({ id: 'u', name: 'Loose', categoryId: null }),
+    ]);
+    render(<Catalog />);
+    await screen.findAllByTestId('category-header');
+    const headers = screen.getAllByTestId('category-header').map((h) => h.textContent);
+    expect(headers[0]).toMatch(/Favorites/);
+    expect(headers.at(-1)).toMatch(/Uncategorized/);
+    // only the real category exposes a category drag grip
+    const catGrips = screen.queryAllByRole('button', { name: /Reorder .* section/ });
+    expect(catGrips).toHaveLength(1);
+    expect(catGrips[0]).toHaveAccessibleName('Reorder Media section');
+  });
+});
+
 describe('A13/A14 — dark, reduced-motion, responsive grip, a11y', () => {
   it('grip renders in dark mode with motion-reduce affordance and a touch-visible emphasis class', async () => {
     document.documentElement.classList.add('dark');

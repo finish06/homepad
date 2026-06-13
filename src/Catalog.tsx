@@ -16,6 +16,7 @@ import {
   rectSortingStrategy,
   sortableKeyboardCoordinates,
   useSortable,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
@@ -28,6 +29,7 @@ import {
   getCollapsedCategories,
   renameCategory,
   services,
+  setCategoryOrder,
   setCollapsedCategories,
   setFavorite,
   setLayout,
@@ -185,6 +187,66 @@ export default function Catalog({
       setItems(prev);
       setLayoutError(true);
     }
+  }
+
+  // v10 A3: commit a category-section reorder on drop. Move `activeId` to
+  // `overId`'s slot in the category list and persist the whole new id order via
+  // PUT /api/categories/order — the same whole-array contract the v7 arrows used
+  // (§6/D7). Favorites/Uncategorized are render buckets outside this sortable
+  // context, so they can't be dragged and stay pinned first/last. Optimistic
+  // with rollback + the shared inline error if the PUT fails (A10).
+  async function reorderCategory(activeId: string, overId: string) {
+    const prev = cats;
+    if (activeId === overId) return;
+    const gi = prev.findIndex((c) => c.id === activeId);
+    const gj = prev.findIndex((c) => c.id === overId);
+    if (gi < 0 || gj < 0) return;
+    const next = arrayMove(prev, gi, gj);
+    setCats(next);
+    setLayoutError(false);
+    const ok = await setCategoryOrder(next.map((c) => c.id));
+    if (!ok) {
+      setCats(prev);
+      setLayoutError(true);
+    }
+  }
+
+  // v10 A3 — drag handlers for the category-section sortable context. Mirror the
+  // tile handlers (§10/A7 announcements + grabbed state) but for whole sections;
+  // "position i of n" is the slot among real categories (Favorites/Uncategorized
+  // aren't in this context).
+  function onCatDragStart(e: DragStartEvent) {
+    const id = e.active.id as string;
+    setActiveDragId(id);
+    const name = cats.find((c) => c.id === id)?.name ?? '';
+    const i = cats.findIndex((c) => c.id === id) + 1;
+    setAnnounce(
+      `${name} section grabbed, position ${i} of ${cats.length}. Use arrow keys to move, space to drop, escape to cancel.`,
+    );
+  }
+  function onCatDragOver(e: DragOverEvent) {
+    const { active, over } = e;
+    if (!over || over.id === active.id) return;
+    const j = cats.findIndex((c) => c.id === over.id) + 1;
+    const name = cats.find((c) => c.id === active.id)?.name ?? '';
+    if (j > 0) setAnnounce(`${name} section moved to position ${j} of ${cats.length}.`);
+  }
+  function onCatDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    setActiveDragId(null);
+    const name = cats.find((c) => c.id === active.id)?.name ?? '';
+    if (over && active.id !== over.id) {
+      const j = cats.findIndex((c) => c.id === over.id) + 1;
+      setAnnounce(`${name} section dropped at position ${j}.`);
+      void reorderCategory(active.id as string, over.id as string);
+    } else {
+      const i = cats.findIndex((c) => c.id === active.id) + 1;
+      setAnnounce(`${name} section dropped at position ${i}.`);
+    }
+  }
+  function onCatDragCancel() {
+    setActiveDragId(null);
+    setAnnounce('Reorder cancelled.');
   }
 
   // v5: fold/unfold a category section, optimistically. The whole collapsed set
@@ -476,23 +538,39 @@ export default function Catalog({
           {favorites.length > 0 && (
             <Section title="Favorites" count={favorites.length}>{renderGrid(favorites)}</Section>
           )}
-          {cats.map((c) => {
-            const sectionItems = items.filter((s) => s.categoryId === c.id);
-            return (
-              <Section
-                key={c.id}
-                title={c.name}
-                count={sectionItems.length}
-                collapsible
-                collapsed={collapsed.has(c.id)}
-                error={collapseError === c.id}
-                controlsId={`section-${c.id}`}
-                onToggle={() => toggleCollapse(c.id)}
-              >
-                {renderGrid(sectionItems)}
-              </Section>
-            );
-          })}
+          {/* v10 A3 — the real category sections are a sortable list: drag a
+              header grip to reorder folders (PUT /api/categories/order). Its own
+              DndContext, separate from each section's tile context, so a section
+              moves as a whole block (D3). */}
+          <DndContext
+            sensors={sensors}
+            onDragStart={onCatDragStart}
+            onDragOver={onCatDragOver}
+            onDragEnd={onCatDragEnd}
+            onDragCancel={onCatDragCancel}
+          >
+            <SortableContext items={cats.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-8">
+                {cats.map((c) => {
+                  const sectionItems = items.filter((s) => s.categoryId === c.id);
+                  return (
+                    <SortableSection
+                      key={c.id}
+                      cat={c}
+                      count={sectionItems.length}
+                      collapsed={collapsed.has(c.id)}
+                      error={collapseError === c.id}
+                      controlsId={`section-${c.id}`}
+                      grabbed={activeDragId === c.id}
+                      onToggle={() => toggleCollapse(c.id)}
+                    >
+                      {renderGrid(sectionItems)}
+                    </SortableSection>
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
           {uncategorized.length > 0 && (
             <Section title="Uncategorized" count={uncategorized.length}>
               {renderGrid(uncategorized)}
@@ -533,6 +611,10 @@ function Section({
   error = false,
   controlsId,
   onToggle,
+  containerRef,
+  containerStyle,
+  grabbed = false,
+  dragHandle,
   children,
 }: {
   title: string;
@@ -542,6 +624,12 @@ function Section({
   error?: boolean;
   controlsId?: string;
   onToggle?: () => void;
+  // v10 A3: when this section is a sortable category, the wrapper supplies the
+  // dnd-kit node ref + lifted transform style + the header drag grip.
+  containerRef?: (node: HTMLElement | null) => void;
+  containerStyle?: React.CSSProperties;
+  grabbed?: boolean;
+  dragHandle?: React.ReactNode;
   children: React.ReactNode;
 }) {
   // v4 static header (Favorites / Uncategorized): no toggle, always shows tiles.
@@ -559,8 +647,15 @@ function Section({
   // A folded section shows a count so it still says how much is inside; the count
   // is omitted when expanded so the header text stays just the name (v4 parity).
   return (
-    <section>
-      <h2>
+    <section
+      ref={containerRef}
+      style={containerStyle}
+      className={`rounded-lg transition-transform motion-reduce:transition-none ${
+        grabbed ? 'z-10 scale-[1.01] shadow-lg ring-1 ring-indigo-500/35' : ''
+      }`}
+    >
+      <h2 className="flex items-center">
+        {dragHandle}
         <button
           type="button"
           data-testid="category-header"
@@ -597,6 +692,69 @@ function Section({
       </h2>
       {!collapsed && <div id={controlsId}>{children}</div>}
     </section>
+  );
+}
+
+// v10 A3 — a category section made draggable. Wraps the v5 collapsible Section,
+// supplying the dnd-kit sortable node ref, lifted transform, and a header drag
+// grip (a real <button>, the sole drag origin — the disclosure button keeps
+// collapsing). The whole section moves as one block (D3). The grip carries
+// aria-pressed for the grabbed state and an aria-live-friendly label (§10).
+function SortableSection({
+  cat,
+  count,
+  collapsed,
+  error,
+  controlsId,
+  grabbed,
+  onToggle,
+  children,
+}: {
+  cat: Category;
+  count: number;
+  collapsed: boolean;
+  error: boolean;
+  controlsId: string;
+  grabbed: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition } =
+    useSortable({ id: cat.id });
+  const grip = (
+    <button
+      type="button"
+      ref={setActivatorNodeRef}
+      {...attributes}
+      {...listeners}
+      data-testid="drag-handle"
+      data-drag-type="category"
+      data-category-id={cat.id}
+      aria-label={`Reorder ${cat.name} section`}
+      aria-pressed={grabbed}
+      className={`mr-1 flex h-9 w-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-base leading-none normal-case outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-500 active:cursor-grabbing ${
+        grabbed ? 'text-indigo-600 dark:text-indigo-400' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200'
+      }`}
+    >
+      ⠿
+    </button>
+  );
+  return (
+    <Section
+      title={cat.name}
+      count={count}
+      collapsible
+      collapsed={collapsed}
+      error={error}
+      controlsId={controlsId}
+      onToggle={onToggle}
+      containerRef={setNodeRef}
+      containerStyle={{ transform: CSS.Transform.toString(transform), transition }}
+      grabbed={grabbed}
+      dragHandle={grip}
+    >
+      {children}
+    </Section>
   );
 }
 
