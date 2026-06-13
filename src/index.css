@@ -300,4 +300,197 @@
       opacity: 1;
     }
   }
+
+  /* v8 §2/§5 — command launcher. Built entirely from reused v7 tokens (accent
+     gradient, menu radius/shadow, hairline, faint/muted/strong text). Dark
+     variants, responsive trigger and reduced-motion land in slice 3. */
+  .launcher-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 60; /* clears the sticky header (10) and the avatar menu (50) */
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 12vh 16px 16px;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+    animation: launcher-scrim-in 0.14s ease;
+  }
+  @keyframes launcher-scrim-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .launcher-panel {
+    display: flex;
+    flex-direction: column;
+    width: min(640px, calc(100vw - 32px));
+    max-height: min(60vh, 520px);
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 14px;
+    box-shadow:
+      0 18px 40px -12px rgba(16, 24, 40, 0.28),
+      0 0 0 1px rgba(15, 23, 42, 0.03);
+    overflow: hidden;
+    animation: launcher-panel-in 0.14s ease;
+  }
+  @keyframes launcher-panel-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .launcher-input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  }
+  .launcher-search-glyph {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    color: #9aa3b8;
+  }
+  .launcher-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 15px;
+    color: #0f172a;
+    caret-color: #4f46e5;
+  }
+  .launcher-input::placeholder {
+    color: #9aa3b8;
+  }
+  .launcher-clear {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 9999px;
+    color: #9aa3b8;
+    font-size: 12px;
+    line-height: 1;
+  }
+  .launcher-clear:hover {
+    background: #f4f5fb;
+    color: #475069;
+  }
+
+  .launcher-results {
+    overflow-y: auto;
+    padding: 6px;
+  }
+  .launcher-group-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9aa3b8;
+    padding: 10px 10px 4px;
+  }
+
+  .launcher-row {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-height: 44px;
+    padding: 7px 10px;
+    border-radius: 9px;
+    text-decoration: none;
+    position: relative;
+  }
+  .launcher-row:hover {
+    background: #f4f5fb;
+  }
+  .launcher-row[data-selected='true'] {
+    background: rgba(99, 102, 241, 0.1);
+  }
+  /* §2/§8 — selection is signalled by a leading accent bar (NOT colour alone). */
+  .launcher-row[data-selected='true']::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    border-radius: 2px;
+    background: linear-gradient(135deg, #4f46e5, #a855f7);
+  }
+  .launcher-row-icon {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    padding: 4px;
+    border-radius: 8px;
+    object-fit: contain;
+    background: linear-gradient(135deg, #f2f4fc, #e9edf9);
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  }
+  .launcher-row-name {
+    flex: 1;
+    min-width: 0;
+    font-weight: 650;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .launcher-row-category {
+    flex: none;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #475069;
+  }
+  .launcher-row-enter {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 12px;
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+  }
+
+  .launcher-no-results {
+    padding: 28px 16px;
+    text-align: center;
+  }
+  .launcher-no-results-title {
+    color: #475069;
+    font-size: 14px;
+  }
+  .launcher-no-results-hint {
+    margin-top: 4px;
+    color: #9aa3b8;
+    font-size: 12px;
+  }
+
+  .launcher-footer {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    padding: 9px 16px;
+    border-top: 1px solid rgba(15, 23, 42, 0.07);
+    font-size: 11px;
+    color: #9aa3b8;
+  }
 }
