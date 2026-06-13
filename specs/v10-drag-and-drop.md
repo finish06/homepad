@@ -1,6 +1,6 @@
 # homepad v10 — Always-On Drag-and-Drop Reordering — Spec
 
-**Version:** 1.0  **Date:** 2026-06-13  **Status:** Draft, awaiting Caleb sign-off
+**Version:** 1.1  **Date:** 2026-06-13  **Status:** DECIDED — Caleb signed off on all open questions (2026-06-13); ready to build
 **Authors:** Stitch (Claude Code) + Caleb Dunn
 **Audience:** Frontend developer implementing in the homepad codebase
 **App:** homepad (custom service dashboard) — React + Vite + **Tailwind CSS**, Go backend. Light + Dark themes.
@@ -264,39 +264,43 @@ a real `<button type="button">`:
 
 ---
 
-## 7. Favorites — where the star goes now (LEAN, but see OQ1)
+## 7. Favorites — where the toggle goes now (DECIDED: a per-tile "⋯" overflow menu)
 
 This is the one real casualty of removing arrange mode. Today the **favorite star**
 (`data-testid="favorite-toggle"`) is rendered on a tile **only when `arrange` is
 true** — i.e. favoriting lives *inside* arrange mode. Delete arrange mode and the
 star has no home. It must move somewhere on the **always-on** dashboard.
 
-**v10 decision (D5, lean — flagged for Caleb as OQ1):** the favorite star becomes a
-**persistently-rendered toggle on every tile**, low-emphasis at rest and emphasized
-on hover/focus, **always visible on touch**:
+**v10 decision (DECIDED by Caleb, 2026-06-13 — OQ1 option (b); this SUPERSEDES the
+earlier lean D5):** the favorite toggle is tucked into a per-tile **"⋯" overflow
+menu**, not a persistent star. This is the *cleanest tile* (no second always-on
+glyph competing with the drag grip) at the cost of one extra tap to favorite:
 
-- Rendered as a nested `<button>` on the tile (keeps `data-testid="favorite-toggle"`
-  and `data-favorite="true|false"`), top-**left** corner (the status dot owns
-  top-right, v7 §4). Filled `★` when favorited, outline `☆` when not.
-- **Desktop (`≥640px`):** outline star sits faint (`--text-faint`) and brightens to
-  the accent on tile hover / keyboard focus-within; a favorited tile shows the
-  filled star at full emphasis **always** (so you can see your favorites at a
-  glance without hovering).
-- **Touch (`<640px`):** the star is **always fully visible** (no hover) — a ≥44px
-  tap target.
+- Each tile gets a small **"⋯" overflow button** (`data-testid="tile-menu"`,
+  `aria-label="More options for {service name}"`, `aria-haspopup="menu"`), a real
+  `<button>` in the top-**left** corner (the status dot owns top-right, v7 §4).
+  **Always visible on touch**, low-emphasis at rest and brightened on tile
+  hover/focus-within on desktop (same emphasis rule as the grip, §5.2).
+- Opening it reveals a small menu containing the **Favorite / Unfavorite** item
+  (`data-testid="favorite-toggle"`, `data-favorite="true|false"`,
+  `role="menuitem"`). Filled `★ Favorited` when on, outline `☆ Favorite` when off.
 - Toggling calls the existing `setFavorite(id, on)` (no change to that endpoint);
-  the Favorites pinned section updates as today.
-- **Click-vs-drag-vs-navigate:** the star is a nested button that `stopPropagation`s
-  and is **not** the drag grip and **not** the tile link — three distinct targets on
-  the tile (star button, drag grip, tile-link), each keyboard-reachable. (This is
-  busier than v7's arrange-only star; OQ1 asks whether Caleb prefers a quieter home —
-  e.g. hover-only on desktop, an overflow "⋯" menu, or deferring favoriting UI to a
-  later spec.)
+  the Favorites pinned section updates as today; the menu closes after the toggle.
+- **Click-vs-drag-vs-navigate:** the "⋯" button and its menu items
+  `stopPropagation` and are **not** the drag grip and **not** the tile link — the
+  tile carries three distinct, keyboard-reachable targets (tile-link, drag grip,
+  overflow "⋯"), and the favorite toggle lives one layer down inside the menu. The
+  menu closes on Esc / outside-click and restores focus to the "⋯" trigger.
+- The overflow menu is the natural home for future per-tile actions, but v10 puts
+  **only** Favorite/Unfavorite in it (Simplicity-First — nothing speculative).
 
-> **Why not just leave favoriting out?** Favorites drive the v8 launcher default and
-> the pinned section — they're load-bearing, so the toggle can't simply vanish with
-> arrange mode. A lean, always-available star is the minimum that keeps the feature
-> working. **OQ1 is the biggest open question in v10** — confirm the star's home.
+> **Why an overflow menu and not a persistent star?** Favorites drive the v8
+> launcher default and the pinned section — they're load-bearing, so the toggle
+> can't simply vanish with arrange mode. But the tile already gains an always-on
+> drag grip in v10; a second always-on glyph (a star) makes the tile busy. Tucking
+> favoriting one tap deep keeps the resting tile clean while keeping the
+> load-bearing feature reachable with zero modes. (The earlier lean D5 — a
+> persistent star — is **superseded**.)
 
 ---
 
@@ -311,10 +315,13 @@ on hover/focus, **always visible on touch**:
   announces grab / move / drop / cancel (§10).
 - `drop-indicator` — the insertion-point bar shown during an active drag (present
   only while dragging).
+- `tile-menu` — the per-tile "⋯" overflow button (§7) that opens the menu hosting
+  the favorite toggle.
 
 **Relocated (kept, no longer arrange-gated):**
-- `favorite-toggle` (+ `data-favorite`) — now always rendered on the tile (§7), not
-  behind arrange mode.
+- `favorite-toggle` (+ `data-favorite`) — no longer behind arrange mode; now a
+  `role="menuitem"` **inside the per-tile "⋯" overflow menu** (§7). Present in the
+  DOM once that menu is open (not at tile rest).
 
 **Removed (deleted with arrange mode — §4):**
 - `move-up`, `move-down` (tile arrows), `category-move-up`, `category-move-down`
@@ -378,9 +385,11 @@ established accessible-DnD model (focusable drag handle + roving "grabbed" state
 - **Focus management:** focus never leaves the handle during a keyboard drag and
   rests on the moved item's handle after drop. `Esc` cancels and keeps focus on the
   handle.
-- **The star** (§7) and the **tile link** are independently focusable and labeled;
-  Tab order within a tile is sensible (link → star → grip, or as the implementation
-  orders them, but all three reachable).
+- **The "⋯" overflow button** (§7, hosting the favorite toggle) and the **tile
+  link** are independently focusable and labeled; Tab order within a tile is
+  sensible (link → "⋯" → grip, or as the implementation orders them, but all three
+  reachable). The overflow menu itself is a standard menu (Esc closes, focus
+  returns to the "⋯" trigger).
 - **Contrast:** grip glyph and any drag-hint text meet WCAG AA in both themes
   (re-verify `--text-faint #9aa3b8` at the grip size; bump to `#8a93a8` if it misses
   4.5:1, per v7 §8).
@@ -401,7 +410,7 @@ to §13 for Caleb.
 | **D2** | **Reorder is via a dedicated grip handle; the tile stays a plain `<a>` link.** Pointer drag uses an 8px / 200ms activation constraint. | Cleanly separates *navigate* from *reorder* for pointer, touch, and keyboard with no click-vs-drag heuristic misfiring and no risk of a drag opening the app in a new tab. |
 | **D3** | **A category drags as a whole section (header + its tiles move as one block).** Favorites/Uncategorized are not section-reorderable (structurally pinned first/last). | Matches the mental model ("move this folder") and what `PUT /api/categories/order` persists (a category id order). Reordering tiles *inside* a section is the separate tile-drag context (§5.1). |
 | **D4** | **One persistence write per drop; cancelled drags send nothing.** No per-move PUTs during a keyboard drag. | The endpoints rewrite the full order; intermediate states are noise. Matches the v7 arrows' commit-on-action model and keeps it zero-chatter. |
-| **D5** | **Favorite star becomes a persistently-rendered per-tile toggle** (low-emphasis desktop, always-on touch), no longer arrange-gated. | Arrange mode is gone, but favorites are load-bearing (launcher default, pinned section). A lean always-available star is the minimum that keeps the feature alive. **Confirmed-shape is OQ1.** |
+| **D5** | ~~Favorite star becomes a persistently-rendered per-tile toggle.~~ **SUPERSEDED by Caleb's OQ1 sign-off:** the favorite toggle lives in a per-tile **"⋯" overflow menu** (`tile-menu` → `favorite-toggle`), not a persistent star (§7). | Arrange mode is gone, but favorites are load-bearing (launcher default, pinned section). The tile already gains an always-on drag grip in v10; an overflow menu keeps the resting tile clean (no second always-on glyph) while keeping favoriting one tap away. |
 | **D6** | **Within-section reorder only in v10; cross-category move is deferred.** | Mirrors exactly what the v7 arrows did (`sectionIds`-scoped). Cross-category drag is a real new capability (re-foldering semantics, category reassignment) — a product fork, **OQ2**, not a freebie. |
 | **D7** | **No backend change; reuse `PUT /api/layout` + `PUT /api/categories/order`.** | Hard architecture constraint (§3); both endpoints exist and are already per-user (v9). v10 only changes how the order is *produced*. |
 
@@ -426,7 +435,7 @@ first, tagged with its AC id).
 | **A8** | The arrange-mode **`move-up` / `move-down`** tile arrows and **`category-move-up` / `category-move-down`** category arrows are **gone** (not rendered in any state). | Component: render dashboard (and, if an admin edit surface remains, that too) → assert none of those four testids exist anywhere. |
 | **A9** | The **Personal settings** menu item (`menu-settings`) and arrange mode are **removed**: the User Menu no longer renders `menu-settings`, and there is no `arrange` state/prop toggling the dashboard. | Component: open `UserMenu` → assert `menu-settings` absent; assert remaining items (`menu-edit` admin, `menu-admin-settings` admin, `menu-logout`, theme controls, identity) still present. |
 | **A10** | **Optimistic update + rollback**: a successful drop updates order immediately; if the PUT rejects, order **rolls back** to the prior arrangement and an error affordance shows. | Component: mock `setLayout` to reject → after drop, assert order reverts to original and the inline error is shown. |
-| **A11** | The **favorite star** is rendered on every tile **without** entering any mode (`favorite-toggle` present at rest, `data-favorite` reflects state) and toggling calls `setFavorite`; it is **not** the drag handle and does not start a drag or navigate. | Component: assert `favorite-toggle` present on first render; click it → `setFavorite(id, !on)` called, `data-favorite` flips; clicking it does **not** open the tile link or initiate a drag. |
+| **A11** | The **favorite toggle** lives in a per-tile **"⋯" overflow menu** reachable **without** entering any mode: every tile renders a `tile-menu` button at rest; opening it reveals `favorite-toggle` (`data-favorite` reflects state) and toggling calls `setFavorite`; the toggle is **not** the drag handle and does not start a drag or navigate. | Component: assert `tile-menu` present on first render and `favorite-toggle` **absent** until the menu opens; open menu → click toggle → `setFavorite(id, !on)` called, `data-favorite` flips; clicking it does **not** open the tile link or initiate a drag. |
 | **A12** | **Pointer/touch click-vs-drag safety**: a plain click/tap on a tile opens its link (no drag triggered); a click/tap on the grip with no movement does not reorder. | Component: click a tile (no movement) → anchor activates (new-tab semantics intact), `setLayout` not called; click grip without movement → no reorder. |
 | **A13** | Works in **light and dark**, reuses v7 tokens (no new palette), and honors `prefers-reduced-motion` (transforms disabled → snap). a11y-clean. | Component under `.dark`: assert token classes/vars on grip/indicator/lifted state; set `prefers-reduced-motion` → assert transform-disabling class/branch; jest-axe finds no violations at rest. |
 | **A14** | **Responsive / touch**: on `<640px` the grip is always visible and a ≥44px target; on `≥640px` it is low-emphasis at rest and brightens on hover/focus; the favorite star is always visible on touch. | Component at both widths: assert grip visibility/emphasis classes and tap-target sizing; assert star always-visible class on narrow viewport. |
@@ -438,45 +447,27 @@ first, tagged with its AC id).
 
 ---
 
-## 13. Open questions (need Caleb's sign-off)
+## 13. Open questions — RESOLVED (Caleb signed off 2026-06-13)
 
-- **OQ1 — Where does the favorite star live now? (BIGGEST.)** Removing arrange mode
-  evicts the star from its only home. v10's lean (D5) is a **persistently-rendered
-  per-tile star** — faint on desktop (bright on hover/focus, always-bright once
-  favorited), always-visible on touch. **Confirm that**, or pick a quieter home:
-  (a) **hover-only star on desktop** + always-on touch (cleaner desktop, but
-  hover-discoverability cost); (b) star tucked in a per-tile **"⋯" overflow menu**
-  (cleanest tile, one extra tap to favorite); (c) **defer the favoriting UI** to the
-  later Personal-settings revival and ship v10 reorder-only (favorites then only
-  toggle-able via… nothing — risky, since favorites are load-bearing). *Stitch's
-  lean: the persistent star (D5) — favorites are load-bearing (launcher + pinned
-  section), so the toggle must stay reachable with zero modes.*
-- **OQ2 — Drag a tile *between* categories (move/re-folder), or reorder within a
-  section only?** v10 ships **within-section only** (D6), matching the old arrows.
-  Cross-category drag is a real new capability (it reassigns the tile's
-  `category_id` — a different write than `PUT /api/layout`, and arguably needs a
-  PATCH). **Confirm within-section-only for v10**, or greenlight cross-category move
-  as a v10.1. *Stitch's lean: within-section in v10; cross-category is its own
-  slice.*
-- **OQ3 — Does category *reorder* leave the admin "Edit dashboard" surface
-  entirely?** Today category move-arrows live in `CategoryManager` (the edit
-  surface); v10 puts category **reorder** on the dashboard for every user (v9 made
-  categories per-user). **Confirm** we remove the category reorder arrows from
-  `CategoryManager` too (rename/delete stay there), leaving reorder *only* as
-  dashboard drag — vs. keeping both paths. *Stitch's lean: drag is the one reorder
-  path; remove the arrows from `CategoryManager`, keep rename/delete.*
-- **OQ4 — Touch-drag affordance & desktop grip emphasis.** v10 specs a **grip
-  handle** (always-on touch, faint-then-bright on desktop). **Confirm** the grip
-  approach, or prefer (a) **whole-tile press-hold drag** with no visible grip
-  (cleaner tiles, but a hidden affordance and click-vs-drag tuning), or (b) a
-  **permanently prominent** grip on desktop too. *Stitch's lean: visible grip,
-  subtle on desktop / always-on touch — discoverable without being noisy.*
-- **OQ5 — dnd-kit dependency.** v10 adds `@dnd-kit/core` + `@dnd-kit/sortable` (D1)
-  to a repo that currently has **zero** runtime deps beyond React, because it gives
-  us the required keyboard + touch a11y for free. **Confirm** the dependency is
-  acceptable, or require a hand-rolled implementation (more code, higher a11y risk).
-  *Stitch's lean: take dnd-kit — re-implementing accessible touch DnD by hand is the
-  wrong place to spend a custom-code budget.*
+All five are decided. Recorded here for audit; the body of the spec (§7, D-table)
+reflects the resolutions.
+
+- **OQ1 — Where does the favorite toggle live now? → DECIDED: a per-tile "⋯"
+  overflow menu** (option (b)), **not** a persistent star. Supersedes the earlier
+  lean D5. One extra tap to favorite buys the cleanest resting tile (§7).
+- **OQ2 — Cross-category drag or within-section only? → DECIDED: within-section
+  reorder only in v10.** Cross-category move (re-foldering) is deferred to **v10.1**
+  (D6).
+- **OQ3 — Does category reorder leave the admin "Edit dashboard" surface? →
+  DECIDED: yes — drag is the single reorder path.** Remove the
+  `category-move-up`/`category-move-down` arrows from `CategoryManager` (rename +
+  delete stay there); category reorder lives only as dashboard drag (§4).
+- **OQ4 — Touch-drag affordance & desktop grip emphasis. → DECIDED: a visible grip
+  handle** — always-on touch, subtle-on-desktop (faint at rest, bright on
+  hover/focus). The handle is the single drag origin for all input modalities
+  (§5.2).
+- **OQ5 — dnd-kit dependency. → DECIDED: take it.** v10 adds `@dnd-kit/core` +
+  `@dnd-kit/sortable` (D1) — they give the required keyboard + touch a11y for free.
 
 ---
 
@@ -511,7 +502,7 @@ first, tagged with its AC id).
 
 **Next ADD phase after sign-off:** test-writer → failing component tests for A1–A14,
 RED→GREEN→REFACTOR→VERIFY, sliced to fit the ~15-min task cap (suggested: slice 1 =
-remove arrange mode + arrows + Personal settings and relocate the star [A8/A9/A11];
+remove arrange mode + arrows + Personal settings and relocate favoriting into the "⋯" overflow menu [A8/A9/A11];
 slice 2 = tile drag + keyboard + persistence [A1/A2/A4/A5/A6/A7/A10/A12]; slice 3 =
 category-section drag + responsive/touch/dark/a11y polish [A3/A13/A14]). Confirm
 OQ1 (favorites home) and OQ5 (dnd-kit) **before** slice 1.
