@@ -78,7 +78,7 @@ describe('A17/A15 — read-only system settings', () => {
     const sys = await screen.findByTestId('settings-system');
     expect(within(sys).getByText(/oidc/i)).toBeInTheDocument();
     expect(within(sys).getByText(/enabled/i)).toBeInTheDocument();
-    expect(within(sys).getByText(/environment|redeploy/i)).toBeInTheDocument();
+    expect(within(sys).getAllByText(/environment|redeploy/i).length).toBeGreaterThan(0);
   });
 
   it('shows OIDC disabled when off', async () => {
