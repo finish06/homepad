@@ -9,13 +9,11 @@ import UserMenu from './UserMenu';
 export default function AppHeader({
   user,
   onToggleEdit,
-  onToggleSettings,
   onOpenAdminSettings,
   onLogout,
 }: {
   user: User;
   onToggleEdit: () => void;
-  onToggleSettings: () => void;
   onOpenAdminSettings: () => void;
   onLogout: () => void;
 }) {
@@ -27,7 +25,6 @@ export default function AppHeader({
         <UserMenu
           user={user}
           onToggleEdit={onToggleEdit}
-          onToggleSettings={onToggleSettings}
           onOpenAdminSettings={onOpenAdminSettings}
           onLogout={onLogout}
         />

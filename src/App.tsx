@@ -52,12 +52,6 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   useEffect(() => {
     authConfig().then((c) => setOidcEnabled(c.oidcEnabled));
   }, []);
-  // The settings gear is the per-user controls entry point — shown to everyone
-  // (not admin-gated), distinct from the admin Edit toggle. Today it toggles
-  // personal arrange mode, which reveals the reorder arrows (A5.1); it's built
-  // to host future per-user controls. Off by default so the normal view stays
-  // decluttered. Client-ephemeral — a reload returns to the clean view.
-  const [arrange, setArrange] = useState(false);
 
   async function handleLogout() {
     await logout();
@@ -75,13 +69,12 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
           <AppHeader
             user={user}
             onToggleEdit={isAdmin ? () => setEditMode((on) => !on) : () => {}}
-            onToggleSettings={() => setArrange((on) => !on)}
             onOpenAdminSettings={() => setSettingsOpen(true)}
             onLogout={handleLogout}
           />
 
           <section className="mx-auto max-w-6xl px-4 py-6">
-            <Catalog isAdmin={isAdmin} editMode={editMode} arrange={arrange} />
+            <Catalog isAdmin={isAdmin} editMode={editMode} />
           </section>
 
           <LauncherMount />
