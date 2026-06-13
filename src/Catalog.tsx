@@ -21,6 +21,7 @@ import {
   type ServiceStatus,
 } from './api';
 import { DEFAULT_ICON, iconSrc, validateIconFile } from './icons';
+import LibraryBrowse from './LibraryBrowse';
 import ServiceForm from './ServiceForm';
 import { useServicesContext } from './services';
 import { useResolvedTheme } from './theme';
@@ -82,6 +83,9 @@ export default function Catalog({
   const [rev, setRev] = useState(0);
   // null = closed; {} = add; { service } = edit that service (A6 admin form).
   const [form, setForm] = useState<{ service?: Service } | null>(null);
+  // v9.3 §7.2 — the browse + add-from-library modal. Reachable from the empty
+  // dashboard CTA and the always-visible "Add apps" entry.
+  const [browseOpen, setBrowseOpen] = useState(false);
   // v5: the set of collapsed category ids (a row = "this user folded it"; absence
   // = expanded, the default). Seeded synchronously from the localStorage cache so
   // first paint is correct, then reconciled with the authoritative server set on
@@ -211,6 +215,13 @@ export default function Catalog({
     setForm(null);
   }
 
+  // v9.3 §7.2 — an add-from-library copy lands on MY dashboard. Append it the same
+  // way a custom add does so the new tile shows the moment the modal is dismissed.
+  function onAddedFromLibrary(added: Service) {
+    setItems((cur) => [...(cur ?? []), added]);
+    setRev((r) => r + 1);
+  }
+
   // v4 admin category management. All mutations are independently admin-gated
   // server-side; these handlers reflect the result locally without a refetch and
   // return the Result so the manager can surface 403/404/409/400 inline.
@@ -328,6 +339,19 @@ export default function Catalog({
 
   return (
     <>
+      {/* §7.2 — the App Library entry, available to every user (not admin-gated):
+          their personal dashboard is theirs to fill. */}
+      <div className="mb-4 flex items-center gap-3">
+        <button
+          type="button"
+          data-testid="open-library"
+          onClick={() => setBrowseOpen(true)}
+          className="rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-300"
+        >
+          + Add apps
+        </button>
+      </div>
+
       {adminEdit && (
         <div className="mb-4 space-y-4">
           <button
@@ -348,14 +372,23 @@ export default function Catalog({
         </div>
       )}
 
-      {!grouped ? (
-        items.length === 0 ? (
-          <p className="text-sm text-neutral-400">
-            No services in the catalog yet — an admin can add them.
+      {items.length === 0 ? (
+        <div data-testid="dashboard-empty" className="dashboard-empty">
+          <p className="dashboard-empty-title">Your dashboard is empty</p>
+          <p className="dashboard-empty-sub">
+            Add apps from the App Library to get started.
           </p>
-        ) : (
-          renderGrid(items)
-        )
+          <button
+            type="button"
+            data-testid="browse-library-cta"
+            onClick={() => setBrowseOpen(true)}
+            className="dashboard-empty-cta"
+          >
+            Browse the App Library
+          </button>
+        </div>
+      ) : !grouped ? (
+        renderGrid(items)
       ) : (
         <div className="space-y-8">
           {/* Favorites + Uncategorized are render-time buckets, not categories
@@ -387,6 +420,18 @@ export default function Catalog({
             </Section>
           )}
         </div>
+      )}
+
+      {browseOpen && (
+        <LibraryBrowse
+          isAdmin={isAdmin}
+          onClose={() => setBrowseOpen(false)}
+          onAdded={onAddedFromLibrary}
+          onCustomAdd={() => {
+            setBrowseOpen(false);
+            setForm({});
+          }}
+        />
       )}
 
       {form && (

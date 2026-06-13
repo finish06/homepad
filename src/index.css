@@ -601,4 +601,201 @@
       animation: launcher-scrim-in 0.14s ease;
     }
   }
+
+  /* ── v9.3 App Library (§7) — empty-dashboard CTA + browse modal. Built from
+     the same v7/v8 tokens (no new palette): launcher surfaces for the modal,
+     the indigo accent for primary actions, faint/hairline greys for chrome. */
+  .dashboard-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 6px;
+    padding: 56px 20px;
+    border: 1px dashed rgba(15, 23, 42, 0.12);
+    border-radius: 16px;
+    background: rgba(99, 102, 241, 0.03);
+  }
+  .dashboard-empty-title {
+    font-size: 17px;
+    font-weight: 650;
+    color: #0f172a;
+  }
+  .dashboard-empty-sub {
+    font-size: 13px;
+    color: #475069;
+  }
+  .dashboard-empty-cta {
+    margin-top: 12px;
+    padding: 9px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+  }
+  .dashboard-empty-cta:hover {
+    filter: brightness(1.05);
+  }
+  .dark .dashboard-empty {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(99, 102, 241, 0.06);
+  }
+  .dark .dashboard-empty-title {
+    color: #e6e9f2;
+  }
+  .dark .dashboard-empty-sub {
+    color: #aab2c5;
+  }
+
+  .library-panel {
+    max-height: min(72vh, 640px);
+  }
+  .library-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 16px 10px;
+  }
+  .library-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .library-subtitle {
+    margin-top: 2px;
+    font-size: 12px;
+    color: #9aa3b8;
+  }
+  .library-close {
+    width: 26px;
+    height: 26px;
+  }
+  .library-loading {
+    padding: 28px 16px;
+    text-align: center;
+    color: #9aa3b8;
+    font-size: 13px;
+  }
+  .library-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .library-row {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-height: 56px;
+    padding: 8px 10px;
+    border-radius: 10px;
+  }
+  .library-row:hover {
+    background: #f4f5fb;
+  }
+  .library-row-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+  .library-row-name {
+    font-weight: 650;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .library-row-desc {
+    font-size: 12px;
+    color: #475069;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .library-chip {
+    flex: none;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #4f46e5;
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: 9999px;
+    padding: 3px 9px;
+  }
+  .library-add,
+  .library-added {
+    flex: none;
+    min-height: 32px;
+    padding: 6px 14px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .library-add {
+    color: #fff;
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+  }
+  .library-add:hover {
+    filter: brightness(1.05);
+  }
+  .library-added {
+    color: #047857;
+    background: rgba(16, 185, 129, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.3);
+  }
+  .library-add:disabled,
+  .library-added:disabled {
+    opacity: 0.6;
+  }
+  .library-manage-link {
+    margin-top: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #4f46e5;
+    text-decoration: underline;
+  }
+  .library-footer {
+    display: flex;
+    justify-content: center;
+    padding: 10px 16px;
+    border-top: 1px solid rgba(15, 23, 42, 0.07);
+  }
+  .library-custom-add {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475069;
+  }
+  .library-custom-add:hover {
+    color: #0f172a;
+  }
+
+  .dark .library-title {
+    color: #e6e9f2;
+  }
+  .dark .library-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .dark .library-row-name {
+    color: #e6e9f2;
+  }
+  .dark .library-row-desc {
+    color: #aab2c5;
+  }
+  .dark .library-added {
+    color: #6ee7b7;
+    background: rgba(16, 185, 129, 0.16);
+    box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.32);
+  }
+  .dark .library-footer {
+    border-top-color: rgba(255, 255, 255, 0.07);
+  }
+  .dark .library-custom-add {
+    color: #aab2c5;
+  }
+  .dark .library-custom-add:hover {
+    color: #e6e9f2;
+  }
 }
