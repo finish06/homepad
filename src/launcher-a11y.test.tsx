@@ -1,11 +1,15 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import CommandLauncher from './CommandLauncher';
 import LauncherTrigger from './LauncherTrigger';
 import { LauncherProvider } from './launcher';
-import launcherCss from './index.css?raw';
 import type { Service } from './api';
+
+// Read the stylesheet from disk — vitest's CSS handling makes `?raw` empty, so
+// assert the dark/reduced-motion/responsive rules against the file text.
+const launcherCss = readFileSync('src/index.css', 'utf8');
 
 // v8 slice 3 — the header trigger (§4.2), full combobox/listbox a11y + focus
 // trap + aria-live (§8), light/dark + non-color selection + reduced-motion (§2),
@@ -47,6 +51,12 @@ function setup(services: Service[] = CATALOG) {
     </LauncherProvider>,
   );
 }
+
+beforeEach(() => {
+  // jsdom lacks scrollIntoView; the launcher calls it to keep the selection
+  // visible as the query/selection change.
+  Element.prototype.scrollIntoView = vi.fn();
+});
 
 afterEach(() => vi.restoreAllMocks());
 
