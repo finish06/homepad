@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { axe, toHaveNoViolations } from 'jest-axe';
 import Catalog from './Catalog';
 import {
+  addFromLibrary,
   assignCategory,
   categories,
   createCategory,
@@ -11,6 +13,7 @@ import {
   deleteIcon,
   deleteService,
   getCollapsedCategories,
+  listLibrary,
   renameCategory,
   services,
   setCategoryOrder,
@@ -21,6 +24,7 @@ import {
   updateService,
   uploadIcon,
   type Category,
+  type LibraryOffer,
   type Service,
   type ServiceStatus,
 } from './api';
@@ -46,7 +50,11 @@ vi.mock('./api', () => ({
   assignCategory: vi.fn(),
   getCollapsedCategories: vi.fn(),
   setCollapsedCategories: vi.fn(),
+  listLibrary: vi.fn(),
+  addFromLibrary: vi.fn(),
 }));
+
+expect.extend(toHaveNoViolations);
 
 // Keep the real precedence resolver + bundled default; only the async
 // file-validation is stubbed so component tests don't decode real PNGs.
@@ -144,6 +152,9 @@ beforeEach(() => {
   // v5: default = nothing collapsed (every section expanded), persist succeeds.
   mockedGetCollapsed.mockResolvedValue([]);
   mockedSetCollapsed.mockResolvedValue(true);
+  // v9.3: the App Library powers the empty-state browse surface.
+  vi.mocked(listLibrary).mockResolvedValue([]);
+  vi.mocked(addFromLibrary).mockResolvedValue({ ok: true, status: 201, service: svc() });
 });
 
 afterEach(() => {
@@ -189,11 +200,58 @@ describe('A2 — catalog tiles render', () => {
     expect(icon.getAttribute('src')?.startsWith('http')).toBe(false);
   });
 
-  it('shows an empty-state message when the catalog is empty', async () => {
+  it('shows the per-user empty-state CTA when the dashboard is empty (A16)', async () => {
     mockedServices.mockResolvedValue([]);
     render(<Catalog />);
-    expect(await screen.findByText(/no services in the catalog yet/i)).toBeInTheDocument();
+    expect(await screen.findByTestId('dashboard-empty')).toBeInTheDocument();
+    expect(screen.getByTestId('browse-library-cta')).toBeInTheDocument();
     expect(screen.queryByTestId('service-tile')).not.toBeInTheDocument();
+  });
+});
+
+describe('A16 — empty-dashboard CTA opens the browse surface', () => {
+  const offer: LibraryOffer = {
+    id: 'L1', name: 'Jellyfin', url: 'https://jf.x', icon: 'https://jf.x/i.png',
+    description: 'Media server', suggestedCategory: 'Media', sortIndex: 0, added: false,
+  };
+
+  it('the CTA is a real focusable button with an accessible name', async () => {
+    mockedServices.mockResolvedValue([]);
+    render(<Catalog />);
+    const cta = await screen.findByTestId('browse-library-cta');
+    expect(cta.tagName).toBe('BUTTON');
+    expect(cta).toHaveAccessibleName(/browse the app library/i);
+  });
+
+  it('clicking the CTA opens the library browse surface listing offers', async () => {
+    mockedServices.mockResolvedValue([]);
+    vi.mocked(listLibrary).mockResolvedValue([offer]);
+    render(<Catalog />);
+    await userEvent.click(await screen.findByTestId('browse-library-cta'));
+    expect(await screen.findByTestId('library-browse')).toBeInTheDocument();
+    expect(screen.getByTestId('library-row')).toHaveAttribute('data-library-id', 'L1');
+  });
+
+  it('adding an offer reflects the new app on the dashboard', async () => {
+    mockedServices.mockResolvedValue([]);
+    vi.mocked(listLibrary).mockResolvedValue([offer]);
+    vi.mocked(addFromLibrary).mockResolvedValue({
+      ok: true, status: 201, service: svc({ id: 's9', name: 'Jellyfin' }),
+    });
+    render(<Catalog />);
+    await userEvent.click(await screen.findByTestId('browse-library-cta'));
+    await userEvent.click(await screen.findByTestId('library-add-L1'));
+    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L1'));
+    // The new copy appears as a tile once the browse surface is dismissed.
+    await userEvent.keyboard('{Escape}');
+    expect(await screen.findByText('Jellyfin')).toBeInTheDocument();
+  });
+
+  it('has no axe violations on the empty dashboard (A19)', async () => {
+    mockedServices.mockResolvedValue([]);
+    const { container } = render(<Catalog />);
+    await screen.findByTestId('dashboard-empty');
+    expect(await axe(container)).toHaveNoViolations();
   });
 });
 
