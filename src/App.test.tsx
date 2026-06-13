@@ -17,6 +17,23 @@ vi.mock('./Catalog', () => ({
   ),
 }));
 
+// v9.3 §7.3 — the admin Settings modal has its own tests (SettingsPanel.test);
+// stub it here so the App-wiring tests assert only the trigger/mount, and can
+// read back the props App threads in (isAdmin, oidcEnabled).
+vi.mock('./SettingsPanel', () => ({
+  default: (props: { isAdmin?: boolean; oidcEnabled?: boolean; onClose: () => void }) => (
+    <div
+      data-testid="settings-panel-stub"
+      data-admin={String(!!props.isAdmin)}
+      data-oidc={String(!!props.oidcEnabled)}
+    >
+      <button data-testid="settings-panel-close" onClick={props.onClose}>
+        close
+      </button>
+    </div>
+  ),
+}));
+
 vi.mock('./api', () => ({
   authConfig: vi.fn(),
   me: vi.fn(),
@@ -475,5 +492,61 @@ describe('PocketID login button', () => {
 
     expect(assign).toHaveBeenCalledWith('/api/auth/oidc/login');
     vi.unstubAllGlobals();
+  });
+});
+
+// v9.3 §7.3 / A17 — the admin Settings surface (App Library management +
+// read-only System settings) mounts as a modal from the avatar menu. The
+// trigger is admin-only; non-admins never see it and so can never reach the
+// admin views. Esc/close dismisses. The panel itself (SettingsPanel) is stubbed
+// — its content/a11y is covered by SettingsPanel.test.
+describe('v9.3 §7.3 — admin Settings modal wiring (A17)', () => {
+  async function openMenu(user: ReturnType<typeof userEvent.setup>) {
+    const trigger = await screen.findByTestId('user-menu-trigger');
+    await user.click(trigger);
+  }
+
+  it('admin sees an Admin settings menu item that opens the settings panel', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(ADMIN);
+    render(<App />);
+    await dropLoading();
+    await openMenu(user);
+    expect(screen.queryByTestId('settings-panel-stub')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('menu-admin-settings'));
+    const panel = screen.getByTestId('settings-panel-stub');
+    expect(panel).toBeInTheDocument();
+    expect(panel).toHaveAttribute('data-admin', 'true');
+  });
+
+  it('non-admin never sees the Admin settings trigger', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(USER);
+    render(<App />);
+    await dropLoading();
+    await openMenu(user);
+    expect(screen.queryByTestId('menu-admin-settings')).not.toBeInTheDocument();
+  });
+
+  it('passes the resolved OIDC state into the panel', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(ADMIN);
+    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true });
+    render(<App />);
+    await dropLoading();
+    await openMenu(user);
+    await user.click(screen.getByTestId('menu-admin-settings'));
+    expect(screen.getByTestId('settings-panel-stub')).toHaveAttribute('data-oidc', 'true');
+  });
+
+  it('closing the panel unmounts it', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(ADMIN);
+    render(<App />);
+    await dropLoading();
+    await openMenu(user);
+    await user.click(screen.getByTestId('menu-admin-settings'));
+    await user.click(screen.getByTestId('settings-panel-close'));
+    expect(screen.queryByTestId('settings-panel-stub')).not.toBeInTheDocument();
   });
 });

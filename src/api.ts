@@ -58,6 +58,31 @@ export type ServiceInput = {
 
 export type AuthConfig = { oidcEnabled: boolean };
 
+// v9.2/v9.3: a library offer — admin-curated catalog metadata any user can browse
+// (`GET /api/library`) and copy onto their own dashboard. `added` is the per-user
+// hint (do I already hold a copy — D6, non-blocking). `suggestedCategory` is a
+// free-text hint, not a category id (D5).
+export type LibraryOffer = {
+  id: string;
+  name: string;
+  url: string;
+  icon: string;
+  description: string;
+  suggestedCategory: string;
+  sortIndex: number;
+  added: boolean;
+};
+
+// The admin-editable library fields for create/update (A8). No `sortIndex` —
+// order is managed via setLibraryOrder, and a create appends at the end.
+export type LibraryAppInput = {
+  name: string;
+  url: string;
+  icon: string;
+  description: string;
+  suggestedCategory: string;
+};
+
 const jsonHeaders = { 'Content-Type': 'application/json' };
 
 async function errorText(res: Response): Promise<string> {
@@ -319,6 +344,92 @@ export async function setCollapsedCategories(ids: string[]): Promise<boolean> {
 // can roll back an optimistic reorder.
 export async function setLayout(order: string[]): Promise<boolean> {
   const res = await fetch('/api/layout', {
+    method: 'PUT',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify({ order }),
+  });
+  return res.status === 204;
+}
+
+// listLibrary browses the App Library — every offer in sort_index order, each
+// tagged with the caller's `added` hint (A9). Any authenticated user; a non-200
+// yields [] so the browse surface shows the empty state rather than erroring.
+export async function listLibrary(): Promise<LibraryOffer[]> {
+  const res = await fetch('/api/library', { credentials: 'include' });
+  if (res.status !== 200) return [];
+  const data = (await res.json()) as { library?: LibraryOffer[] };
+  return data.library ?? [];
+}
+
+// addFromLibrary copies an offer onto the CALLER's own dashboard (A10) and returns
+// the new service so the caller can append it without a refetch. An optional
+// `categoryId` files the copy (must be the caller's own — a foreign/bogus id 400s,
+// A11); omitted → no body, lands Uncategorized (D4). 404 on an unknown offer.
+export async function addFromLibrary(
+  id: string,
+  categoryId?: string,
+): Promise<Result & { service?: Service }> {
+  const res = await fetch(`/api/library/${id}/add`, {
+    method: 'POST',
+    credentials: 'include',
+    ...(categoryId !== undefined
+      ? { headers: jsonHeaders, body: JSON.stringify({ categoryId }) }
+      : {}),
+  });
+  if (res.status === 201) return { ok: true, status: 201, service: (await res.json()) as Service };
+  return { ok: false, status: res.status, error: await errorText(res) };
+}
+
+// createLibraryApp adds a new offer to the App Library (admin only — 403 non-admin,
+// 400 missing name/url). Appends at the end of the browse order. Returns the
+// created offer on 201 so the manager can reflect it without a refetch.
+export async function createLibraryApp(
+  input: LibraryAppInput,
+): Promise<Result & { offer?: LibraryOffer }> {
+  const res = await fetch('/api/library', {
+    method: 'POST',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify(input),
+  });
+  if (res.status === 201) return { ok: true, status: 201, offer: (await res.json()) as LibraryOffer };
+  return { ok: false, status: res.status, error: await errorText(res) };
+}
+
+// updateLibraryApp edits an offer (admin only — 403 non-admin, 404 unknown id).
+// Only the fields present in `patch` change; editing does NOT propagate to copies
+// users already hold (C1). Returns the updated offer on 200.
+export async function updateLibraryApp(
+  id: string,
+  patch: Partial<LibraryAppInput>,
+): Promise<Result & { offer?: LibraryOffer }> {
+  const res = await fetch(`/api/library/${id}`, {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify(patch),
+  });
+  if (res.status === 200) return { ok: true, status: 200, offer: (await res.json()) as LibraryOffer };
+  return { ok: false, status: res.status, error: await errorText(res) };
+}
+
+// deleteLibraryApp removes an offer (admin only; idempotent 204). Existing copies
+// are untouched — their source_library_id goes NULL via the FK (C1/OQ5). Returns
+// true on 204 so the manager can roll back an optimistic removal.
+export async function deleteLibraryApp(id: string): Promise<boolean> {
+  const res = await fetch(`/api/library/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  return res.status === 204;
+}
+
+// setLibraryOrder persists the admin browse order (admin only) — the same
+// whole-array contract as setCategoryOrder/setLayout. `order` is the list of offer
+// ids, position 0 first. Returns true on 204 so the manager can roll back.
+export async function setLibraryOrder(order: string[]): Promise<boolean> {
+  const res = await fetch('/api/library/order', {
     method: 'PUT',
     headers: jsonHeaders,
     credentials: 'include',

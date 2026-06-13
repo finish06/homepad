@@ -1,14 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  addFromLibrary,
   assignCategory,
   authConfig,
   categories,
   createCategory,
+  createLibraryApp,
   createService,
   deleteCategory,
   deleteIcon,
+  deleteLibraryApp,
   deleteService,
   getCollapsedCategories,
+  listLibrary,
   login,
   logout,
   me,
@@ -19,7 +23,9 @@ import {
   setCollapsedCategories,
   setFavorite,
   setLayout,
+  setLibraryOrder,
   setThemePref,
+  updateLibraryApp,
   updateService,
   uploadIcon,
 } from './api';
@@ -514,5 +520,114 @@ describe('setCollapsedCategories (v5)', () => {
   it('returns false on a non-204 (e.g. 401 no session)', async () => {
     mockFetch(null, 401);
     await expect(setCollapsedCategories(['media'])).resolves.toBe(false);
+  });
+});
+
+// v9.3 App Library client (§7.2/§7.3) — browse + add-from-library for any user,
+// CRUD for admins. URL + body + status-mapping assertions, same shape as the
+// rest of this suite; supports A16 (browse/add) and A17 (library management).
+describe('listLibrary (A16/A9)', () => {
+  const offer = {
+    id: 'L1', name: 'Jellyfin', url: 'https://jf.x', icon: 'https://jf.x/i.png',
+    description: 'Media server', suggestedCategory: 'Media', sortIndex: 0, added: false,
+  };
+
+  it('GETs /api/library and unwraps the offers array in order', async () => {
+    const fn = mockFetch(JSON.stringify({ library: [offer] }), 200);
+    await expect(listLibrary()).resolves.toEqual([offer]);
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/library');
+    expect(opts).toMatchObject({ credentials: 'include' });
+  });
+
+  it('returns [] on a non-200 so the browse surface degrades gracefully', async () => {
+    mockFetch(null, 401);
+    await expect(listLibrary()).resolves.toEqual([]);
+  });
+});
+
+describe('addFromLibrary (A16/A10)', () => {
+  const created = {
+    id: 's9', slug: 'jellyfin', name: 'Jellyfin', description: 'Media server',
+    url: 'https://jf.x', icon: '', status: 'UNKNOWN', favorite: false,
+    iconLight: false, iconDark: false, sourceLibraryId: 'L1',
+  };
+
+  it('POSTs /api/library/{id}/add (no body by default) and returns the new service on 201', async () => {
+    const fn = mockFetch(JSON.stringify(created), 201);
+    const r = await addFromLibrary('L1');
+    expect(r).toEqual({ ok: true, status: 201, service: created });
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/library/L1/add');
+    expect(opts).toMatchObject({ method: 'POST', credentials: 'include' });
+    expect(opts!.body).toBeUndefined();
+  });
+
+  it('sends {categoryId} when a target category is given', async () => {
+    const fn = mockFetch(JSON.stringify(created), 201);
+    await addFromLibrary('L1', 'c1');
+    const [, opts] = fn.mock.calls[0];
+    expect(JSON.parse(opts!.body as string)).toEqual({ categoryId: 'c1' });
+  });
+
+  it('surfaces the server error inline on a 400 foreign category', async () => {
+    mockFetch('no such category', 400);
+    await expect(addFromLibrary('L1', 'foreign')).resolves.toEqual({
+      ok: false, status: 400, error: 'no such category',
+    });
+  });
+});
+
+describe('createLibraryApp / updateLibraryApp / deleteLibraryApp / setLibraryOrder (A17/A8)', () => {
+  const input = {
+    name: 'Jellyfin', url: 'https://jf.x', icon: 'https://jf.x/i.png',
+    description: 'Media server', suggestedCategory: 'Media',
+  };
+  const offer = { id: 'L1', ...input, sortIndex: 0, added: false };
+
+  it('createLibraryApp POSTs /api/library and returns the offer on 201', async () => {
+    const fn = mockFetch(JSON.stringify(offer), 201);
+    const r = await createLibraryApp(input);
+    expect(r).toEqual({ ok: true, status: 201, offer });
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/library');
+    expect(opts).toMatchObject({ method: 'POST', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual(input);
+  });
+
+  it('createLibraryApp surfaces a 403 for a non-admin', async () => {
+    mockFetch('admin role required', 403);
+    const r = await createLibraryApp(input);
+    expect(r.ok).toBe(false);
+    expect(r.status).toBe(403);
+    expect(r.offer).toBeUndefined();
+  });
+
+  it('updateLibraryApp PATCHes /api/library/{id} with only the given fields on 200', async () => {
+    const fn = mockFetch(JSON.stringify({ ...offer, name: 'JF' }), 200);
+    const r = await updateLibraryApp('L1', { name: 'JF' });
+    expect(r.ok).toBe(true);
+    expect(r.offer?.name).toBe('JF');
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/library/L1');
+    expect(opts).toMatchObject({ method: 'PATCH', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ name: 'JF' });
+  });
+
+  it('deleteLibraryApp DELETEs /api/library/{id} and returns true on 204', async () => {
+    const fn = mockFetch(null, 204);
+    await expect(deleteLibraryApp('L1')).resolves.toBe(true);
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/library/L1');
+    expect(opts).toMatchObject({ method: 'DELETE', credentials: 'include' });
+  });
+
+  it('setLibraryOrder PUTs /api/library/order with the id list and returns true on 204', async () => {
+    const fn = mockFetch(null, 204);
+    await expect(setLibraryOrder(['L2', 'L1'])).resolves.toBe(true);
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/library/order');
+    expect(opts).toMatchObject({ method: 'PUT', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ order: ['L2', 'L1'] });
   });
 });

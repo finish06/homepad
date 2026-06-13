@@ -282,3 +282,30 @@ beforeEach(() => {
   // view (§6.4). Provide a no-op so those calls don't throw under test.
   Element.prototype.scrollIntoView = vi.fn();
 });
+
+// v9.3 A18/§7.4 — the v8 launcher is UNCHANGED but the `services` it filters is
+// now the per-user GET /api/services list, so it transparently becomes "search
+// MY dashboard" (D8). No code change; this locks in that it lists exactly the
+// caller's apps and nothing else, so a future per-user regression would trip it.
+describe('A18 — launcher is now personal (search my dashboard)', () => {
+  it('empty-query default lists exactly the caller-supplied services', () => {
+    const mine = [
+      svc({ id: 'mine-a', name: 'My App A' }),
+      svc({ id: 'mine-b', name: 'My App B' }),
+    ];
+    setup(mine);
+    openWithMeta();
+    const rows = screen.getAllByTestId('launcher-result');
+    expect(rows.map((r) => r.getAttribute('data-service-id'))).toEqual(['mine-a', 'mine-b']);
+  });
+
+  it("another user's apps never appear — only what was handed in renders", () => {
+    setup([svc({ id: 'mine-only', name: 'Mine Only' })]);
+    openWithMeta();
+    fireEvent.change(screen.getByTestId('launcher-input'), { target: { value: 'someone' } });
+    // A foreign app named "Someone Else" was never in the per-user list, so the
+    // query finds nothing — the launcher can only ever match the caller's array.
+    expect(screen.queryByText('Someone Else')).toBeNull();
+    expect(screen.getByTestId('launcher-no-results')).toBeInTheDocument();
+  });
+});

@@ -5,6 +5,7 @@ import Catalog from './Catalog';
 import CommandLauncher from './CommandLauncher';
 import { LauncherProvider } from './launcher';
 import { ServicesProvider, useServicesContext } from './services';
+import SettingsPanel from './SettingsPanel';
 import { ThemeProvider } from './theme';
 
 export default function App() {
@@ -43,6 +44,14 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // is a convenience surface, not the security boundary.
   const isAdmin = user.role === 'admin';
   const [editMode, setEditMode] = useState(false);
+  // v9.3 §7.3 — the admin Settings modal (App Library management + read-only
+  // System settings). Opened from the avatar menu (admin only). OIDC is read
+  // from the client-visible auth config — no API change.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [oidcEnabled, setOidcEnabled] = useState(false);
+  useEffect(() => {
+    authConfig().then((c) => setOidcEnabled(c.oidcEnabled));
+  }, []);
   // The settings gear is the per-user controls entry point — shown to everyone
   // (not admin-gated), distinct from the admin Edit toggle. Today it toggles
   // personal arrange mode, which reveals the reorder arrows (A5.1); it's built
@@ -67,6 +76,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             user={user}
             onToggleEdit={isAdmin ? () => setEditMode((on) => !on) : () => {}}
             onToggleSettings={() => setArrange((on) => !on)}
+            onOpenAdminSettings={() => setSettingsOpen(true)}
             onLogout={handleLogout}
           />
 
@@ -75,6 +85,14 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
           </section>
 
           <LauncherMount />
+
+          {settingsOpen && (
+            <SettingsPanel
+              isAdmin={isAdmin}
+              oidcEnabled={oidcEnabled}
+              onClose={() => setSettingsOpen(false)}
+            />
+          )}
         </main>
       </ServicesProvider>
     </LauncherProvider>
