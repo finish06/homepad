@@ -241,9 +241,9 @@ describe('A7 — live region announces grab / move / drop with numeric position'
       svc({ id: 'c', name: 'Charlie' }),
     ]);
     render(<Catalog />);
+    const handle = await screen.findByRole('button', { name: 'Reorder Alpha' });
     const region = screen.getByTestId('drag-live-region');
     expect(region).toHaveAttribute('aria-live');
-    const handle = await screen.findByRole('button', { name: 'Reorder Alpha' });
     handle.focus();
     await user.keyboard('{ }');
     await waitFor(() => expect(region).toHaveTextContent(/grabbed.*position 1 of 3/i));
