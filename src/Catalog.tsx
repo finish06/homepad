@@ -889,6 +889,15 @@ function TileMenu({
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  // #35: this trigger lives inside a dnd-kit sortable that re-renders the node
+  // during a pointer gesture, so `pointerdown` and `pointerup` land on different
+  // node instances and the browser never synthesises the `click` we relied on —
+  // mouse/touch could never open the menu. Act on `pointerup` (which fires
+  // reliably) instead, and suppress the trailing `click` when one does arrive so
+  // we don't double-toggle. A keyboard Enter/Space fires `click` with no
+  // preceding pointer gesture, so that path still toggles. `pointerHandled` is
+  // reset on each `pointerdown` so a stale flag can't swallow a later click.
+  const pointerHandled = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -921,8 +930,20 @@ function TileMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`More options for ${service.name}`}
+        onPointerDown={() => {
+          pointerHandled.current = false;
+        }}
+        onPointerUp={(e) => {
+          e.stopPropagation();
+          pointerHandled.current = true;
+          setOpen((o) => !o);
+        }}
         onClick={(e) => {
           e.stopPropagation();
+          if (pointerHandled.current) {
+            pointerHandled.current = false;
+            return;
+          }
           setOpen((o) => !o);
         }}
         className="tile-menu-trigger flex h-9 w-9 items-center justify-center rounded-full text-lg leading-none text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-indigo-500 sm:opacity-40 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 dark:hover:bg-neutral-800"
@@ -942,8 +963,22 @@ function TileMenu({
             data-testid="favorite-toggle"
             data-favorite={fav ? 'true' : 'false'}
             aria-pressed={fav}
+            onPointerDown={() => {
+              pointerHandled.current = false;
+            }}
+            onPointerUp={(e) => {
+              e.stopPropagation();
+              pointerHandled.current = true;
+              onToggleFavorite(service.id);
+              setOpen(false);
+              triggerRef.current?.focus();
+            }}
             onClick={(e) => {
               e.stopPropagation();
+              if (pointerHandled.current) {
+                pointerHandled.current = false;
+                return;
+              }
               onToggleFavorite(service.id);
               setOpen(false);
               triggerRef.current?.focus();
