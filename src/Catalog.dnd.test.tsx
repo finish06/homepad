@@ -7,7 +7,7 @@
 // grows down the document) — that's all sortableKeyboardCoordinates needs to
 // resolve ArrowDown/ArrowUp to the next/previous sortable item.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import Catalog from './Catalog';
@@ -355,5 +355,56 @@ describe('A13/A14 — dark, reduced-motion, responsive grip, a11y', () => {
     const { container } = render(<Catalog />);
     await screen.findAllByTestId('drag-handle');
     expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+// #35 (HIGH) — the per-tile "⋯" overflow menu opened via keyboard but NOT via a
+// real mouse/touch pointer gesture, so the favorite toggle (which v10 moved into
+// that menu) was unreachable for pointer/touch users. Root cause (per QA): the
+// trigger lives inside a dnd-kit `useSortable` tile that re-renders during the
+// pointer interaction, so `pointerdown` and `pointerup` land on different node
+// instances and the browser never synthesises the `click` the trigger relied on.
+// The fix is to activate on the pointer gesture itself rather than the swallowed
+// `click`. These tests model the swallow by firing the pointer gesture WITHOUT a
+// trailing click.
+describe('#35 — "⋯" tile menu opens via real pointer/touch gesture', () => {
+  it('opens on a pointerdown→pointerup gesture even when the synthetic click is swallowed', async () => {
+    vi.mocked(services).mockResolvedValue([svc({ id: 'a', name: 'Plex', favorite: false })]);
+    render(<Catalog />);
+    const trigger = await screen.findByTestId('tile-menu');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.pointerDown(trigger);
+    fireEvent.pointerUp(trigger);
+
+    await waitFor(() => expect(trigger).toHaveAttribute('aria-expanded', 'true'));
+    expect(screen.getByTestId('favorite-toggle')).toBeInTheDocument();
+  });
+
+  it('lets a pointer/touch user toggle the favorite end-to-end (open menu → toggle persists)', async () => {
+    vi.mocked(services).mockResolvedValue([svc({ id: 'fav-me', name: 'Plex', favorite: false })]);
+    render(<Catalog />);
+    const trigger = await screen.findByTestId('tile-menu');
+
+    fireEvent.pointerDown(trigger);
+    fireEvent.pointerUp(trigger);
+
+    const toggle = await screen.findByTestId('favorite-toggle');
+    fireEvent.pointerDown(toggle);
+    fireEvent.pointerUp(toggle);
+
+    await waitFor(() => expect(vi.mocked(setFavorite)).toHaveBeenCalledWith('fav-me', true));
+  });
+
+  it('a full pointer click (down→up→click) opens the menu exactly once, not double-toggled shut', async () => {
+    vi.mocked(services).mockResolvedValue([svc({ id: 'a', name: 'Plex', favorite: false })]);
+    render(<Catalog />);
+    const trigger = await screen.findByTestId('tile-menu');
+
+    fireEvent.pointerDown(trigger);
+    fireEvent.pointerUp(trigger);
+    fireEvent.click(trigger);
+
+    await waitFor(() => expect(trigger).toHaveAttribute('aria-expanded', 'true'));
   });
 });
