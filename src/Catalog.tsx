@@ -651,7 +651,7 @@ function Section({
       ref={containerRef}
       style={containerStyle}
       className={`rounded-lg transition-transform motion-reduce:transition-none ${
-        grabbed ? 'z-10 scale-[1.01] shadow-lg ring-1 ring-indigo-500/35' : ''
+        grabbed ? 'z-10 scale-[1.01] shadow-lg ring-1 ring-indigo-500/35 motion-reduce:scale-100' : ''
       }`}
     >
       <h2 className="flex items-center">
@@ -797,7 +797,7 @@ function ServiceTile({
       style={style}
       data-testid="service-tile"
       className={`tile group relative transition-transform motion-reduce:transition-none ${
-        grabbed ? 'z-10 scale-[1.02] shadow-lg ring-1 ring-indigo-500/35' : ''
+        grabbed ? 'z-10 scale-[1.02] shadow-lg ring-1 ring-indigo-500/35 motion-reduce:scale-100' : ''
       }`}
     >
       <span
@@ -946,7 +946,7 @@ function TileMenu({
           }
           setOpen((o) => !o);
         }}
-        className="tile-menu-trigger flex h-9 w-9 items-center justify-center rounded-full text-lg leading-none text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-indigo-500 sm:opacity-40 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 dark:hover:bg-neutral-800"
+        className="tile-menu-trigger flex h-11 w-11 items-center justify-center rounded-full text-lg leading-none text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-indigo-500 sm:h-9 sm:w-9 sm:opacity-40 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 dark:hover:bg-neutral-800"
       >
         ⋯
       </button>
