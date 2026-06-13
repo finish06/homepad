@@ -901,7 +901,17 @@ function TileMenu({
 
   useEffect(() => {
     if (!open) return;
-    function onDocPointer(e: MouseEvent) {
+    // #35 (touch mode): dismiss on `pointerdown`, NOT `mousedown`. We OPEN the
+    // menu on the trigger's `pointerup`; a touch tap then emits a *trailing
+    // synthetic* `mousedown` for the same physical tap, which a mousedown
+    // outside-dismiss listener (attached the instant the menu opened) would fire
+    // on — slamming the just-opened menu shut (observed MENU_OPEN->MENU_CLOSE).
+    // `pointerdown` is the same event family as the open gesture: the opening
+    // tap's pointerdown already fired before this listener was attached, and the
+    // trailing synthetic *mouse* events aren't pointer events, so they're
+    // ignored. A genuinely separate tap/click outside fires a fresh pointerdown
+    // and dismisses correctly (mouse emits pointerdown too, so desktop is fine).
+    function onDocPointer(e: PointerEvent) {
       const t = e.target as Node;
       if (!menuRef.current?.contains(t) && !triggerRef.current?.contains(t)) setOpen(false);
     }
@@ -912,17 +922,23 @@ function TileMenu({
         triggerRef.current?.focus();
       }
     }
-    document.addEventListener('mousedown', onDocPointer);
+    document.addEventListener('pointerdown', onDocPointer);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDocPointer);
+      document.removeEventListener('pointerdown', onDocPointer);
       document.removeEventListener('keydown', onKey);
     };
   }, [open]);
 
   const fav = service.favorite;
   return (
-    <div className="absolute left-2 top-2">
+    // #35 (mouse mode): `z-20` lifts the trigger above the sibling tile <a>.
+    // Both were position:static/z-auto, so the anchor (later in DOM) painted on
+    // top at the button's CENTER — a real center click hit the link, not the
+    // ⋯ button, and the menu never opened (only a thin left edge of the button
+    // poked out). The drag grip already carries z-10 for exactly this reason;
+    // this container had no z-index. z-20 keeps it above the grip too.
+    <div className="absolute left-2 top-2 z-20">
       <button
         ref={triggerRef}
         type="button"

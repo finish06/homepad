@@ -358,15 +358,19 @@ describe('A13/A14 — dark, reduced-motion, responsive grip, a11y', () => {
   });
 });
 
-// #35 (HIGH) — the per-tile "⋯" overflow menu opened via keyboard but NOT via a
-// real mouse/touch pointer gesture, so the favorite toggle (which v10 moved into
-// that menu) was unreachable for pointer/touch users. Root cause (per QA): the
-// trigger lives inside a dnd-kit `useSortable` tile that re-renders during the
-// pointer interaction, so `pointerdown` and `pointerup` land on different node
-// instances and the browser never synthesises the `click` the trigger relied on.
-// The fix is to activate on the pointer gesture itself rather than the swallowed
-// `click`. These tests model the swallow by firing the pointer gesture WITHOUT a
-// trailing click.
+// #35 (HIGH) — the per-tile "⋯" overflow menu was unreachable by mouse/touch, so
+// the favorite toggle (which v10 moved into it) was unusable for pointer/touch
+// users. Browser QA (Gracie) found TWO real causes:
+//   1. MOUSE: the trigger overlapped the sibling tile <a>, both static/z-auto, so
+//      the link painted on top at the button CENTER — a center click hit the link,
+//      not ⋯. Fixed with z-20 on the trigger container (NOT unit-testable here:
+//      jsdom has no layout/paint, so the browser test is the gate for this half).
+//   2. TOUCH: the menu opened on `pointerup`, but the trailing synthetic
+//      `mousedown` from the same tap fired the outside-dismiss (which listened on
+//      `mousedown`) and slammed it shut. Fixed by dismissing on `pointerdown`.
+// We still open on the pointer gesture (the keyboard `click` path is unaffected);
+// these tests model the gesture WITHOUT a trailing click and assert the menu
+// survives the trailing synthetic mouse event.
 describe('#35 — "⋯" tile menu opens via real pointer/touch gesture', () => {
   it('opens on a pointerdown→pointerup gesture even when the synthetic click is swallowed', async () => {
     vi.mocked(services).mockResolvedValue([svc({ id: 'a', name: 'Plex', favorite: false })]);
@@ -406,5 +410,34 @@ describe('#35 — "⋯" tile menu opens via real pointer/touch gesture', () => {
     fireEvent.click(trigger);
 
     await waitFor(() => expect(trigger).toHaveAttribute('aria-expanded', 'true'));
+  });
+
+  it('stays open when the opening tap emits a trailing synthetic mousedown (touch double-close regression)', async () => {
+    vi.mocked(services).mockResolvedValue([svc({ id: 'a', name: 'Plex', favorite: false })]);
+    render(<Catalog />);
+    const trigger = await screen.findByTestId('tile-menu');
+
+    fireEvent.pointerDown(trigger);
+    fireEvent.pointerUp(trigger);
+    await waitFor(() => expect(trigger).toHaveAttribute('aria-expanded', 'true'));
+
+    // A touch tap emits a trailing synthetic `mousedown` for the SAME tap. The
+    // outside-dismiss now listens on `pointerdown`, so this must be ignored.
+    fireEvent.mouseDown(document.body);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('favorite-toggle')).toBeInTheDocument();
+  });
+
+  it('a genuine pointerdown outside the menu still dismisses it', async () => {
+    vi.mocked(services).mockResolvedValue([svc({ id: 'a', name: 'Plex', favorite: false })]);
+    render(<Catalog />);
+    const trigger = await screen.findByTestId('tile-menu');
+
+    fireEvent.pointerDown(trigger);
+    fireEvent.pointerUp(trigger);
+    await waitFor(() => expect(trigger).toHaveAttribute('aria-expanded', 'true'));
+
+    fireEvent.pointerDown(document.body);
+    await waitFor(() => expect(trigger).toHaveAttribute('aria-expanded', 'false'));
   });
 });
