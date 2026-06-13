@@ -130,7 +130,11 @@ describe('A5 — typing filters to fuzzy matches; each row shows icon + name + c
     const names = rows.map((r) => within(r).getByTestId('launcher-result-name').textContent);
     expect(names).toContain('Jellyfin');
     const jelly = rows.find((r) => within(r).getByTestId('launcher-result-name').textContent === 'Jellyfin')!;
-    expect(within(jelly).getByRole('img')).toBeInTheDocument();
+    // The icon is decorative (alt="") since the name text sits beside it — same
+    // as the tile; assert it by its testid hook rather than the img role.
+    const icon = within(jelly).getByTestId('launcher-result-icon');
+    expect(icon.tagName).toBe('IMG');
+    expect(icon).toHaveAttribute('src');
     expect(within(jelly).getByTestId('launcher-result-category').textContent).toMatch(/media/i);
     // gitea is not a subsequence of the query → excluded
     expect(names).not.toContain('Gitea');

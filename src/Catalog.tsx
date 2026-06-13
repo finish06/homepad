@@ -22,6 +22,7 @@ import {
 } from './api';
 import { DEFAULT_ICON, iconSrc, validateIconFile } from './icons';
 import ServiceForm from './ServiceForm';
+import { useServicesContext } from './services';
 import { useResolvedTheme } from './theme';
 
 // v5: localStorage mirrors the last-known collapsed-category set so the catalog
@@ -65,7 +66,14 @@ export default function Catalog({
   editMode?: boolean;
   arrange?: boolean;
 }) {
-  const [items, setItems] = useState<Service[] | null>(null);
+  // v8: the Service[] is shared with the command launcher via ServicesProvider so
+  // both render the SAME already-loaded array (no second fetch, §3/A12). When the
+  // provider is absent (isolated component tests), Catalog owns the list itself —
+  // the v1 behaviour, unchanged — and does its own fetch below.
+  const servicesCtx = useServicesContext();
+  const [localItems, setLocalItems] = useState<Service[] | null>(null);
+  const items = servicesCtx ? servicesCtx.items : localItems;
+  const setItems = servicesCtx ? servicesCtx.setItems : setLocalItems;
   // v4: the admin-managed categories, in sort_index order. Empty → the catalog
   // renders the flat v1 grid (A10), so v4 is invisible until an admin makes one.
   const [cats, setCats] = useState<Category[]>([]);
@@ -89,7 +97,9 @@ export default function Catalog({
   const theme = useResolvedTheme();
 
   useEffect(() => {
-    services().then(setItems);
+    // Only fetch services when no provider owns the list (the provider does the
+    // single shared load otherwise — §3/A12).
+    if (!servicesCtx) services().then(setLocalItems);
     categories().then(setCats);
     // v5: load the authoritative per-user collapsed set, then refresh the cache.
     // A non-200 / offline yields [] (every section expanded — v4 behavior).

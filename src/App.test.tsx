@@ -24,6 +24,9 @@ vi.mock('./api', () => ({
   register: vi.fn(),
   logout: vi.fn(),
   setThemePref: vi.fn(),
+  // v8: Home now wraps the grid in ServicesProvider, which loads the shared
+  // Service[] for the command launcher. Stub it so the provider's fetch resolves.
+  services: vi.fn(() => Promise.resolve([])),
 }));
 
 const mockedAuthConfig = vi.mocked(authConfig);

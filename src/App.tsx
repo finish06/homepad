@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { authConfig, login, logout, me, register, type User } from './api';
 import AppHeader from './AppHeader';
 import Catalog from './Catalog';
+import CommandLauncher from './CommandLauncher';
+import { LauncherProvider } from './launcher';
+import { ServicesProvider, useServicesContext } from './services';
 import { ThemeProvider } from './theme';
 
 export default function App() {
@@ -52,20 +55,37 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
     onLogout();
   }
 
+  // v8: LauncherProvider owns launcher open-state + the global ⌘K / `/` hotkey;
+  // ServicesProvider owns the single Service[] load shared by the grid and the
+  // launcher (no second fetch, §3/A12). CommandLauncher renders the overlay when
+  // opened and filters that same array.
   return (
-    <main className="app-surface min-h-screen font-sans">
-      <AppHeader
-        user={user}
-        onToggleEdit={isAdmin ? () => setEditMode((on) => !on) : () => {}}
-        onToggleSettings={() => setArrange((on) => !on)}
-        onLogout={handleLogout}
-      />
+    <LauncherProvider>
+      <ServicesProvider>
+        <main className="app-surface min-h-screen font-sans">
+          <AppHeader
+            user={user}
+            onToggleEdit={isAdmin ? () => setEditMode((on) => !on) : () => {}}
+            onToggleSettings={() => setArrange((on) => !on)}
+            onLogout={handleLogout}
+          />
 
-      <section className="mx-auto max-w-6xl px-4 py-6">
-        <Catalog isAdmin={isAdmin} editMode={editMode} arrange={arrange} />
-      </section>
-    </main>
+          <section className="mx-auto max-w-6xl px-4 py-6">
+            <Catalog isAdmin={isAdmin} editMode={editMode} arrange={arrange} />
+          </section>
+
+          <LauncherMount />
+        </main>
+      </ServicesProvider>
+    </LauncherProvider>
   );
+}
+
+// Feeds the launcher the shared catalog array; while it is still loading the
+// launcher simply has nothing to match (an empty list), never its own fetch.
+function LauncherMount() {
+  const ctx = useServicesContext();
+  return <CommandLauncher services={ctx?.items ?? []} />;
 }
 
 function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
