@@ -772,6 +772,10 @@
     color: #0f172a;
   }
 
+  .dark .library-chip {
+    color: #a5b4fc;
+    background: rgba(99, 102, 241, 0.18);
+  }
   .dark .library-title {
     color: #e6e9f2;
   }

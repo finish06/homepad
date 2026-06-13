@@ -2,6 +2,25 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-13 — #29 .library-chip dark-mode contrast fast-follow ✅ (PR open)
+
+Branch `fix/29-library-chip-dark-contrast` off `main`. **Cosmetic, web-only,
+non-blocking** — closes #29 (v9.3 a11y). The `.library-chip` uppercase label
+(`src/index.css`) was `#4f46e5` on `rgba(99,102,241,0.1)` with **no
+`.dark .library-chip` override**, so in dark mode it composited to ~2.73:1 —
+fails WCAG-AA (small text needs ≥4.5:1).
+
+**Fix:** added `.dark .library-chip` lightening text to `#a5b4fc` on a stronger
+chip bg `rgba(99,102,241,0.18)`. Composited over the `#0e1117` panel that's
+**~7.9:1**, well clear of the AA floor (verified by hand — jsdom/jest-axe can't
+compute contrast, which is why the a11y suite missed it).
+
+**RED→GREEN auditable:** `test(#29)` commit locks the dark override rule + token
+exist (`src/library-chip-contrast.test.ts`, reads the CSS) and fails first; the
+`fix(#29)` commit adds the CSS and greens it. No backend change.
+
+**Verified:** `npm run build` clean; `npx vitest run` → **292 green** (+2 new).
+
 ## 2026-06-12 — v5 collapsible-categories WEB slice ✅ (PR open)
 
 Branch `feat/v5-collapsible-web`. The v5 backend (migration `0005` + GET/PUT
