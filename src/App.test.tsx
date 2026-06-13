@@ -6,12 +6,11 @@ import { authConfig, login, logout, me, register, setThemePref, type User } from
 
 // Catalog has its own tests; stub it so the auth-gate tests stay isolated from
 // the /api/services fetch. The stub reflects the props App passes down so we
-// can assert the Arrange toggle wires through.
+// can assert the Edit toggle wires through.
 vi.mock('./Catalog', () => ({
-  default: (props: { isAdmin?: boolean; editMode?: boolean; arrange?: boolean }) => (
+  default: (props: { isAdmin?: boolean; editMode?: boolean }) => (
     <div
       data-testid="catalog-stub"
-      data-arrange={String(!!props.arrange)}
       data-edit={String(!!props.editMode)}
     />
   ),
@@ -243,7 +242,6 @@ describe('v7 §6 — top bar declutter + user menu', () => {
     expect(screen.getByTestId('user-menu-email')).toHaveTextContent('nani@ohana.io');
     expect(screen.getByTestId('user-menu-role')).toHaveTextContent('user');
     expect(screen.getByTestId('theme-control')).toBeInTheDocument();
-    expect(screen.getByTestId('menu-settings')).toBeInTheDocument();
     expect(screen.getByTestId('menu-logout')).toBeInTheDocument();
   });
 
@@ -271,16 +269,6 @@ describe('v7 §6 — top bar declutter + user menu', () => {
     await openMenu(user);
     await user.click(screen.getByTestId('menu-edit'));
     expect(screen.getByTestId('catalog-stub')).toHaveAttribute('data-edit', 'true');
-  });
-
-  it('menu Personal settings toggles arrange mode through to the catalog', async () => {
-    const user = userEvent.setup();
-    mockedMe.mockResolvedValue(USER);
-    render(<App />);
-    await dropLoading();
-    await openMenu(user);
-    await user.click(screen.getByTestId('menu-settings'));
-    expect(screen.getByTestId('catalog-stub')).toHaveAttribute('data-arrange', 'true');
   });
 
   // v10 A9 — arrange mode is gone, so the empty "Personal settings" item that
@@ -365,60 +353,6 @@ describe('A1 — admin edit-mode (via the avatar menu)', () => {
     await openMenu(user);
     await user.click(screen.getByTestId('menu-edit'));
     expect(stub()).toHaveAttribute('data-edit', 'false');
-  });
-});
-
-// v7 §6 relocated the per-user settings affordance from the bar gear
-// (`settings-gear`) into the avatar menu as `menu-settings` ("Personal
-// settings"). It still toggles the same client-side arrange mode (gating the
-// reorder arrows) for every role. These A5.1 cases drive it through the menu.
-describe('A5.1 — per-user settings (via the avatar menu, hosts Arrange mode)', () => {
-  const stub = () => screen.getByTestId('catalog-stub');
-  async function openMenu(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(await screen.findByTestId('user-menu-trigger'));
-  }
-
-  it('shows Personal settings in the menu for a non-admin (not admin-gated)', async () => {
-    const user = userEvent.setup();
-    mockedMe.mockResolvedValue(USER);
-    render(<App />);
-    await dropLoading();
-    await openMenu(user);
-    expect(screen.getByTestId('menu-settings')).toHaveTextContent(/personal settings/i);
-  });
-
-  it('shows Personal settings for an admin too (alongside Edit dashboard)', async () => {
-    const user = userEvent.setup();
-    mockedMe.mockResolvedValue(ADMIN);
-    render(<App />);
-    await dropLoading();
-    await openMenu(user);
-    expect(screen.getByTestId('menu-settings')).toBeInTheDocument();
-    // The admin Edit affordance is a separate menu item.
-    expect(screen.getByTestId('menu-edit')).toBeInTheDocument();
-  });
-
-  it('starts with arrange off so the catalog hides the reorder arrows', async () => {
-    mockedMe.mockResolvedValue(USER);
-    render(<App />);
-    await dropLoading();
-    expect(stub()).toHaveAttribute('data-arrange', 'false');
-  });
-
-  it('toggles arrange on and back off across two menu visits', async () => {
-    const user = userEvent.setup();
-    mockedMe.mockResolvedValue(USER);
-    render(<App />);
-    await dropLoading();
-
-    // Selecting a menu item closes the menu (§6.4), so reopen for the off flip.
-    await openMenu(user);
-    await user.click(screen.getByTestId('menu-settings'));
-    expect(stub()).toHaveAttribute('data-arrange', 'true');
-
-    await openMenu(user);
-    await user.click(screen.getByTestId('menu-settings'));
-    expect(stub()).toHaveAttribute('data-arrange', 'false');
   });
 });
 

@@ -273,80 +273,6 @@ describe('A3 — status badge color per state', () => {
   });
 });
 
-// The star toggle now lives behind Arrange mode (A5.1), so these favoriting
-// tests render with `arrange` on — the toggle/persist/rollback logic itself is
-// unchanged from before the gating.
-describe('favorites toggle', () => {
-  it('optimistically flips the star and persists via setFavorite', async () => {
-    const user = userEvent.setup();
-    mockedServices.mockResolvedValue([svc({ id: 'fav-me', favorite: false })]);
-    render(<Catalog arrange />);
-
-    const toggle = await screen.findByTestId('favorite-toggle');
-    expect(toggle).toHaveAttribute('data-favorite', 'false');
-
-    await user.click(toggle);
-
-    expect(toggle).toHaveAttribute('data-favorite', 'true');
-    expect(mockedSetFavorite).toHaveBeenCalledWith('fav-me', true);
-  });
-
-  it('rolls back the star when the API rejects the change', async () => {
-    const user = userEvent.setup();
-    mockedSetFavorite.mockResolvedValue(false);
-    mockedServices.mockResolvedValue([svc({ id: 'fav-me', favorite: false })]);
-    render(<Catalog arrange />);
-
-    const toggle = await screen.findByTestId('favorite-toggle');
-    await user.click(toggle);
-
-    await waitFor(() => expect(toggle).toHaveAttribute('data-favorite', 'false'));
-  });
-});
-
-// A5.1 — the favorite ★ toggle is a personalization control, revealed only in
-// Arrange mode alongside the reorder arrows. The favorites *feature* (persist +
-// top-pinning, A5) is untouched; only the editable control is gated.
-describe('A5.1 — favorite star gated behind Arrange mode', () => {
-  it('hides the favorite star by default (Arrange off — decluttered view)', async () => {
-    mockedServices.mockResolvedValue([svc({ id: 'a', favorite: false })]);
-    render(<Catalog />);
-    await screen.findByTestId('service-tile');
-    expect(screen.queryByTestId('favorite-toggle')).not.toBeInTheDocument();
-  });
-
-  it('keeps a favorited tile visibly favorited in the normal view, just without the editable star', async () => {
-    // Pinning/ordering is server-driven (GET /api/services), so a favorite in
-    // the normal view still renders — there's simply no toggle control to edit it.
-    mockedServices.mockResolvedValue([svc({ id: 'a', favorite: true })]);
-    render(<Catalog />);
-    await screen.findByTestId('service-tile');
-    expect(screen.queryByTestId('favorite-toggle')).not.toBeInTheDocument();
-  });
-
-  it('shows the favorite star when Arrange is on', async () => {
-    mockedServices.mockResolvedValue([
-      svc({ id: 'a', favorite: false }),
-      svc({ id: 'b', favorite: true }),
-    ]);
-    render(<Catalog arrange />);
-    await screen.findAllByTestId('service-tile');
-    expect(screen.getAllByTestId('favorite-toggle').length).toBe(2);
-  });
-
-  it('lets a non-admin toggle + persist the star when Arrange is on (A5 preserved — not admin-gated)', async () => {
-    const user = userEvent.setup();
-    mockedServices.mockResolvedValue([svc({ id: 'fav-me', favorite: false })]);
-    render(<Catalog isAdmin={false} arrange />);
-
-    const toggle = await screen.findByTestId('favorite-toggle');
-    await user.click(toggle);
-
-    expect(toggle).toHaveAttribute('data-favorite', 'true');
-    expect(mockedSetFavorite).toHaveBeenCalledWith('fav-me', true);
-  });
-});
-
 describe('A5 — personal layout reorder', () => {
   function names() {
     return screen.getAllByTestId('service-tile-name').map((n) => n.textContent);
@@ -362,109 +288,6 @@ describe('A5 — personal layout reorder', () => {
     // Rendered in the exact order the API returned them — no client-side sort.
     expect(names()).toEqual(['Grafana', 'Plex']);
   });
-
-  it('moves a tile down and persists the new order via setLayout', async () => {
-    const user = userEvent.setup();
-    mockedServices.mockResolvedValue([
-      svc({ id: 'a', name: 'Plex' }),
-      svc({ id: 'b', name: 'Grafana' }),
-    ]);
-    render(<Catalog arrange />);
-    const tiles = await screen.findAllByTestId('service-tile');
-
-    // Move the first tile (Plex) down a slot.
-    await user.click(within(tiles[0]).getByTestId('move-down'));
-
-    expect(names()).toEqual(['Grafana', 'Plex']);
-    expect(mockedSetLayout).toHaveBeenCalledWith(['b', 'a']);
-  });
-
-  it('moves a tile up and persists the new order via setLayout', async () => {
-    const user = userEvent.setup();
-    mockedServices.mockResolvedValue([
-      svc({ id: 'a', name: 'Plex' }),
-      svc({ id: 'b', name: 'Grafana' }),
-    ]);
-    render(<Catalog arrange />);
-    const tiles = await screen.findAllByTestId('service-tile');
-
-    // Move the second tile (Grafana) up a slot.
-    await user.click(within(tiles[1]).getByTestId('move-up'));
-
-    expect(names()).toEqual(['Grafana', 'Plex']);
-    expect(mockedSetLayout).toHaveBeenCalledWith(['b', 'a']);
-  });
-
-  it('rolls back to the prior order when the API rejects the reorder', async () => {
-    const user = userEvent.setup();
-    mockedSetLayout.mockResolvedValue(false);
-    mockedServices.mockResolvedValue([
-      svc({ id: 'a', name: 'Plex' }),
-      svc({ id: 'b', name: 'Grafana' }),
-    ]);
-    render(<Catalog arrange />);
-    const tiles = await screen.findAllByTestId('service-tile');
-
-    await user.click(within(tiles[0]).getByTestId('move-down'));
-
-    // Optimistically flipped, then reverted once the rejection lands.
-    await waitFor(() => expect(names()).toEqual(['Plex', 'Grafana']));
-    expect(mockedSetLayout).toHaveBeenCalledWith(['b', 'a']);
-  });
-
-  it('disables move-up on the first tile and move-down on the last', async () => {
-    mockedServices.mockResolvedValue([
-      svc({ id: 'a', name: 'Plex' }),
-      svc({ id: 'b', name: 'Grafana' }),
-    ]);
-    render(<Catalog arrange />);
-    const tiles = await screen.findAllByTestId('service-tile');
-
-    expect(within(tiles[0]).getByTestId('move-up')).toBeDisabled();
-    expect(within(tiles[0]).getByTestId('move-down')).toBeEnabled();
-    expect(within(tiles[1]).getByTestId('move-up')).toBeEnabled();
-    expect(within(tiles[1]).getByTestId('move-down')).toBeDisabled();
-  });
-
-  // v3 declutter: the reorder arrows are gated behind a per-user "Arrange"
-  // toggle so the normal view stays clean. Default (Arrange off) hides them;
-  // the personal-reorder capability itself (A5) is unchanged — see below.
-  it('hides the reorder arrows by default (Arrange off — decluttered view)', async () => {
-    mockedServices.mockResolvedValue([
-      svc({ id: 'a', name: 'Plex' }),
-      svc({ id: 'b', name: 'Grafana' }),
-    ]);
-    render(<Catalog />);
-    await screen.findAllByTestId('service-tile');
-    expect(screen.queryByTestId('move-up')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('move-down')).not.toBeInTheDocument();
-  });
-
-  it('shows the reorder arrows when Arrange is on', async () => {
-    mockedServices.mockResolvedValue([
-      svc({ id: 'a', name: 'Plex' }),
-      svc({ id: 'b', name: 'Grafana' }),
-    ]);
-    render(<Catalog arrange />);
-    await screen.findAllByTestId('service-tile');
-    expect(screen.getAllByTestId('move-up').length).toBe(2);
-    expect(screen.getAllByTestId('move-down').length).toBe(2);
-  });
-
-  it('lets a non-admin reorder when Arrange is on (A5 preserved — not admin-gated)', async () => {
-    const user = userEvent.setup();
-    mockedServices.mockResolvedValue([
-      svc({ id: 'a', name: 'Plex' }),
-      svc({ id: 'b', name: 'Grafana' }),
-    ]);
-    render(<Catalog isAdmin={false} arrange />);
-    const tiles = await screen.findAllByTestId('service-tile');
-
-    await user.click(within(tiles[0]).getByTestId('move-down'));
-
-    expect(names()).toEqual(['Grafana', 'Plex']);
-    expect(mockedSetLayout).toHaveBeenCalledWith(['b', 'a']);
-  });
 });
 
 describe('A2(v2) — edit-mode icon controls', () => {
@@ -477,15 +300,12 @@ describe('A2(v2) — edit-mode icon controls', () => {
     expect(light).toHaveAttribute('accept', 'image/png');
     expect(dark).toHaveAttribute('accept', 'image/png');
     expect(screen.getByTestId('delete-service')).toBeInTheDocument();
-    // Edit affordances replace the reorder arrows in edit mode.
-    expect(screen.queryByTestId('move-up')).not.toBeInTheDocument();
   });
 
-  it('does not show icon controls in view mode (reorder arrows instead when arranging)', async () => {
-    render(<Catalog isAdmin editMode={false} arrange />);
+  it('does not show icon controls in view mode', async () => {
+    render(<Catalog isAdmin editMode={false} />);
     await screen.findByTestId('service-tile');
     expect(screen.queryByTestId('icon-controls')).not.toBeInTheDocument();
-    expect(screen.getByTestId('move-up')).toBeInTheDocument();
   });
 
   it('does not show icon controls for a non-admin even if editMode is forced on', async () => {
@@ -683,8 +503,7 @@ describe('A6 — edit app (admin edit mode)', () => {
       // that clobber the existing star.
       service: svc({ id: 's1', name: 'Plex HD', slug: 'plex', url: 'https://plex.x', favorite: false }),
     });
-    // Arrange on so the favorite star renders — we assert the merge keeps it set.
-    render(<Catalog isAdmin editMode arrange />);
+    render(<Catalog isAdmin editMode />);
 
     await user.click(await screen.findByTestId('edit-service'));
     const form = await screen.findByTestId('service-form');
@@ -707,7 +526,9 @@ describe('A6 — edit app (admin edit mode)', () => {
       icon: 'plex',
     });
     expect(await screen.findByText('Plex HD')).toBeInTheDocument();
-    // Favorite survives the update response's zero-value favorite.
+    // Favorite survives the update response's zero-value favorite. The toggle
+    // now lives in the per-tile "⋯" overflow menu (v10 §7).
+    await user.click(screen.getByTestId('tile-menu'));
     expect(screen.getByTestId('favorite-toggle')).toHaveAttribute('data-favorite', 'true');
   });
 
@@ -863,56 +684,20 @@ describe('v4 A9 — grouped catalog render', () => {
   });
 });
 
-describe('v4 A11 — tile behavior + reorder scoped within a section', () => {
-  it('reorders within a section, swapping the section-neighbor (not the global neighbor)', async () => {
+describe('v4 A11 — tile behavior within a section', () => {
+  it('keeps status badge, favorite state (in the overflow menu) and icon within a section', async () => {
     const user = userEvent.setup();
-    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
-    // Global order: Plex(media), Notion(uncat), Jellyfin(media). Within Media: Plex, Jellyfin.
-    mockedServices.mockResolvedValue([
-      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
-      svc({ id: 'c', name: 'Notion' }),
-      svc({ id: 'd', name: 'Jellyfin', categoryId: 'media', categoryName: 'Media' }),
-    ]);
-    render(<Catalog arrange />);
-    await screen.findAllByTestId('service-tile');
-
-    const media = sectionByHeader('Media');
-    const plexTile = within(media).getAllByTestId('service-tile')[0];
-    await user.click(within(plexTile).getByTestId('move-down'));
-
-    // Plex swaps with Jellyfin (its Media neighbor), NOT Notion (its global
-    // neighbor) — the persisted global order reflects that scoped swap.
-    expect(mockedSetLayout).toHaveBeenCalledWith(['d', 'c', 'a']);
-    const mediaNames = within(sectionByHeader('Media'))
-      .getAllByTestId('service-tile-name')
-      .map((n) => n.textContent);
-    expect(mediaNames).toEqual(['Jellyfin', 'Plex']);
-  });
-
-  it('disables move-up on the first and move-down on the last tile WITHIN a section', async () => {
-    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
-    mockedServices.mockResolvedValue([
-      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
-      svc({ id: 'd', name: 'Jellyfin', categoryId: 'media', categoryName: 'Media' }),
-    ]);
-    render(<Catalog arrange />);
-    await screen.findAllByTestId('service-tile');
-    const tiles = within(sectionByHeader('Media')).getAllByTestId('service-tile');
-    expect(within(tiles[0]).getByTestId('move-up')).toBeDisabled();
-    expect(within(tiles[1]).getByTestId('move-down')).toBeDisabled();
-  });
-
-  it('keeps status badge, favorite star and icon within a section', async () => {
     mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
     mockedServices.mockResolvedValue([
       svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media', status: 'DOWN', favorite: true }),
     ]);
-    render(<Catalog arrange />);
+    render(<Catalog />);
     await screen.findAllByTestId('service-tile');
     const media = sectionByHeader('Media');
     expect(within(media).getByTestId('status-badge')).toHaveAttribute('data-status', 'DOWN');
-    expect(within(media).getByTestId('favorite-toggle')).toHaveAttribute('data-favorite', 'true');
     expect(within(media).getByTestId('service-tile-icon')).toBeInTheDocument();
+    await user.click(within(media).getByTestId('tile-menu'));
+    expect(within(media).getByTestId('favorite-toggle')).toHaveAttribute('data-favorite', 'true');
   });
 });
 
@@ -1076,36 +861,6 @@ describe('v4 A7 — delete category', () => {
 
     await waitFor(() => expect(managerRow('Media')).toBeInTheDocument());
     expect(headerOrder()).toEqual(['Media']);
-  });
-});
-
-describe('v4 A4 — reorder categories', () => {
-  it('moves a category down, persists the new order and reorders the sections', async () => {
-    const user = userEvent.setup();
-    mockedCategories.mockResolvedValue([
-      cat({ id: 'media', name: 'Media', sortIndex: 0 }),
-      cat({ id: 'infra', name: 'Infra', sortIndex: 1 }),
-    ]);
-    mockedServices.mockResolvedValue([svc({ id: 'c', name: 'Notion' })]); // uncategorized
-    render(<Catalog isAdmin editMode />);
-    await screen.findByTestId('category-manager');
-    expect(headerOrder()).toEqual(['Media', 'Infra', 'Uncategorized']);
-
-    await user.click(within(managerRow('Media')).getByTestId('category-move-down'));
-
-    expect(mockedSetCategoryOrder).toHaveBeenCalledWith(['infra', 'media']);
-    expect(headerOrder()).toEqual(['Infra', 'Media', 'Uncategorized']);
-  });
-
-  it('disables move-up on the first row and move-down on the last', async () => {
-    mockedCategories.mockResolvedValue([
-      cat({ id: 'media', name: 'Media', sortIndex: 0 }),
-      cat({ id: 'infra', name: 'Infra', sortIndex: 1 }),
-    ]);
-    render(<Catalog isAdmin editMode />);
-    await screen.findByTestId('category-manager');
-    expect(within(managerRow('Media')).getByTestId('category-move-up')).toBeDisabled();
-    expect(within(managerRow('Infra')).getByTestId('category-move-down')).toBeDisabled();
   });
 });
 
@@ -1442,7 +1197,6 @@ describe('A11 — favorite toggle lives in a per-tile "⋯" overflow menu (no mo
   });
 
   it('clicking the "⋯" button does not navigate the tile link', async () => {
-    const user = userEvent.setup();
     mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex' })]);
     render(<Catalog />);
     await screen.findByTestId('service-tile');

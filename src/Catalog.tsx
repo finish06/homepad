@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   assignCategory,
   categories,
@@ -9,10 +9,8 @@ import {
   getCollapsedCategories,
   renameCategory,
   services,
-  setCategoryOrder,
   setCollapsedCategories,
   setFavorite,
-  setLayout,
   uploadIcon,
   type Category,
   type IconVariant,
@@ -61,11 +59,9 @@ const statusDot: Record<ServiceStatus, string> = {
 export default function Catalog({
   isAdmin = false,
   editMode = false,
-  arrange = false,
 }: {
   isAdmin?: boolean;
   editMode?: boolean;
-  arrange?: boolean;
 }) {
   // v8: the Service[] is shared with the command launcher via ServicesProvider so
   // both render the SAME already-loaded array (no second fetch, §3/A12). When the
@@ -149,29 +145,6 @@ export default function Catalog({
       cacheCollapsed(prev);
       setCollapseError(id);
     }
-  }
-
-  // Move a tile one slot up (dir -1) or down (dir +1) WITHIN its section, then
-  // persist the new global order. `sectionIds` is the ordered id list of the
-  // section the arrow lives in, so a tile swaps with its section-neighbor — it
-  // never jumps category (v4 A11). For the flat v1 grid the section is the whole
-  // catalog, so this reduces to v1's adjacent swap. Optimistic with rollback to
-  // the prior order if the API rejects — the pre-move snapshot is captured up
-  // front so the rollback can't race a later render.
-  async function moveItem(id: string, dir: -1 | 1, sectionIds: string[]) {
-    const prev = items;
-    if (!prev) return;
-    const sIdx = sectionIds.indexOf(id);
-    const targetId = sectionIds[sIdx + dir];
-    if (sIdx < 0 || targetId === undefined) return;
-    const gi = prev.findIndex((s) => s.id === id);
-    const gj = prev.findIndex((s) => s.id === targetId);
-    if (gi < 0 || gj < 0) return;
-    const next = [...prev];
-    [next[gi], next[gj]] = [next[gj], next[gi]];
-    setItems(next);
-    const ok = await setLayout(next.map((s) => s.id));
-    if (!ok) setItems(prev);
   }
 
   // Flip a service's local variant flag and bust the icon cache. Called after a
@@ -259,20 +232,6 @@ export default function Catalog({
     }
   }
 
-  // Reorder one slot up (dir -1) / down (dir +1), then persist the whole-array
-  // order (same contract as the per-user layout). Optimistic with rollback.
-  async function moveCat(id: string, dir: -1 | 1) {
-    const i = cats.findIndex((c) => c.id === id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= cats.length) return;
-    const prev = cats;
-    const next = [...cats];
-    [next[i], next[j]] = [next[j], next[i]];
-    setCats(next);
-    const ok = await setCategoryOrder(next.map((c) => c.id));
-    if (!ok) setCats(prev);
-  }
-
   // Assign (or clear) a service's category. On success only categoryId/Name are
   // updated from the response — favorite/icon flags are preserved (the PATCH
   // response serializes them as zero values, like onSaved's edit merge).
@@ -301,23 +260,17 @@ export default function Catalog({
   // so a tile only swaps with its section-neighbors (v4 A11); for the flat v1
   // grid the section is the whole catalog.
   function renderGrid(sectionItems: Service[]) {
-    const ids = sectionItems.map((s) => s.id);
     return (
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
-        {sectionItems.map((s, i) => (
+        {sectionItems.map((s) => (
           <ServiceTile
             key={s.id}
             service={s}
-            index={i}
-            total={sectionItems.length}
-            sectionIds={ids}
             theme={theme}
             rev={rev}
             editMode={adminEdit}
-            arrange={arrange}
             cats={cats}
             onToggleFavorite={toggleFavorite}
-            onMove={moveItem}
             onIconFlag={setIconFlag}
             onRemoveService={removeService}
             onEditService={() => setForm({ service: s })}
@@ -367,7 +320,6 @@ export default function Catalog({
             onCreate={createCat}
             onRename={renameCat}
             onDelete={removeCat}
-            onMove={moveCat}
           />
         </div>
       )}
@@ -523,32 +475,22 @@ function Section({
 
 function ServiceTile({
   service,
-  index,
-  total,
-  sectionIds,
   theme,
   rev,
   editMode,
-  arrange,
   cats,
   onToggleFavorite,
-  onMove,
   onIconFlag,
   onRemoveService,
   onEditService,
   onAssignCategory,
 }: {
   service: Service;
-  index: number;
-  total: number;
-  sectionIds: string[];
   theme: IconVariant;
   rev: number;
   editMode: boolean;
-  arrange: boolean;
   cats: Category[];
   onToggleFavorite: (id: string) => void;
-  onMove: (id: string, dir: -1 | 1, sectionIds: string[]) => void;
   onIconFlag: (id: string, variant: IconVariant, present: boolean) => void;
   onRemoveService: (id: string) => void;
   onEditService: () => void;
@@ -557,7 +499,7 @@ function ServiceTile({
   return (
     <div
       data-testid="service-tile"
-      className="tile relative"
+      className="tile group relative"
     >
       <span
         data-testid="status-badge"
@@ -566,26 +508,11 @@ function ServiceTile({
         aria-label={`status: ${service.status}`}
         className={`status-dot absolute right-3 top-3 ${statusDot[service.status] ?? statusDot.UNKNOWN}`}
       />
-      {/* A5.1: the favorite ★ toggle is a personalization control, revealed only
-          in Arrange mode alongside the reorder arrows. Favorited tiles still pin
-          to the top in the normal view (server-driven order) — only this editable
-          control is gated, never the favorites feature or the pinning. */}
-      {arrange && (
-        <button
-          type="button"
-          data-testid="favorite-toggle"
-          data-favorite={service.favorite ? 'true' : 'false'}
-          aria-pressed={service.favorite}
-          aria-label={service.favorite ? 'Unfavorite' : 'Favorite'}
-          title={service.favorite ? 'Unfavorite' : 'Favorite'}
-          onClick={() => onToggleFavorite(service.id)}
-          className={`absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-full text-lg leading-none outline-none transition hover:bg-neutral-100 focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-            service.favorite ? 'text-amber-400' : 'text-neutral-300 hover:text-neutral-400'
-          }`}
-        >
-          {service.favorite ? '★' : '☆'}
-        </button>
-      )}
+      {/* v10 §7 — favoriting moved out of the (removed) arrange mode into a
+          per-tile "⋯" overflow menu. The tile stays a clean <a> link; the menu
+          is the one always-on per-tile control surface (the favorite toggle is
+          one tap deep). */}
+      <TileMenu service={service} onToggleFavorite={onToggleFavorite} />
       <a
         href={service.url}
         target="_blank"
@@ -610,7 +537,7 @@ function ServiceTile({
         </span>
       </a>
 
-      {editMode ? (
+      {editMode && (
         <IconControls
           service={service}
           cats={cats}
@@ -619,32 +546,93 @@ function ServiceTile({
           onEditService={onEditService}
           onAssignCategory={onAssignCategory}
         />
-      ) : arrange ? (
-        <div className="absolute bottom-2 right-2 flex gap-1">
+      )}
+    </div>
+  );
+}
+
+// v10 §7 — the per-tile "⋯" overflow menu. A real <button> (top-left, the status
+// dot owns top-right) that opens a small menu hosting the favorite toggle. It
+// stops propagation so it's distinct from the tile link, closes on Esc /
+// outside-click, and restores focus to the trigger — a standard menu pattern,
+// mirroring UserMenu. Low-emphasis at rest, brighter on hover/focus-within;
+// always visible on touch (no hover dependency, §9).
+function TileMenu({
+  service,
+  onToggleFavorite,
+}: {
+  service: Service;
+  onToggleFavorite: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocPointer(e: MouseEvent) {
+      const t = e.target as Node;
+      if (!menuRef.current?.contains(t) && !triggerRef.current?.contains(t)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+    document.addEventListener('mousedown', onDocPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const fav = service.favorite;
+  return (
+    <div className="absolute left-2 top-2">
+      <button
+        ref={triggerRef}
+        type="button"
+        data-testid="tile-menu"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`More options for ${service.name}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((o) => !o);
+        }}
+        className="tile-menu-trigger flex h-9 w-9 items-center justify-center rounded-full text-lg leading-none text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-indigo-500 sm:opacity-40 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 dark:hover:bg-neutral-800"
+      >
+        ⋯
+      </button>
+      {open && (
+        <div
+          ref={menuRef}
+          role="menu"
+          aria-label={`${service.name} options`}
+          className="absolute left-0 top-full z-10 mt-1 min-w-[10rem] rounded-lg border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
+        >
           <button
             type="button"
-            data-testid="move-up"
-            aria-label="Move up"
-            title="Move up"
-            disabled={index === 0}
-            onClick={() => onMove(service.id, -1, sectionIds)}
-            className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:pointer-events-none disabled:opacity-30"
+            role="menuitem"
+            data-testid="favorite-toggle"
+            data-favorite={fav ? 'true' : 'false'}
+            aria-pressed={fav}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite(service.id);
+              setOpen(false);
+              triggerRef.current?.focus();
+            }}
+            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-neutral-700 outline-none hover:bg-neutral-100 focus-visible:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-700"
           >
-            ↑
-          </button>
-          <button
-            type="button"
-            data-testid="move-down"
-            aria-label="Move down"
-            title="Move down"
-            disabled={index === total - 1}
-            onClick={() => onMove(service.id, 1, sectionIds)}
-            className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:pointer-events-none disabled:opacity-30"
-          >
-            ↓
+            <span className={fav ? 'text-amber-400' : 'text-neutral-400'}>{fav ? '★' : '☆'}</span>
+            {fav ? 'Favorited' : 'Favorite'}
           </button>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
@@ -817,13 +805,11 @@ function CategoryManager({
   onCreate,
   onRename,
   onDelete,
-  onMove,
 }: {
   cats: Category[];
   onCreate: (name: string) => Promise<Result>;
   onRename: (id: string, name: string) => Promise<Result>;
   onDelete: (id: string) => void;
-  onMove: (id: string, dir: -1 | 1) => void;
 }) {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -852,15 +838,12 @@ function CategoryManager({
         Categories
       </h3>
       <div className="space-y-2">
-        {cats.map((c, i) => (
+        {cats.map((c) => (
           <CategoryRow
             key={c.id}
             cat={c}
-            index={i}
-            total={cats.length}
             onRename={onRename}
             onDelete={onDelete}
-            onMove={onMove}
           />
         ))}
       </div>
@@ -896,18 +879,12 @@ function CategoryManager({
 // the category id so it survives reorder.
 function CategoryRow({
   cat,
-  index,
-  total,
   onRename,
   onDelete,
-  onMove,
 }: {
   cat: Category;
-  index: number;
-  total: number;
   onRename: (id: string, name: string) => Promise<Result>;
   onDelete: (id: string) => void;
-  onMove: (id: string, dir: -1 | 1) => void;
 }) {
   const [name, setName] = useState(cat.name);
   const [error, setError] = useState<string | null>(null);
@@ -943,26 +920,6 @@ function CategoryRow({
         className="rounded-md border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
       >
         Save
-      </button>
-      <button
-        type="button"
-        data-testid="category-move-up"
-        aria-label={`Move ${cat.name} up`}
-        disabled={index === 0}
-        onClick={() => onMove(cat.id, -1)}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 disabled:pointer-events-none disabled:opacity-30"
-      >
-        ↑
-      </button>
-      <button
-        type="button"
-        data-testid="category-move-down"
-        aria-label={`Move ${cat.name} down`}
-        disabled={index === total - 1}
-        onClick={() => onMove(cat.id, 1)}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 disabled:pointer-events-none disabled:opacity-30"
-      >
-        ↓
       </button>
       <button
         type="button"
