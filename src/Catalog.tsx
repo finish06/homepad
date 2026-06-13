@@ -1,5 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   assignCategory,
   categories,
   createCategory,
@@ -11,6 +30,7 @@ import {
   services,
   setCollapsedCategories,
   setFavorite,
+  setLayout,
   uploadIcon,
   type Category,
   type IconVariant,
@@ -96,6 +116,24 @@ export default function Catalog({
   // the OS. Without a provider (isolated tests) it falls back to the live OS.
   const theme = useResolvedTheme();
 
+  // v10: always-on drag-and-drop. `activeDragId` is the id of the tile currently
+  // picked up (pointer or keyboard) — it drives the lifted style and the grip's
+  // aria-pressed "grabbed" state (§10). `announce` feeds the visually-hidden
+  // aria-live region (§10/A7). `layoutError` shows the inline rollback affordance
+  // when a reorder PUT fails (A10).
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [announce, setAnnounce] = useState('');
+  const [layoutError, setLayoutError] = useState(false);
+
+  // Sensors: pointer (8px activation so a click/tap still opens the tile — D2/A12),
+  // touch (200ms press-hold so a drag doesn't fight page scroll — §5.3/A14), and
+  // keyboard (the REQUIRED a11y path — §10/A6) with the sortable coordinate getter.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
   useEffect(() => {
     // Only fetch services when no provider owns the list (the provider does the
     // single shared load otherwise — §3/A12).
@@ -122,6 +160,30 @@ export default function Catalog({
     const ok = await setFavorite(id, next);
     if (!ok) {
       setItems((cur) => cur?.map((s) => (s.id === id ? { ...s, favorite: !next } : s)) ?? cur);
+    }
+  }
+
+  // v10: commit a within-section tile reorder on drop. `overId` is the tile the
+  // dragged tile landed on (always in the same section — each section is its own
+  // DndContext, so cross-section drops can't happen: A4). We move `activeId` to
+  // `overId`'s slot in the FULL items array and persist the whole new id order
+  // via PUT /api/layout — exactly the v7 arrows' contract (§6/D7). arrayMove
+  // preserves every other tile's relative order, so sibling sections are
+  // untouched. Optimistic with rollback + inline error if the PUT fails (A10);
+  // the pre-move snapshot is captured up front so rollback can't race a render.
+  async function reorderTile(activeId: string, overId: string) {
+    const prev = items;
+    if (!prev || activeId === overId) return;
+    const gi = prev.findIndex((s) => s.id === activeId);
+    const gj = prev.findIndex((s) => s.id === overId);
+    if (gi < 0 || gj < 0) return;
+    const next = arrayMove(prev, gi, gj);
+    setItems(next);
+    setLayoutError(false);
+    const ok = await setLayout(next.map((s) => s.id));
+    if (!ok) {
+      setItems(prev);
+      setLayoutError(true);
     }
   }
 
@@ -256,28 +318,79 @@ export default function Catalog({
 
   const adminEdit = isAdmin && editMode;
 
-  // A section's responsive tile grid. `sectionIds` scopes reorder to the section
-  // so a tile only swaps with its section-neighbors (v4 A11); for the flat v1
-  // grid the section is the whole catalog.
+  // A section's responsive tile grid, wrapped in its OWN dnd-kit DndContext so a
+  // tile drag is scoped to its section (v4 A11 / v10 A4): keyboard navigation and
+  // pointer drops can't leave this section's SortableContext, so a tile never
+  // jumps category. The grip handle on each tile is the drag origin (the tile
+  // stays a plain <a> — D2). For the flat v1 grid the section is the whole
+  // catalog. Announcements (§10/A7) carry "position i of n" within `sectionIds`.
   function renderGrid(sectionItems: Service[]) {
+    const sectionIds = sectionItems.map((s) => s.id);
+    const n = sectionIds.length;
+    const nameOf = (id: string) => sectionItems.find((s) => s.id === id)?.name ?? '';
+
+    function onDragStart(e: DragStartEvent) {
+      const id = e.active.id as string;
+      setActiveDragId(id);
+      const i = sectionIds.indexOf(id) + 1;
+      setAnnounce(
+        `${nameOf(id)} grabbed, position ${i} of ${n}. Use arrow keys to move, space to drop, escape to cancel.`,
+      );
+    }
+    function onDragOver(e: DragOverEvent) {
+      const { active, over } = e;
+      // dnd-kit fires onDragOver on pick-up with over === active (no real move);
+      // skip it so the "grabbed" announcement stands until an actual arrow move.
+      if (!over || over.id === active.id) return;
+      const j = sectionIds.indexOf(over.id as string) + 1;
+      if (j > 0) setAnnounce(`${nameOf(active.id as string)} moved to position ${j} of ${n}.`);
+    }
+    function onDragEnd(e: DragEndEvent) {
+      const { active, over } = e;
+      setActiveDragId(null);
+      if (over && active.id !== over.id) {
+        const j = sectionIds.indexOf(over.id as string) + 1;
+        setAnnounce(`${nameOf(active.id as string)} dropped at position ${j}.`);
+        void reorderTile(active.id as string, over.id as string);
+      } else {
+        const i = sectionIds.indexOf(active.id as string) + 1;
+        setAnnounce(`${nameOf(active.id as string)} dropped at position ${i}.`);
+      }
+    }
+    function onDragCancel() {
+      setActiveDragId(null);
+      setAnnounce('Reorder cancelled.');
+    }
+
     return (
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
-        {sectionItems.map((s) => (
-          <ServiceTile
-            key={s.id}
-            service={s}
-            theme={theme}
-            rev={rev}
-            editMode={adminEdit}
-            cats={cats}
-            onToggleFavorite={toggleFavorite}
-            onIconFlag={setIconFlag}
-            onRemoveService={removeService}
-            onEditService={() => setForm({ service: s })}
-            onAssignCategory={assignCat}
-          />
-        ))}
-      </div>
+      <DndContext
+        sensors={sensors}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDragEnd={onDragEnd}
+        onDragCancel={onDragCancel}
+      >
+        <SortableContext items={sectionIds} strategy={rectSortingStrategy}>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+            {sectionItems.map((s) => (
+              <ServiceTile
+                key={s.id}
+                service={s}
+                theme={theme}
+                rev={rev}
+                editMode={adminEdit}
+                cats={cats}
+                grabbed={activeDragId === s.id}
+                onToggleFavorite={toggleFavorite}
+                onIconFlag={setIconFlag}
+                onRemoveService={removeService}
+                onEditService={() => setForm({ service: s })}
+                onAssignCategory={assignCat}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
     );
   }
 
@@ -292,6 +405,20 @@ export default function Catalog({
 
   return (
     <>
+      {/* v10 §10/A7 — the visually-hidden live region that announces drag grab /
+          move / drop / cancel to screen readers. assertive so the position update
+          interrupts and is heard during a keyboard reorder. */}
+      <div data-testid="drag-live-region" aria-live="assertive" role="status" className="sr-only">
+        {announce}
+      </div>
+
+      {/* v10 §6/A10 — a reorder PUT failed; the optimistic order was rolled back. */}
+      {layoutError && (
+        <p data-testid="layout-error" role="alert" className="mb-3 text-sm text-red-600">
+          Couldn’t save the new order — it was put back. Please try again.
+        </p>
+      )}
+
       {/* §7.2 — the App Library entry, available to every user (not admin-gated):
           their personal dashboard is theirs to fill. */}
       <div className="mb-4 flex items-center gap-3">
@@ -479,6 +606,7 @@ function ServiceTile({
   rev,
   editMode,
   cats,
+  grabbed,
   onToggleFavorite,
   onIconFlag,
   onRemoveService,
@@ -490,24 +618,60 @@ function ServiceTile({
   rev: number;
   editMode: boolean;
   cats: Category[];
+  grabbed: boolean;
   onToggleFavorite: (id: string) => void;
   onIconFlag: (id: string, variant: IconVariant, present: boolean) => void;
   onRemoveService: (id: string) => void;
   onEditService: () => void;
   onAssignCategory: (serviceId: string, categoryId: string | null) => Promise<Result>;
 }) {
+  // v10: make the tile a dnd-kit sortable. The grip <button> below carries the
+  // drag `listeners`/`attributes` (NOT the whole tile) so the <a> stays a clean
+  // link — navigate vs. reorder never collide (D2). `transition` is gated by
+  // Tailwind's motion-reduce so a reduced-motion user gets a snap, not a slide
+  // (§2/A13); the position transform itself still applies so the drag works.
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition } =
+    useSortable({ id: service.id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       data-testid="service-tile"
-      className="tile group relative"
+      className={`tile group relative transition-transform motion-reduce:transition-none ${
+        grabbed ? 'z-10 scale-[1.02] shadow-lg ring-1 ring-indigo-500/35' : ''
+      }`}
     >
       <span
         data-testid="status-badge"
         data-status={service.status}
+        role="img"
         title={service.status}
         aria-label={`status: ${service.status}`}
         className={`status-dot absolute right-3 top-3 ${statusDot[service.status] ?? statusDot.UNKNOWN}`}
       />
+      {/* v10 §5.2 — the always-on drag grip. A real <button> (the single drag
+          origin for pointer, touch, AND keyboard) at the bottom-right so it
+          doesn't fight the "⋯" menu (top-left) or the status dot (top-right).
+          Low-emphasis on desktop, always visible on touch (no hover dependency,
+          §9/A14). `grabbed` drives the accent + aria-pressed (§10/A6). */}
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        data-testid="drag-handle"
+        data-drag-type="tile"
+        data-service-id={service.id}
+        aria-label={`Reorder ${service.name}`}
+        aria-pressed={grabbed}
+        className={`absolute bottom-2 right-2 z-10 flex h-11 w-11 cursor-grab touch-none items-center justify-center rounded-md text-base leading-none outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-500 active:cursor-grabbing sm:h-9 sm:w-9 sm:opacity-40 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 ${
+          grabbed ? 'text-indigo-600 opacity-100 dark:text-indigo-400' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200'
+        }`}
+      >
+        {grabbed && <span data-testid="drop-indicator" className="sr-only">moving</span>}
+        ⠿
+      </button>
       {/* v10 §7 — favoriting moved out of the (removed) arrange mode into a
           per-tile "⋯" overflow menu. The tile stays a clean <a> link; the menu
           is the one always-on per-tile control surface (the favorite toggle is
