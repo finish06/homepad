@@ -1,0 +1,7 @@
+{
+  "name": "qa-kit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real-browser UI-QA helpers (CDP/playwright-core). Scoped to CommonJS so cdp.js/preflight.js use require() regardless of the parent app's module type.",
+  "type": "commonjs"
+}
