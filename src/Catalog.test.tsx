@@ -1206,3 +1206,85 @@ describe('A11 — favorite toggle lives in a per-tile "⋯" overflow menu (no mo
     expect(menu.closest('a')).toBeNull();
   });
 });
+
+// Uptime sparkline (spec specs/uptime-sparkline.md, AC-001..013). The strip sits
+// below the description on each monitored tile: ≤20 dots oldest→newest,
+// green(success)/red, then "XX% / N checks".
+describe('uptime sparkline (AC-001..013)', () => {
+  // n checks, all success except the indices in `failAt` (0-based, oldest-first).
+  function checks(n: number, failAt: number[] = []) {
+    return Array.from({ length: n }, (_, i) => ({
+      success: !failAt.includes(i),
+      timestamp: `2026-06-14T08:${String(i).padStart(2, '0')}:00Z`,
+    }));
+  }
+
+  it('AC-001/002/003/004 — renders a dot per check, oldest→newest, with the uptime label', async () => {
+    // 20 checks, 18 up / 2 down (failures at the 3rd and 17th positions).
+    mockedServices.mockResolvedValue([svc({ uptimeChecks: checks(20, [2, 16]) })]);
+    render(<Catalog />);
+
+    const tile = await screen.findByTestId('service-tile');
+    const strip = within(tile).getByTestId('uptime-sparkline');
+    const dots = within(strip).getAllByTestId('uptime-dot');
+    expect(dots).toHaveLength(20);
+
+    // Colors track success, oldest-first: reds at index 2 and 16, greens elsewhere.
+    dots.forEach((dot, i) => {
+      const expectRed = i === 2 || i === 16;
+      expect(dot.className).toContain(expectRed ? 'bg-red-500' : 'bg-emerald-500');
+    });
+
+    // 18/20 = 90%.
+    expect(within(tile).getByTestId('uptime-label')).toHaveTextContent('90% / 20 checks');
+  });
+
+  it('AC-007 — the existing status badge is unchanged alongside the sparkline', async () => {
+    mockedServices.mockResolvedValue([svc({ status: 'UP', uptimeChecks: checks(3) })]);
+    render(<Catalog />);
+
+    const tile = await screen.findByTestId('service-tile');
+    expect(within(tile).getByTestId('status-badge')).toHaveAttribute('data-status', 'UP');
+    expect(within(tile).getByTestId('uptime-sparkline')).toBeInTheDocument();
+  });
+
+  it('AC-005/012 — a service with no uptimeChecks field shows no sparkline', async () => {
+    mockedServices.mockResolvedValue([svc()]); // svc() has no uptimeChecks
+    render(<Catalog />);
+    const tile = await screen.findByTestId('service-tile');
+    expect(within(tile).queryByTestId('uptime-sparkline')).not.toBeInTheDocument();
+  });
+
+  it('AC-006/012 — an empty uptimeChecks array shows no sparkline', async () => {
+    mockedServices.mockResolvedValue([svc({ uptimeChecks: [] })]);
+    render(<Catalog />);
+    const tile = await screen.findByTestId('service-tile');
+    expect(within(tile).queryByTestId('uptime-sparkline')).not.toBeInTheDocument();
+  });
+
+  it('AC-011 — fewer than 20 results render exactly that many dots, no padding', async () => {
+    mockedServices.mockResolvedValue([svc({ uptimeChecks: checks(5) })]);
+    render(<Catalog />);
+    const tile = await screen.findByTestId('service-tile');
+    expect(within(tile).getAllByTestId('uptime-dot')).toHaveLength(5);
+    expect(within(tile).getByTestId('uptime-label')).toHaveTextContent('100% / 5 checks');
+  });
+
+  it('AC-013 — uptime % rounds to nearest; single check reads "1 check"', async () => {
+    mockedServices.mockResolvedValue([svc({ uptimeChecks: checks(20, [0]) })]); // 19/20
+    const { unmount } = render(<Catalog />);
+    expect(await screen.findByTestId('uptime-label')).toHaveTextContent('95% / 20 checks');
+    unmount();
+
+    mockedServices.mockResolvedValue([svc({ uptimeChecks: checks(1) })]); // 1/1
+    render(<Catalog />);
+    expect(await screen.findByTestId('uptime-label')).toHaveTextContent('100% / 1 check');
+  });
+
+  it('all failures read 0%', async () => {
+    mockedServices.mockResolvedValue([svc({ uptimeChecks: checks(4, [0, 1, 2, 3]) })]);
+    render(<Catalog />);
+    const tile = await screen.findByTestId('service-tile');
+    expect(within(tile).getByTestId('uptime-label')).toHaveTextContent('0% / 4 checks');
+  });
+})
