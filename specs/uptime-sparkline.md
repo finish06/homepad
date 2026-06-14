@@ -43,7 +43,7 @@ reliably healthy or has been flapping, without navigating to Gatus.
 | AC-001 | A tile whose service has a configured `gatus_key` and ≥1 historical check result shows a horizontal dot-strip below the service description. | Must |
 | AC-002 | The strip displays up to 20 dots, one per historical check result, ordered **oldest → newest** (left to right). | Must |
 | AC-003 | Each dot is **green** (success = true) or **red** (success = false). There is no amber/gray state within the strip — every result is definitively pass or fail. | Must |
-| AC-004 | Immediately to the right of the strip, a text label shows **"XX% / N checks"** where XX is `floor(successes/total * 100)` and N is the total check count shown. | Must |
+| AC-004 | Immediately to the right of the strip, a text label shows **"XX% / N checks"** where XX is `round(successes/total * 100)` and N is the total check count shown. | Must |
 | AC-005 | A tile with **no `gatus_key`** (monitoring not configured) shows **no sparkline** — the tile looks exactly as it does today. | Must |
 | AC-006 | A tile whose `gatus_key` maps to a Gatus endpoint with **0 results** (Gatus has not yet run a check) shows **no sparkline**. | Must |
 | AC-007 | The existing **status dot** (the colored circle at top-right of each tile) is **unchanged** in position, size, and behavior. The sparkline is additive information, not a replacement. | Must |
