@@ -16,6 +16,10 @@ export type ServiceStatus = 'UP' | 'DOWN' | 'DEGRADED' | 'UNKNOWN';
 
 export type IconVariant = 'light' | 'dark';
 
+// One historical Gatus check backing the tile uptime sparkline. `success` drives
+// the dot color; `timestamp` is reserved for a future hover/tooltip detail.
+export type UptimeCheck = { success: boolean; timestamp: string };
+
 export type Service = {
   id: string;
   slug: string;
@@ -35,6 +39,9 @@ export type Service = {
   // Uncategorized without churn.
   categoryId?: string | null;
   categoryName?: string | null;
+  // The recent Gatus check history (≤20, oldest-first) backing the tile uptime
+  // sparkline. Optional/absent → no monitoring; the tile shows no sparkline.
+  uptimeChecks?: UptimeCheck[];
 };
 
 // A v4 category: admin-managed shared-catalog metadata. `sortIndex` is the

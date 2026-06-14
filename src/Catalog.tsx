@@ -39,6 +39,7 @@ import {
   type Result,
   type Service,
   type ServiceStatus,
+  type UptimeCheck,
 } from './api';
 import { DEFAULT_ICON, iconSrc, validateIconFile } from './icons';
 import LibraryBrowse from './LibraryBrowse';
@@ -758,6 +759,35 @@ function SortableSection({
   );
 }
 
+// The uptime sparkline (spec specs/uptime-sparkline.md): a row of ≤20 dots,
+// oldest→newest, green(success)/red, followed by an "XX% / N checks" label.
+// Renders nothing when the service has no monitoring (absent/empty checks), so
+// unmonitored tiles keep their current height (AC-005/006/012). The dot row is
+// aria-hidden decoration; the label text carries the accessible summary.
+function UptimeSparkline({ checks }: { checks?: UptimeCheck[] }) {
+  if (!checks || checks.length === 0) return null;
+  const total = checks.length;
+  const successes = checks.reduce((n, c) => (c.success ? n + 1 : n), 0);
+  const pct = Math.round((successes / total) * 100);
+  return (
+    <div data-testid="uptime-sparkline" className="mt-1.5 flex flex-col gap-1">
+      <div aria-hidden="true" className="flex flex-wrap gap-0.5">
+        {checks.map((c, i) => (
+          <span
+            key={i}
+            data-testid="uptime-dot"
+            data-success={c.success}
+            className={`h-1.5 w-1.5 rounded-full ${c.success ? 'bg-emerald-500' : 'bg-red-500'}`}
+          />
+        ))}
+      </div>
+      <span data-testid="uptime-label" className="text-xs text-neutral-400 dark:text-neutral-500">
+        {pct}% / {total} {total === 1 ? 'check' : 'checks'}
+      </span>
+    </div>
+  );
+}
+
 function ServiceTile({
   service,
   theme,
@@ -857,6 +887,7 @@ function ServiceTile({
         >
           {service.description}
         </span>
+        <UptimeSparkline checks={service.uptimeChecks} />
       </a>
 
       {editMode && (
