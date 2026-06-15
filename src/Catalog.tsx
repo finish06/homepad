@@ -782,13 +782,13 @@ function UptimeSparkline({ checks }: { checks?: UptimeCheck[] }) {
   const pct = Math.round((successes / total) * 100);
   return (
     <div data-testid="uptime-sparkline" className="mt-1.5 flex flex-col gap-1">
-      <div aria-hidden="true" className="flex flex-wrap gap-0.5">
+      <div aria-hidden="true" className="flex flex-nowrap gap-0.5 overflow-hidden">
         {checks.map((c, i) => (
           <span
             key={i}
             data-testid="uptime-dot"
             data-success={c.success}
-            className={`h-1.5 w-1.5 rounded-full ${c.success ? 'bg-emerald-500' : 'bg-red-500'}`}
+            className={`h-1.5 min-w-px flex-1 rounded-[1px] ${c.success ? 'bg-emerald-500' : 'bg-red-500'}`}
           />
         ))}
       </div>

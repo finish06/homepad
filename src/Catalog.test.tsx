@@ -1287,4 +1287,18 @@ describe('uptime sparkline (AC-001..013)', () => {
     const tile = await screen.findByTestId('service-tile');
     expect(within(tile).getByTestId('uptime-label')).toHaveTextContent('0% / 4 checks');
   });
+
+  // Bug (Caleb): on narrow tiles the segment row wrapped onto a 2nd line. It must
+  // stay on exactly one line at every width. jsdom can't see layout/wrapping, so
+  // this asserts the no-wrap class contract; the real narrow-width proof is a
+  // browser check. Named for the symptom (stays one line), not a wrap theory.
+  it('the checks row stays on one line — non-wrapping by class contract', async () => {
+    mockedServices.mockResolvedValue([svc({ uptimeChecks: checks(20) })]);
+    render(<Catalog />);
+    const tile = await screen.findByTestId('service-tile');
+    const row = within(tile).getAllByTestId('uptime-dot')[0].parentElement!;
+    expect(row.className).toContain('flex-nowrap');
+    expect(row.className).not.toContain('flex-wrap');
+    expect(row.className).toContain('overflow-hidden');
+  });
 })
