@@ -12,7 +12,7 @@ export type ThemePref = 'system' | 'light' | 'dark';
 // first letter. Optional so older payloads / fixtures read as "no name".
 export type User = { id: string; email: string; role: string; themePref: ThemePref; name?: string };
 
-export type ServiceStatus = 'UP' | 'DOWN' | 'DEGRADED' | 'UNKNOWN';
+export type ServiceStatus = 'UP' | 'DOWN' | 'DEGRADED' | 'UNKNOWN' | 'NOT_MONITORED';
 
 export type IconVariant = 'light' | 'dark';
 
