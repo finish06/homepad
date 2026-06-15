@@ -77,6 +77,17 @@ const statusDot: Record<ServiceStatus, string> = {
   DOWN: 'bg-red-500',
   DEGRADED: 'bg-amber-400',
   UNKNOWN: 'bg-neutral-300',
+  // NOT_MONITORED (no gatus_key): an outlined dashed ring, not a solid dot —
+  // signals "no monitoring wired" vs UNKNOWN's "monitoring failure".
+  NOT_MONITORED: 'bg-transparent border-2 border-dashed border-neutral-300 dark:border-neutral-600',
+};
+
+const statusLabel: Record<ServiceStatus, string> = {
+  UP: 'UP',
+  DOWN: 'DOWN',
+  DEGRADED: 'DEGRADED',
+  UNKNOWN: 'UNKNOWN',
+  NOT_MONITORED: 'Not monitored',
 };
 
 export default function Catalog({
@@ -834,8 +845,8 @@ function ServiceTile({
         data-testid="status-badge"
         data-status={service.status}
         role="img"
-        title={service.status}
-        aria-label={`status: ${service.status}`}
+        title={statusLabel[service.status] ?? service.status}
+        aria-label={`status: ${statusLabel[service.status] ?? service.status}`}
         className={`status-dot absolute right-3 top-3 ${statusDot[service.status] ?? statusDot.UNKNOWN}`}
       />
       {/* v10 §5.2 — the always-on drag grip. A real <button> (the single drag
