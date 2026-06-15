@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import Catalog from './Catalog';
@@ -112,5 +114,51 @@ describe('AC-005 — Command Launcher: NOT_MONITORED row shows the dashed ring',
     expect(status).toHaveAttribute('data-status', 'NOT_MONITORED');
     expect(status.className).toContain('border-dashed');
     expect(status.className).not.toContain('bg-neutral-300');
+  });
+});
+
+// Board finding (release-board PAT): the §4 danger-glow rule was written as
+// `.status-dot:not([data-status='UP'])`, so it painted the rose-red danger halo
+// on EVERY non-UP dot — including the new NOT_MONITORED ring. "Not monitored" is
+// an ABSENCE of monitoring, not a failure, so it must read neutral (dashed ring,
+// NO glow). UNKNOWN is a real monitoring-failure signal and MUST keep its glow.
+// jsdom can't compute the whole index.css (cssom bails on some modern rules), but
+// it DOES resolve a single extracted rule via getComputedStyle — so we pull just
+// the real `.status-dot` rules from index.css and assert the painted box-shadow.
+describe('board finding — NOT_MONITORED carries no danger glow (neutral, not error)', () => {
+  const ROSE = '244, 63, 94'; // the rose-red danger-glow color
+  const EMERALD = '16, 185, 129'; // the UP green-glow color
+
+  function boxShadowFor(status: string): string {
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
+    const rules = css.match(/\.status-dot[^{}]*\{[^{}]*\}/g) ?? [];
+    expect(rules.length).toBeGreaterThan(0);
+    const style = document.createElement('style');
+    style.textContent = rules.join('\n');
+    document.head.appendChild(style);
+    const dot = document.createElement('span');
+    dot.className = 'status-dot';
+    dot.setAttribute('data-status', status);
+    document.body.appendChild(dot);
+    const shadow = getComputedStyle(dot).boxShadow;
+    style.remove();
+    dot.remove();
+    return shadow;
+  }
+
+  it('paints NO rose danger glow on a NOT_MONITORED dot', () => {
+    expect(boxShadowFor('NOT_MONITORED')).not.toContain(ROSE);
+  });
+
+  it('still paints the rose danger glow on UNKNOWN (real monitoring failure)', () => {
+    expect(boxShadowFor('UNKNOWN')).toContain(ROSE);
+  });
+
+  it('still paints the rose danger glow on DOWN', () => {
+    expect(boxShadowFor('DOWN')).toContain(ROSE);
+  });
+
+  it('keeps the emerald glow on UP unchanged', () => {
+    expect(boxShadowFor('UP')).toContain(EMERALD);
   });
 });
