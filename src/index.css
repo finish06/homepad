@@ -67,7 +67,10 @@
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
   }
 
-  /* §4 Status dot — 9×9, green glow for UP, rose glow for any non-UP. */
+  /* §4 Status dot — 9×9, green glow for UP, rose danger glow for a real
+     non-UP failure (DOWN/DEGRADED/UNKNOWN). NOT_MONITORED is excluded: it is
+     an absence of monitoring, not a failure, so its dashed neutral ring carries
+     NO glow. */
   .status-dot {
     width: 9px;
     height: 9px;
@@ -78,7 +81,7 @@
       0 0 0 3px rgba(16, 185, 129, 0.16),
       0 0 9px rgba(16, 185, 129, 0.55);
   }
-  .status-dot:not([data-status='UP']) {
+  .status-dot:not([data-status='UP']):not([data-status='NOT_MONITORED']) {
     box-shadow:
       0 0 0 3px rgba(244, 63, 94, 0.16),
       0 0 9px rgba(244, 63, 94, 0.5);
