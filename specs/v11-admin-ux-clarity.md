@@ -1,6 +1,6 @@
 # homepad v11 — Admin / Personal Scope Clarity — Product Spec
 
-**Version:** 1.0  **Date:** 2026-06-18  **Status:** Approved — dispatch to Stitch
+**Version:** 1.0  **Date:** 2026-06-18  **Status:** Shipped — prod v11.0.0 (commit 4acf4019, 2026-06-18)
 **Author:** Walt (product)  **Requested by:** Caleb Dunn
 **Audience:** Frontend developer; backend untouched — web-only change.
 **App:** homepad — React + Vite + Tailwind CSS. Light + Dark themes.
@@ -343,11 +343,15 @@ them into separate PRs adds commit overhead with no benefit.
 
 ## 9. PAT Checklist (Walt will verify at staging)
 
-Walt's PAT will confirm:
-- [ ] Admin UserMenu shows ADMIN label + scope tags; non-admin does not
-- [ ] "Admin Panel" title + subtitle render correctly in the modal
-- [ ] Library section note explicitly says "all users"
-- [ ] System section note says "globally to all accounts"
-- [ ] Edit mode banner appears/disappears correctly
-- [ ] No visual regressions in light + dark
-- [ ] Existing test suite passes (0 new failures)
+Walt's PAT confirmed (2026-06-18, staging commit 4acf4019):
+- [x] Admin UserMenu shows ADMIN label + scope tags; non-admin does not
+- [x] "Admin Panel" title + subtitle render correctly in the modal
+- [x] Library section note explicitly says "all users"
+- [x] System section note says "globally to all accounts"
+- [x] Edit mode banner appears/disappears correctly (#61 adminEdit gate verified)
+- [x] No visual regressions in light + dark
+- [x] Existing test suite passes (325 vitest green, 0 axe violations)
+- [x] UserMenu dropdown z-index fix confirmed (header z-20, drop clears grips)
+- [x] Browser-gate test #60 present in main (tests/browser-gate/header-zindex.spec.ts)
+
+**PAT verdict: PASS — prod-ready. Shipped as v11.0.0.**
