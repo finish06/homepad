@@ -37,6 +37,15 @@ test('mouse: the open UserMenu dropdown sits above tile drag-grips', async ({ pa
   // the header at z-20 the dropdown wins every contested pixel; at z-10 a grip
   // does. We assert in real Chromium, where elementFromPoint is honest.
   const probe = await page.evaluate(() => {
+    // Ignore sub-pixel near-misses (issue #63): the grid can place a row-2 tile's
+    // grip-top exactly at the dropdown's bottom edge (e.g. grip.top=334.00 vs
+    // menu.bottom=334.17), yielding a ~0.17px sliver of "overlap". Probing the
+    // centre of so thin a band is Chromium-version-sensitive — elementFromPoint
+    // can round to the grip and flake the gate without any real regression.
+    // Require at least MIN_OVERLAP_PX of overlap on BOTH axes so only genuine,
+    // interior overlaps (like svc-4's 36px band) are tested. Test-robustness
+    // only; the z-20 regression teeth are unchanged.
+    const MIN_OVERLAP_PX = 2;
     const menu = document.querySelector('[data-testid="user-menu"]') as HTMLElement;
     const mb = menu.getBoundingClientRect();
     const results: { sid: string | null; x: number; y: number; hitInMenu: boolean; hitTestid: string | null }[] = [];
@@ -46,7 +55,9 @@ test('mouse: the open UserMenu dropdown sits above tile drag-grips', async ({ pa
       const oX = Math.min(r.right, mb.right);
       const oy = Math.max(r.top, mb.top);
       const oY = Math.min(r.bottom, mb.bottom);
-      if (ox >= oX || oy >= oY) continue; // no overlap with the dropdown
+      // Skip when the contested region is empty OR thinner than MIN_OVERLAP_PX
+      // on either axis (a sub-pixel boundary touch, not a real stacking overlap).
+      if (oX - ox < MIN_OVERLAP_PX || oY - oy < MIN_OVERLAP_PX) continue;
       const x = (ox + oX) / 2;
       const y = (oy + oY) / 2;
       const hit = document.elementFromPoint(x, y);
