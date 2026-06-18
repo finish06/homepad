@@ -58,12 +58,19 @@ export default function SettingsPanel({
         data-testid="settings-panel"
         role="dialog"
         aria-modal="true"
-        aria-label="Settings"
+        aria-label="Admin Panel"
         className="launcher-panel library-panel"
         onKeyDown={onKeyDown}
       >
         <div className="library-head">
-          <h2 className="library-title">Settings</h2>
+          {/* v11 §4.2 D3 — "Admin Panel" (not "Settings") + a global-scope
+              subtitle: the first thing an admin reads on open. */}
+          <div className="settings-admin-title-group">
+            <h2 className="library-title">Admin Panel</h2>
+            <p className="settings-admin-subtitle">
+              Changes here are global — they affect all users on this homepad.
+            </p>
+          </div>
           <button
             ref={closeRef}
             type="button"
@@ -104,7 +111,8 @@ function SystemSettings({ oidcEnabled }: { oidcEnabled: boolean }) {
         System
       </h3>
       <p className="settings-section-note">
-        Read-only — these are set via environment variables and a redeploy.
+        Read-only — set via environment variables and redeploy. These settings
+        apply globally to all accounts.
       </p>
       <dl className="settings-kv">
         <div className="settings-kv-row">
@@ -203,8 +211,9 @@ function LibraryManager() {
         App Library
       </h3>
       <p className="settings-section-note">
-        Offers any user can browse and copy. Editing or deleting an offer never
-        touches copies users already added.
+        Shared catalog — all users see these offers in “Add apps.” Editing or
+        deleting an offer never touches copies users already added to their
+        personal dashboards.
       </p>
 
       {error && (

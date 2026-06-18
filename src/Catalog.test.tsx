@@ -315,6 +315,23 @@ describe('A2(v2) — edit-mode icon controls', () => {
   });
 });
 
+// v11 §4.4 A7 — an edit-mode contextual banner tells the admin they are editing
+// their own personal dashboard (vs. the global Admin Panel).
+describe('v11 A7 — edit-mode banner', () => {
+  it('shows the "Editing your personal dashboard" banner when edit mode is on', async () => {
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('service-tile');
+    const banner = screen.getByTestId('edit-mode-banner');
+    expect(banner).toHaveTextContent(/editing your personal dashboard/i);
+  });
+
+  it('does not show the banner when edit mode is off', async () => {
+    render(<Catalog isAdmin editMode={false} />);
+    await screen.findByTestId('service-tile');
+    expect(screen.queryByTestId('edit-mode-banner')).not.toBeInTheDocument();
+  });
+});
+
 describe('A3(v2) — upload, replace, remove an icon', () => {
   it('validates then PUTs a light PNG and reveals the remove control', async () => {
     const user = userEvent.setup();

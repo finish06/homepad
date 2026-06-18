@@ -486,6 +486,15 @@ export default function Catalog({
         {announce}
       </div>
 
+      {/* v11 §4.4 D6 — edit mode touches only MY personal tiles; this banner
+          says so at point-of-use, distinct from the global Admin Panel. */}
+      {editMode && (
+        <div data-testid="edit-mode-banner" className="edit-mode-banner" role="status">
+          <PencilIcon />
+          Editing your personal dashboard
+        </div>
+      )}
+
       {/* v10 §6/A10 — a reorder PUT failed; the optimistic order was rolled back. */}
       {layoutError && (
         <p data-testid="layout-error" role="alert" className="mb-3 text-sm text-red-600">
@@ -1049,6 +1058,16 @@ function TileMenu({
         </div>
       )}
     </div>
+  );
+}
+
+// v11 §4.4 — leading icon for the edit-mode banner. A trivial inline copy of
+// UserMenu's PencilIcon (kept local rather than shared — a single small SVG).
+function PencilIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-4 w-4">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />
+    </svg>
   );
 }
 

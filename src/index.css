@@ -275,6 +275,71 @@
     opacity: 0.8;
   }
 
+  /* v11 §4.1 — ADMIN section divider in the UserMenu. Mirrors .menu-label's
+     pattern, tinted amber to signal global/admin scope (D1/D7). */
+  .menu-admin-section {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #d97706; /* amber-600 */
+  }
+  .dark .menu-admin-section {
+    color: #fbbf24; /* amber-400 */
+  }
+
+  /* v11 §4.1 — tiny per-item scope tag (personal / global). */
+  .menu-scope-tag {
+    margin-left: auto;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #9aa3b8;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(15, 23, 42, 0.05);
+  }
+  .menu-scope-tag--global {
+    color: #b45309; /* amber-700 */
+    background: #fffbeb; /* amber-50 */
+  }
+  .dark .menu-scope-tag--global {
+    color: #fcd34d; /* amber-300 */
+    background: rgba(251, 191, 36, 0.12);
+  }
+
+  /* v11 §4.1 D4 — non-admin "your dashboard is your settings" note. */
+  .menu-dashboard-note {
+    padding: 8px 12px 6px;
+    font-size: 11px;
+    color: #9aa3b8;
+    line-height: 1.4;
+  }
+
+  /* v11 §4.4 D6 — edit-mode contextual banner on the catalog. */
+  .edit-mode-banner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    margin-bottom: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #4f46e5;
+    background: rgba(99, 102, 241, 0.07);
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    border-radius: 8px;
+  }
+  .dark .edit-mode-banner {
+    background: rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.25);
+  }
+
   /* §2 Motion — disable transforms under prefers-reduced-motion, keep opacity. */
   @media (prefers-reduced-motion: reduce) {
     .tile,
@@ -665,6 +730,20 @@
     font-size: 16px;
     font-weight: 700;
     color: #0f172a;
+  }
+  /* v11 §4.2 — Admin Panel title + global-scope subtitle group. */
+  .settings-admin-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .settings-admin-subtitle {
+    font-size: 11px;
+    color: #b45309; /* amber-700 */
+    font-weight: 500;
+  }
+  .dark .settings-admin-subtitle {
+    color: #fbbf24; /* amber-400 */
   }
   .library-subtitle {
     margin-top: 2px;

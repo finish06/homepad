@@ -55,7 +55,7 @@ describe('A16 — browse the App Library', () => {
   it('lists every offer with name, description and a suggested-category chip', async () => {
     renderBrowse();
     expect(await screen.findByTestId('library-browse')).toBeInTheDocument();
-    const rows = screen.getAllByTestId('library-row');
+    const rows = await screen.findAllByTestId('library-row');
     expect(rows).toHaveLength(2);
     expect(rows[0]).toHaveAttribute('data-library-id', 'L1');
     expect(within(rows[0]).getByText('Jellyfin')).toBeInTheDocument();
@@ -71,16 +71,14 @@ describe('A16 — browse the App Library', () => {
 
   it('an already-held offer shows the Added state instead of a plain Add', async () => {
     renderBrowse();
-    await screen.findByTestId('library-browse');
     // L1 not added → an Add button; L2 already added → the added affordance.
-    expect(screen.getByTestId('library-add-L1')).toBeInTheDocument();
+    expect(await screen.findByTestId('library-add-L1')).toBeInTheDocument();
     expect(screen.getByTestId('library-added-L2')).toBeInTheDocument();
   });
 
   it('the Add button has an accessible name naming the offer (a11y §9)', async () => {
     renderBrowse();
-    await screen.findByTestId('library-browse');
-    expect(screen.getByTestId('library-add-L1')).toHaveAccessibleName(/add jellyfin to my dashboard/i);
+    expect(await screen.findByTestId('library-add-L1')).toHaveAccessibleName(/add jellyfin to my dashboard/i);
   });
 });
 
@@ -88,8 +86,7 @@ describe('A16 — add from the library', () => {
   it('clicking Add POSTs the offer and flips to Added ✓, announcing it', async () => {
     const onAdded = vi.fn();
     renderBrowse({ onAdded });
-    await screen.findByTestId('library-browse');
-    await userEvent.click(screen.getByTestId('library-add-L1'));
+    await userEvent.click(await screen.findByTestId('library-add-L1'));
 
     await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L1'));
     expect(onAdded).toHaveBeenCalledWith(NEW_SERVICE);
@@ -100,16 +97,14 @@ describe('A16 — add from the library', () => {
 
   it('Added ✓ carries text + a check glyph, not colour alone (a11y §9)', async () => {
     renderBrowse();
-    await screen.findByTestId('library-browse');
     // L2 is already added on load.
-    expect(screen.getByTestId('library-added-L2')).toHaveTextContent(/added/i);
+    expect(await screen.findByTestId('library-added-L2')).toHaveTextContent(/added/i);
   });
 
   it('"Add again" adds a second copy (no dedupe — D6)', async () => {
     renderBrowse();
-    await screen.findByTestId('library-browse');
     // L2 is already added; its affordance still lets you add again.
-    await userEvent.click(screen.getByTestId('library-added-L2'));
+    await userEvent.click(await screen.findByTestId('library-added-L2'));
     await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L2'));
   });
 });
@@ -160,7 +155,7 @@ describe('A16 — dismissal', () => {
 describe('A19 — a11y / themes', () => {
   it('has no axe violations populated (light)', async () => {
     const { container } = renderBrowse();
-    await screen.findByTestId('library-browse');
+    await screen.findAllByTestId('library-row');
     expect(await axe(container)).toHaveNoViolations();
   });
 

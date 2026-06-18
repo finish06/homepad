@@ -143,6 +143,44 @@ describe('A17 — library management', () => {
   });
 });
 
+// v11 §4.2 A4 — the modal title is "Admin Panel" (not "Settings"), with a
+// global-scope subtitle and a matching dialog aria-label.
+describe('v11 A4 — Admin Panel title + scope subtitle', () => {
+  it('titles the panel "Admin Panel" and not "Settings"', async () => {
+    renderPanel({ isAdmin: true });
+    await screen.findByTestId('settings-library');
+    expect(screen.getByRole('heading', { name: 'Admin Panel' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Settings' })).not.toBeInTheDocument();
+  });
+
+  it('the dialog aria-label is "Admin Panel"', async () => {
+    renderPanel({ isAdmin: true });
+    expect(await screen.findByTestId('settings-panel')).toHaveAttribute('aria-label', 'Admin Panel');
+  });
+
+  it('shows a subtitle saying changes are global / affect all users', async () => {
+    renderPanel({ isAdmin: true });
+    const panel = await screen.findByTestId('settings-panel');
+    expect(within(panel).getByText(/global.*affect all users/i)).toBeInTheDocument();
+  });
+});
+
+// v11 §4.3 A5/A6 — section scope notes spell out cross-user impact.
+describe('v11 A5/A6 — section scope notes', () => {
+  it('A5 — the App Library note names "all users" and "personal dashboards"', async () => {
+    renderPanel({ isAdmin: true });
+    const lib = await screen.findByTestId('settings-library');
+    expect(within(lib).getByText(/all users/i)).toBeInTheDocument();
+    expect(within(lib).getByText(/personal dashboards/i)).toBeInTheDocument();
+  });
+
+  it('A6 — the System note says it applies "globally to all accounts"', async () => {
+    renderPanel({ isAdmin: true });
+    const sys = await screen.findByTestId('settings-system');
+    expect(within(sys).getByText(/globally to all accounts/i)).toBeInTheDocument();
+  });
+});
+
 describe('A17/A19 — a11y + dismissal', () => {
   it('Escape closes the panel', async () => {
     const onClose = vi.fn();

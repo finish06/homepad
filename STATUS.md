@@ -2,6 +2,41 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-18 — #55 (v11 admin-ux) CI Web job fix: flaky async query ✅ (pushed, do NOT merge)
+
+Branch `feat/v11-admin-ux-clarity`. The "Browser gate" job passed but
+"CI / Web (build, unit tests)" was **red** on head `a9ed1aa` (runs 981/983).
+
+**Root cause — pre-existing flaky test, surfaced under CI load (NOT a v11 code
+bug).** The vitest step failed at `src/LibraryBrowse.test.tsx:58`,
+A16 "lists every offer…":
+`Unable to find an element by: [data-testid="library-row"]` — the DOM was still
+on `Loading…`. `LibraryBrowse` mounts its dialog shell (`data-testid=
+"library-browse"`) **immediately**, but `offers` starts `null` and rows only
+render after `listLibrary().then(setOffers)` resolves. The test awaited only the
+shell, then queried the rows **synchronously** (`getAllByTestId('library-row')`),
+so it raced the async load. On a fast machine the microtask landed first (green
+locally, 325/325); on the slower/loaded CI runner the rows hadn't rendered →
+throw. Several sibling tests in the file shared the identical latent race
+(awaited the shell, then sync-queried `library-add-*` / `library-added-*`).
+
+**Fix (test-only, surgical — `src/LibraryBrowse.test.tsx`, +7/−12):** anchor
+each assertion on the *loaded* content via async `findBy*`
+(`getAllByTestId('library-row')` → `await findAllByTestId('library-row')`;
+sync `getByTestId('library-add-L1')` etc. → `await findByTestId(...)`). `findBy*`
+polls up to its 1s timeout, which absorbs the load latency. Tests that already
+awaited `library-empty` or only touched always-present shell elements (overlay,
+footer custom-add, Escape) were correct and left untouched. No app/`src/*.tsx`
+component change — the v11 UI is unchanged.
+
+**Proven, not assumed:** a throwaway test with a 300ms-delayed `listLibrary`
+mock reproduced CI exactly — OLD `getAllByTestId` **threw** mid-load, NEW
+`findAllByTestId` waited it out and passed (throwaway removed). Full suite green:
+`npm run build` clean + `npx vitest run` → **325/325**.
+
+RED commit (`0e232f7`) + GREEN (`a9ed1aa`) are intact; this is a follow-up CI
+fix on top. **Do NOT merge** — leaving PR #55 for the review/vote gate.
+
 ## 2026-06-13 — #29 .library-chip dark-mode contrast fast-follow ✅ (PR open)
 
 Branch `fix/29-library-chip-dark-contrast` off `main`. **Cosmetic, web-only,

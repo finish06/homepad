@@ -122,33 +122,50 @@ export default function UserMenu({
 
           <div className="menu-sep" />
 
-          {/* 5. Edit dashboard — admin only (rendered, not disabled, for users) */}
+          {/* v11 §4.1 — admin block. An ADMIN section label (shield + amber tint)
+              signals these controls operate at GLOBAL scope, and per-item scope
+              tags spell out personal vs. global at point-of-use (D1/D2). */}
           {isAdmin && (
-            <button
-              type="button"
-              role="menuitem"
-              data-testid="menu-edit"
-              onClick={() => choose(onToggleEdit)}
-              className="menu-item"
-            >
-              <PencilIcon />
-              Edit dashboard
-            </button>
+            <>
+              <div data-testid="menu-admin-section" className="menu-admin-section">
+                <ShieldIcon />
+                Admin
+              </div>
+              {/* 5. Edit dashboard — touches only the admin's personal tiles. */}
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="menu-edit"
+                onClick={() => choose(onToggleEdit)}
+                className="menu-item"
+              >
+                <PencilIcon />
+                Edit dashboard
+                <span className="menu-scope-tag">personal</span>
+              </button>
+              {/* 6b. Admin settings — v9.3 §7.3 App Library mgmt + read-only
+                  system. Controls global, cross-user state. */}
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="menu-admin-settings"
+                onClick={() => choose(onOpenAdminSettings)}
+                className="menu-item"
+              >
+                <LibraryIcon />
+                Admin settings
+                <span className="menu-scope-tag menu-scope-tag--global">global</span>
+              </button>
+            </>
           )}
 
-          {/* 6b. Admin settings — v9.3 §7.3 App Library mgmt + read-only system.
-              Admin only (rendered, not disabled, for non-admins). */}
-          {isAdmin && (
-            <button
-              type="button"
-              role="menuitem"
-              data-testid="menu-admin-settings"
-              onClick={() => choose(onOpenAdminSettings)}
-              className="menu-item"
-            >
-              <LibraryIcon />
-              Admin settings
-            </button>
+          {/* v11 §4.1 D4 — non-admins have no admin items; this note gives them
+              the mental model that their dashboard IS their settings. */}
+          {!isAdmin && (
+            <p data-testid="menu-dashboard-note" className="menu-dashboard-note">
+              Your tiles, categories, and icons are your personal dashboard —
+              manage them directly on the home screen.
+            </p>
           )}
 
           <div className="menu-sep" />
@@ -176,6 +193,14 @@ function PencilIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="menu-icon">
       <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />
+    </svg>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="menu-icon" style={{ opacity: 1 }}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
     </svg>
   );
 }
