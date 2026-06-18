@@ -75,7 +75,7 @@ export default function SettingsPanel({
             ref={closeRef}
             type="button"
             data-testid="settings-close"
-            aria-label="Close settings"
+            aria-label="Close admin panel"
             onClick={onClose}
             className="launcher-clear library-close"
           >

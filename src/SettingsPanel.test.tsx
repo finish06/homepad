@@ -163,6 +163,16 @@ describe('v11 A4 — Admin Panel title + scope subtitle', () => {
     const panel = await screen.findByTestId('settings-panel');
     expect(within(panel).getByText(/global.*affect all users/i)).toBeInTheDocument();
   });
+
+  // v11 §4.2 A4/A9 (issue #54) — the close button's accessible name must match
+  // the renamed dialog ("Admin Panel"), not the stale "Close settings".
+  it('A4 — the close button is labelled "Close admin panel", not "Close settings"', async () => {
+    renderPanel({ isAdmin: true });
+    await screen.findByTestId('settings-panel');
+    const close = screen.getByTestId('settings-close');
+    expect(close).toHaveAccessibleName('Close admin panel');
+    expect(screen.queryByRole('button', { name: 'Close settings' })).not.toBeInTheDocument();
+  });
 });
 
 // v11 §4.3 A5/A6 — section scope notes spell out cross-user impact.
