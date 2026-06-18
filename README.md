@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/React%20%2B%20Vite-18%20%C2%B7%205-61DAFB?logo=react&logoColor=white" alt="React + Vite">
   <img src="https://img.shields.io/badge/Tailwind%20CSS-3-38BDF8?logo=tailwindcss&logoColor=white" alt="Tailwind CSS">
   <img src="https://img.shields.io/badge/version-11.0.0-blue" alt="v11.0.0">
-  <img src="https://img.shields.io/badge/tests-325%20vitest%20passing-brightgreen" alt="325 vitest passing">
+  <img src="https://img.shields.io/badge/tests-327%20vitest%20passing-brightgreen" alt="327 vitest passing">
   <img src="https://img.shields.io/badge/license-homelab%20%C2%B7%20private-blue" alt="License: homelab / private">
 </p>
 

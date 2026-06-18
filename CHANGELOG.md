@@ -25,7 +25,7 @@ global), and non-admins had no explanation of where their settings lived.
   gated on `adminEdit` (not the general `editMode` flag) so it shows exactly
   when an admin is editing their personal tiles.
 
-All existing `data-testid` values preserved. 325 vitest passing, 0 axe
+All existing `data-testid` values preserved. 327 vitest passing, 0 axe
 violations (jest-axe on UserMenu admin role).
 
 ### UserMenu Dropdown Z-Index Fix (#57/#58)
