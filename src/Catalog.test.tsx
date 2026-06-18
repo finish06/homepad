@@ -330,6 +330,14 @@ describe('v11 A7 — edit-mode banner', () => {
     await screen.findByTestId('service-tile');
     expect(screen.queryByTestId('edit-mode-banner')).not.toBeInTheDocument();
   });
+
+  // v11 §4.4 (#53) — the banner must gate on adminEdit (isAdmin && editMode),
+  // not editMode alone, matching every other admin-only edit affordance.
+  it('does not show the banner for a non-admin even if editMode is forced on', async () => {
+    render(<Catalog isAdmin={false} editMode />);
+    await screen.findByTestId('service-tile');
+    expect(screen.queryByTestId('edit-mode-banner')).not.toBeInTheDocument();
+  });
 });
 
 describe('A3(v2) — upload, replace, remove an icon', () => {

@@ -488,7 +488,7 @@ export default function Catalog({
 
       {/* v11 §4.4 D6 — edit mode touches only MY personal tiles; this banner
           says so at point-of-use, distinct from the global Admin Panel. */}
-      {editMode && (
+      {adminEdit && (
         <div data-testid="edit-mode-banner" className="edit-mode-banner" role="status">
           <PencilIcon />
           Editing your personal dashboard
