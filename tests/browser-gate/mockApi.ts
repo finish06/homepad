@@ -22,14 +22,31 @@ const SERVICE = {
   iconDark: false,
 };
 
-export async function mockApi(page: Page): Promise<void> {
+// header-zindex.spec needs SEVERAL tiles so the grid fills its right column and a
+// drag-grip lands under the right-anchored UserMenu dropdown (the #57 overlap).
+// Clones of SERVICE with distinct ids/slugs/names; the visual is identical.
+export function makeServices(n: number): (typeof SERVICE)[] {
+  return Array.from({ length: n }, (_, i) => ({
+    ...SERVICE,
+    id: `svc-${i + 1}`,
+    slug: `svc-${i + 1}`,
+    name: `Service ${i + 1}`,
+  }));
+}
+
+export async function mockApi(
+  page: Page,
+  // Defaults to the single-tile fixture (tile-menu.spec). Pass a wider set for
+  // gates that need tiles in the grid's right column (header-zindex.spec).
+  services: (typeof SERVICE)[] = [SERVICE],
+): Promise<void> {
   // Catch-all registered FIRST so the specific handlers below (LIFO order) take
   // precedence — anything unmocked resolves empty instead of hanging the page.
   await page.route('**/api/**', (route) => route.fulfill({ status: 200, json: {} }));
 
   await page.route('**/api/me', (route) => route.fulfill({ json: USER }));
   await page.route('**/api/auth/config', (route) => route.fulfill({ json: { oidcEnabled: false } }));
-  await page.route('**/api/services', (route) => route.fulfill({ json: { services: [SERVICE] } }));
+  await page.route('**/api/services', (route) => route.fulfill({ json: { services } }));
   await page.route('**/api/categories', (route) => route.fulfill({ json: { categories: [] } }));
   await page.route('**/api/me/collapsed-categories', (route) =>
     route.fulfill({ json: { collapsed: [] } }),
