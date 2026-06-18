@@ -126,15 +126,22 @@ endpoints are unregistered (404) and homepad is local-only.
 
 ## Screenshots
 
-> Wireframe placeholders — replaced with real captures from the live deploy.
+> Real captures from the live **v11** deploy.
 
-| Login (local + PocketID) | Catalog with live status |
+<p align="center">
+  <img src="./docs/screenshots/catalog.png" alt="homepad service catalog — apps grouped by category with live icons" width="100%">
+  <br><em>The catalog — your apps grouped by category, each with its own icon.</em>
+</p>
+
+| Admin &amp; personal scope (v11) | Sign in |
 | --- | --- |
-| ![Login screen](./docs/screenshots/login.png) | ![Service catalog](./docs/screenshots/catalog.png) |
+| ![User menu showing the admin section with PERSONAL and GLOBAL scope tags](./docs/screenshots/usermenu.png) | ![Sign-in screen](./docs/screenshots/login.png) |
+
+<p align="center"><em>v11 makes scope explicit at the point of use: an <strong>Admin</strong> section in the menu, with <strong>personal</strong> vs <strong>global</strong> tags on each action so you always know who a change affects.</em></p>
 
 <p align="center">
   <img src="./docs/screenshots/mobile.png" alt="homepad on mobile (390×844)" width="280">
-  <br><em>Responsive at 390×844 (iPhone 13)</em>
+  <br><em>Responsive at 390×844 (iPhone 13).</em>
 </p>
 
 ## Layout
