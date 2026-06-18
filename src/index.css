@@ -375,7 +375,7 @@
   .launcher-overlay {
     position: fixed;
     inset: 0;
-    z-index: 60; /* clears the sticky header (10) and the avatar menu (50) */
+    z-index: 60; /* clears the sticky header (20) and the avatar menu (50) */
     display: flex;
     justify-content: center;
     align-items: flex-start;

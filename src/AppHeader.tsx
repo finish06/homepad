@@ -18,7 +18,7 @@ export default function AppHeader({
   onLogout: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-10 border-b border-neutral-200/70 bg-white/70 backdrop-blur dark:border-neutral-800/70 dark:bg-neutral-900/70">
+    <header className="sticky top-0 z-20 border-b border-neutral-200/70 bg-white/70 backdrop-blur dark:border-neutral-800/70 dark:bg-neutral-900/70">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
         <span className="wordmark">homepad</span>
         <LauncherTrigger />
