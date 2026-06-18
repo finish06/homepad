@@ -6,7 +6,8 @@
   <img src="https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white" alt="Go 1.25">
   <img src="https://img.shields.io/badge/React%20%2B%20Vite-18%20%C2%B7%205-61DAFB?logo=react&logoColor=white" alt="React + Vite">
   <img src="https://img.shields.io/badge/Tailwind%20CSS-3-38BDF8?logo=tailwindcss&logoColor=white" alt="Tailwind CSS">
-  <img src="https://img.shields.io/badge/tests-70%20passing%20%C2%B7%2026%20Go%20%2B%2044%20Vitest-brightgreen" alt="70 tests passing">
+  <img src="https://img.shields.io/badge/version-11.0.0-blue" alt="v11.0.0">
+  <img src="https://img.shields.io/badge/tests-325%20vitest%20passing-brightgreen" alt="325 vitest passing">
   <img src="https://img.shields.io/badge/license-homelab%20%C2%B7%20private-blue" alt="License: homelab / private">
 </p>
 
@@ -42,10 +43,18 @@ pairs with the Go backend at [`Code/homepad-api`](https://gitea.kube.calebdunn.t
   non-admins get a 403.
 - **Gatus is server-side only** — no Gatus URL ever ships in the JS bundle or
   reaches the browser (verified: `grep -ri gatus dist/` is empty).
+- **Admin/personal scope clarity** (v11) — the UserMenu shows a distinct ADMIN
+  section label (shield icon, amber) with per-item scope tags ("personal" /
+  "global"), the Settings modal is titled "Admin Panel" with a global-scope
+  subtitle, and non-admins see a note explaining their dashboard is their
+  settings.
+- **UserMenu dropdown z-index** (v11) — the sticky header is at `z-20`,
+  clearing the tile drag-grips' `z-10` so the dropdown is always accessible;
+  a real-browser Playwright gate guards against regression.
 
 Acceptance criteria **A1–A11** from the spec are all implemented; A7/A8 (live
 responsive + Lighthouse budgets) and full browser e2e are verified on the
-deployed stack.
+deployed stack. See [CHANGELOG.md](./CHANGELOG.md) for the full version history.
 
 ## Architecture
 
