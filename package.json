@@ -14,6 +14,7 @@
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install --with-deps chromium",
     "test:gate": "playwright test --config=playwright.gate.config.ts",
+    "test:cdp": "node qa-kit/cdp-smoke.js",
     "lhci": "lhci autorun"
   },
   "dependencies": {
