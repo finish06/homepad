@@ -8,6 +8,17 @@ RUN npm run build
 
 # --- runtime ---
 FROM nginx:1.27-alpine
+# Per-commit cache-bust for the runtime stage (#73). ci-shared passes
+# --build-arg GIT_SHA=<commit sha>; a Docker ARG only invalidates the cache from
+# its FIRST USE onward, so we reference it in a RUN *before* the COPYs below.
+# Without this, the release build resolved this whole `FROM nginx` stage from a
+# stale BuildKit/daemon cache: the corrected nginx.conf never re-COPYed and the
+# `types { }` guard never re-ran, so staging kept reshipping the pre-fix conf
+# under each new tag (manifest served application/octet-stream; Last-Modified
+# frozen at 20:04:40 UTC across releases). Busting here forces both the dist
+# COPY (advancing Last-Modified) and the nginx.conf COPY + guard to rebuild.
+ARG GIT_SHA=dev
+RUN echo "homepad build ${GIT_SHA}" > /etc/homepad-build-sha
 COPY --from=build /src/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Fail the build if the webmanifest MIME fix (#18/#69/#71) is missing from the
