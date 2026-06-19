@@ -275,9 +275,23 @@
     opacity: 0.8;
   }
 
-  /* v11 §4.1 — ADMIN section divider in the UserMenu. Mirrors .menu-label's
-     pattern, tinted amber to signal global/admin scope (D1/D7). */
-  .menu-admin-section {
+  /* v12 §4.1 D2 — My Dashboard section label. Personal section, all users —
+     same muted/uppercase style as .menu-label; amber stays reserved for the
+     Administration section. */
+  .menu-section-label {
+    padding: 8px 12px 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #94a3b8;
+  }
+
+  /* v12 §4.1 D4 — Administration section divider in the UserMenu (rename of the
+     v11 .menu-admin-section). Mirrors .menu-label's pattern, tinted amber to
+     signal global/admin scope; now only ever sits above genuinely global
+     controls (D3). */
+  .menu-administration-section {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -288,7 +302,7 @@
     text-transform: uppercase;
     color: #d97706; /* amber-600 */
   }
-  .dark .menu-admin-section {
+  .dark .menu-administration-section {
     color: #fbbf24; /* amber-400 */
   }
 
@@ -932,6 +946,25 @@
   .settings-kv-row dd {
     color: #0f172a;
     text-align: right;
+  }
+  /* v12 §4.2 D5 — per-field read-only marker on each System row. Small, muted,
+     styled like .library-chip; the paragraph note keeps its context but no
+     longer carries the read-only signal alone. */
+  .settings-env-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 5px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-radius: 4px;
+    color: #9aa3b8;
+    background: rgba(15, 23, 42, 0.05);
+    vertical-align: middle;
+  }
+  .dark .settings-env-badge {
+    background: rgba(255, 255, 255, 0.07);
   }
   .library-new,
   .library-edit {

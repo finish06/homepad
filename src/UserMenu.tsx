@@ -122,29 +122,46 @@ export default function UserMenu({
 
           <div className="menu-sep" />
 
-          {/* v11 §4.1 — admin block. An ADMIN section label (shield + amber tint)
-              signals these controls operate at GLOBAL scope, and per-item scope
-              tags spell out personal vs. global at point-of-use (D1/D2). */}
+          {/* v12 §4.1 D1/D2 — My Dashboard: a PERSONAL section for ALL users.
+              Admins get the active "Edit dashboard" button; non-admins get the
+              note INSIDE this labeled section (not floating below it), so both
+              roles see a personal section and the personal action no longer
+              hides under an "Admin" label. */}
+          <div data-testid="menu-my-dashboard-section" className="menu-section-label">
+            My Dashboard
+          </div>
+          {isAdmin ? (
+            /* Edit dashboard — touches only the admin's personal tiles. */
+            <button
+              type="button"
+              role="menuitem"
+              data-testid="menu-edit"
+              onClick={() => choose(onToggleEdit)}
+              className="menu-item"
+            >
+              <PencilIcon />
+              Edit dashboard
+              <span className="menu-scope-tag">personal</span>
+            </button>
+          ) : (
+            <p data-testid="menu-dashboard-note" className="menu-dashboard-note">
+              Your tiles, categories, and icons are your personal dashboard —
+              manage them directly on the home screen.
+            </p>
+          )}
+
+          {/* v12 §4.1 D3/D4 — Administration: GLOBAL, admin-only. The shield +
+              amber label now means exactly one thing — global state — and
+              carries only "Admin settings." */}
           {isAdmin && (
             <>
-              <div data-testid="menu-admin-section" className="menu-admin-section">
+              <div className="menu-sep" />
+              <div data-testid="menu-administration-section" className="menu-administration-section">
                 <ShieldIcon />
-                Admin
+                Administration
               </div>
-              {/* 5. Edit dashboard — touches only the admin's personal tiles. */}
-              <button
-                type="button"
-                role="menuitem"
-                data-testid="menu-edit"
-                onClick={() => choose(onToggleEdit)}
-                className="menu-item"
-              >
-                <PencilIcon />
-                Edit dashboard
-                <span className="menu-scope-tag">personal</span>
-              </button>
-              {/* 6b. Admin settings — v9.3 §7.3 App Library mgmt + read-only
-                  system. Controls global, cross-user state. */}
+              {/* Admin settings — v9.3 §7.3 App Library mgmt + read-only system.
+                  Controls global, cross-user state. */}
               <button
                 type="button"
                 role="menuitem"
@@ -157,15 +174,6 @@ export default function UserMenu({
                 <span className="menu-scope-tag menu-scope-tag--global">global</span>
               </button>
             </>
-          )}
-
-          {/* v11 §4.1 D4 — non-admins have no admin items; this note gives them
-              the mental model that their dashboard IS their settings. */}
-          {!isAdmin && (
-            <p data-testid="menu-dashboard-note" className="menu-dashboard-note">
-              Your tiles, categories, and icons are your personal dashboard —
-              manage them directly on the home screen.
-            </p>
           )}
 
           <div className="menu-sep" />
