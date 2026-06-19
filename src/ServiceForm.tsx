@@ -1,6 +1,16 @@
 import { useState } from 'react';
 import { createService, updateService, type Service, type ServiceInput } from './api';
 
+// Mirror of the backend slugify (homepad-api internal/storage/library.go):
+// lowercase, runs of non-alphanumeric collapse to a single dash, no leading or
+// trailing dash. "Plex Media Server" → "plex-media-server".
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 // Admin add/edit form for a catalog entry (A6). Passing a `service` puts it in
 // edit mode (fields prefilled, PATCH on submit); omitting it is add mode (POST).
 // Reuses the AuthForm card/label/input idiom. Server errors — 409 slug
@@ -18,6 +28,10 @@ export default function ServiceForm({
   const editing = service !== undefined;
   const [name, setName] = useState(service?.name ?? '');
   const [slug, setSlug] = useState(service?.slug ?? '');
+  // While untouched, the slug tracks the name (slugified) so admins don't have
+  // to fill it by hand — a blank slug otherwise guarantees a save error (#78).
+  // Editing the slug directly, or opening an existing entry, stops the tracking.
+  const [slugEdited, setSlugEdited] = useState(editing);
   const [url, setUrl] = useState(service?.url ?? '');
   const [description, setDescription] = useState(service?.description ?? '');
   const [icon, setIcon] = useState(service?.icon ?? '');
@@ -93,7 +107,10 @@ export default function ServiceForm({
           <input
             data-testid="field-name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (!slugEdited) setSlug(slugify(e.target.value));
+            }}
             className={inputClass}
           />
         </label>
@@ -103,7 +120,10 @@ export default function ServiceForm({
           <input
             data-testid="field-slug"
             value={slug}
-            onChange={(e) => setSlug(e.target.value)}
+            onChange={(e) => {
+              setSlugEdited(true);
+              setSlug(e.target.value);
+            }}
             className={inputClass}
           />
         </label>

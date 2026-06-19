@@ -455,7 +455,8 @@ describe('A6 — add app (admin edit mode)', () => {
     const form = await screen.findByTestId('service-form');
 
     await user.type(within(form).getByTestId('field-name'), 'Grafana');
-    await user.type(within(form).getByTestId('field-slug'), 'grafana');
+    // Slug auto-fills from the name (#78), so it is not typed explicitly here;
+    // the payload assertion below still pins it to 'grafana'.
     await user.type(within(form).getByTestId('field-url'), 'https://graf.x');
     await user.type(within(form).getByTestId('field-icon'), 'https://graf.x/i.png');
     await user.type(within(form).getByTestId('field-gatus_key'), 'grafana');
@@ -488,6 +489,8 @@ describe('A6 — add app (admin edit mode)', () => {
     await user.click(await screen.findByTestId('add-service'));
     const form = await screen.findByTestId('service-form');
     await user.type(within(form).getByTestId('field-name'), 'Plex Two');
+    // Override the auto-filled slug (#78) to one that collides with the existing Plex.
+    await user.clear(within(form).getByTestId('field-slug'));
     await user.type(within(form).getByTestId('field-slug'), 'plex');
     await user.type(within(form).getByTestId('field-url'), 'https://plex2.x');
     await user.click(within(form).getByTestId('form-submit'));
