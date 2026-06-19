@@ -117,11 +117,17 @@ function SystemSettings({ oidcEnabled }: { oidcEnabled: boolean }) {
       <dl className="settings-kv">
         <div className="settings-kv-row">
           <dt>OIDC sign-in</dt>
-          <dd>{oidcEnabled ? 'Enabled' : 'Disabled'}</dd>
+          <dd>
+            {oidcEnabled ? 'Enabled' : 'Disabled'}
+            <span data-testid="settings-env-badge-oidc" className="settings-env-badge">env</span>
+          </dd>
         </div>
         <div className="settings-kv-row">
           <dt>Self-registration</dt>
-          <dd>Managed via environment (HOMEPAD_REGISTRATION)</dd>
+          <dd>
+            Controlled by server environment
+            <span data-testid="settings-env-badge-registration" className="settings-env-badge">env</span>
+          </dd>
         </div>
       </dl>
     </section>
