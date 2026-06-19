@@ -191,6 +191,27 @@ describe('v11 A5/A6 — section scope notes', () => {
   });
 });
 
+// v12 §6 A8/A9 — per-field env badges on each read-only System row, and the
+// self-registration copy drops the raw env-var name.
+describe('v12 A8/A9 — per-field env badges + clean copy', () => {
+  it('A8 — each System row has an env badge reading "env"', async () => {
+    renderPanel({ isAdmin: true, oidcEnabled: true });
+    const sys = await screen.findByTestId('settings-system');
+    const oidcBadge = within(sys).getByTestId('settings-env-badge-oidc');
+    const regBadge = within(sys).getByTestId('settings-env-badge-registration');
+    expect(oidcBadge).toHaveTextContent(/^env$/i);
+    expect(regBadge).toHaveTextContent(/^env$/i);
+  });
+
+  it('A9 — self-registration reads "Controlled by server environment", no raw env-var name', async () => {
+    renderPanel({ isAdmin: true });
+    const sys = await screen.findByTestId('settings-system');
+    const dd = within(sys).getByText(/controlled by server environment/i);
+    expect(dd).toBeInTheDocument();
+    expect(within(sys).queryByText(/HOMEPAD_REGISTRATION/)).not.toBeInTheDocument();
+  });
+});
+
 describe('A17/A19 — a11y + dismissal', () => {
   it('Escape closes the panel', async () => {
     const onClose = vi.fn();

@@ -28,51 +28,105 @@ async function open() {
   await userEvent.click(screen.getByTestId('user-menu-trigger'));
 }
 
+// `a` precedes `b` in document order.
+function precedes(a: HTMLElement, b: HTMLElement) {
+  return Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+}
+
 afterEach(() => {
   vi.clearAllMocks();
   document.documentElement.classList.remove('dark');
 });
 
-// v11 §6 A1 — the admin block gets a dedicated ADMIN section label (shield icon,
-// amber-tinted) signaling these controls operate at global scope.
-describe('v11 A1 — ADMIN section label', () => {
-  it('renders the ADMIN section label for an admin, before the admin items', async () => {
+// v12 §6 A1 — admins get a "My Dashboard" personal section label above the
+// "Edit dashboard" action. It is muted/uppercase (.menu-section-label), NOT
+// amber — amber is reserved for the Administration section.
+describe('v12 A1 — My Dashboard section (admin)', () => {
+  it('renders the My Dashboard label above Edit dashboard, in muted (non-amber) style', async () => {
     renderMenu(ADMIN);
     await open();
-    const label = screen.getByTestId('menu-admin-section');
+    const label = screen.getByTestId('menu-my-dashboard-section');
     expect(label).toBeInTheDocument();
-    expect(label).toHaveTextContent(/admin/i);
-    // It precedes the admin menu items in the DOM.
-    const edit = screen.getByTestId('menu-edit');
-    expect(label.compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it('does NOT render the ADMIN section label for a non-admin', async () => {
-    renderMenu(USER);
-    await open();
-    expect(screen.queryByTestId('menu-admin-section')).not.toBeInTheDocument();
+    expect(label).toHaveTextContent(/my dashboard/i);
+    // Muted personal style, not the amber administration style.
+    expect(label).toHaveClass('menu-section-label');
+    expect(label).not.toHaveClass('menu-administration-section');
+    // It precedes the Edit dashboard item.
+    expect(precedes(label, screen.getByTestId('menu-edit'))).toBe(true);
   });
 });
 
-// v11 §6 A2 — scope tags: "personal" on Edit dashboard, "global" on Admin settings.
-describe('v11 A2 — scope tags on admin items', () => {
-  it('tags Edit dashboard "personal" and Admin settings "global"', async () => {
+// v12 §6 A2 — admins get an "Administration" section label (shield + amber)
+// above "Admin settings" ONLY. "Edit dashboard" lives under My Dashboard,
+// before the Administration label — never inside the admin section.
+describe('v12 A2 — Administration section (admin)', () => {
+  it('renders the Administration label (amber) above Admin settings, after Edit dashboard', async () => {
     renderMenu(ADMIN);
+    await open();
+    const admin = screen.getByTestId('menu-administration-section');
+    expect(admin).toBeInTheDocument();
+    expect(admin).toHaveTextContent(/administration/i);
+    expect(admin).toHaveClass('menu-administration-section');
+
+    const edit = screen.getByTestId('menu-edit');
+    const settings = screen.getByTestId('menu-admin-settings');
+    // Edit dashboard is a personal item that sits BEFORE the Administration
+    // label; Admin settings is the only item AFTER it.
+    expect(precedes(edit, admin)).toBe(true);
+    expect(precedes(admin, settings)).toBe(true);
+  });
+});
+
+// v12 §6 A3 — per-item scope tags: "personal" on Edit dashboard, "global" on
+// Admin settings, in both light and dark.
+describe('v12 A3 — scope tags on menu items', () => {
+  it('tags Edit dashboard "personal" and Admin settings "global" (light)', async () => {
+    renderMenu(ADMIN);
+    await open();
+    expect(within(screen.getByTestId('menu-edit')).getByText(/personal/i)).toBeInTheDocument();
+    expect(within(screen.getByTestId('menu-admin-settings')).getByText(/global/i)).toBeInTheDocument();
+  });
+
+  it('renders both scope tags in dark mode', async () => {
+    renderMenu(ADMIN, { dark: true });
     await open();
     expect(within(screen.getByTestId('menu-edit')).getByText(/personal/i)).toBeInTheDocument();
     expect(within(screen.getByTestId('menu-admin-settings')).getByText(/global/i)).toBeInTheDocument();
   });
 });
 
-// v11 §6 A3 — non-admins get a "your dashboard is your settings" note; admins don't.
-describe('v11 A3 — non-admin dashboard note', () => {
-  it('shows the dashboard note for a non-admin', async () => {
+// v12 §6 A4/A5/A6 — non-admins also get a labeled "My Dashboard" section, with
+// the note INSIDE it; they get no Administration section and no Edit dashboard.
+describe('v12 A4/A5/A6 — non-admin sees a labeled personal section', () => {
+  it('A4 — shows the My Dashboard section label', async () => {
     renderMenu(USER);
     await open();
-    const note = screen.getByTestId('menu-dashboard-note');
-    expect(note).toHaveTextContent(/personal dashboard/i);
+    expect(screen.getByTestId('menu-my-dashboard-section')).toBeInTheDocument();
   });
 
+  it('A5 — shows no Administration section and no Edit dashboard', async () => {
+    renderMenu(USER);
+    await open();
+    expect(screen.queryByTestId('menu-administration-section')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('menu-edit')).not.toBeInTheDocument();
+  });
+
+  it('A6 — the dashboard note sits directly under the My Dashboard label', async () => {
+    renderMenu(USER);
+    await open();
+    const label = screen.getByTestId('menu-my-dashboard-section');
+    const note = screen.getByTestId('menu-dashboard-note');
+    expect(note).toHaveTextContent(/personal dashboard/i);
+    // The note follows the My Dashboard label (not floating with no heading).
+    expect(precedes(label, note)).toBe(true);
+    // Nothing else comes between the label and the note.
+    expect(label.nextElementSibling).toBe(note);
+  });
+});
+
+// v12 §6 A7 — admins do NOT see the non-admin dashboard note (they get the
+// active Edit dashboard button instead).
+describe('v12 A7 — admin has no dashboard note', () => {
   it('does NOT show the dashboard note for an admin', async () => {
     renderMenu(ADMIN);
     await open();
@@ -80,14 +134,12 @@ describe('v11 A3 — non-admin dashboard note', () => {
   });
 });
 
-// v11 A9 — the new admin label + scope tags carry no axe violations.
-// `aria-required-children` is DISABLED here: it is a pre-existing menu concern
-// (ThemeControl's role="group" of plain buttons sits inside role="menu") that
-// predates v11 and lives outside this spec's change set — gating it here would
-// assert on code v11 does not touch. The new label/tags/note are non-interactive
-// text + an aria-hidden icon, so they add no violations of their own.
-describe('v11 A9 — accessibility', () => {
-  it('the admin menu has no axe violations from the new scope UI', async () => {
+// v12 §6 A11 — the restructured admin menu carries no axe violations.
+// `aria-required-children` stays disabled (pre-existing menu concern: the
+// ThemeControl role="group" of plain buttons inside role="menu" predates v12
+// and is outside this change set).
+describe('v12 A11 — accessibility', () => {
+  it('the admin menu has no axe violations', async () => {
     const { container } = renderMenu(ADMIN);
     await open();
     const results = await axe(container, {
@@ -97,13 +149,16 @@ describe('v11 A9 — accessibility', () => {
   });
 });
 
-// v11 A10 — the new UI renders under the dark theme too.
-describe('v11 A10 — dark theme', () => {
-  it('renders the admin label + scope tags in dark mode', async () => {
+// v12 §6 A12 — both labels render under the dark theme; My Dashboard keeps its
+// muted class, Administration keeps its amber class.
+describe('v12 A12 — dark theme labels', () => {
+  it('renders My Dashboard (muted) and Administration (amber) labels in dark mode', async () => {
     renderMenu(ADMIN, { dark: true });
     await open();
-    expect(screen.getByTestId('menu-admin-section')).toBeInTheDocument();
-    expect(within(screen.getByTestId('menu-edit')).getByText(/personal/i)).toBeInTheDocument();
-    expect(within(screen.getByTestId('menu-admin-settings')).getByText(/global/i)).toBeInTheDocument();
+    const my = screen.getByTestId('menu-my-dashboard-section');
+    const admin = screen.getByTestId('menu-administration-section');
+    expect(my).toHaveClass('menu-section-label');
+    expect(my).not.toHaveClass('menu-administration-section');
+    expect(admin).toHaveClass('menu-administration-section');
   });
 });
