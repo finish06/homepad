@@ -1026,6 +1026,27 @@ describe('v5 A2 — default is expanded (no stored collapse state)', () => {
   });
 });
 
+describe('#81 — chevron sits at the trailing edge (name first, chevron far right)', () => {
+  it('renders the category name before the disclosure chevron, chevron pinned right', async () => {
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
+    ]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+
+    const header = catHeaderButton('Media');
+    const chevron = within(header).getByTestId('disclosure-chevron');
+    const name = within(header).getByText('Media');
+
+    // The name precedes the chevron in DOM order (was the reverse before #81).
+    expect(name.compareDocumentPosition(chevron) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The chevron is the trailing element, pinned to the far right.
+    expect(header.lastElementChild).toBe(chevron);
+    expect(chevron.getAttribute('class')).toContain('ml-auto');
+  });
+});
+
 describe('v5 A3 — collapse state persists per-user (rendered on boot)', () => {
   it('renders a stored-collapsed category folded on load', async () => {
     mockedGetCollapsed.mockResolvedValue(['media']);
