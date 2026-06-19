@@ -685,19 +685,6 @@ function Section({
           onClick={onToggle}
           className="cat-head w-full rounded font-semibold uppercase outline-none hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:text-slate-300"
         >
-          {/* A right-pointing chevron that rotates to point down when expanded.
-              An SVG (no text content) keeps the header's textContent == title.
-              motion-reduce disables the rotation transition (prefers-reduced-motion). */}
-          <svg
-            data-testid="disclosure-chevron"
-            aria-hidden="true"
-            viewBox="0 0 12 12"
-            className={`h-3 w-3 shrink-0 transition-transform motion-reduce:transition-none ${
-              collapsed ? '' : 'rotate-90'
-            }`}
-          >
-            <path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
           <span>{title}</span>
           {collapsed && (
             <span data-testid="category-count" className="font-normal text-neutral-400">
@@ -709,6 +696,21 @@ function Section({
               couldn’t save
             </span>
           )}
+          {/* A right-pointing chevron that rotates to point down when expanded,
+              pinned to the trailing edge (ml-auto) — the standard disclosure
+              position is name first, chevron at far right (#81).
+              An SVG (no text content) keeps the header's textContent == title.
+              motion-reduce disables the rotation transition (prefers-reduced-motion). */}
+          <svg
+            data-testid="disclosure-chevron"
+            aria-hidden="true"
+            viewBox="0 0 12 12"
+            className={`ml-auto h-3 w-3 shrink-0 transition-transform motion-reduce:transition-none ${
+              collapsed ? '' : 'rotate-90'
+            }`}
+          >
+            <path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
       </h2>
       {!collapsed && <div id={controlsId}>{children}</div>}
