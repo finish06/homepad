@@ -637,15 +637,23 @@ describe('A9 — never a broken image', () => {
 
 // Find a section by its header text, tolerant of duplicate texts elsewhere on
 // the page (e.g. the same name appearing in a per-tile category <select>).
+// #79: every header now carries an app-count badge, so the header's textContent
+// is "<title><count>". Strip the badge to recover just the title text.
+function headerTitle(h: HTMLElement): string {
+  const badge = h.querySelector('[data-testid="category-count"]');
+  const text = h.textContent ?? '';
+  return badge ? text.replace(badge.textContent ?? '', '') : text;
+}
+
 function sectionByHeader(title: string): HTMLElement {
   const header = screen
     .getAllByTestId('category-header')
-    .find((h) => h.textContent === title);
+    .find((h) => headerTitle(h) === title);
   return header!.closest('section') as HTMLElement;
 }
 
 function headerOrder(): (string | null)[] {
-  return screen.getAllByTestId('category-header').map((h) => h.textContent);
+  return screen.getAllByTestId('category-header').map(headerTitle);
 }
 
 describe('v4 A10 — flat v1 render when no categories defined', () => {
@@ -989,9 +997,9 @@ describe('v5 A1 — header is a disclosure: click toggles collapsed↔expanded',
     expect(within(catSection('Media')).getByTestId('service-tile')).toBeInTheDocument();
 
     await user.click(catHeaderButton('Media'));
-    // Collapsed — tiles hidden, count shown.
+    // Collapsed — tiles hidden, count still shown.
     expect(within(catSection('Media')).queryByTestId('service-tile')).not.toBeInTheDocument();
-    expect(screen.getByTestId('category-count')).toHaveTextContent('· 1');
+    expect(screen.getByTestId('category-count')).toHaveTextContent('1');
 
     await user.click(catHeaderButton('Media'));
     // Expanded again — tiles back.
@@ -1025,7 +1033,38 @@ describe('v5 A2 — default is expanded (no stored collapse state)', () => {
     await screen.findAllByTestId('service-tile');
     expect(catHeaderButton('Media')).toHaveAttribute('aria-expanded', 'true');
     expect(catHeaderButton('Infra')).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.queryByTestId('category-count')).not.toBeInTheDocument();
+    // #79: the count badge stays visible even when expanded (one per category).
+    expect(screen.getAllByTestId('category-count')).toHaveLength(2);
+  });
+});
+
+// #79 — Walt's live-UI review: collapsed category rows looked empty/broken
+// because the app count only showed when collapsed (and subtly). The fix is an
+// always-visible app-count badge on every category header so collapsed-empty is
+// instantly distinguishable from collapsed-with-content (and an expanded-empty
+// category reads as "0", not broken).
+describe('#79 — app-count badge on category headers', () => {
+  it('shows the app count on an EXPANDED category header, not only when collapsed', async () => {
+    mockedGetCollapsed.mockResolvedValue([]); // expanded by default
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' }),
+      svc({ id: 'b', name: 'Sonarr', categoryId: 'media', categoryName: 'Media' }),
+    ]);
+    render(<Catalog />);
+    await screen.findAllByTestId('service-tile');
+    const badge = within(catSection('Media')).getByTestId('category-count');
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveTextContent('2');
+  });
+
+  it('reads "0" on an empty category header so it does not look broken', async () => {
+    mockedGetCollapsed.mockResolvedValue([]);
+    mockedCategories.mockResolvedValue([cat({ id: 'empty', name: 'Empty', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([svc({ id: 'c', name: 'Notion' })]); // uncategorized only
+    render(<Catalog />);
+    await screen.findAllByTestId('service-tile');
+    expect(within(catSection('Empty')).getByTestId('category-count')).toHaveTextContent('0');
   });
 });
 
@@ -1069,8 +1108,8 @@ describe('v5 Q2 — Favorites and Uncategorized are always-expanded (no toggle)'
     render(<Catalog />);
     await screen.findAllByTestId('service-tile');
     const headers = screen.getAllByTestId('category-header');
-    const fav = headers.find((h) => h.textContent === 'Favorites')!;
-    const unc = headers.find((h) => h.textContent === 'Uncategorized')!;
+    const fav = headers.find((h) => headerTitle(h) === 'Favorites')!;
+    const unc = headers.find((h) => headerTitle(h) === 'Uncategorized')!;
     expect(fav.tagName).toBe('H2');
     expect(unc.tagName).toBe('H2');
     expect(fav).not.toHaveAttribute('aria-expanded');

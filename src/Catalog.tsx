@@ -619,6 +619,22 @@ export default function Catalog({
   );
 }
 
+// #79: a small pill badge showing how many apps a section holds. Lives on every
+// section header (Favorites / categories / Uncategorized) so the count is legible
+// at a glance whether the section is expanded or collapsed. normal-case keeps the
+// digits from inheriting the header's uppercase tracking.
+function CategoryCount({ count }: { count: number }) {
+  return (
+    <span
+      data-testid="category-count"
+      className="cat-count normal-case"
+      aria-label={`${count} app${count === 1 ? '' : 's'}`}
+    >
+      {count}
+    </span>
+  );
+}
+
 // A catalog section: a header (the category / Favorites / Uncategorized name) and
 // its tile grid beneath. v5: a `collapsible` section's header is a real disclosure
 // — a <button aria-expanded> controlling the tile region (aria-controls), operable
@@ -658,7 +674,8 @@ function Section({
     return (
       <section>
         <h2 data-testid="category-header" className="cat-head font-semibold uppercase">
-          {title}
+          <span>{title}</span>
+          <CategoryCount count={count} />
         </h2>
         {children}
       </section>
@@ -699,11 +716,11 @@ function Section({
             <path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <span>{title}</span>
-          {collapsed && (
-            <span data-testid="category-count" className="font-normal text-neutral-400">
-              · {count}
-            </span>
-          )}
+          {/* #79: the app count is ALWAYS shown (not just when collapsed) so a
+              collapsed-empty section is instantly distinguishable from a
+              collapsed-with-content one, and an expanded-empty category reads as
+              "0" instead of looking broken (Walt's 2026-06-19 live-UI review). */}
+          <CategoryCount count={count} />
           {error && (
             <span data-testid="collapse-error" className="font-normal normal-case text-red-600">
               couldn’t save
