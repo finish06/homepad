@@ -22,8 +22,9 @@ const statusDot: Record<ServiceStatus, string> = {
   DOWN: 'bg-red-500',
   DEGRADED: 'bg-amber-400',
   UNKNOWN: 'bg-neutral-300',
-  // NOT_MONITORED (no gatus_key): outlined dashed ring, matching the tile.
-  NOT_MONITORED: 'bg-transparent border-2 border-dashed border-neutral-300 dark:border-neutral-600',
+  // NOT_MONITORED (no gatus_key): outlined dashed ring, matching the tile (#80:
+  // neutral-400/500 so the ring is legible at 9px, not a faint ambiguous dot).
+  NOT_MONITORED: 'bg-transparent border-2 border-dashed border-neutral-400 dark:border-neutral-500',
 };
 
 type Section = { label: string | null; items: Service[] };

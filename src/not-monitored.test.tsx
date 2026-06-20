@@ -162,3 +162,37 @@ describe('board finding — NOT_MONITORED carries no danger glow (neutral, not e
     expect(boxShadowFor('UP')).toContain(EMERALD);
   });
 });
+
+// #80 (Walt's 2026-06-19 live UI review): the danger glow was already suppressed
+// (f1f8de1), but the dashed neutral-300 ring is so low-contrast that at the 9px dot
+// size it reads as a faint, ambiguous gray smudge — still "misleading for
+// NOT_MONITORED". Raise the ring to neutral-400 (light) / neutral-500 (dark) so the
+// hollow ring is legibly an INTENTIONAL "not monitored" marker, while staying
+// neutral (no fill, no glow). UNKNOWN's solid gray dot is untouched.
+describe('#80 — NOT_MONITORED ring is legibly muted, not a faint near-invisible dot', () => {
+  it('Catalog tile uses the higher-contrast neutral-400/500 ring (not the faint neutral-300)', async () => {
+    mockedServices.mockResolvedValue([svc({ status: 'NOT_MONITORED' })]);
+    render(<Catalog />);
+    const badge = await screen.findByTestId('status-badge');
+    expect(badge.className).toContain('border-neutral-400');
+    expect(badge.className).toContain('dark:border-neutral-500');
+    expect(badge.className).not.toContain('border-neutral-300');
+    // unchanged: still a transparent dashed ring with no glow, never a solid dot
+    expect(badge.className).toContain('border-dashed');
+    expect(badge.className).toContain('bg-transparent');
+  });
+
+  it('Command Launcher row uses the same higher-contrast ring', () => {
+    const catalog = [svc({ id: 'proxmox', name: 'Proxmox', status: 'NOT_MONITORED' })];
+    render(
+      <LauncherProvider>
+        <CommandLauncher services={catalog} />
+      </LauncherProvider>,
+    );
+    fireEvent.keyDown(document, { key: 'k', metaKey: true });
+    const status = screen.getByTestId('launcher-result-status');
+    expect(status.className).toContain('border-neutral-400');
+    expect(status.className).toContain('dark:border-neutral-500');
+    expect(status.className).not.toContain('border-neutral-300');
+  });
+});

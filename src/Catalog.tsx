@@ -78,8 +78,10 @@ const statusDot: Record<ServiceStatus, string> = {
   DEGRADED: 'bg-amber-400',
   UNKNOWN: 'bg-neutral-300',
   // NOT_MONITORED (no gatus_key): an outlined dashed ring, not a solid dot —
-  // signals "no monitoring wired" vs UNKNOWN's "monitoring failure".
-  NOT_MONITORED: 'bg-transparent border-2 border-dashed border-neutral-300 dark:border-neutral-600',
+  // signals "no monitoring wired" vs UNKNOWN's "monitoring failure". Ring is
+  // neutral-400/500 (#80): neutral-300 was near-invisible at 9px, reading as an
+  // ambiguous faint dot; this is legibly an intentional marker, still no glow.
+  NOT_MONITORED: 'bg-transparent border-2 border-dashed border-neutral-400 dark:border-neutral-500',
 };
 
 const statusLabel: Record<ServiceStatus, string> = {
