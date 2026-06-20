@@ -8,8 +8,14 @@ import { useLauncher } from './launcher';
 // and advertises the chord via aria-keyshortcuts.
 
 // Detect macOS for the hint glyph; default to "Ctrl K" when unknown (§4.2).
+// Prefer the modern `navigator.userAgentData.platform` ("macOS") — the deprecated
+// `navigator.platform` is emptied/farbled by privacy-hardened browsers, which is
+// why a real Mac could fall through to "Ctrl K" (#82). Keep the legacy regex as a
+// fallback for browsers without User-Agent Client Hints.
 function isMac(): boolean {
   if (typeof navigator === 'undefined') return false;
+  const uaPlatform = (navigator as { userAgentData?: { platform?: string } }).userAgentData?.platform;
+  if (uaPlatform) return /mac/i.test(uaPlatform);
   return /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || '');
 }
 
