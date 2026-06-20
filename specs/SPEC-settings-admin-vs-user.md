@@ -2,11 +2,25 @@
 
 **Spec ID:** SPEC-settings-admin-vs-user  
 **Date:** 2026-06-20  
-**Status:** Approved — dispatch to Stitch  
+**Status:** Done — intent fully absorbed by v11+v12; no implementation required  
 **Author:** Walt (product)  
 **Requested by:** Caleb Dunn  
-**Implementation spec:** [`v11-admin-ux-clarity.md`](./v11-admin-ux-clarity.md) — read that for full code changes, testids, and CSS  
+**Superseded by:** [`v12-settings-boundary-clarity.md`](./v12-settings-boundary-clarity.md) (shipped prod PR #77); see also [`v11-admin-ux-clarity.md`](./v11-admin-ux-clarity.md)  
 **Scope:** Frontend-only (React/Vite/Tailwind). No API changes, no data model changes.
+
+---
+
+## Reconciliation note (2026-06-20)
+
+This intake spec was written as a product intake document capturing Caleb's confusion concern. On review against the shipped codebase, every acceptance criterion below is already satisfied by **v11+v12** — no new implementation is needed.
+
+**What v11 shipped** (`feat/v11-admin-ux-clarity`, PR merged before this spec): the `SettingsPanel` is titled **"Admin Panel"** (not "Settings") with a global-scope subtitle (AC-04); the App Library note says "all users" + "personal dashboards" (AC-05); the System note says "globally to all accounts" (AC-06); the `Catalog` shows an **"Editing your personal dashboard"** edit-mode banner (AC-07).
+
+**What v12 shipped** (`feat/v12-settings-boundary-clarity`, PR #77, tagged v12.0.0): `UserMenu` was restructured into **"My Dashboard"** (personal, for all users) and **"Administration"** (amber + shield, admin-only). Edit dashboard carries a `personal` scope tag; Admin settings carries a `global` scope tag (AC-01, AC-02). Non-admins see the "Your tiles, categories, and icons…" note inside the My Dashboard section (AC-03). All pre-existing `data-testid` values are preserved (AC-08).
+
+**Verdict:** AC-01 through AC-10 are satisfied. The structural approach v12 took (two separate named sections) is different from — and better than — what the spec prescribed (a single "ADMIN" label above both items), but it solves the identical product problem. Building the spec ACs verbatim would revert v12's cleaner architecture.
+
+The full implementation record lives in [`v12-settings-boundary-clarity.md`](./v12-settings-boundary-clarity.md). The original problem statement and ACs in this document remain correct as a record of Caleb's intent and what the feature addressed.
 
 ---
 

@@ -17,6 +17,12 @@ Historical specs for shipped versions are in [`specs/archive/`](./archive/).
 | [`not-monitored-state.md`](./not-monitored-state.md) | Distinct `NOT_MONITORED` tile state (outlined dashed ring) vs. `UNKNOWN` (gray dot). Distinguishes unwired tiles from monitoring failures. | **Shipped — prod (PR #48–#50)** |
 | [`uptime-sparkline.md`](./uptime-sparkline.md) | Uptime sparkline strip on each tile — ≤20 Gatus historical check dots + rolling uptime %. Reads free data already in the poller. | **Shipped — prod (PR #46–#47)** |
 
+## Closed / Superseded Intake Specs
+
+| File | What it covers | Status |
+|------|---------------|--------|
+| [`SPEC-settings-admin-vs-user.md`](./SPEC-settings-admin-vs-user.md) | Product intake for Caleb's admin-vs-user settings confusion concern (PR #120). All ACs satisfied by v11+v12 before Stitch build began. | **Done — absorbed by v11+v12 (closes #122, #123)** |
+
 ## Decision Record
 
 | File | What it covers | Status |
