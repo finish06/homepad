@@ -255,6 +255,33 @@ describe('A16 — empty-dashboard CTA opens the browse surface', () => {
   });
 });
 
+describe('#83 — "+ Add apps" emphasis follows how full the dashboard is', () => {
+  it('is a FILLED (primary) button when the dashboard is empty', async () => {
+    mockedServices.mockResolvedValue([]);
+    render(<Catalog />);
+    const btn = await screen.findByTestId('open-library');
+    expect(btn).toHaveAttribute('data-emphasis', 'filled');
+    expect(btn.className).toMatch(/bg-indigo-600/);
+  });
+
+  it('is FILLED when the dashboard is sparse (a couple of apps)', async () => {
+    mockedServices.mockResolvedValue([svc({ id: 'a' }), svc({ id: 'b' })]);
+    render(<Catalog />);
+    const btn = await screen.findByTestId('open-library');
+    expect(btn).toHaveAttribute('data-emphasis', 'filled');
+  });
+
+  it('reverts to the quiet GHOST button once the dashboard is well populated', async () => {
+    mockedServices.mockResolvedValue([
+      svc({ id: 'a' }), svc({ id: 'b' }), svc({ id: 'c' }),
+    ]);
+    render(<Catalog />);
+    const btn = await screen.findByTestId('open-library');
+    expect(btn).toHaveAttribute('data-emphasis', 'ghost');
+    expect(btn.className).not.toMatch(/bg-indigo-600/);
+  });
+});
+
 describe('A3 — status badge color per state', () => {
   const cases: Array<[ServiceStatus, string]> = [
     ['UP', 'bg-emerald-500'],

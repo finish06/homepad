@@ -478,6 +478,10 @@ export default function Catalog({
   const grouped = cats.length > 0;
   const favorites = items.filter((s) => s.favorite);
   const uncategorized = items.filter((s) => s.categoryId == null);
+  // #83: a near-empty dashboard means "Add apps" is the primary onboarding
+  // action — give it a filled button. Below 3 apps reads as sparse; at or above,
+  // the dashboard carries itself and the button steps back to a quiet ghost.
+  const addAppsFilled = items.length < 3;
 
   return (
     <>
@@ -505,13 +509,21 @@ export default function Catalog({
       )}
 
       {/* §7.2 — the App Library entry, available to every user (not admin-gated):
-          their personal dashboard is theirs to fill. */}
+          their personal dashboard is theirs to fill. #83: while the dashboard is
+          empty or sparse, adding apps is the primary onboarding action, so this
+          reads as a filled (solid) button; once the dashboard is well populated it
+          steps back to a quiet ghost so it doesn't compete with the apps. */}
       <div className="mb-4 flex items-center gap-3">
         <button
           type="button"
           data-testid="open-library"
+          data-emphasis={addAppsFilled ? 'filled' : 'ghost'}
           onClick={() => setBrowseOpen(true)}
-          className="rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-300"
+          className={
+            addAppsFilled
+              ? 'rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700'
+              : 'rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-300'
+          }
         >
           + Add apps
         </button>
