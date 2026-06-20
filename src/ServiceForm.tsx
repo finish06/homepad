@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { createService, updateService, type Service, type ServiceInput } from './api';
+import {
+  assignCategory,
+  createService,
+  updateService,
+  type Category,
+  type Service,
+  type ServiceInput,
+} from './api';
 
 // Mirror of the backend slugify (homepad-api internal/storage/library.go):
 // lowercase, runs of non-alphanumeric collapse to a single dash, no leading or
@@ -18,10 +25,12 @@ function slugify(name: string): string {
 // `error` text, the same way AuthForm shows a failed login.
 export default function ServiceForm({
   service,
+  categories = [],
   onClose,
   onSaved,
 }: {
   service?: Service;
+  categories?: Category[];
   onClose: () => void;
   onSaved: (service: Service, mode: 'add' | 'edit') => void;
 }) {
@@ -39,6 +48,10 @@ export default function ServiceForm({
   // an edit it is omitted from the PATCH (the existing key is preserved); typing
   // a value sets or changes it. On add it is sent verbatim (blank = unmonitored).
   const [gatusKey, setGatusKey] = useState('');
+  // The catalog category the app belongs to ('' → Uncategorized). On add the
+  // create endpoint can't set a category (#84), so a chosen one is filed via a
+  // follow-up assignCategory PATCH; on edit we only re-file when it changed.
+  const [categoryId, setCategoryId] = useState(service?.categoryId ?? '');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -65,7 +78,18 @@ export default function ServiceForm({
           setError(r.error ?? 'Could not save changes.');
           return;
         }
-        onSaved(r.service, 'edit');
+        let saved = r.service;
+        // Re-file only when the admin actually picked a different category, to
+        // avoid a redundant PATCH on an otherwise-unchanged category.
+        if (categoryId !== (service.categoryId ?? '')) {
+          const a = await assignCategory(saved.id, categoryId || null);
+          if (!a.ok || !a.service) {
+            setError(a.error ?? 'Saved the app, but could not set its category.');
+            return;
+          }
+          saved = a.service;
+        }
+        onSaved(saved, 'edit');
       } else {
         const r = await createService({
           name: name.trim(),
@@ -79,7 +103,18 @@ export default function ServiceForm({
           setError(r.error ?? 'Could not add the app.');
           return;
         }
-        onSaved(r.service, 'add');
+        let saved = r.service;
+        // The create endpoint ignores categoryId, so a chosen category is filed
+        // with a follow-up PATCH (#84) — no more manual "move to category" step.
+        if (categoryId) {
+          const a = await assignCategory(saved.id, categoryId);
+          if (!a.ok || !a.service) {
+            setError(a.error ?? 'Added the app, but could not set its category.');
+            return;
+          }
+          saved = a.service;
+        }
+        onSaved(saved, 'add');
       }
     } finally {
       setBusy(false);
@@ -146,6 +181,23 @@ export default function ServiceForm({
             onChange={(e) => setDescription(e.target.value)}
             className={inputClass}
           />
+        </label>
+
+        <label className="mt-3 block text-sm font-medium text-neutral-700">
+          Category
+          <select
+            data-testid="field-category"
+            value={categoryId ?? ''}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">Uncategorized</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </label>
 
         <label className="mt-3 block text-sm font-medium text-neutral-700">

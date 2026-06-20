@@ -627,7 +627,12 @@ export default function Catalog({
       )}
 
       {form && (
-        <ServiceForm service={form.service} onClose={() => setForm(null)} onSaved={onSaved} />
+        <ServiceForm
+          service={form.service}
+          categories={cats}
+          onClose={() => setForm(null)}
+          onSaved={onSaved}
+        />
       )}
     </>
   );

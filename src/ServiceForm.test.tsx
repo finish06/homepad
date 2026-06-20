@@ -1,18 +1,42 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ServiceForm from './ServiceForm';
-import type { Service } from './api';
+import { assignCategory, createService, updateService, type Category, type Service } from './api';
 
 vi.mock('./api', () => ({
   createService: vi.fn(),
   updateService: vi.fn(),
+  assignCategory: vi.fn(),
 }));
 
 const noop = () => {};
 
-function renderForm(service?: Service) {
-  return render(<ServiceForm service={service} onClose={noop} onSaved={noop} />);
+const cats: Category[] = [
+  { id: 'c1', name: 'Media', sortIndex: 0 },
+  { id: 'c2', name: 'Tools', sortIndex: 1 },
+];
+
+function svc(overrides: Partial<Service> = {}): Service {
+  return {
+    id: 'S1',
+    name: 'Plex',
+    slug: 'plex',
+    url: 'https://plex.x',
+    description: '',
+    icon: '',
+    status: 'UNKNOWN',
+    favorite: false,
+    iconLight: false,
+    iconDark: false,
+    ...overrides,
+  };
+}
+
+function renderForm(service?: Service, categories: Category[] = []) {
+  return render(
+    <ServiceForm service={service} categories={categories} onClose={noop} onSaved={noop} />,
+  );
 }
 
 afterEach(() => {
@@ -50,23 +74,123 @@ describe('ServiceForm slug auto-fill (#78)', () => {
 
   it('never auto-overwrites an existing slug in edit mode', async () => {
     const user = userEvent.setup();
-    renderForm({
-      id: 'S1',
-      name: 'Plex',
-      slug: 'plex',
-      url: 'https://plex.x',
-      description: '',
-      icon: '',
-      status: 'UNKNOWN',
-      favorite: false,
-      iconLight: false,
-      iconDark: false,
-    });
+    renderForm(svc());
     const name = screen.getByTestId('field-name') as HTMLInputElement;
     const slug = screen.getByTestId('field-slug') as HTMLInputElement;
 
     await user.type(name, ' Media Server');
 
     expect(slug.value).toBe('plex');
+  });
+});
+
+describe('ServiceForm category selector (#84)', () => {
+  it('A84 — offers an Uncategorized option plus every admin category', () => {
+    renderForm(undefined, cats);
+    const select = screen.getByTestId('field-category') as HTMLSelectElement;
+    const labels = Array.from(select.options).map((o) => o.textContent);
+    expect(labels).toEqual(['Uncategorized', 'Media', 'Tools']);
+    // Defaults to Uncategorized on add.
+    expect(select.value).toBe('');
+  });
+
+  it('A84 — files a new app under the chosen category on add', async () => {
+    const user = userEvent.setup();
+    vi.mocked(createService).mockResolvedValue({
+      ok: true,
+      status: 201,
+      service: svc({ id: 'S9', name: 'Sonarr', slug: 'sonarr', categoryId: null }),
+    });
+    vi.mocked(assignCategory).mockResolvedValue({
+      ok: true,
+      status: 200,
+      service: svc({ id: 'S9', name: 'Sonarr', slug: 'sonarr', categoryId: 'c2', categoryName: 'Tools' }),
+    });
+    const onSaved = vi.fn();
+    render(<ServiceForm categories={cats} onClose={noop} onSaved={onSaved} />);
+
+    await user.type(screen.getByTestId('field-name'), 'Sonarr');
+    await user.type(screen.getByTestId('field-url'), 'https://son.x');
+    await user.selectOptions(screen.getByTestId('field-category'), 'c2');
+    await user.click(screen.getByTestId('form-submit'));
+
+    await waitFor(() => expect(assignCategory).toHaveBeenCalledWith('S9', 'c2'));
+    expect(onSaved).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'S9', categoryId: 'c2' }),
+      'add',
+    );
+  });
+
+  it('A84 — leaves a new app uncategorized when no category is chosen', async () => {
+    const user = userEvent.setup();
+    vi.mocked(createService).mockResolvedValue({
+      ok: true,
+      status: 201,
+      service: svc({ id: 'S9', name: 'Sonarr', slug: 'sonarr', categoryId: null }),
+    });
+    const onSaved = vi.fn();
+    render(<ServiceForm categories={cats} onClose={noop} onSaved={onSaved} />);
+
+    await user.type(screen.getByTestId('field-name'), 'Sonarr');
+    await user.type(screen.getByTestId('field-url'), 'https://son.x');
+    await user.click(screen.getByTestId('form-submit'));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.anything(), 'add'));
+    expect(assignCategory).not.toHaveBeenCalled();
+  });
+
+  it('A84 — prefills the current category in edit mode and reassigns on change', async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateService).mockResolvedValue({
+      ok: true,
+      status: 200,
+      service: svc({ categoryId: 'c1', categoryName: 'Media' }),
+    });
+    vi.mocked(assignCategory).mockResolvedValue({
+      ok: true,
+      status: 200,
+      service: svc({ categoryId: 'c2', categoryName: 'Tools' }),
+    });
+    const onSaved = vi.fn();
+    render(
+      <ServiceForm
+        service={svc({ categoryId: 'c1', categoryName: 'Media' })}
+        categories={cats}
+        onClose={noop}
+        onSaved={onSaved}
+      />,
+    );
+
+    const select = screen.getByTestId('field-category') as HTMLSelectElement;
+    expect(select.value).toBe('c1');
+
+    await user.selectOptions(select, 'c2');
+    await user.click(screen.getByTestId('form-submit'));
+
+    await waitFor(() => expect(assignCategory).toHaveBeenCalledWith('S1', 'c2'));
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ categoryId: 'c2' }), 'edit');
+  });
+
+  it('A84 — skips the extra assign call when the category is unchanged in edit mode', async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateService).mockResolvedValue({
+      ok: true,
+      status: 200,
+      service: svc({ categoryId: 'c1', categoryName: 'Media' }),
+    });
+    const onSaved = vi.fn();
+    render(
+      <ServiceForm
+        service={svc({ categoryId: 'c1', categoryName: 'Media' })}
+        categories={cats}
+        onClose={noop}
+        onSaved={onSaved}
+      />,
+    );
+
+    await user.click(screen.getByTestId('form-submit'));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.anything(), 'edit'));
+    expect(assignCategory).not.toHaveBeenCalled();
   });
 });
