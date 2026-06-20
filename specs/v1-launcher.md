@@ -1,6 +1,6 @@
 # homepad v1 — Spec
 
-**Status:** Draft, awaiting sign-off
+**Status:** Shipped — canonical foundation; v1 through v12 all build on this spec
 **Authors:** Stitch (Claude Code) + Caleb Dunn
 **Last updated:** 2026-05-26
 **Methodology:** ADD (getadd.dev), POC maturity dial
