@@ -269,7 +269,7 @@ export default function CommandLauncher({ services }: { services: Service[] }) {
           )}
         </div>
 
-        <div className="launcher-footer" data-testid="launcher-footer" aria-hidden="true">
+        <div className="launcher-footer hidden sm:flex" data-testid="launcher-footer" aria-hidden="true">
           <span>↑↓ to move</span>
           <span>⏎ to open</span>
           <span>Esc to close</span>

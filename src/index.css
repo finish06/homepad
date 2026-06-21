@@ -692,6 +692,22 @@
     background: rgba(99, 102, 241, 0.12);
   }
 
+  /* #127 — mobile tap targets. On phones (<640px) the search trigger collapses
+     to an icon-only ~34px button and the avatar is 34px — both below the 44px
+     WCAG-2.5.5/Apple-HIG minimum. Pad the interactive area (flex-centred, so the
+     glyph stays put) without touching desktop, where the trigger is a wide pill
+     and bumping the avatar would visibly resize it. */
+  @media (max-width: 639px) {
+    .launcher-trigger {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    .user-avatar {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+
   /* §2 Motion — reduced-motion disables the launcher open transforms, keeping
      the opacity fades only (same rule as the v7 menu/tiles). */
   @media (prefers-reduced-motion: reduce) {
