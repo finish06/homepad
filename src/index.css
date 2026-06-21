@@ -112,6 +112,19 @@
     color: #9aa3b8;
     border-color: rgba(255, 255, 255, 0.08);
   }
+  /* #126 — below sm (640px) a collapsed category is just a one-line nav row, so
+     the desktop divider's 1rem margin + 0.7rem padding is wasted height that
+     buries app tiles below the fold. Tighten it on phones; desktop is untouched. */
+  @media (max-width: 639px) {
+    .cat-head {
+      margin-bottom: 0.25rem;
+      padding-bottom: 0.25rem;
+      /* #126 (caret fold) — the tightened header is still the collapse tap
+         target, so hold it to the 44px WCAG 2.5.5 / Apple HIG minimum on phones.
+         Desktop keeps its natural height (this query is mobile-only). */
+      min-height: 44px;
+    }
+  }
   /* #79 — app-count pill on each section header. Mirrors the house badge style
      (.settings-env-badge): muted, tabular digits so widths don't jitter. */
   .cat-count {

@@ -566,7 +566,7 @@ export default function Catalog({
       ) : !grouped ? (
         renderGrid(items)
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-2 sm:space-y-8">
           {/* Favorites + Uncategorized are render-time buckets, not categories
               rows, so they have no id to key collapse state on — they stay
               always-expanded for v5 (Q2). Only real category sections collapse. */}
@@ -585,7 +585,7 @@ export default function Catalog({
             onDragCancel={onCatDragCancel}
           >
             <SortableContext items={cats.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-8">
+              <div className="space-y-2 sm:space-y-8">
                 {cats.map((c) => {
                   const sectionItems = items.filter((s) => s.categoryId === c.id);
                   return (
