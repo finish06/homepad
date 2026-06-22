@@ -20,7 +20,8 @@ function slugify(name: string): string {
 
 // Admin add/edit form for a catalog entry (A6). Passing a `service` puts it in
 // edit mode (fields prefilled, PATCH on submit); omitting it is add mode (POST).
-// Reuses the AuthForm card/label/input idiom. Server errors — 409 slug
+// Reuses the shared launcher/library modal chrome (#94) so it reads as one
+// family with the App Library and Settings dialogs. Server errors — 409 slug
 // collision, 403 forbidden, 422/400 validation — surface inline via the Result
 // `error` text, the same way AuthForm shows a failed login.
 export default function ServiceForm({
@@ -121,120 +122,137 @@ export default function ServiceForm({
     }
   }
 
-  const inputClass =
-    'mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-indigo-500';
+  const title = editing ? 'Edit app' : 'Add app';
 
   return (
     <div
-      className="fixed inset-0 z-20 flex items-center justify-center bg-neutral-900/40 p-4"
-      onClick={onClose}
+      data-testid="service-form-overlay"
+      className="launcher-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <form
         data-testid="service-form"
         onSubmit={handleSubmit}
-        onClick={(e) => e.stopPropagation()}
-        className="max-h-full w-full max-w-md overflow-y-auto rounded-2xl border border-neutral-200 bg-white p-6 shadow-lg"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="launcher-panel library-panel service-form-panel"
       >
-        <h2 className="text-lg font-semibold">{editing ? 'Edit app' : 'Add app'}</h2>
-
-        <label className="mt-4 block text-sm font-medium text-neutral-700">
-          Name
-          <input
-            data-testid="field-name"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              if (!slugEdited) setSlug(slugify(e.target.value));
-            }}
-            className={inputClass}
-          />
-        </label>
-
-        <label className="mt-3 block text-sm font-medium text-neutral-700">
-          Slug
-          <input
-            data-testid="field-slug"
-            value={slug}
-            onChange={(e) => {
-              setSlugEdited(true);
-              setSlug(e.target.value);
-            }}
-            placeholder="e.g. plex-media-server"
-            className={inputClass}
-          />
-        </label>
-
-        <label className="mt-3 block text-sm font-medium text-neutral-700">
-          URL
-          <input
-            data-testid="field-url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            className={inputClass}
-          />
-        </label>
-
-        <label className="mt-3 block text-sm font-medium text-neutral-700">
-          Description
-          <input
-            data-testid="field-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className={inputClass}
-          />
-        </label>
-
-        <label className="mt-3 block text-sm font-medium text-neutral-700">
-          Category
-          <select
-            data-testid="field-category"
-            value={categoryId ?? ''}
-            onChange={(e) => setCategoryId(e.target.value)}
-            className={inputClass}
+        <div className="library-head">
+          <h2 className="library-title">{title}</h2>
+          <button
+            type="button"
+            data-testid="form-close"
+            aria-label={`Close ${title}`}
+            onClick={onClose}
+            className="launcher-clear library-close"
           >
-            <option value="">Uncategorized</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            ✕
+          </button>
+        </div>
 
-        <label className="mt-3 block text-sm font-medium text-neutral-700">
-          Icon URL
-          <input
-            data-testid="field-icon"
-            value={icon}
-            onChange={(e) => setIcon(e.target.value)}
-            placeholder="e.g. https://cdn.example.com/plex.png"
-            className={inputClass}
-          />
-        </label>
+        <div className="service-form-body">
+          <label className="service-form-field">
+            Name
+            <input
+              data-testid="field-name"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (!slugEdited) setSlug(slugify(e.target.value));
+              }}
+              className="settings-input"
+            />
+          </label>
 
-        <label className="mt-3 block text-sm font-medium text-neutral-700">
-          Gatus key
-          <input
-            data-testid="field-gatus_key"
-            value={gatusKey}
-            onChange={(e) => setGatusKey(e.target.value)}
-            placeholder={editing ? 'leave blank to keep current' : 'e.g. plex — its Gatus monitor key'}
-            className={inputClass}
-          />
-        </label>
+          <label className="service-form-field">
+            Slug
+            <input
+              data-testid="field-slug"
+              value={slug}
+              onChange={(e) => {
+                setSlugEdited(true);
+                setSlug(e.target.value);
+              }}
+              placeholder="e.g. plex-media-server"
+              className="settings-input"
+            />
+          </label>
 
-        {error && (
-          <p data-testid="form-error" className="mt-3 text-sm text-red-600">
-            {error}
-          </p>
-        )}
+          <label className="service-form-field">
+            URL
+            <input
+              data-testid="field-url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className="settings-input"
+            />
+          </label>
 
-        <div className="mt-5 flex gap-2">
+          <label className="service-form-field">
+            Description
+            <input
+              data-testid="field-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="settings-input"
+            />
+          </label>
+
+          <label className="service-form-field">
+            Category
+            <select
+              data-testid="field-category"
+              value={categoryId ?? ''}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="settings-input"
+            >
+              <option value="">Uncategorized</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="service-form-field">
+            Icon URL
+            <input
+              data-testid="field-icon"
+              value={icon}
+              onChange={(e) => setIcon(e.target.value)}
+              placeholder="e.g. https://cdn.example.com/plex.png"
+              className="settings-input"
+            />
+          </label>
+
+          <label className="service-form-field">
+            Gatus key
+            <input
+              data-testid="field-gatus_key"
+              value={gatusKey}
+              onChange={(e) => setGatusKey(e.target.value)}
+              placeholder={editing ? 'leave blank to keep current' : 'e.g. plex — its Gatus monitor key'}
+              className="settings-input"
+            />
+          </label>
+
+          {error && (
+            <p data-testid="form-error" className="settings-error">
+              {error}
+            </p>
+          )}
+        </div>
+
+        <div className="service-form-actions">
           <button
             type="submit"
             data-testid="form-submit"
             disabled={busy}
-            className="flex-1 rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+            className="library-add service-form-submit"
           >
             {busy ? '…' : editing ? 'Save' : 'Add'}
           </button>
@@ -242,7 +260,7 @@ export default function ServiceForm({
             type="button"
             data-testid="form-cancel"
             onClick={onClose}
-            className="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+            className="settings-ghost-btn"
           >
             Cancel
           </button>

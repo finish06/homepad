@@ -43,6 +43,23 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+describe('ServiceForm modal card style (#94)', () => {
+  it('uses the shared launcher-panel modal chrome like Library/Settings', () => {
+    renderForm();
+    // The dialog surface reuses the same card classes as the Library and
+    // Settings modals (launcher-panel + library-panel) instead of a bespoke
+    // Tailwind card, so the three modals read as one family.
+    const panel = screen.getByTestId('service-form');
+    expect(panel).toHaveClass('launcher-panel');
+    expect(panel).toHaveClass('library-panel');
+    // The scrim is the shared launcher-overlay (z-60, blur), not the old z-20 one.
+    const overlay = screen.getByTestId('service-form-overlay');
+    expect(overlay).toHaveClass('launcher-overlay');
+    // Header uses the shared library title treatment.
+    expect(panel.querySelector('.library-title')).not.toBeNull();
+  });
+});
+
 describe('ServiceForm slug auto-fill (#78)', () => {
   it('derives the slug from the name as the user types in add mode', async () => {
     const user = userEvent.setup();
@@ -195,19 +212,6 @@ describe('ServiceForm category selector (#84)', () => {
   });
 });
 
-const editService: Service = {
-  id: 'S1',
-  name: 'Plex',
-  slug: 'plex',
-  url: 'https://plex.x',
-  description: '',
-  icon: '',
-  status: 'UNKNOWN',
-  favorite: false,
-  iconLight: false,
-  iconDark: false,
-};
-
 // #87 — the technical fields (Slug, Icon URL, Gatus key) are unexplained, so
 // each carries example/hint placeholder copy shown while empty.
 describe('ServiceForm field placeholder copy (#87)', () => {
@@ -236,7 +240,7 @@ describe('ServiceForm field placeholder copy (#87)', () => {
   });
 
   it('keeps the leave-blank gatus key placeholder in edit mode', () => {
-    renderForm(editService);
+    renderForm(svc());
     expect(screen.getByTestId('field-gatus_key')).toHaveAttribute(
       'placeholder',
       'leave blank to keep current',

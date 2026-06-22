@@ -1237,4 +1237,42 @@
   .dark .settings-ghost-btn:hover {
     background: rgba(255, 255, 255, 0.05);
   }
+
+  /* #94 — admin Add/Edit-app form. Rides the shared launcher/library modal
+     chrome (overlay scrim, panel surface, header) so it matches the App
+     Library and Settings dialogs; only the form body/footer are scoped here,
+     reusing the settings input/button tokens (dark variants included). */
+  .service-form-body {
+    overflow-y: auto;
+    padding: 4px 16px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .service-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475069;
+  }
+  .dark .service-form-field {
+    color: #aab2c5;
+  }
+  .service-form-field .settings-input {
+    flex: none;
+    width: 100%;
+    font-size: 14px;
+    padding: 8px 10px;
+  }
+  .service-form-actions {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px 16px;
+  }
+  .service-form-submit {
+    flex: 1;
+    min-height: 38px;
+  }
 }
