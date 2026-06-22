@@ -894,13 +894,17 @@
     text-overflow: ellipsis;
   }
   .library-chip {
+    /* #90: per-category color. `--chip-hue` is set inline from the category
+       name (categoryHue); fixed S/L keep AA contrast for every hue. Defaults to
+       indigo (243°) when no hue is provided. */
+    --chip-hue: 243;
     flex: none;
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #4f46e5;
-    background: rgba(99, 102, 241, 0.1);
+    color: hsl(var(--chip-hue) 70% 28%);
+    background: hsl(var(--chip-hue) 75% 95%);
     border-radius: 9999px;
     padding: 3px 9px;
   }
@@ -952,8 +956,10 @@
   }
 
   .dark .library-chip {
-    color: #a5b4fc;
-    background: rgba(99, 102, 241, 0.18);
+    /* #90/#29: lighten text per-hue for dark-mode legibility (the high
+       lightness, not the hue, is what carries AA contrast on the dark panel). */
+    color: hsl(var(--chip-hue) 75% 80%);
+    background: hsl(var(--chip-hue) 45% 55% / 0.18);
   }
   .dark .library-title {
     color: #e6e9f2;

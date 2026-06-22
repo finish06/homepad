@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { addFromLibrary, listLibrary, type LibraryOffer, type Service } from './api';
 import { initialBadge } from './icons';
+import { categoryHue } from './categoryColor';
 
 // v9.3 §7.2 — the browse + add-from-library surface. A modal mirroring the v8
 // launcher's overlay/panel tokens (no new palette): it lists the admin-curated
@@ -216,7 +217,12 @@ export default function LibraryBrowse({
                     )}
                   </div>
                   {o.suggestedCategory && (
-                    <span className="library-chip">{o.suggestedCategory}</span>
+                    <span
+                      className="library-chip"
+                      style={{ '--chip-hue': categoryHue(o.suggestedCategory) } as CSSProperties}
+                    >
+                      {o.suggestedCategory}
+                    </span>
                   )}
                   {o.added ? (
                     <button

@@ -5,6 +5,7 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 import LibraryBrowse from './LibraryBrowse';
 import { addFromLibrary, listLibrary, type LibraryOffer, type Service } from './api';
 import { ThemeProvider } from './theme';
+import { categoryHue } from './categoryColor';
 
 vi.mock('./api', () => ({
   listLibrary: vi.fn(),
@@ -157,6 +158,23 @@ describe('A16 — dismissal', () => {
     await screen.findByTestId('library-browse');
     await userEvent.click(screen.getByTestId('library-browse-overlay'));
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe('#90 — per-category chip color', () => {
+  it('gives each category chip a hue matching its name (distinct per category)', async () => {
+    vi.mocked(listLibrary).mockResolvedValue([
+      { ...OFFERS[0], id: 'C1', suggestedCategory: 'Media', added: false },
+      { ...OFFERS[0], id: 'C2', suggestedCategory: 'Network', added: false },
+    ]);
+    const { container } = renderBrowse();
+    await screen.findAllByTestId('library-row');
+    const chips = container.querySelectorAll<HTMLElement>('.library-chip');
+    expect(chips).toHaveLength(2);
+    const hueOf = (el: HTMLElement) => el.style.getPropertyValue('--chip-hue');
+    expect(hueOf(chips[0])).toBe(String(categoryHue('Media')));
+    expect(hueOf(chips[1])).toBe(String(categoryHue('Network')));
+    expect(hueOf(chips[0])).not.toBe(hueOf(chips[1]));
   });
 });
 
