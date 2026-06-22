@@ -319,6 +319,21 @@ describe('A3 — category-section drag reorders folders via setCategoryOrder', (
     expect(mockedSetLayout).not.toHaveBeenCalled();
   });
 
+  // #89 — the category header drag handle was left of the folder name (a
+  // non-standard left-edge grip). It now sits to the right of the disclosure
+  // label, so it renders AFTER the header button in document order.
+  it('A89 — the category drag handle is right-aligned: it follows the header label in DOM order', async () => {
+    vi.mocked(categories).mockResolvedValue([cat({ id: 'c1', name: 'Media', sortIndex: 0 })]);
+    vi.mocked(services).mockResolvedValue([
+      svc({ id: 'm', name: 'Plex', categoryId: 'c1', categoryName: 'Media' }),
+    ]);
+    render(<Catalog />);
+    const grip = await screen.findByRole('button', { name: 'Reorder Media section' });
+    const label = screen.getByRole('button', { name: 'Media' });
+    // both live in the same <h2>; right-aligned means the grip comes after the label.
+    expect(label.compareDocumentPosition(grip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('Favorites stays first and Uncategorized last, neither carries a category grip', async () => {
     vi.mocked(categories).mockResolvedValue([cat({ id: 'c1', name: 'Media', sortIndex: 0 })]);
     vi.mocked(services).mockResolvedValue([

@@ -712,14 +712,13 @@ function Section({
       }`}
     >
       <h2 className="flex items-center">
-        {dragHandle}
         <button
           type="button"
           data-testid="category-header"
           aria-expanded={!collapsed}
           aria-controls={controlsId}
           onClick={onToggle}
-          className="cat-head w-full rounded font-semibold uppercase outline-none hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:text-slate-300"
+          className="cat-head min-w-0 flex-1 rounded font-semibold uppercase outline-none hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:text-slate-300"
         >
           <span>{title}</span>
           {/* #79: the app count is ALWAYS shown (not just when collapsed) so a
@@ -748,6 +747,7 @@ function Section({
             <path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
+        {dragHandle}
       </h2>
       {!collapsed && <div id={controlsId}>{children}</div>}
     </section>
@@ -791,7 +791,7 @@ function SortableSection({
       data-category-id={cat.id}
       aria-label={`Reorder ${cat.name} section`}
       aria-pressed={grabbed}
-      className={`mr-1 flex h-9 w-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-base leading-none normal-case outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-500 active:cursor-grabbing ${
+      className={`ml-1 flex h-9 w-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-base leading-none normal-case outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-500 active:cursor-grabbing ${
         grabbed ? 'text-indigo-600 dark:text-indigo-400' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200'
       }`}
     >
