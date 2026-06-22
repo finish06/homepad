@@ -111,7 +111,7 @@ describe('v12 A4/A5/A6 — non-admin sees a labeled personal section', () => {
     expect(screen.queryByTestId('menu-edit')).not.toBeInTheDocument();
   });
 
-  it('A6 — the dashboard note sits directly under the My Dashboard label', async () => {
+  it('A6 — the dashboard note sits inside the My Dashboard section', async () => {
     renderMenu(USER);
     await open();
     const label = screen.getByTestId('menu-my-dashboard-section');
@@ -119,8 +119,54 @@ describe('v12 A4/A5/A6 — non-admin sees a labeled personal section', () => {
     expect(note).toHaveTextContent(/personal dashboard/i);
     // The note follows the My Dashboard label (not floating with no heading).
     expect(precedes(label, note)).toBe(true);
-    // Nothing else comes between the label and the note.
-    expect(label.nextElementSibling).toBe(note);
+  });
+});
+
+// #96 — the non-admin "My Dashboard" section used to be text-only with no
+// action, so it read as a dead/broken heading next to every other section's
+// clickable item. It now carries a real "Go to my dashboard" menuitem (parity
+// with the admin's "Edit dashboard"): a focusable, keyboard-navigable action
+// that closes the menu and returns the user to their dashboard.
+describe('#96 — non-admin My Dashboard has an actionable item', () => {
+  it('renders a "Go to my dashboard" menuitem under the My Dashboard label', async () => {
+    renderMenu(USER);
+    await open();
+    const action = screen.getByTestId('menu-go-dashboard');
+    expect(action).toHaveAttribute('role', 'menuitem');
+    expect(action).toHaveTextContent(/go to my dashboard/i);
+    // Tagged "personal" like the admin's Edit dashboard — same scope vocabulary.
+    expect(within(action).getByText(/personal/i)).toBeInTheDocument();
+    // It sits between the section label and the explanatory note.
+    const label = screen.getByTestId('menu-my-dashboard-section');
+    const note = screen.getByTestId('menu-dashboard-note');
+    expect(precedes(label, action)).toBe(true);
+    expect(precedes(action, note)).toBe(true);
+  });
+
+  it('fires onGoToDashboard and closes the menu when chosen', async () => {
+    const onGoToDashboard = vi.fn();
+    render(
+      <ThemeProvider userPref="light">
+        <UserMenu
+          user={USER}
+          onToggleEdit={vi.fn()}
+          onOpenAdminSettings={vi.fn()}
+          onGoToDashboard={onGoToDashboard}
+          onLogout={vi.fn()}
+        />
+      </ThemeProvider>,
+    );
+    await open();
+    await userEvent.click(screen.getByTestId('menu-go-dashboard'));
+    expect(onGoToDashboard).toHaveBeenCalledTimes(1);
+    // Menu closes after the action fires (like every other menuitem).
+    expect(screen.queryByTestId('user-menu')).not.toBeInTheDocument();
+  });
+
+  it('admins do not get the "Go to my dashboard" item (they get Edit dashboard)', async () => {
+    renderMenu(ADMIN);
+    await open();
+    expect(screen.queryByTestId('menu-go-dashboard')).not.toBeInTheDocument();
   });
 });
 

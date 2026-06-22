@@ -10,11 +10,13 @@ export default function AppHeader({
   user,
   onToggleEdit,
   onOpenAdminSettings,
+  onGoToDashboard,
   onLogout,
 }: {
   user: User;
   onToggleEdit: () => void;
   onOpenAdminSettings: () => void;
+  onGoToDashboard: () => void;
   onLogout: () => void;
 }) {
   return (
@@ -26,6 +28,7 @@ export default function AppHeader({
           user={user}
           onToggleEdit={onToggleEdit}
           onOpenAdminSettings={onOpenAdminSettings}
+          onGoToDashboard={onGoToDashboard}
           onLogout={onLogout}
         />
       </div>

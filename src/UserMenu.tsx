@@ -13,11 +13,13 @@ export default function UserMenu({
   user,
   onToggleEdit,
   onOpenAdminSettings,
+  onGoToDashboard,
   onLogout,
 }: {
   user: User;
   onToggleEdit: () => void;
   onOpenAdminSettings: () => void;
+  onGoToDashboard?: () => void;
   onLogout: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -144,10 +146,28 @@ export default function UserMenu({
               <span className="menu-scope-tag">personal</span>
             </button>
           ) : (
-            <p data-testid="menu-dashboard-note" className="menu-dashboard-note">
-              Your tiles, categories, and icons are your personal dashboard —
-              manage them directly on the home screen.
-            </p>
+            <>
+              {/* #96 — non-admins get a real action here too, not a dead label.
+                  "Go to my dashboard" closes the menu and returns focus to the
+                  home screen (where favorites, reorder, and "+ Add apps" live),
+                  giving this section the same clickable parity every other one
+                  has. The note stays beneath it as a short explainer. */}
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="menu-go-dashboard"
+                onClick={() => choose(onGoToDashboard ?? (() => {}))}
+                className="menu-item"
+              >
+                <GridIcon />
+                Go to my dashboard
+                <span className="menu-scope-tag">personal</span>
+              </button>
+              <p data-testid="menu-dashboard-note" className="menu-dashboard-note">
+                Your tiles, categories, and icons are your personal dashboard —
+                manage them directly on the home screen.
+              </p>
+            </>
           )}
 
           {/* v12 §4.1 D3/D4 — Administration: GLOBAL, admin-only. The shield +
@@ -201,6 +221,14 @@ function PencilIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="menu-icon">
       <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />
+    </svg>
+  );
+}
+
+function GridIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="menu-icon">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />
     </svg>
   );
 }

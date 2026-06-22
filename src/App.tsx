@@ -70,6 +70,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             user={user}
             onToggleEdit={isAdmin ? () => setEditMode((on) => !on) : () => {}}
             onOpenAdminSettings={() => setSettingsOpen(true)}
+            onGoToDashboard={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             onLogout={handleLogout}
           />
 
