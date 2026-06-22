@@ -174,3 +174,32 @@ describe('A15 — responsive trigger and modal', () => {
     expect(launcherCss).toMatch(/\.launcher-panel[\s\S]*min\(640px[\s\S]*100vw/);
   });
 });
+
+describe('#97 — the ⌘K/Ctrl K chord hint reads as a keycap, not a category chip', () => {
+  const kbdRule = launcherCss.match(/\.launcher-trigger-kbd\s*\{([^}]*)\}/)?.[1] ?? '';
+
+  it('renders the chord hint inside a semantic <kbd>', () => {
+    render(
+      <LauncherProvider>
+        <LauncherTrigger />
+      </LauncherProvider>,
+    );
+    const kbd = within(screen.getByTestId('launcher-trigger-hint')).getByText(/⌘K|Ctrl K/);
+    expect(kbd.tagName).toBe('KBD');
+    expect(kbd).toHaveClass('launcher-trigger-kbd');
+  });
+
+  it('styles the keycap with a full border and a raised bottom edge', () => {
+    // a keycap has a full border plus a thicker bottom edge giving the key its depth
+    expect(kbdRule).toMatch(/border:/);
+    expect(kbdRule).toMatch(/border-bottom-width:\s*2px/);
+    // ...and a subtle drop shadow, unlike a flat chip
+    expect(kbdRule).toMatch(/box-shadow:/);
+  });
+
+  it('drops the category-chip accent tint that caused #97', () => {
+    // the old badge filled itself with the indigo accent (the same look as a
+    // category chip); a keycap sits on a neutral surface instead.
+    expect(kbdRule).not.toMatch(/rgba\(99,\s*102,\s*241/);
+  });
+});

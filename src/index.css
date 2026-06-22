@@ -652,13 +652,21 @@
   .launcher-trigger-placeholder {
     color: #9aa3b8;
   }
+  /* #97 — a keycap, not a category chip. Neutral surface + a full hairline
+     border whose thicker bottom edge (and faint drop shadow) give the key its
+     raised, physical depth — no accent tint, so it no longer reads as a chip. */
   .launcher-trigger-kbd {
     font-size: 11px;
     font-weight: 600;
-    color: #6366f1;
-    background: rgba(99, 102, 241, 0.1);
-    border-radius: 6px;
+    color: #64748b;
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    border-bottom-width: 2px;
+    border-radius: 5px;
     padding: 1px 6px;
+    min-width: 18px;
+    text-align: center;
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.05);
   }
 
   /* §2 — dark theme. Reuses the v7 dark surfaces/tokens; no new palette. */
@@ -703,6 +711,13 @@
   .dark .launcher-trigger:hover {
     border-color: rgba(129, 140, 248, 0.45);
     background: rgba(99, 102, 241, 0.12);
+  }
+  /* #97 — keycap on dark surfaces: faint raised key, no accent tint. */
+  .dark .launcher-trigger-kbd {
+    color: #aab2c5;
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
   }
 
   /* #127 — mobile tap targets. On phones (<640px) the search trigger collapses
