@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { addFromLibrary, listLibrary, type LibraryOffer, type Service } from './api';
-import { DEFAULT_ICON } from './icons';
+import { initialBadge } from './icons';
 
 // v9.3 §7.2 — the browse + add-from-library surface. A modal mirroring the v8
 // launcher's overlay/panel tokens (no new palette): it lists the admin-curated
@@ -185,12 +185,12 @@ export default function LibraryBrowse({
                   className="library-row"
                 >
                   <img
-                    src={o.icon || DEFAULT_ICON}
+                    src={o.icon || initialBadge(o.name)}
                     alt=""
                     onError={(e) => {
                       const img = e.currentTarget;
                       img.onerror = null;
-                      img.src = DEFAULT_ICON;
+                      img.src = initialBadge(o.name);
                     }}
                     className="launcher-row-icon"
                   />

@@ -41,7 +41,7 @@ import {
   type ServiceStatus,
   type UptimeCheck,
 } from './api';
-import { DEFAULT_ICON, iconSrc, validateIconFile } from './icons';
+import { iconSrc, initialBadge, validateIconFile } from './icons';
 import LibraryBrowse from './LibraryBrowse';
 import ServiceForm from './ServiceForm';
 import { useServicesContext } from './services';
@@ -933,6 +933,7 @@ function ServiceTile({
           data-testid="service-tile-icon"
           src={iconSrc(service, theme, rev)}
           alt=""
+          data-fallback={initialBadge(service.name)}
           onError={handleIconError}
           className="tile-icon"
         />
@@ -1109,13 +1110,14 @@ function PencilIcon() {
   );
 }
 
-// onError fallback: a failed icon load collapses to the bundled local default
-// so a tile never shows the browser's broken-image glyph. onerror is cleared
-// first so the default (which can't fail) can't loop.
+// onError fallback: a failed icon load collapses to the name-hashed initials
+// badge (issue #85) so a tile never shows the browser's broken-image glyph or
+// the old gray square. onerror is cleared first so the badge (a local data URI
+// that can't fail) can't loop.
 function handleIconError(e: React.SyntheticEvent<HTMLImageElement>) {
   const img = e.currentTarget;
   img.onerror = null;
-  img.src = DEFAULT_ICON;
+  img.src = img.dataset.fallback ?? '';
 }
 
 // Per-tile edit-mode controls: upload/replace/remove a light and a dark PNG,

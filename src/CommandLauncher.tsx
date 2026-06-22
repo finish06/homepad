@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Service, ServiceStatus } from './api';
-import { DEFAULT_ICON, iconSrc } from './icons';
+import { iconSrc, initialBadge } from './icons';
 import { rankServices } from './ranker';
 import { useLauncher } from './launcher';
 import { useResolvedTheme } from './theme';
@@ -331,7 +331,7 @@ function ResultRow({
         onError={(e) => {
           const img = e.currentTarget;
           img.onerror = null;
-          img.src = DEFAULT_ICON;
+          img.src = initialBadge(service.name);
         }}
         className="launcher-row-icon"
       />

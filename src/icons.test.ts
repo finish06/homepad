@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_ICON,
   MAX_ICON_BYTES,
+  appInitials,
   iconSrc,
+  initialBadge,
   validateIconFile,
 } from './icons';
 import type { Service } from './api';
@@ -101,13 +103,61 @@ describe('iconSrc precedence chain', () => {
     );
   });
 
-  it('falls back to the bundled local default when nothing is set', () => {
-    const src = iconSrc(svc({ icon: '' }), 'light', 0);
-    expect(src).toBe(DEFAULT_ICON);
-    expect(src.startsWith('http')).toBe(false);
+  it('falls back to a colored initials badge (not the gray square) when nothing is set', () => {
+    // issue #85: the no-icon default is a name-hashed colored badge, so the
+    // catalog stays scannable without real icons. It is purely local (a data
+    // URI) and carries the app's initials.
+    const src = iconSrc(svc({ name: 'Plex', icon: '' }), 'light', 0);
+    expect(src).toBe(initialBadge('Plex'));
+    expect(src).not.toBe(DEFAULT_ICON);
+    expect(src.startsWith('data:image/svg+xml,')).toBe(true);
+    expect(decodeURIComponent(src)).toContain('PL');
   });
 
   it('appends a cache-busting query once rev > 0', () => {
     expect(iconSrc(svc({ iconLight: true }), 'light', 3)).toBe('/api/services/s1/icon/light?v=3');
+  });
+});
+
+describe('appInitials (mirrors the userInitials rule for app names)', () => {
+  it('takes the first letter of the first and last words for multi-word names', () => {
+    expect(appInitials('Home Assistant')).toBe('HA');
+    expect(appInitials('Pi hole Admin')).toBe('PA');
+  });
+
+  it('takes the first two letters of a single-word name', () => {
+    expect(appInitials('Plex')).toBe('PL');
+    expect(appInitials('Pi-hole')).toBe('PI');
+  });
+
+  it('uppercases and falls back to ? for an empty/blank name', () => {
+    expect(appInitials('sonarr')).toBe('SO');
+    expect(appInitials('')).toBe('?');
+    expect(appInitials('   ')).toBe('?');
+  });
+});
+
+describe('initialBadge (issue #85 colored name badge)', () => {
+  it('is a local SVG data URI carrying the initials', () => {
+    const badge = initialBadge('Plex');
+    expect(badge.startsWith('data:image/svg+xml,')).toBe(true);
+    expect(badge.startsWith('http')).toBe(false);
+    expect(decodeURIComponent(badge)).toContain('>PL<');
+  });
+
+  it('is deterministic for the same name', () => {
+    expect(initialBadge('Plex')).toBe(initialBadge('Plex'));
+  });
+
+  it('hashes the name to different background colors for different names', () => {
+    expect(initialBadge('Plex')).not.toBe(initialBadge('Radarr'));
+  });
+
+  it('escapes XML special chars so a name like "<script>" cannot break the SVG (A1)', () => {
+    // appInitials('<script>') → '<S'; left raw it would inject a tag and
+    // produce malformed SVG. The text content must be entity-escaped.
+    const decoded = decodeURIComponent(initialBadge('<script>'));
+    expect(decoded).toContain('&lt;S');
+    expect(decoded).not.toContain('><S');
   });
 });

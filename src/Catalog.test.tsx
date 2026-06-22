@@ -28,7 +28,7 @@ import {
   type Service,
   type ServiceStatus,
 } from './api';
-import { DEFAULT_ICON, validateIconFile } from './icons';
+import { initialBadge, validateIconFile } from './icons';
 import { ThemeProvider } from './theme';
 import ThemeControl from './ThemeControl';
 
@@ -190,13 +190,14 @@ describe('A2 — catalog tiles render', () => {
     );
   });
 
-  it('falls back to the bundled local default when a service has no icon', async () => {
-    // cog CDN is gone — an empty icon with no uploads resolves to the local
-    // default (precedence step 4), never a remote URL.
-    mockedServices.mockResolvedValue([svc({ icon: '', iconLight: false, iconDark: false })]);
+  it('falls back to a colored initials badge when a service has no icon (#85)', async () => {
+    // cog CDN is gone — an empty icon with no uploads resolves to a local,
+    // name-hashed initials badge (precedence step 4), never a remote URL or the
+    // old gray square.
+    mockedServices.mockResolvedValue([svc({ name: 'Plex', icon: '', iconLight: false, iconDark: false })]);
     render(<Catalog />);
     const icon = await screen.findByTestId('service-tile-icon');
-    expect(icon).toHaveAttribute('src', DEFAULT_ICON);
+    expect(icon).toHaveAttribute('src', initialBadge('Plex'));
     expect(icon.getAttribute('src')?.startsWith('http')).toBe(false);
   });
 
@@ -645,8 +646,8 @@ describe('A9 — icon variant follows the resolved theme (driven by the control)
 });
 
 describe('A9 — never a broken image', () => {
-  it('falls back to the bundled local default on an <img> error', async () => {
-    mockedServices.mockResolvedValue([svc({ id: 's1', icon: 'https://plex.x/icon.png' })]);
+  it('falls back to the colored initials badge on an <img> error (#85)', async () => {
+    mockedServices.mockResolvedValue([svc({ id: 's1', name: 'Plex', icon: 'https://plex.x/icon.png' })]);
     render(<Catalog />);
     const icon = await screen.findByTestId('service-tile-icon');
     // Starts on the icon field's full URL…
@@ -654,8 +655,8 @@ describe('A9 — never a broken image', () => {
 
     fireEvent.error(icon);
 
-    // …then collapses to the local default (not a CDN URL) when it fails.
-    expect(icon.getAttribute('src')).toBe(DEFAULT_ICON);
+    // …then collapses to the local name-hashed badge (not a CDN URL) when it fails.
+    expect(icon.getAttribute('src')).toBe(initialBadge('Plex'));
     expect(icon.getAttribute('src')?.startsWith('http')).toBe(false);
   });
 });
