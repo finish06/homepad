@@ -29,16 +29,35 @@ const statusDot: Record<ServiceStatus, string> = {
 
 type Section = { label: string | null; items: Service[] };
 
-// Build the visible sections from the query. Empty query → Favorites then All
-// services (favorites not repeated), §7/D1. Non-empty → a single ranked,
-// unlabelled section (empty when nothing matches → the no-results state).
+// Group services into one labelled section per category, in first-appearance
+// order (so the order tracks the user's own dashboard layout), with a missing
+// categoryName bucketed under "Uncategorized" (#86).
+function groupByCategory(services: Service[]): Section[] {
+  const order: string[] = [];
+  const groups = new Map<string, Service[]>();
+  for (const s of services) {
+    const cat = s.categoryName ?? 'Uncategorized';
+    if (!groups.has(cat)) {
+      groups.set(cat, []);
+      order.push(cat);
+    }
+    groups.get(cat)!.push(s);
+  }
+  return order.map((cat) => ({ label: cat, items: groups.get(cat)! }));
+}
+
+// Build the visible sections from the query. Empty query → Favorites pinned on
+// top, then the remaining services grouped by category (§7/D1, #86 — browse
+// mode browses by category instead of one flat list; favorites not repeated).
+// Non-empty → a single ranked, unlabelled section (empty when nothing matches →
+// the no-results state) so search stays a flat best-match list.
 function buildSections(query: string, services: Service[]): Section[] {
   if (query.trim() === '') {
     const favorites = services.filter((s) => s.favorite);
     const rest = services.filter((s) => !s.favorite);
     const sections: Section[] = [];
     if (favorites.length > 0) sections.push({ label: 'Favorites', items: favorites });
-    sections.push({ label: 'All services', items: rest });
+    sections.push(...groupByCategory(rest));
     return sections;
   }
   const ranked = rankServices(query, services);

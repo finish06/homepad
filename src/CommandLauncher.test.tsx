@@ -206,8 +206,33 @@ describe('A9 — Enter opens the selected service in a new tab and closes the la
   });
 });
 
-describe('A10 — empty-query default: Favorites first, then All services', () => {
-  it('shows FAVORITES then ALL SERVICES with favorites not repeated; first row selected', () => {
+describe('A10/#86 — empty-query browse mode groups services by category', () => {
+  it('renders one labelled group per category (first-appearance order), no flat "All services"', () => {
+    setup(CATALOG); // none favorited → Media, Dev, Observability
+    openWithMeta();
+    // a section header per category, not a single flat "All services" list
+    expect(screen.getByRole('group', { name: 'Media' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Dev' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Observability' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: /all services/i })).toBeNull();
+    // Media holds both of its apps; grouping does not drop or duplicate rows
+    const media = screen.getByRole('group', { name: 'Media' });
+    const mediaIds = within(media)
+      .getAllByTestId('launcher-result')
+      .map((r) => r.getAttribute('data-service-id'));
+    expect(mediaIds).toEqual(['jellyfin', 'jellyseerr']);
+    // category order follows first appearance in the list; first row selected
+    const rows = screen.getAllByTestId('launcher-result');
+    expect(rows.map((r) => r.getAttribute('data-service-id'))).toEqual([
+      'jellyfin',
+      'jellyseerr',
+      'gitea',
+      'grafana',
+    ]);
+    expect(rows[0]).toHaveAttribute('data-selected', 'true');
+  });
+
+  it('pins Favorites above the category groups, not repeated within them; first row selected', () => {
     const withFavs: Service[] = [
       svc({ id: 'gitea', name: 'Gitea', favorite: true, categoryName: 'Dev' }),
       svc({ id: 'jellyfin', name: 'Jellyfin', favorite: false, categoryName: 'Media' }),
@@ -215,24 +240,29 @@ describe('A10 — empty-query default: Favorites first, then All services', () =
     ];
     setup(withFavs);
     openWithMeta();
-    expect(screen.getByText(/favorites/i)).toBeInTheDocument();
-    expect(screen.getByText(/all services/i)).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Favorites' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Media' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: /all services/i })).toBeNull();
     const rows = screen.getAllByTestId('launcher-result');
-    // favorites (gitea, grafana) come before the non-favorite (jellyfin)
-    const order = rows.map((r) => r.getAttribute('data-service-id'));
-    expect(order).toEqual(['gitea', 'grafana', 'jellyfin']);
-    // a favorite is not repeated in the ALL section → 3 rows total, not 5
+    // favorites (gitea, grafana) come first, then the non-favorite grouped under Media
+    expect(rows.map((r) => r.getAttribute('data-service-id'))).toEqual([
+      'gitea',
+      'grafana',
+      'jellyfin',
+    ]);
+    // a favorite is not repeated in a category group → 3 rows total, not 5
     expect(rows).toHaveLength(3);
     expect(rows[0]).toHaveAttribute('data-selected', 'true');
   });
 
-  it('with no favorites shows only ALL SERVICES, first row selected', () => {
-    setup(CATALOG); // none favorited
+  it('buckets services with no category under "Uncategorized"', () => {
+    setup([
+      svc({ id: 'orphan', name: 'Orphan', categoryName: null }),
+      svc({ id: 'gitea', name: 'Gitea', categoryName: 'Dev' }),
+    ]);
     openWithMeta();
-    expect(screen.queryByText(/^favorites$/i)).toBeNull();
-    expect(screen.getByText(/all services/i)).toBeInTheDocument();
-    const rows = screen.getAllByTestId('launcher-result');
-    expect(rows[0]).toHaveAttribute('data-selected', 'true');
+    expect(screen.getByRole('group', { name: 'Uncategorized' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Dev' })).toBeInTheDocument();
   });
 });
 
