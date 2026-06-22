@@ -808,7 +808,7 @@ function SortableSection({
       data-category-id={cat.id}
       aria-label={`Reorder ${cat.name} section`}
       aria-pressed={grabbed}
-      className={`ml-1 flex h-9 w-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-base leading-none normal-case outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-500 active:cursor-grabbing ${
+      className={`ml-1 hidden h-9 w-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-base leading-none normal-case outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-500 active:cursor-grabbing sm:flex ${
         grabbed ? 'text-indigo-600 dark:text-indigo-400' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200'
       }`}
     >
@@ -913,11 +913,12 @@ function ServiceTile({
         aria-label={`status: ${statusLabel[service.status] ?? service.status}`}
         className={`status-dot absolute right-3 top-3 ${statusDot[service.status] ?? statusDot.UNKNOWN}`}
       />
-      {/* v10 §5.2 — the always-on drag grip. A real <button> (the single drag
-          origin for pointer, touch, AND keyboard) at the bottom-right so it
-          doesn't fight the "⋯" menu (top-left) or the status dot (top-right).
-          Low-emphasis on desktop, always visible on touch (no hover dependency,
-          §9/A14). `grabbed` drives the accent + aria-pressed (§10/A6). */}
+      {/* v10 §5.2 — the drag grip. A real <button> (the single drag origin for
+          pointer, touch, AND keyboard) at the bottom-right so it doesn't fight
+          the "⋯" menu (top-left) or the status dot (top-right). #95 (Walt
+          2026-06-19): hidden below sm — on mobile the handle is clutter and
+          reordering is a desktop task — low-emphasis from sm up.
+          `grabbed` drives the accent + aria-pressed (§10/A6). */}
       <button
         type="button"
         ref={setActivatorNodeRef}
@@ -928,7 +929,7 @@ function ServiceTile({
         data-service-id={service.id}
         aria-label={`Reorder ${service.name}`}
         aria-pressed={grabbed}
-        className={`absolute bottom-2 right-2 z-10 flex h-11 w-11 cursor-grab touch-none items-center justify-center rounded-md text-base leading-none outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-500 active:cursor-grabbing sm:h-9 sm:w-9 sm:opacity-40 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 ${
+        className={`absolute bottom-2 right-2 z-10 hidden h-11 w-11 cursor-grab touch-none items-center justify-center rounded-md text-base leading-none outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-500 active:cursor-grabbing sm:flex sm:h-9 sm:w-9 sm:opacity-40 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 ${
           grabbed ? 'text-indigo-600 opacity-100 dark:text-indigo-400' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200'
         }`}
       >

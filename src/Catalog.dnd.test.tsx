@@ -361,7 +361,7 @@ describe('A13/A14 — dark, reduced-motion, responsive grip, a11y', () => {
     vi.mocked(services).mockResolvedValue([svc({ id: 'a', name: 'Alpha' })]);
     render(<Catalog />);
     const handle = await screen.findByTestId('drag-handle');
-    // low-emphasis on desktop, always-visible on touch (no hover dependency)
+    // low-emphasis on desktop, brightening on hover/focus (hidden on mobile — see #95)
     expect(handle.className).toMatch(/sm:opacity/);
     // reduced motion: the sortable wrapper disables its transition
     const tile = screen.getByTestId('service-tile');
@@ -373,6 +373,31 @@ describe('A13/A14 — dark, reduced-motion, responsive grip, a11y', () => {
     const { container } = render(<Catalog />);
     await screen.findAllByTestId('drag-handle');
     expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+// #95 — Walt's 2026-06-19 live UI review: on mobile the ⠿ drag handle is visual
+// clutter (touch reordering is a desktop-oriented task here), so the handle is
+// hidden below the sm breakpoint and shown from sm up. Pure visual/responsive
+// change — the desktop pointer + keyboard drag path is unchanged.
+describe('#95 — ⠿ drag handle hidden on mobile', () => {
+  it('the per-tile grip is hidden below sm and shown from sm up', async () => {
+    vi.mocked(services).mockResolvedValue([svc({ id: 'a', name: 'Alpha' })]);
+    render(<Catalog />);
+    const handle = await screen.findByTestId('drag-handle');
+    expect(handle.className).toMatch(/(?:^|\s)hidden(?:\s|$)/);
+    expect(handle.className).toMatch(/sm:flex/);
+  });
+
+  it('the per-category header grip is hidden below sm and shown from sm up', async () => {
+    vi.mocked(categories).mockResolvedValue([cat({ id: 'c1', name: 'Media', sortIndex: 0 })]);
+    vi.mocked(services).mockResolvedValue([
+      svc({ id: 'm', name: 'Plex', categoryId: 'c1', categoryName: 'Media' }),
+    ]);
+    render(<Catalog />);
+    const grip = await screen.findByRole('button', { name: 'Reorder Media section' });
+    expect(grip.className).toMatch(/(?:^|\s)hidden(?:\s|$)/);
+    expect(grip.className).toMatch(/sm:flex/);
   });
 });
 
