@@ -208,6 +208,15 @@ describe('A2 — catalog tiles render', () => {
     expect(screen.getByTestId('browse-library-cta')).toBeInTheDocument();
     expect(screen.queryByTestId('service-tile')).not.toBeInTheDocument();
   });
+
+  it('renders a decorative illustration in the empty dashboard state (#91)', async () => {
+    mockedServices.mockResolvedValue([]);
+    render(<Catalog />);
+    const illustration = await screen.findByTestId('dashboard-empty-illustration');
+    expect(illustration).toBeInTheDocument();
+    // decorative-only: hidden from assistive tech
+    expect(illustration).toHaveAttribute('aria-hidden', 'true');
+  });
 });
 
 describe('A16 — empty-dashboard CTA opens the browse surface', () => {

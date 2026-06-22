@@ -588,6 +588,13 @@
     padding: 28px 16px;
     text-align: center;
   }
+  .library-empty-art {
+    display: block;
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 10px;
+    color: #818cf8;
+  }
   .launcher-no-results-title {
     color: #475069;
     font-size: 14px;
@@ -760,6 +767,12 @@
     border: 1px dashed rgba(15, 23, 42, 0.12);
     border-radius: 16px;
     background: rgba(99, 102, 241, 0.03);
+  }
+  .dashboard-empty-art {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 8px;
+    color: #818cf8;
   }
   .dashboard-empty-title {
     font-size: 17px;

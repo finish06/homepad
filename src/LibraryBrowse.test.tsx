@@ -116,6 +116,14 @@ describe('A16 — empty library + custom add', () => {
     expect(await screen.findByTestId('library-empty')).toBeInTheDocument();
   });
 
+  it('renders a decorative illustration in the empty library state (#91)', async () => {
+    vi.mocked(listLibrary).mockResolvedValue([]);
+    renderBrowse();
+    const illustration = await screen.findByTestId('library-empty-illustration');
+    expect(illustration).toBeInTheDocument();
+    expect(illustration).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it('an admin sees a manage-library link in the empty state', async () => {
     vi.mocked(listLibrary).mockResolvedValue([]);
     const onManageLibrary = vi.fn();

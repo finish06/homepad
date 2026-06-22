@@ -550,6 +550,23 @@ export default function Catalog({
 
       {items.length === 0 ? (
         <div data-testid="dashboard-empty" className="dashboard-empty">
+          <svg
+            data-testid="dashboard-empty-illustration"
+            className="dashboard-empty-art"
+            aria-hidden="true"
+            viewBox="0 0 64 64"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="6" y="6" width="22" height="22" rx="5" />
+            <rect x="36" y="6" width="22" height="22" rx="5" />
+            <rect x="6" y="36" width="22" height="22" rx="5" />
+            <rect x="36" y="36" width="22" height="22" rx="5" strokeDasharray="4 4" />
+            <path d="M47 43v8M43 47h8" />
+          </svg>
           <p className="dashboard-empty-title">Your dashboard is empty</p>
           <p className="dashboard-empty-sub">
             Add apps from the App Library to get started.

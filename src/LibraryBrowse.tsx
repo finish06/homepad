@@ -163,6 +163,21 @@ export default function LibraryBrowse({
             <p className="library-loading">Loading…</p>
           ) : offers.length === 0 ? (
             <div data-testid="library-empty" className="launcher-no-results">
+              <svg
+                data-testid="library-empty-illustration"
+                className="library-empty-art"
+                aria-hidden="true"
+                viewBox="0 0 64 64"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M8 22 32 10l24 12-24 12L8 22Z" />
+                <path d="M8 22v20l24 12 24-12V22" />
+                <path d="M32 34v20" />
+              </svg>
               <p className="launcher-no-results-title">No apps in the library yet.</p>
               {isAdmin && (
                 <button
