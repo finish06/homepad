@@ -329,7 +329,10 @@ describe('A3 — category-section drag reorders folders via setCategoryOrder', (
     ]);
     render(<Catalog />);
     const grip = await screen.findByRole('button', { name: 'Reorder Media section' });
-    const label = screen.getByRole('button', { name: 'Media' });
+    // the header button folds the app count into its accessible name (e.g.
+    // "Media 1 app"); match the leading category name so the count can change
+    // without re-breaking this assertion.
+    const label = screen.getByRole('button', { name: /^Media/ });
     // both live in the same <h2>; right-aligned means the grip comes after the label.
     expect(label.compareDocumentPosition(grip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
