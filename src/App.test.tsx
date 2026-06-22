@@ -92,6 +92,13 @@ describe('auth gate', () => {
     expect(screen.queryByTestId('catalog-stub')).not.toBeInTheDocument();
   });
 
+  it('shows the homepad logo on the auth page (#88)', async () => {
+    render(<App />);
+    await dropLoading();
+    const logo = screen.getByRole('img', { name: /homepad/i });
+    expect(logo).toHaveAttribute('src', '/icon-192.png');
+  });
+
   it('shows the catalog directly when an existing session is found', async () => {
     mockedMe.mockResolvedValue(USER);
     render(<App />);

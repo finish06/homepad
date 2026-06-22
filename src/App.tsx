@@ -141,6 +141,11 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
         onSubmit={handleSubmit}
         className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
       >
+        <img
+          src="/icon-192.png"
+          alt="homepad"
+          className="mb-3 h-12 w-12 rounded-xl"
+        />
         <h1 className="text-xl font-semibold">homepad</h1>
         <p className="mt-1 text-sm text-neutral-500">
           {mode === 'login' ? 'Sign in to your dashboard' : 'Create your account'}
