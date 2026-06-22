@@ -159,6 +159,7 @@ export default function ServiceForm({
               setSlugEdited(true);
               setSlug(e.target.value);
             }}
+            placeholder="e.g. plex-media-server"
             className={inputClass}
           />
         </label>
@@ -206,6 +207,7 @@ export default function ServiceForm({
             data-testid="field-icon"
             value={icon}
             onChange={(e) => setIcon(e.target.value)}
+            placeholder="e.g. https://cdn.example.com/plex.png"
             className={inputClass}
           />
         </label>
@@ -216,7 +218,7 @@ export default function ServiceForm({
             data-testid="field-gatus_key"
             value={gatusKey}
             onChange={(e) => setGatusKey(e.target.value)}
-            placeholder={editing ? 'leave blank to keep current' : ''}
+            placeholder={editing ? 'leave blank to keep current' : 'e.g. plex — its Gatus monitor key'}
             className={inputClass}
           />
         </label>

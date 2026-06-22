@@ -194,3 +194,52 @@ describe('ServiceForm category selector (#84)', () => {
     expect(assignCategory).not.toHaveBeenCalled();
   });
 });
+
+const editService: Service = {
+  id: 'S1',
+  name: 'Plex',
+  slug: 'plex',
+  url: 'https://plex.x',
+  description: '',
+  icon: '',
+  status: 'UNKNOWN',
+  favorite: false,
+  iconLight: false,
+  iconDark: false,
+};
+
+// #87 — the technical fields (Slug, Icon URL, Gatus key) are unexplained, so
+// each carries example/hint placeholder copy shown while empty.
+describe('ServiceForm field placeholder copy (#87)', () => {
+  it('gives the slug field an example placeholder', () => {
+    renderForm();
+    expect(screen.getByTestId('field-slug')).toHaveAttribute(
+      'placeholder',
+      'e.g. plex-media-server',
+    );
+  });
+
+  it('gives the icon URL field an example placeholder', () => {
+    renderForm();
+    expect(screen.getByTestId('field-icon')).toHaveAttribute(
+      'placeholder',
+      'e.g. https://cdn.example.com/plex.png',
+    );
+  });
+
+  it('gives the gatus key field an explanatory placeholder in add mode', () => {
+    renderForm();
+    expect(screen.getByTestId('field-gatus_key')).toHaveAttribute(
+      'placeholder',
+      'e.g. plex — its Gatus monitor key',
+    );
+  });
+
+  it('keeps the leave-blank gatus key placeholder in edit mode', () => {
+    renderForm(editService);
+    expect(screen.getByTestId('field-gatus_key')).toHaveAttribute(
+      'placeholder',
+      'leave blank to keep current',
+    );
+  });
+});
