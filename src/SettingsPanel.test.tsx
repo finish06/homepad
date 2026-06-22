@@ -97,9 +97,10 @@ describe('A17 — library management', () => {
     expect(within(rows[0]).getByText('Jellyfin')).toBeInTheDocument();
   });
 
-  it('creates a new offer from the add form', async () => {
+  it('creates a new offer from the add-offer modal', async () => {
     renderPanel({ isAdmin: true });
     await screen.findByTestId('settings-library');
+    await userEvent.click(screen.getByTestId('library-add-open'));
     await userEvent.type(screen.getByTestId('library-new-name'), 'Plex');
     await userEvent.type(screen.getByTestId('library-new-url'), 'https://plex.x');
     await userEvent.click(screen.getByTestId('library-new-submit'));
@@ -127,6 +128,47 @@ describe('A17 — library management', () => {
     await screen.findByTestId('settings-library');
     await userEvent.click(screen.getByTestId('library-move-down-L1'));
     await waitFor(() => expect(setLibraryOrder).toHaveBeenCalledWith(['L2', 'L1']));
+  });
+
+  // #92 (Walt 2026-06-19 live UI review) — the "Add offer" creation form was a
+  // cramped inline flex-row at the top of the scrollable Admin Panel. It now
+  // lives behind an "Add offer" trigger that opens its own roomy modal surface.
+  it('#92 — the add-offer fields are not inline; a trigger button opens them', async () => {
+    renderPanel({ isAdmin: true });
+    await screen.findByTestId('settings-library');
+    // The form fields must NOT be on the panel until the modal is opened.
+    expect(screen.queryByTestId('library-new-name')).not.toBeInTheDocument();
+    expect(screen.getByTestId('library-add-open')).toBeInTheDocument();
+  });
+
+  it('#92 — the trigger opens a dedicated modal dialog holding the create form', async () => {
+    renderPanel({ isAdmin: true });
+    await screen.findByTestId('settings-library');
+    await userEvent.click(screen.getByTestId('library-add-open'));
+    const dialog = await screen.findByTestId('add-offer-overlay');
+    expect(within(dialog).getByRole('dialog')).toBeInTheDocument();
+    expect(within(dialog).getByTestId('library-new-name')).toBeInTheDocument();
+    expect(within(dialog).getByTestId('library-new-url')).toBeInTheDocument();
+    expect(within(dialog).getByTestId('library-new-category')).toBeInTheDocument();
+  });
+
+  it('#92 — the add-offer modal closes after a successful create', async () => {
+    renderPanel({ isAdmin: true });
+    await screen.findByTestId('settings-library');
+    await userEvent.click(screen.getByTestId('library-add-open'));
+    await userEvent.type(screen.getByTestId('library-new-name'), 'Plex');
+    await userEvent.type(screen.getByTestId('library-new-url'), 'https://plex.x');
+    await userEvent.click(screen.getByTestId('library-new-submit'));
+    await waitFor(() => expect(screen.queryByTestId('add-offer-overlay')).not.toBeInTheDocument());
+  });
+
+  it('#92 — Cancel closes the modal without creating an offer', async () => {
+    renderPanel({ isAdmin: true });
+    await screen.findByTestId('settings-library');
+    await userEvent.click(screen.getByTestId('library-add-open'));
+    await userEvent.click(screen.getByTestId('library-new-cancel'));
+    expect(screen.queryByTestId('add-offer-overlay')).not.toBeInTheDocument();
+    expect(createLibraryApp).not.toHaveBeenCalled();
   });
 
   it('edits an offer (PATCH) from the row edit control', async () => {

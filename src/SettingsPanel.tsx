@@ -148,6 +148,9 @@ function LibraryManager() {
   const [offers, setOffers] = useState<LibraryOffer[]>([]);
   const [draft, setDraft] = useState<LibraryAppInput>(EMPTY_INPUT);
   const [error, setError] = useState<string | null>(null);
+  // #92 — the "Add offer" creation form is no longer inline; it opens in its
+  // own modal surface so it isn't cramped at the top of the scrollable panel.
+  const [adding, setAdding] = useState(false);
   // The id pending a delete confirmation, and the id being inline-edited.
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
@@ -156,6 +159,12 @@ function LibraryManager() {
   useEffect(() => {
     listLibrary().then(setOffers);
   }, []);
+
+  function openAdd() {
+    setError(null);
+    setDraft(EMPTY_INPUT);
+    setAdding(true);
+  }
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -167,6 +176,7 @@ function LibraryManager() {
     }
     setOffers((prev) => [...prev, r.offer!]);
     setDraft(EMPTY_INPUT);
+    setAdding(false);
   }
 
   function startEdit(o: LibraryOffer) {
@@ -228,35 +238,24 @@ function LibraryManager() {
         </p>
       )}
 
-      <form onSubmit={create} className="library-new">
-        <input
-          data-testid="library-new-name"
-          value={draft.name}
-          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-          placeholder="Name"
-          aria-label="New offer name"
-          className="settings-input"
+      <button
+        type="button"
+        data-testid="library-add-open"
+        onClick={openAdd}
+        className="library-add settings-add-offer-trigger"
+      >
+        + Add offer
+      </button>
+
+      {adding && (
+        <AddOfferModal
+          draft={draft}
+          setDraft={setDraft}
+          error={error}
+          onSubmit={create}
+          onClose={() => setAdding(false)}
         />
-        <input
-          data-testid="library-new-url"
-          value={draft.url}
-          onChange={(e) => setDraft({ ...draft, url: e.target.value })}
-          placeholder="URL"
-          aria-label="New offer URL"
-          className="settings-input"
-        />
-        <input
-          data-testid="library-new-category"
-          value={draft.suggestedCategory}
-          onChange={(e) => setDraft({ ...draft, suggestedCategory: e.target.value })}
-          placeholder="Suggested category (optional)"
-          aria-label="New offer suggested category"
-          className="settings-input"
-        />
-        <button type="submit" data-testid="library-new-submit" className="library-add">
-          Add offer
-        </button>
-      </form>
+      )}
 
       <ul className="settings-list" aria-label="Library offers">
         {offers.map((o, i) => (
@@ -376,5 +375,113 @@ function LibraryManager() {
         ))}
       </ul>
     </section>
+  );
+}
+
+// #92 — the "Add offer" creation form on its own modal surface. Stacked, labeled
+// fields with room to breathe, layered above the Admin Panel (own scrim + higher
+// z-index). Escape / scrim-click / Cancel dismiss without creating; Escape stops
+// propagating so it dismisses only this modal, not the panel beneath it.
+function AddOfferModal({
+  draft,
+  setDraft,
+  error,
+  onSubmit,
+  onClose,
+}: {
+  draft: LibraryAppInput;
+  setDraft: (d: LibraryAppInput) => void;
+  error: string | null;
+  onSubmit: (e: React.FormEvent) => void;
+  onClose: () => void;
+}) {
+  const firstRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    firstRef.current?.focus();
+  }, []);
+
+  return (
+    <div
+      data-testid="add-offer-overlay"
+      className="launcher-overlay add-offer-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <form
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add offer"
+        className="add-offer-panel"
+        onSubmit={onSubmit}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.stopPropagation();
+            onClose();
+          }
+        }}
+      >
+        <h3 className="add-offer-title">Add offer</h3>
+        <p className="settings-section-note add-offer-note">
+          Adds a new app to the shared library — every user sees it in “Add apps.”
+        </p>
+
+        <label className="add-offer-field">
+          <span className="add-offer-label">Name</span>
+          <input
+            ref={firstRef}
+            data-testid="library-new-name"
+            value={draft.name}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            placeholder="Plex"
+            className="settings-input"
+          />
+        </label>
+
+        <label className="add-offer-field">
+          <span className="add-offer-label">URL</span>
+          <input
+            data-testid="library-new-url"
+            value={draft.url}
+            onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+            placeholder="https://plex.example.com"
+            className="settings-input"
+          />
+        </label>
+
+        <label className="add-offer-field">
+          <span className="add-offer-label">
+            Suggested category <span className="add-offer-optional">(optional)</span>
+          </span>
+          <input
+            data-testid="library-new-category"
+            value={draft.suggestedCategory}
+            onChange={(e) => setDraft({ ...draft, suggestedCategory: e.target.value })}
+            placeholder="Media"
+            className="settings-input"
+          />
+        </label>
+
+        {error && (
+          <p data-testid="add-offer-error" role="alert" className="settings-error">
+            {error}
+          </p>
+        )}
+
+        <div className="add-offer-actions">
+          <button type="submit" data-testid="library-new-submit" className="library-add">
+            Add offer
+          </button>
+          <button
+            type="button"
+            data-testid="library-new-cancel"
+            onClick={onClose}
+            className="settings-ghost-btn"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
