@@ -1427,3 +1427,60 @@ describe('uptime sparkline (AC-001..013)', () => {
     expect(row.className).toContain('overflow-hidden');
   });
 })
+
+// Cap #4 (spec specs/cap4-sparkline-dot-tooltip.md): hovering a sparkline dot
+// reveals a tooltip with the check's local timestamp and pass/fail result, and
+// each dot carries an aria-label so screen readers enumerate the history.
+describe('cap4 — sparkline dot hover tooltip', () => {
+  function checks(n: number, failAt: number[] = []) {
+    return Array.from({ length: n }, (_, i) => ({
+      success: !failAt.includes(i),
+      timestamp: `2026-06-14T08:${String(i).padStart(2, '0')}:00Z`,
+    }));
+  }
+
+  it('AC-011 — each dot has an aria-label with its result and timestamp', async () => {
+    mockedServices.mockResolvedValue([svc({ uptimeChecks: checks(3, [1]) })]);
+    render(<Catalog />);
+    const tile = await screen.findByTestId('service-tile');
+    const dots = within(tile).getAllByTestId('uptime-dot');
+
+    // Pass/fail wording matches the dot color; a timestamp follows after " – ".
+    expect(dots[0].getAttribute('aria-label')).toMatch(/^Passed – .+/);
+    expect(dots[1].getAttribute('aria-label')).toMatch(/^Failed – .+/);
+    // The container is no longer aria-hidden, so the labels are exposed.
+    expect(dots[0].parentElement).not.toHaveAttribute('aria-hidden');
+  });
+
+  it('AC-001/007 — tooltip appears on mouseEnter and clears on mouseLeave', async () => {
+    mockedServices.mockResolvedValue([svc({ uptimeChecks: checks(3, [1]) })]);
+    render(<Catalog />);
+    const tile = await screen.findByTestId('service-tile');
+    const dots = within(tile).getAllByTestId('uptime-dot');
+
+    expect(within(tile).queryByTestId('uptime-tooltip')).not.toBeInTheDocument();
+
+    fireEvent.mouseEnter(dots[1]);
+    const tip = within(tile).getByTestId('uptime-tooltip');
+    expect(tip).toHaveTextContent('✗ Failed');
+
+    fireEvent.mouseLeave(dots[1]);
+    expect(within(tile).queryByTestId('uptime-tooltip')).not.toBeInTheDocument();
+  });
+
+  it('AC-008 — a dot with an empty timestamp renders and hovers without crashing', async () => {
+    mockedServices.mockResolvedValue([
+      svc({ uptimeChecks: [{ success: true, timestamp: '' }] }),
+    ]);
+    render(<Catalog />);
+    const tile = await screen.findByTestId('service-tile');
+    const dot = within(tile).getByTestId('uptime-dot');
+
+    // No timestamp → aria-label carries the result only, no trailing " – ".
+    expect(dot.getAttribute('aria-label')).toBe('Passed');
+
+    fireEvent.mouseEnter(dot);
+    const tip = within(tile).getByTestId('uptime-tooltip');
+    expect(tip).toHaveTextContent('✓ Passed');
+  });
+})

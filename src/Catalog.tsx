@@ -948,23 +948,67 @@ function SortableSection({
 // Renders nothing when the service has no monitoring (absent/empty checks), so
 // unmonitored tiles keep their current height (AC-005/006/012). The dot row is
 // aria-hidden decoration; the label text carries the accessible summary.
+// Local-time "MMM D, HH:MM" (24h), or '' when the timestamp is absent/unparseable.
+function fmtCheckTime(ts: string): string {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
 function UptimeSparkline({ checks }: { checks?: UptimeCheck[] }) {
+  // Index of the dot currently hovered/focused, or null. Cleared on leave/blur.
+  const [hovered, setHovered] = useState<number | null>(null);
   if (!checks || checks.length === 0) return null;
   const total = checks.length;
   const successes = checks.reduce((n, c) => (c.success ? n + 1 : n), 0);
   const pct = Math.round((successes / total) * 100);
+  // Touch devices report no hover capability — skip the tooltip there so it never
+  // flickers on tap (AC-004). Defaults to enabled where matchMedia is absent.
+  const canHover = window.matchMedia?.('(hover: hover)').matches ?? true;
+  const active = hovered != null ? checks[hovered] : null;
+  const activeTime = active ? fmtCheckTime(active.timestamp) : '';
   return (
-    <div data-testid="uptime-sparkline" className="mt-1.5 flex flex-col gap-1">
-      <div aria-hidden="true" className="flex flex-nowrap gap-0.5 overflow-hidden">
-        {checks.map((c, i) => (
-          <span
-            key={i}
-            data-testid="uptime-dot"
-            data-success={c.success}
-            className={`h-1.5 min-w-px flex-1 rounded-[1px] ${c.success ? 'bg-emerald-500' : 'bg-red-500'}`}
-          />
-        ))}
+    <div data-testid="uptime-sparkline" className="relative mt-1.5 flex flex-col gap-1">
+      <div className="flex flex-nowrap gap-0.5 overflow-hidden">
+        {checks.map((c, i) => {
+          const time = fmtCheckTime(c.timestamp);
+          const result = c.success ? 'Passed' : 'Failed';
+          return (
+            <span
+              key={i}
+              data-testid="uptime-dot"
+              data-success={c.success}
+              aria-label={time ? `${result} – ${time}` : result}
+              className={`h-1.5 min-w-px flex-1 rounded-[1px] ${c.success ? 'bg-emerald-500' : 'bg-red-500'}`}
+              onMouseEnter={canHover ? () => setHovered(i) : undefined}
+              onMouseLeave={canHover ? () => setHovered(null) : undefined}
+              onFocus={canHover ? () => setHovered(i) : undefined}
+              onBlur={canHover ? () => setHovered(null) : undefined}
+            />
+          );
+        })}
       </div>
+      {active && (
+        // Anchored to the (non-clipping) sparkline wrapper, not the overflow-hidden
+        // dot row — otherwise the tooltip is clipped away. Floats above the dots.
+        <div
+          data-testid="uptime-tooltip"
+          role="tooltip"
+          className="pointer-events-none absolute bottom-full left-0 z-10 mb-1 whitespace-nowrap rounded bg-neutral-800 px-2 py-1 text-xs text-white shadow-md"
+        >
+          <span className={active.success ? 'text-emerald-400' : 'text-red-400'}>
+            {active.success ? '✓ Passed' : '✗ Failed'}
+          </span>
+          {activeTime && <div className="text-neutral-300">{activeTime}</div>}
+        </div>
+      )}
       <span data-testid="uptime-label" className="text-xs text-neutral-400 dark:text-neutral-500">
         {pct}% / {total} {total === 1 ? 'check' : 'checks'}
       </span>
