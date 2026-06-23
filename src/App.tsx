@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { authConfig, login, logout, me, register, type User } from './api';
 import AppHeader from './AppHeader';
 import Catalog from './Catalog';
+import StatusBar from './StatusBar';
 import CommandLauncher from './CommandLauncher';
 import { LauncherProvider } from './launcher';
 import { ServicesProvider, useServicesContext } from './services';
@@ -73,6 +74,8 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             onGoToDashboard={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             onLogout={handleLogout}
           />
+
+          <StatusBar />
 
           <section className="mx-auto max-w-6xl px-4 py-6">
             <Catalog isAdmin={isAdmin} editMode={editMode} />
