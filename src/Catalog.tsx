@@ -42,6 +42,7 @@ import {
   type UptimeCheck,
 } from './api';
 import { iconSrc, initialBadge, validateIconFile } from './icons';
+import { OPENED_EVENT, clearRecent, loadRecent, recordOpen } from './recently-opened';
 import LibraryBrowse from './LibraryBrowse';
 import ServiceForm from './ServiceForm';
 import { useServicesContext } from './services';
@@ -570,6 +571,12 @@ export default function Catalog({
         </div>
       )}
 
+      {/* Cap #3 — the "Recently opened" row. Self-contained: reads localStorage
+          on mount and re-reads on the OPENED_EVENT, so it needs no prop drill.
+          It guards its own visibility (hidden in edit mode, empty list, or empty
+          catalog), so it can sit here above the grid unconditionally. */}
+      <RecentlyOpenedRow items={items} theme={theme} rev={rev} editMode={editMode} />
+
       {items.length === 0 ? (
         <div data-testid="dashboard-empty" className="dashboard-empty">
           <svg
@@ -674,6 +681,86 @@ export default function Catalog({
         />
       )}
     </>
+  );
+}
+
+// Cap #3 — the "Recently opened" row: a compact horizontal strip of the last
+// ≤8 services the user opened, newest-first. Backed entirely by localStorage
+// (see ./recently-opened). It reads the id list on mount and re-reads whenever
+// a tile (here or in the grid) fires OPENED_EVENT, so it updates without a prop
+// drill. Stored ids that no longer resolve to a live service are dropped, and
+// the row hides itself in edit mode, when the list is empty, or when the
+// catalog is empty.
+function RecentlyOpenedRow({
+  items,
+  theme,
+  rev,
+  editMode,
+}: {
+  items: Service[];
+  theme: IconVariant;
+  rev: number;
+  editMode: boolean;
+}) {
+  const [recentIds, setRecentIds] = useState<string[]>(loadRecent);
+
+  useEffect(() => {
+    const handler = () => setRecentIds(loadRecent());
+    window.addEventListener(OPENED_EVENT, handler);
+    return () => window.removeEventListener(OPENED_EVENT, handler);
+  }, []);
+
+  if (editMode || recentIds.length === 0 || items.length === 0) return null;
+
+  const byId = new Map(items.map((s) => [s.id, s]));
+  const resolved = recentIds.map((id) => byId.get(id)).filter(Boolean) as Service[];
+  if (resolved.length === 0) return null;
+
+  return (
+    <div data-testid="recently-opened-row" className="mb-6">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+          Recently opened
+        </span>
+        <button
+          type="button"
+          data-testid="recently-opened-clear"
+          onClick={clearRecent}
+          className="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+        >
+          Clear
+        </button>
+      </div>
+      {/* Horizontal strip — scrolls on narrow viewports, single line when ≤8
+          items fit (AC-011). Each item is the same kind of new-tab link as the
+          full tile and records its own open (AC-004). */}
+      <div className="flex gap-3 overflow-x-auto pb-1">
+        {resolved.map((s) => (
+          <a
+            key={s.id}
+            data-testid="recently-opened-item"
+            data-service-id={s.id}
+            href={s.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            onClick={() => recordOpen(s.id)}
+            className="flex w-16 shrink-0 flex-col items-center gap-1 rounded-lg p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          >
+            <img
+              data-testid="recently-opened-icon"
+              src={iconSrc(s, theme, rev)}
+              alt=""
+              data-fallback={initialBadge(s.name)}
+              onError={handleIconError}
+              className="h-10 w-10 rounded-lg object-contain"
+            />
+            <span className="w-full truncate text-center text-xs text-neutral-700 dark:text-neutral-300">
+              {s.name}
+            </span>
+          </a>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -972,6 +1059,7 @@ function ServiceTile({
         href={service.url}
         target="_blank"
         rel="noreferrer noopener"
+        onClick={() => recordOpen(service.id)}
         className="flex flex-col rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
       >
         <img
