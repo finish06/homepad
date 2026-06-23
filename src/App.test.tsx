@@ -43,6 +43,9 @@ vi.mock('./api', () => ({
   // v8: Home now wraps the grid in ServicesProvider, which loads the shared
   // Service[] for the command launcher. Stub it so the provider's fetch resolves.
   services: vi.fn(() => Promise.resolve([])),
+  // v13: the provider loads + re-polls via servicesWithStatus. Stub it so the
+  // initial load and any poll resolve to an empty, 200 list.
+  servicesWithStatus: vi.fn(() => Promise.resolve({ status: 200, services: [] })),
 }));
 
 const mockedAuthConfig = vi.mocked(authConfig);

@@ -141,11 +141,24 @@ export async function logout(): Promise<void> {
   await fetch('/api/logout', { method: 'POST', credentials: 'include' });
 }
 
+// servicesWithStatus is the richer form used by the v13 auto-refresh poll: it
+// surfaces the HTTP status alongside the list so the poller can tell a transient
+// failure (keep the old data — AC-008) from a 401 session expiry (stop polling —
+// AC-011). `status: 0` signals a network/throw. A non-200 yields an empty list,
+// which the poller never applies — it only merges on a 200.
+export async function servicesWithStatus(): Promise<{ status: number; services: Service[] }> {
+  try {
+    const res = await fetch('/api/services', { credentials: 'include' });
+    if (res.status !== 200) return { status: res.status, services: [] };
+    const data = (await res.json()) as { services: Service[] };
+    return { status: 200, services: data.services ?? [] };
+  } catch {
+    return { status: 0, services: [] };
+  }
+}
+
 export async function services(): Promise<Service[]> {
-  const res = await fetch('/api/services', { credentials: 'include' });
-  if (res.status !== 200) return [];
-  const data = (await res.json()) as { services: Service[] };
-  return data.services ?? [];
+  return (await servicesWithStatus()).services;
 }
 
 // setFavorite marks (on) or unmarks (off) a service for the current user.

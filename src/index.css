@@ -93,6 +93,23 @@
       0 0 0 3px rgba(244, 63, 94, 0.16),
       0 0 9px rgba(244, 63, 94, 0.5);
   }
+  /* v13 — a single-shot pulse played when a tile's status changes on a live
+     refresh (AC-006). Tailwind's animate-pulse loops; this fires once and
+     settles. The JS already skips the class under prefers-reduced-motion
+     (AC-007); this @media guard is belt-and-suspenders. */
+  @keyframes status-pulse {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.9); }
+    100% { transform: scale(1); }
+  }
+  .status-dot--pulse {
+    animation: status-pulse 0.7s ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .status-dot--pulse {
+      animation: none;
+    }
+  }
 
   /* §5 Category header — muted text, accent chip (::before), hairline divider. */
   .cat-head {

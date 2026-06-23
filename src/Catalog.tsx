@@ -92,6 +92,28 @@ const statusLabel: Record<ServiceStatus, string> = {
   NOT_MONITORED: 'Not monitored',
 };
 
+function prefersReducedMotion(): boolean {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+}
+
+// v13 — pulse a tile's status dot once when its status changes between refresh
+// cycles (AC-006). Tracks the previous status across renders: the first render
+// (mount) never pulses, and an unchanged status never pulses. Under
+// prefers-reduced-motion the dot updates immediately, no animation (AC-007).
+function useStatusPulse(status: ServiceStatus): boolean {
+  const prev = useRef(status);
+  const [pulsing, setPulsing] = useState(false);
+  useEffect(() => {
+    if (prev.current === status) return;
+    prev.current = status;
+    if (prefersReducedMotion()) return;
+    setPulsing(true);
+    const t = setTimeout(() => setPulsing(false), 900);
+    return () => clearTimeout(t);
+  }, [status]);
+  return pulsing;
+}
+
 export default function Catalog({
   isAdmin = false,
   editMode = false,
@@ -896,6 +918,8 @@ function ServiceTile({
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition } =
     useSortable({ id: service.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
+  // v13 — one-shot pulse when this tile's status flips on a refresh (AC-006/007).
+  const pulsing = useStatusPulse(service.status);
   return (
     <div
       ref={setNodeRef}
@@ -908,10 +932,13 @@ function ServiceTile({
       <span
         data-testid="status-badge"
         data-status={service.status}
+        data-pulsing={pulsing ? 'true' : 'false'}
         role="img"
         title={statusLabel[service.status] ?? service.status}
         aria-label={`status: ${statusLabel[service.status] ?? service.status}`}
-        className={`status-dot absolute right-3 top-3 ${statusDot[service.status] ?? statusDot.UNKNOWN}`}
+        className={`status-dot absolute right-3 top-3 ${statusDot[service.status] ?? statusDot.UNKNOWN} ${
+          pulsing ? 'status-dot--pulse' : ''
+        }`}
       />
       {/* v10 §5.2 — the drag grip. A real <button> (the single drag origin for
           pointer, touch, AND keyboard) at the bottom-right so it doesn't fight
