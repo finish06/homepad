@@ -535,7 +535,11 @@ export default function Catalog({
           their personal dashboard is theirs to fill. #83: while the dashboard is
           empty or sparse, adding apps is the primary onboarding action, so this
           reads as a filled (solid) button; once the dashboard is well populated it
-          steps back to a quiet ghost so it doesn't compete with the apps. */}
+          steps back to a quiet ghost so it doesn't compete with the apps. #119:
+          when the dashboard is fully empty the empty-state block below renders its
+          own prominent CTA, so this button stands down to avoid two competing
+          indigo CTAs that do the identical thing. */}
+      {items.length > 0 && (
       <div className="mb-4 flex items-center gap-3">
         <button
           type="button"
@@ -551,6 +555,7 @@ export default function Catalog({
           + Add apps
         </button>
       </div>
+      )}
 
       {adminEdit && (
         <div className="mb-4 space-y-4">

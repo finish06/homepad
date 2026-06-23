@@ -266,12 +266,13 @@ describe('A16 — empty-dashboard CTA opens the browse surface', () => {
 });
 
 describe('#83 — "+ Add apps" emphasis follows how full the dashboard is', () => {
-  it('is a FILLED (primary) button when the dashboard is empty', async () => {
+  it('is suppressed when the dashboard is empty, deferring to the empty-state CTA (#119)', async () => {
     mockedServices.mockResolvedValue([]);
     render(<Catalog />);
-    const btn = await screen.findByTestId('open-library');
-    expect(btn).toHaveAttribute('data-emphasis', 'filled');
-    expect(btn.className).toMatch(/bg-indigo-600/);
+    // The empty-state block renders its own prominent CTA, so the always-on
+    // "+ Add apps" button stands down to avoid two competing indigo CTAs.
+    await screen.findByTestId('dashboard-empty');
+    expect(screen.queryByTestId('open-library')).not.toBeInTheDocument();
   });
 
   it('is FILLED when the dashboard is sparse (a couple of apps)', async () => {
@@ -289,6 +290,17 @@ describe('#83 — "+ Add apps" emphasis follows how full the dashboard is', () =
     const btn = await screen.findByTestId('open-library');
     expect(btn).toHaveAttribute('data-emphasis', 'ghost');
     expect(btn.className).not.toMatch(/bg-indigo-600/);
+  });
+});
+
+describe('#119 — exactly one filled CTA on the empty dashboard', () => {
+  it('shows only the empty-state CTA, not also the filled "+ Add apps" button', async () => {
+    mockedServices.mockResolvedValue([]);
+    render(<Catalog />);
+    // The empty-state gradient CTA is the single primary action...
+    expect(await screen.findByTestId('browse-library-cta')).toBeInTheDocument();
+    // ...and the always-on filled "+ Add apps" button is not duplicated here.
+    expect(screen.queryByTestId('open-library')).not.toBeInTheDocument();
   });
 });
 
