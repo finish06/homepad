@@ -360,13 +360,13 @@ const statusDot: Record<ServiceStatus, string> = {
   DOWN: 'bg-red-500',
   DEGRADED: 'bg-amber-400',
   UNKNOWN: 'bg-neutral-300',
-  NOT_MONITORED: 'bg-transparent border-2 border-dashed border-neutral-300 dark:border-neutral-600',
+  NOT_MONITORED: 'bg-transparent border-2 border-dashed border-neutral-400 dark:border-neutral-500',
 };
 ```
 
-Light mode: `border-neutral-300` (same mid-gray as the UNKNOWN dot fill — visually
-related but unmistakably different).
-Dark mode: `dark:border-neutral-600` — slightly brighter to contrast against dark tile
+Light mode: `border-neutral-400` (a touch darker than the UNKNOWN dot fill — visually
+related but unmistakably different, and legible at 9px per #80).
+Dark mode: `dark:border-neutral-500` — brighter to contrast against dark tile
 backgrounds.
 
 ### Accessible label
@@ -507,7 +507,7 @@ const statusDot: Record<ServiceStatus, string> = {
   DOWN: 'bg-red-500',
   DEGRADED: 'bg-amber-400',
   UNKNOWN: 'bg-neutral-300',
-  NOT_MONITORED: 'bg-transparent border-2 border-dashed border-neutral-300 dark:border-neutral-600',
+  NOT_MONITORED: 'bg-transparent border-2 border-dashed border-neutral-400 dark:border-neutral-500',
 };
 
 const statusLabel: Record<ServiceStatus, string> = {

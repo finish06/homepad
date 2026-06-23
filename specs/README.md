@@ -16,6 +16,7 @@ Historical specs for shipped versions are in [`specs/archive/`](./archive/).
 | [`v12-settings-boundary-clarity.md`](./v12-settings-boundary-clarity.md) | My Dashboard vs. Administration section split in UserMenu; per-field env badges in SettingsPanel; test-id cleanup. Resolves the three confusion points v11 left open. | **Shipped — prod (PR #77)** |
 | [`not-monitored-state.md`](./not-monitored-state.md) | Distinct `NOT_MONITORED` tile state (outlined dashed ring) vs. `UNKNOWN` (gray dot). Distinguishes unwired tiles from monitoring failures. | **Shipped — prod (PR #48–#50)** |
 | [`uptime-sparkline.md`](./uptime-sparkline.md) | Uptime sparkline strip on each tile — ≤20 Gatus historical check dots + rolling uptime %. Reads free data already in the poller. | **Shipped — prod (PR #46–#47)** |
+| [`SPEC-mobile-launcher-ux.md`](./SPEC-mobile-launcher-ux.md) | Mobile command-launcher UX — hide keyboard-hint footer on phones (`hidden sm:flex`) and lift the search trigger + avatar to the 44×44px tap-target minimum. | **Shipped — prod (PR #129)** |
 
 ## Closed / Superseded Intake Specs
 
