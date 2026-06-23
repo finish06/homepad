@@ -111,6 +111,21 @@
     }
   }
 
+  /* cap5 — toast slide/fade-in (AC-011 disables it under reduced motion, so the
+     toast appears instantly). Independent of the tile pulse (AC-013). */
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(0.5rem); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .toast-item {
+    animation: toast-in 0.15s ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .toast-item {
+      animation: none;
+    }
+  }
+
   /* §5 Category header — muted text, accent chip (::before), hairline divider. */
   .cat-head {
     font-size: 0.82rem;

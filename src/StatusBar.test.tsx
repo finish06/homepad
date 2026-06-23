@@ -32,8 +32,8 @@ function svc(status: ServiceStatus, id: string): Service {
 function setItems(items: Service[] | null) {
   mockedCtx.mockReturnValue(
     items === null
-      ? { items: null, setItems: vi.fn(), lastUpdatedAt: null }
-      : { items, setItems: vi.fn(), lastUpdatedAt: null },
+      ? { items: null, setItems: vi.fn(), lastUpdatedAt: null, recentChanges: [] }
+      : { items, setItems: vi.fn(), lastUpdatedAt: null, recentChanges: [] },
   );
 }
 

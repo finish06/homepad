@@ -7,6 +7,7 @@ import CommandLauncher from './CommandLauncher';
 import { LauncherProvider } from './launcher';
 import { ServicesProvider, useServicesContext } from './services';
 import SettingsPanel from './SettingsPanel';
+import ToastContainer from './Toasts';
 import { ThemeProvider } from './theme';
 
 export default function App() {
@@ -82,6 +83,9 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
           </section>
 
           <LauncherMount />
+
+          {/* cap5 — ambient status-change toasts; reads recentChanges from context. */}
+          <ToastContainer />
 
           {settingsOpen && (
             <SettingsPanel
