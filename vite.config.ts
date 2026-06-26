@@ -17,7 +17,10 @@ const appVersion: string = JSON.parse(readFileSync('./package.json', 'utf8')).ve
 let gitSha: string;
 const envSha = process.env.GIT_SHA?.trim();
 if (envSha && envSha !== 'dev') {
-  gitSha = envSha;
+  // ci-shared passes the full 40-char `${{ github.sha }}`; condense it to the
+  // 7-char short form (like `git rev-parse --short`) so the footer badge reads
+  // cleanly instead of showing a 40-char wall.
+  gitSha = envSha.slice(0, 7);
 } else {
   try {
     gitSha = execSync('git rev-parse --short HEAD').toString().trim();
