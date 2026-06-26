@@ -1,3 +1,8 @@
+// @vitest-environment node
+// This file is pure fs/grep + a real import of vite.config (which pulls in
+// @vitejs/plugin-react -> esbuild). esbuild's startup invariant fails under
+// jsdom's patched TextEncoder, so run this suite in the node environment.
+//
 // #157: the prod footer showed "homepad vN (dev)" instead of the build's short
 // commit sha. Root cause (Ada): the Docker BUILD stage only COPYs the source
 // tree — no .git — so vite.config.ts's `git rev-parse --short HEAD` always threw
@@ -10,7 +15,7 @@
 // the build sha), not a cache/env mechanism theory, so it survives a wrong guess.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 
 const dockerfile = readFileSync(resolve(process.cwd(), 'Dockerfile'), 'utf8');
 const viteConfig = readFileSync(resolve(process.cwd(), 'vite.config.ts'), 'utf8');
@@ -39,5 +44,28 @@ describe('#157 — footer shows the build sha, not (dev): GIT_SHA is threaded in
 
   it('vite.config.ts reads process.env.GIT_SHA (the CI-provided sha) as the source', () => {
     expect(viteConfig).toMatch(/process\.env\.GIT_SHA/);
+  });
+});
+
+// ci-shared passes the FULL 40-char `${{ github.sha }}` as --build-arg GIT_SHA,
+// but the footer badge should read like `git rev-parse --short` (7 chars), not a
+// 40-char wall. Assert the baked __GIT_SHA__ is condensed to its first 7 chars.
+describe('#157 — the baked GIT_SHA is condensed to a 7-char short sha', () => {
+  const realEnv = process.env.GIT_SHA;
+  afterEach(() => {
+    if (realEnv === undefined) delete process.env.GIT_SHA;
+    else process.env.GIT_SHA = realEnv;
+    vi.resetModules();
+  });
+
+  it('truncates a full 40-char CI sha to its first 7 chars', async () => {
+    const full = 'abcdef0123456789abcdef0123456789abcdef01';
+    process.env.GIT_SHA = full;
+    vi.resetModules();
+    const config = (await import('../vite.config')).default as {
+      define: Record<string, string>;
+    };
+    expect(config.define.__GIT_SHA__).toBe(JSON.stringify(full.slice(0, 7)));
+    expect(config.define.__GIT_SHA__).toBe(JSON.stringify('abcdef0'));
   });
 });
