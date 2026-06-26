@@ -16,11 +16,11 @@ import type { Service, ServiceStatus } from './api';
 type PeekStatus = 'UP' | 'DOWN_DEGRADED' | 'NOT_MONITORED';
 
 // Status-dot color coding, matching the tiles (Catalog.tsx statusDot): UP green,
-// DOWN red, DEGRADED amber, NOT_MONITORED dashed neutral ring (AC-004/AC-011).
+// DOWN/DEGRADED red, NOT_MONITORED dashed neutral ring (AC-004/AC-011).
 const peekDot: Record<ServiceStatus, string> = {
   UP: 'bg-emerald-500',
   DOWN: 'bg-red-500',
-  DEGRADED: 'bg-amber-400',
+  DEGRADED: 'bg-red-500',
   UNKNOWN: 'bg-neutral-300',
   NOT_MONITORED: 'bg-transparent border-2 border-dashed border-neutral-400 dark:border-neutral-500',
 };
