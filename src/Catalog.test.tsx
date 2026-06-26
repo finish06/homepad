@@ -389,6 +389,43 @@ describe('v11 A7 — edit-mode banner', () => {
   });
 });
 
+describe('#149 — quick exit from edit mode via the banner', () => {
+  it('A1 — renders a "Done editing" exit button inside the banner in edit mode', async () => {
+    render(<Catalog isAdmin editMode onExitEdit={() => {}} />);
+    await screen.findByTestId('service-tile');
+    const banner = screen.getByTestId('edit-mode-banner');
+    const exit = within(banner).getByTestId('exit-edit-mode');
+    expect(exit).toHaveTextContent(/done editing/i);
+  });
+
+  it('A2 — clicking "Done editing" fires onExitEdit once', async () => {
+    const onExitEdit = vi.fn();
+    render(<Catalog isAdmin editMode onExitEdit={onExitEdit} />);
+    await screen.findByTestId('service-tile');
+    await userEvent.click(screen.getByTestId('exit-edit-mode'));
+    expect(onExitEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it('A7 — renders no exit button when onExitEdit is not provided', async () => {
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('service-tile');
+    expect(screen.getByTestId('edit-mode-banner')).toBeInTheDocument();
+    expect(screen.queryByTestId('exit-edit-mode')).not.toBeInTheDocument();
+  });
+
+  it('renders no exit button when edit mode is off', async () => {
+    render(<Catalog isAdmin editMode={false} onExitEdit={() => {}} />);
+    await screen.findByTestId('service-tile');
+    expect(screen.queryByTestId('exit-edit-mode')).not.toBeInTheDocument();
+  });
+
+  it('A9 — no axe violations with the exit button rendered in edit mode', async () => {
+    const { container } = render(<Catalog isAdmin editMode onExitEdit={() => {}} />);
+    await screen.findByTestId('exit-edit-mode');
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
 describe('A3(v2) — upload, replace, remove an icon', () => {
   it('validates then PUTs a light PNG and reveals the remove control', async () => {
     const user = userEvent.setup();
