@@ -1,8 +1,23 @@
 {
   "pending": [
-    { "type": "feature", "text": "Version badge + changelog overlay" }
+    { "type": "bug-fix", "text": "Degraded services now show a red dot in the status quick-peek popover, matching down (was amber)" }
   ],
   "versions": [
+    {
+      "version": "16.0.0",
+      "date": "2026-06-26",
+      "changes": [
+        { "type": "feature", "text": "Status bar quick-peek — click an up/down/not-monitored chip to open a popover listing the services in that state, each a link to its app" }
+      ]
+    },
+    {
+      "version": "15.0.0",
+      "date": "2026-06-26",
+      "changes": [
+        { "type": "feature", "text": "Version badge footer — the running app version and git SHA show in the footer" },
+        { "type": "feature", "text": "Changelog overlay — click the version badge to browse what shipped in each release" }
+      ]
+    },
     {
       "version": "14.0.0",
       "date": "2026-06-23",
