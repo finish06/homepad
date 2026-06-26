@@ -2,6 +2,19 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-26 — v15 + v17 hand-off live — first hand-off (v15) sent to Joe for Stitch dispatch
+
+Specs confirmed complete (committed `b1c0f2c`). Rollout plan active. Joe is dispatching Stitch
+for v15 first per the sequential plan below. Walt result published to
+`friend.walt.result.homepad-improvements-20260626`.
+
+**Pipeline state:**
+- v15: DISPATCHED TO STITCH (awaiting red→green TDD, then CI, then staging, then Gracie+Ada QA, then Walt PAT → prod)
+- v17: QUEUED (dispatches after v15 ships to prod)
+- v16: QUEUED (after v15 + v17)
+
+---
+
 ## 2026-06-26 — v15 + v17 improvements specced + dispatched to Stitch ✅
 
 Caleb ordered two Homepad improvements driven to prod. Specs committed; pipeline starting.
