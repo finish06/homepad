@@ -5,15 +5,25 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // v15 — version badge. Both values are injected at build time so the footer can
-// answer "which build is this?" with no backend call. __GIT_SHA__ falls back to
-// 'dev' when git history is unavailable (shallow clone, Docker layer without
-// .git, CI without history) so the build never fails on a missing git context.
+// answer "which build is this?" with no backend call.
+//
+// #157: the Docker build context has no .git (the build stage only COPYs the
+// source tree), so `git rev-parse` always threw and prod footers showed '(dev)'.
+// CI knows the commit sha, so the image build threads it in as the GIT_SHA env
+// var (Dockerfile ARG/ENV, fed by ci-shared's --build-arg). Read that first;
+// fall back to git for a local `vite build`, then to 'dev' so a missing git
+// context never fails the build.
 const appVersion: string = JSON.parse(readFileSync('./package.json', 'utf8')).version;
 let gitSha: string;
-try {
-  gitSha = execSync('git rev-parse --short HEAD').toString().trim();
-} catch {
-  gitSha = 'dev';
+const envSha = process.env.GIT_SHA?.trim();
+if (envSha && envSha !== 'dev') {
+  gitSha = envSha;
+} else {
+  try {
+    gitSha = execSync('git rev-parse --short HEAD').toString().trim();
+  } catch {
+    gitSha = 'dev';
+  }
 }
 
 // Same-domain deploy model — the homepad-api is reachable at /api/* in prod
