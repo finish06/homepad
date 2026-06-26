@@ -2,6 +2,27 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-26 — v15 + v16 specs DONE — queued for Stitch ✅
+
+Walt spec'd two Homepad improvements per Caleb's direction. Specs committed, pipeline starting.
+
+**v15 — Version Badge + Changelog Overlay** (`specs/v15-version-changelog.md`)
+Adapts fleet-feed's Option B+ changelog design to homepad's Tailwind language. Footer version
+badge (`homepad vN (sha)`) triggers a two-panel changelog dialog. Vite build-time `__APP_VERSION__`
++ `__GIT_SHA__` defines. Static `src/changelog.json`. 21 ACs. Frontend-only.
+
+**v16 — Status Bar Quick-Peek** (`specs/v16-status-bar-quick-peek.md`)
+StatusBar chips become clickable buttons — "2 DOWN" opens a popover listing the down services
+with direct links to their URLs. Builds on v14 status bar + v13 live polling data. 15 ACs.
+Frontend-only.
+
+**Rollout order:** v15 first (zero regression risk, pure additive), then v16. Can be dispatched
+to Stitch in parallel if desired — no code dependency between them.
+
+**Pipeline:** Stitch TDD red→green → CI → staging → Gracie+Ada QA diff → prod vote.
+
+---
+
 ## 2026-06-18 — #55 (v11 admin-ux) CI Web job fix: flaky async query ✅ (pushed, do NOT merge)
 
 Branch `feat/v11-admin-ux-clarity`. The "Browser gate" job passed but
