@@ -2,6 +2,65 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-06-26 — v15 + v17 hand-off live — first hand-off (v15) sent to Joe for Stitch dispatch
+
+Specs confirmed complete (committed `b1c0f2c`). Rollout plan active. Joe is dispatching Stitch
+for v15 first per the sequential plan below. Walt result published to
+`friend.walt.result.homepad-improvements-20260626`.
+
+**Pipeline state:**
+- v15: DISPATCHED TO STITCH (awaiting red→green TDD, then CI, then staging, then Gracie+Ada QA, then Walt PAT → prod)
+- v17: QUEUED (dispatches after v15 ships to prod)
+- v16: QUEUED (after v15 + v17)
+
+---
+
+## 2026-06-26 — v15 + v17 improvements specced + dispatched to Stitch ✅
+
+Caleb ordered two Homepad improvements driven to prod. Specs committed; pipeline starting.
+
+**Improvement #1 — v15: Version Badge + Changelog Overlay** (`specs/v15-version-changelog.md`)
+Adapts fleet-feed's Option B+ changelog design to homepad's Tailwind language. Footer version
+badge (`homepad vN (sha)`) triggers a two-panel changelog dialog with version list + chip-tagged
+change entries. Vite build-time `__APP_VERSION__` + `__GIT_SHA__` defines. Static
+`src/changelog.json`. 21 ACs. Frontend-only.
+
+**Improvement #2 — v17: Status Alert History** (`specs/v17-alert-history.md`)
+Bell icon in AppHeader shows unread badge for status-change events captured by the 60s polling
+cycle. Opens a compact overlay with event log (newest-first): service name, status transition dots,
+timestamp, external link. Session-memory only — resets on reload by design. 15 ACs. Frontend-only.
+
+**Rollout plan (sequential, no dependency between them):**
+1. Stitch TDD red→green for v15 (branch `feat/v15-version-changelog`)
+2. CI green → staging deploy → Gracie + Ada QA diff → prod vote
+3. Stitch TDD red→green for v17 (branch `feat/v17-alert-history`)
+4. CI green → staging deploy → Gracie + Ada QA diff → prod vote
+
+**v16 (status bar quick-peek) is also specced and queued** — ships after v15/v17.
+
+---
+
+## 2026-06-26 — v15 + v16 specs DONE — queued for Stitch ✅
+
+Walt spec'd two Homepad improvements per Caleb's direction. Specs committed, pipeline starting.
+
+**v15 — Version Badge + Changelog Overlay** (`specs/v15-version-changelog.md`)
+Adapts fleet-feed's Option B+ changelog design to homepad's Tailwind language. Footer version
+badge (`homepad vN (sha)`) triggers a two-panel changelog dialog. Vite build-time `__APP_VERSION__`
++ `__GIT_SHA__` defines. Static `src/changelog.json`. 21 ACs. Frontend-only.
+
+**v16 — Status Bar Quick-Peek** (`specs/v16-status-bar-quick-peek.md`)
+StatusBar chips become clickable buttons — "2 DOWN" opens a popover listing the down services
+with direct links to their URLs. Builds on v14 status bar + v13 live polling data. 15 ACs.
+Frontend-only.
+
+**Rollout order:** v15 first (zero regression risk, pure additive), then v16. Can be dispatched
+to Stitch in parallel if desired — no code dependency between them.
+
+**Pipeline:** Stitch TDD red→green → CI → staging → Gracie+Ada QA diff → prod vote.
+
+---
+
 ## 2026-06-18 — #55 (v11 admin-ux) CI Web job fix: flaky async query ✅ (pushed, do NOT merge)
 
 Branch `feat/v11-admin-ux-clarity`. The "Browser gate" job passed but
