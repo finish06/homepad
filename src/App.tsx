@@ -8,6 +8,7 @@ import { LauncherProvider } from './launcher';
 import { ServicesProvider, useServicesContext } from './services';
 import SettingsPanel from './SettingsPanel';
 import ToastContainer from './Toasts';
+import ChangelogOverlay from './ChangelogOverlay';
 import { ThemeProvider } from './theme';
 
 export default function App() {
@@ -51,6 +52,8 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // from the client-visible auth config — no API change.
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [oidcEnabled, setOidcEnabled] = useState(false);
+  // v15 — version badge in the footer opens the changelog overlay.
+  const [changelogOpen, setChangelogOpen] = useState(false);
   useEffect(() => {
     authConfig().then((c) => setOidcEnabled(c.oidcEnabled));
   }, []);
@@ -95,6 +98,24 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             />
           )}
         </main>
+
+        {/* v15 — quiet version badge in natural page flow (not sticky). Opens
+            the changelog overlay so an operator can confirm what this build
+            shipped without leaving the dashboard. */}
+        <footer
+          data-testid="app-footer"
+          className="border-t border-neutral-100 dark:border-neutral-800 py-3 text-center"
+        >
+          <button
+            type="button"
+            aria-label="Open changelog"
+            onClick={() => setChangelogOpen(true)}
+            className="text-xs text-neutral-400 hover:text-neutral-700 hover:underline dark:text-neutral-500 dark:hover:text-neutral-300 bg-transparent border-none cursor-pointer"
+          >
+            homepad v{__APP_VERSION__} ({__GIT_SHA__})
+          </button>
+        </footer>
+        <ChangelogOverlay open={changelogOpen} onClose={() => setChangelogOpen(false)} />
       </ServicesProvider>
     </LauncherProvider>
   );
