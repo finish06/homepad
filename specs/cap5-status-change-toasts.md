@@ -1,9 +1,9 @@
 # Spec: Status-Change Toast Alerts — Capability #5
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Created:** 2026-06-23
 **Author:** Walt (product lead)
-**Status:** Ready for implementation
+**Status:** Shipped — bug-fix required (see AC-015, issue #147)
 **Repo:** `Code/homepad` (frontend only — no backend changes)
 **Estimate:** ~30 minutes
 **Depends on:** v13 live-status-refresh (shipped), v14 StatusBar (shipped)
@@ -58,6 +58,7 @@ alerting have Gatus's own notification integrations.
 | AC-012 | Toasts do **not** appear while the tab is hidden (`document.visibilityState === 'hidden'`). If a poll fires while hidden and detects changes, those changes are silently dropped — the next visible poll is the source of truth. | Must |
 | AC-013 | The existing tile pulse animation (v13) still fires alongside toasts — the two signals are independent. | Must |
 | AC-014 | Toasts do not block interaction with any part of the dashboard (pointer-events pass through the overlay area when no toast is visible). | Must |
+| AC-015 | `recentChanges` in context **must be reset to `[]` immediately after `ToastContainer` consumes it.** If `ToastContainer` unmounts and remounts while `ServicesProvider` is still alive, the fresh mount must not re-fire ghost toasts from a prior poll cycle. Expose a `clearRecentChanges` callback in context; `ToastContainer` calls it after enqueuing. | Must |
 
 ---
 
@@ -189,7 +190,19 @@ if (initial) {
 }
 ```
 
-Pass `recentChanges` through the context value.
+Extend `ServicesContextValue` with a `clearRecentChanges` callback (AC-015):
+
+```tsx
+export type ServicesContextValue = {
+  items: Service[] | null;
+  setItems: React.Dispatch<React.SetStateAction<Service[] | null>>;
+  lastUpdatedAt: number | null;
+  recentChanges: StatusChange[];
+  clearRecentChanges: () => void;  // AC-015: called by ToastContainer after consuming
+};
+```
+
+In `ServicesProvider`, expose `clearRecentChanges: () => setRecentChanges([])` and pass both through the context value.
 
 ---
 
@@ -215,6 +228,8 @@ export default function ToastContainer() {
       .filter((t) => !seen.current.has(t.id));
     incoming.forEach((t) => seen.current.add(t.id));
     setQueue((q) => [...q, ...incoming]);
+    // AC-015: reset context so a remounted ToastContainer can't replay ghost toasts
+    ctx.clearRecentChanges();
   }, [ctx?.recentChanges]);
 
   function dismiss(id: string) {
@@ -315,6 +330,7 @@ Stitch should add tests in a new `src/Toasts.test.tsx` and update
 | T-009 | Toasts.test.tsx | Toast auto-dismisses after 4 seconds (fake timers) |
 | T-010 | Toasts.test.tsx | Multiple simultaneous changes produce multiple toasts |
 | T-011 | Toasts.test.tsx | At most 3 toasts visible when 4+ changes arrive (AC-008) |
+| T-012 | Toasts.test.tsx | Ghost-toast regression (AC-015): after `ToastContainer` consumes changes, `clearRecentChanges` is called; a fresh `ToastContainer` mount finds `recentChanges=[]` and fires no toasts |
 
 ---
 
@@ -336,3 +352,4 @@ Stitch should add tests in a new `src/Toasts.test.tsx` and update
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
 | 2026-06-23 | 0.1.0 | Walt | Initial spec — grounded in services.tsx mergeStatuses, v13 polling, v14 StatusBar; cap3+cap4 patterns |
+| 2026-06-26 | 0.2.0 | Walt | **AC-015 (mandatory):** `recentChanges` must be reset to `[]` after consumption. Adds `clearRecentChanges` to context; `ToastContainer` calls it post-enqueue. Fixes ghost-toast regression identified in issue #147. Adds T-012 test. |
