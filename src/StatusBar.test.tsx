@@ -159,6 +159,28 @@ describe('StatusBar quick-peek popover', () => {
     expect(within(pop).queryByText('Alpha')).toBeNull();
   });
 
+  // AC-011: DOWN and DEGRADED both render a red dot in the popover (not amber).
+  it('renders the DEGRADED service dot red like DOWN (A16-9)', async () => {
+    const user = userEvent.setup();
+    setItems([
+      named('DOWN', 'd1', 'Jellyfin', 'https://jelly.test'),
+      named('DEGRADED', 'g1', 'Zulu', 'https://zulu.test'),
+    ]);
+    render(<StatusBar />);
+
+    await user.click(screen.getByTestId('status-bar-down'));
+    const pop = screen.getByTestId('status-peek-popover');
+    const links = within(pop).getAllByRole('link');
+    const dotOf = (a: HTMLElement) => a.querySelector('span[aria-hidden]') as HTMLElement;
+
+    // Jellyfin (DOWN) and Zulu (DEGRADED) must both be red.
+    for (const link of links) {
+      const dot = dotOf(link);
+      expect(dot.className).toContain('bg-red-500');
+      expect(dot.className).not.toContain('bg-amber-400');
+    }
+  });
+
   // AC-002: clicking the same open chip again closes the popover.
   it('toggles closed when the open chip is re-clicked (A16-4)', async () => {
     const user = userEvent.setup();
