@@ -1,25 +1,24 @@
 {
-  "pending": [
-    { "type": "bug-fix", "text": "Degraded services now show a red dot in the status quick-peek popover, matching down (was amber)" }
-  ],
+  "pending": [],
   "versions": [
     {
-      "version": "16.0.0",
+      "version": "12.0.1",
       "date": "2026-06-26",
       "changes": [
-        { "type": "feature", "text": "Status bar quick-peek — click an up/down/not-monitored chip to open a popover listing the services in that state, each a link to its app" }
+        { "type": "bug-fix", "text": "Degraded services now show a red dot in the status quick-peek popover, matching down (was amber)" }
       ]
     },
     {
-      "version": "15.0.0",
+      "version": "12.0.0",
       "date": "2026-06-26",
       "changes": [
+        { "type": "feature", "text": "Status bar quick-peek — click an up/down/not-monitored chip to open a popover listing the services in that state, each a link to its app" },
         { "type": "feature", "text": "Version badge footer — the running app version and git SHA show in the footer" },
         { "type": "feature", "text": "Changelog overlay — click the version badge to browse what shipped in each release" }
       ]
     },
     {
-      "version": "14.0.0",
+      "version": "11.0.0",
       "date": "2026-06-23",
       "changes": [
         { "type": "feature", "text": "Dashboard status summary bar — at-a-glance up/down/unknown counts across all tiles" },
@@ -29,14 +28,14 @@
       ]
     },
     {
-      "version": "13.0.0",
+      "version": "10.0.0",
       "date": "2026-06-23",
       "changes": [
         { "type": "feature", "text": "Live status auto-refresh with a 'last updated' indicator — tiles repoll without a page reload" }
       ]
     },
     {
-      "version": "12.0.0",
+      "version": "9.0.0",
       "date": "2026-06-19",
       "changes": [
         { "type": "enhancement", "text": "Settings boundary clarity — the user menu splits into 'My Dashboard' (all users) and 'Administration' (admin only)" },
@@ -44,7 +43,7 @@
       ]
     },
     {
-      "version": "11.0.0",
+      "version": "8.0.0",
       "date": "2026-06-18",
       "changes": [
         { "type": "enhancement", "text": "Admin/personal scope clarity — admin items grouped under a labelled section, the Settings modal retitled 'Admin Panel' with a global-scope subtitle" },
@@ -53,7 +52,7 @@
       ]
     },
     {
-      "version": "10.0.0",
+      "version": "7.0.0",
       "date": "2026-06-13",
       "changes": [
         { "type": "feature", "text": "Always-on tile drag-and-drop (dnd-kit) with a per-tile '⋯' overflow menu" },
@@ -62,21 +61,21 @@
       ]
     },
     {
-      "version": "9.0.0",
+      "version": "6.0.0",
       "date": "2026-06-05",
       "changes": [
         { "type": "feature", "text": "Per-user dashboards — personal tile ordering, favorites, and an App Library to browse and add apps" }
       ]
     },
     {
-      "version": "8.0.0",
+      "version": "5.0.0",
       "date": "2026-05-30",
       "changes": [
         { "type": "feature", "text": "Command launcher — a ⌘K / '/' fuzzy-search palette to jump to any app" }
       ]
     },
     {
-      "version": "7.0.0",
+      "version": "4.0.0",
       "date": "2026-05-24",
       "changes": [
         { "type": "feature", "text": "UX redesign — refreshed tiles, headers, status glow, and surface; identity moved into an avatar UserMenu" }

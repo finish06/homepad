@@ -1,11 +1,27 @@
 # Changelog
 
 All notable changes to homepad are documented here.
-Versions align with the homepad milestone naming: v9, v10, v11 → semver major.
 
-## [16.0.0] — 2026-06-26
+Versions follow SemVer (Major.Minor.Patch) as declared in `package.json` — that
+is the canonical app version and the one the footer version badge renders. The
+"v7…v16" names are milestone/feature **codenames**, not version numbers; where a
+codename maps to a release it is noted in the heading.
 
-### Status Bar Quick-Peek (#153)
+## [12.0.1] — 2026-06-26
+
+### Quick-Peek Degraded Dot Fix (#155)
+
+The status quick-peek popover rendered DEGRADED services with an amber dot. They
+now render a red dot, matching DOWN — degraded is a problem state and should read
+as one.
+
+- `StatusBar.tsx`: DEGRADED maps to the red status dot like DOWN in the popover.
+
+## [12.0.0] — 2026-06-26 — v15 + v16
+
+The v15 and v16 milestones shipped together as 12.0.0.
+
+### Status Bar Quick-Peek (#153) — v16
 
 The status-bar summary chips (UP / DOWN / NOT MONITORED) are now clickable. Each
 opens a popover listing the services in that bucket — every row a new-tab link to
@@ -16,9 +32,7 @@ the open chip.
 - `StatusBar.tsx`: `StatusPeekPopover` (role `dialog`), per-chip trigger buttons,
   outside-click + Escape handlers. The DOWN chip's bucket is DOWN **and** DEGRADED.
 
-## [15.0.0] — 2026-06-26
-
-### Version Badge Footer + Changelog Overlay (#152)
+### Version Badge Footer + Changelog Overlay (#152) — v15
 
 The footer shows the running app version and short git SHA, injected at build time
 via Vite `define` (`__APP_VERSION__` / `__GIT_SHA__`). Clicking the version badge
@@ -28,7 +42,7 @@ bug-fix / security).
 
 - `ChangelogOverlay.tsx`, `src/changelog.json`, version-footer in `App`.
 
-## [14.0.0] — 2026-06-23
+## [11.0.0] — 2026-06-23 — v14
 
 ### Dashboard Status & Recency
 
@@ -37,14 +51,14 @@ bug-fix / security).
 - Uptime sparkline dots gain a hover tooltip with the per-check timestamp and status.
 - Ambient status-change toasts — a quiet alert when a service flips up or down.
 
-## [13.0.0] — 2026-06-23
+## [10.0.0] — 2026-06-23 — v13
 
 ### Live Status Auto-Refresh
 
 - Live status auto-refresh with a "last updated" indicator — tiles repoll without a
   page reload.
 
-## [12.0.0] — 2026-06-19
+## [9.0.0] — 2026-06-19 — v12
 
 ### Settings Boundary Clarity
 
@@ -52,7 +66,7 @@ bug-fix / security).
   (admin only).
 - Per-field `[env]` badges mark admin settings sourced from environment configuration.
 
-## [11.0.0] — 2026-06-18
+## [8.0.0] — 2026-06-18 — v11
 
 ### Admin/Personal Scope Clarity (#52/#55/#61)
 
@@ -98,22 +112,22 @@ gate. Reverts the header to `z-10` → this spec goes red.
 
 ---
 
-## [10.0.0] — 2026-06-13
+## [7.0.0] — 2026-06-13 — v10
 
 Always-on tile drag-and-drop (dnd-kit), per-tile "⋯" overflow menu, real-browser
 gate for pointer/touch interactions (#35 fix: menu open on pointerup; dismiss on
 pointerdown to guard against synthetic touch tap teardown).
 
-## [9.0.0] — 2026-06-05
+## [6.0.0] — 2026-06-05 — v9
 
 Per-user dashboards: personal tile ordering, favorites, App Library
 browse/add (per-user), admin catalog CRUD, admin Settings panel (shared
 App Library + read-only system config).
 
-## [8.0.0] — earlier
+## [5.0.0] — earlier — v8
 
 Command Launcher (⌘K / search overlay, keyboard navigation).
 
-## [7.0.0] — earlier
+## [4.0.0] — earlier — v7
 
 UX redesign: dark/light theme, redesigned header, UserMenu, v7 design tokens.
