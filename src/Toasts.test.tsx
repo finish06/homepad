@@ -7,7 +7,7 @@ import { act, render, screen } from '@testing-library/react';
 import type { StatusChange } from './services';
 
 // Controllable context: each test sets the recentChanges the container reads.
-let ctxValue: { recentChanges: StatusChange[] } | null;
+let ctxValue: { recentChanges: StatusChange[]; clearRecentChanges?: () => void } | null;
 vi.mock('./services', () => ({
   useServicesContext: () => ctxValue,
 }));
@@ -82,6 +82,23 @@ describe('ToastContainer (cap5)', () => {
   it('AC-012: drops changes detected while the tab is hidden', () => {
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
     ctxValue = { recentChanges: [change('a', 'UP', 'DOWN')] };
+    render(<ToastContainer />);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('T-012: clears recentChanges after consuming, so a remount fires no ghost toasts (AC-015)', () => {
+    const clearRecentChanges = vi.fn();
+    ctxValue = { recentChanges: [change('a', 'UP', 'DOWN')], clearRecentChanges };
+    const first = render(<ToastContainer />);
+    expect(screen.getByText('App a went DOWN')).toBeInTheDocument();
+    // AC-015 — the container must ask the provider to reset the queue after it
+    // has enqueued, so the changes can't be replayed by a later mount.
+    expect(clearRecentChanges).toHaveBeenCalledTimes(1);
+
+    // Provider honours the reset; a fresh ToastContainer then sees an empty batch
+    // and must NOT resurrect the prior poll's toast.
+    first.unmount();
+    ctxValue = { recentChanges: [], clearRecentChanges };
     render(<ToastContainer />);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
