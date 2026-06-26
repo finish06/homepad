@@ -3,7 +3,7 @@
 **Version:** 0.1.0
 **Created:** 2026-06-26
 **Author:** Walt (product lead)
-**Status:** Ready for implementation
+**Status:** Approved — ready for TDD
 **Repo:** `Code/homepad` (frontend only; `vite.config.ts` gains two build-time defines — no backend changes)
 **Based on:** fleet-feed's Option B+ changelog design, adapted to homepad's Tailwind design language
 
@@ -110,7 +110,7 @@ read what shipped in it — without leaving the dashboard or opening a terminal.
 | AC-008 | Clicking the footer button opens a changelog overlay (`ChangelogOverlay`) with `role="dialog" aria-modal="true"`. The overlay has a visible close button (✕) and a title "Changelog". | Must |
 | AC-009 | The overlay closes on: Escape key, close button click, backdrop click (if a backdrop is rendered). On close, focus returns to the footer button (the trigger). | Must |
 | AC-010 | The overlay is **two-panel on desktop (≥640 px)**: a version list panel on the left and a change detail panel on the right. On mobile (<640 px) the panels stack vertically — version pills on top, detail below — and the overlay is near-full-screen. | Must |
-| AC-011 | The version list (left panel) shows version buttons newest-first with "Pending next release" at the top. Clicking a version button selects it and shows its changes in the detail panel. The selected button is visually distinguished (background or border accent). | Must |
+| AC-011 | The version list (left panel) shows version buttons newest-first with "Pending next release" at the top. Clicking a version button selects it and shows its changes in the detail panel. The selected button is visually distinguished (background or border accent) and carries `aria-current="true"`. | Must |
 | AC-012 | **Default selection on open**: "Pending next release" if `pending` has ≥ 1 entry; otherwise the version matching `__APP_VERSION__`. Re-opens at the same default on each open (not the last selected). | Must |
 | AC-013 | **Pending bucket**: when `pending` is empty, the detail panel shows "Nothing queued yet." in muted small text. When `pending` has entries, they render in the B+ grid with chips and descriptions. | Must |
 | AC-014 | Each released version's detail panel begins with a version header: bold version string (`v{N}`) followed by the date formatted as `Jun 26, 2026`, then a hairline divider below the header row. The version string uses an indigo/purple accent (matching the wordmark palette — e.g. `text-indigo-600 dark:text-indigo-400`). | Must |
