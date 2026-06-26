@@ -860,6 +860,39 @@ describe('v4 — category manager visibility (admin Edit mode)', () => {
   });
 });
 
+describe('#158 — dark-mode contrast on the edit-dashboard category manager', () => {
+  it('gives the new-category input and rename input dark surfaces', async () => {
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' })]);
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('category-row');
+
+    expect(screen.getByTestId('category-name-input').className).toContain(
+      'dark:bg-neutral-800',
+    );
+    expect(screen.getAllByTestId('category-rename-input')[0].className).toContain(
+      'dark:bg-neutral-800',
+    );
+  });
+
+  it('gives the create/rename/delete buttons dark-readable text', async () => {
+    mockedCategories.mockResolvedValue([cat({ id: 'media', name: 'Media', sortIndex: 0 })]);
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex', categoryId: 'media', categoryName: 'Media' })]);
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('category-row');
+
+    expect(screen.getByTestId('category-create').className).toContain(
+      'dark:text-indigo-400',
+    );
+    expect(screen.getAllByTestId('category-rename')[0].className).toContain(
+      'dark:text-neutral-300',
+    );
+    expect(screen.getAllByTestId('category-delete')[0].className).toContain(
+      'dark:text-red-400',
+    );
+  });
+});
+
 describe('v4 A1 — create category', () => {
   it('POSTs the typed name and renders the new section on success', async () => {
     const user = userEvent.setup();
