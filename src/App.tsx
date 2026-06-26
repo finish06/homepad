@@ -82,7 +82,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
           <StatusBar />
 
           <section className="mx-auto max-w-6xl px-4 py-6">
-            <Catalog isAdmin={isAdmin} editMode={editMode} />
+            <Catalog isAdmin={isAdmin} editMode={editMode} onExitEdit={() => setEditMode(false)} />
           </section>
 
           <LauncherMount />

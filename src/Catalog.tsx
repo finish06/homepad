@@ -118,9 +118,11 @@ function useStatusPulse(status: ServiceStatus): boolean {
 export default function Catalog({
   isAdmin = false,
   editMode = false,
+  onExitEdit,
 }: {
   isAdmin?: boolean;
   editMode?: boolean;
+  onExitEdit?: () => void;
 }) {
   // v8: the Service[] is shared with the command launcher via ServicesProvider so
   // both render the SAME already-loaded array (no second fetch, §3/A12). When the
@@ -519,8 +521,20 @@ export default function Catalog({
           says so at point-of-use, distinct from the global Admin Panel. */}
       {adminEdit && (
         <div data-testid="edit-mode-banner" className="edit-mode-banner" role="status">
-          <PencilIcon />
-          Editing your personal dashboard
+          <span className="edit-mode-banner-label">
+            <PencilIcon />
+            Editing your personal dashboard
+          </span>
+          {onExitEdit && (
+            <button
+              type="button"
+              data-testid="exit-edit-mode"
+              onClick={onExitEdit}
+              className="edit-mode-banner-exit"
+            >
+              Done editing
+            </button>
+          )}
         </div>
       )}
 
