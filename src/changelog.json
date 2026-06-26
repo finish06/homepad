@@ -2,6 +2,14 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.0.2",
+      "date": "2026-06-26",
+      "changes": [
+        { "type": "bug-fix", "text": "Footer version badge now shows the real build commit SHA in production instead of '(dev)'" },
+        { "type": "bug-fix", "text": "Edit-dashboard Categories section now honors dark mode — its inputs and buttons are no longer washed-out in the dark theme" }
+      ]
+    },
+    {
       "version": "12.0.1",
       "date": "2026-06-26",
       "changes": [
