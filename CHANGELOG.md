@@ -7,6 +7,29 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.0.2] — 2026-06-26
+
+### Footer Version Shows the Build SHA, Not "(dev)" (#157)
+
+The prod footer badge read `homepad v12 (dev)` instead of the build's short
+commit SHA. The Docker build stage only COPYs the source tree (no `.git`), so
+`vite.config.ts`'s `git rev-parse` always threw and `__GIT_SHA__` fell back to
+`'dev'`. The image build now threads the commit SHA in as a `GIT_SHA` env var and
+Vite reads it first, falling back to git then `'dev'`.
+
+- `Dockerfile`: build stage `ARG GIT_SHA` → `ENV GIT_SHA` before `npm run build`.
+- `vite.config.ts`: read `process.env.GIT_SHA` first, then git, then `'dev'`.
+- Requires ci-shared to pass `--build-arg GIT_SHA=<short-sha>` on `docker build`.
+
+### Dark-Mode Contrast on the Edit-Dashboard Categories Section (#158)
+
+The admin "Categories" manager (shown in edit mode) carried only light-mode
+styling, so its inputs and Add / Save / Delete buttons read washed-out against
+the dark panel. Added `dark:` variants — same class of fix as #29.
+
+- `Catalog.tsx`: `dark:` variants on the `CategoryManager` / `CategoryRow`
+  inputs and buttons.
+
 ## [12.0.1] — 2026-06-26
 
 ### Quick-Peek Degraded Dot Fix (#155)
