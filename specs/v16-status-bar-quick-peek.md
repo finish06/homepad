@@ -52,7 +52,10 @@ scanning my entire tile grid.
     the chip label: "DOWN" covers both DOWN and DEGRADED)
   - "not monitored" chip → services where `status === 'NOT_MONITORED'`
 
-  Each row: status dot (same color coding as tiles) + service name + external link icon. The whole
+  Each row: status dot + service name + external link icon. Dot color: UP → emerald, DOWN → red,
+  DEGRADED → red (intentionally different from tile color: in the popover, DEGRADED is grouped with
+  DOWN as "needs attention" and must be visually red, not amber). NOT_MONITORED → neutral/dashed.
+  The whole
   row is an `<a href={service.url} target="_blank" rel="noreferrer noopener">`. Services are sorted
   alphabetically by name within the popover.
 
@@ -86,7 +89,7 @@ scanning my entire tile grid.
 | AC-008 | Clicking anywhere outside the open popover (including on a tile, the header, or the body) closes it. The mousedown handler is cleaned up when the popover closes. | Must |
 | AC-009 | Pressing Escape while a popover is open closes it. Focus returns to the chip button that triggered it. | Must |
 | AC-010 | The popover surface uses `bg-white dark:bg-neutral-900`, `border border-neutral-200 dark:border-neutral-700`, `rounded-xl shadow-lg`. It does not use hardcoded hex colors that break light/dark mode. | Must |
-| AC-011 | The status dot in each popover row uses the same color as on the tiles: UP → emerald, DOWN/DEGRADED → red, NOT_MONITORED → dashed outline (or a neutral dot). | Should |
+| AC-011 | The status dot in each popover row uses the following color mapping: UP → emerald, DOWN → red, DEGRADED → red (not amber — the popover must treat DEGRADED identically to DOWN, since both represent an unhealthy service requiring operator attention), NOT_MONITORED → dashed outline or neutral dot. | Must |
 | AC-012 | The popover is scroll-contained: if the service list is long (e.g., 15 UP services), the popover scrolls internally rather than growing to cover the entire page. Max-height: `clamp(180px, 40vh, 320px)`. | Should |
 | AC-013 | The chip buttons have `aria-label` values that communicate the action: e.g., `aria-label="Show 2 services that are DOWN"`. The popover has `role="dialog"` or `role="listbox"` as appropriate. | Should |
 | AC-014 | The existing status bar `data-testid="status-bar"`, `data-testid="status-bar-up"`, `data-testid="status-bar-down"`, `data-testid="status-bar-not-monitored"` attributes are preserved unchanged (no regression on existing tests). | Must |
