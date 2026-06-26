@@ -31,6 +31,9 @@ export default function ToastContainer() {
       incoming.push({ key, change: c });
     });
     if (incoming.length) setQueue((q) => [...q, ...incoming]);
+    // AC-015 — drain the context queue now that we've taken ownership of these
+    // changes, so a later ToastContainer mount can't replay them as ghost toasts.
+    ctx?.clearRecentChanges();
   }, [recentChanges]);
 
   function dismiss(key: string) {

@@ -36,6 +36,9 @@ export type ServicesContextValue = {
   // cap5: status flips detected by the most-recent poll. Empty on initial load
   // (baseline only, AC-003); set whenever a non-initial poll detects changes.
   recentChanges: StatusChange[];
+  // cap5/AC-015: reset recentChanges to [] once ToastContainer has consumed it, so
+  // a fresh ToastContainer mount can't replay a prior poll's flips as ghost toasts.
+  clearRecentChanges: () => void;
 };
 
 const ServicesContext = createContext<ServicesContextValue | null>(null);
@@ -139,7 +142,16 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <ServicesContext.Provider value={{ items, setItems, lastUpdatedAt, recentChanges }}>
+    <ServicesContext.Provider
+      value={{
+        items,
+        setItems,
+        lastUpdatedAt,
+        recentChanges,
+        // AC-015 — let the consumer drain the queue after enqueuing.
+        clearRecentChanges: () => setRecentChanges([]),
+      }}
+    >
       {children}
     </ServicesContext.Provider>
   );
