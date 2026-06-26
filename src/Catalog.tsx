@@ -1523,14 +1523,14 @@ function CategoryManager({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="New category"
-          className="flex-1 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm outline-none focus:border-indigo-500"
+          className="flex-1 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm outline-none focus:border-indigo-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-500"
         />
         <button
           type="button"
           data-testid="category-create"
           disabled={busy}
           onClick={create}
-          className="rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-60"
+          className="rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-60 dark:border-indigo-500/40 dark:text-indigo-300 dark:hover:bg-indigo-500/10"
         >
           Add category
         </button>
@@ -1580,14 +1580,14 @@ function CategoryRow({
         value={name}
         onChange={(e) => setName(e.target.value)}
         aria-label={`Rename ${cat.name}`}
-        className="min-w-0 flex-1 rounded-lg border border-neutral-300 px-2 py-1 text-sm outline-none focus:border-indigo-500"
+        className="min-w-0 flex-1 rounded-lg border border-neutral-300 px-2 py-1 text-sm outline-none focus:border-indigo-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
       />
       <button
         type="button"
         data-testid="category-rename"
         disabled={busy}
         onClick={save}
-        className="rounded-md border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
+        className="rounded-md border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-60 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
       >
         Save
       </button>
@@ -1596,7 +1596,7 @@ function CategoryRow({
         data-testid="category-delete"
         aria-label={`Delete ${cat.name}`}
         onClick={() => onDelete(cat.id)}
-        className="rounded-md border border-red-200 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+        className="rounded-md border border-red-200 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-500/40 dark:text-red-400 dark:hover:bg-red-500/10"
       >
         Delete
       </button>
