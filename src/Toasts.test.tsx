@@ -7,7 +7,11 @@ import { act, render, screen } from '@testing-library/react';
 import type { StatusChange } from './services';
 
 // Controllable context: each test sets the recentChanges the container reads.
-let ctxValue: { recentChanges: StatusChange[] } | null;
+// clearRecentChanges is the AC-015 drain callback the container invokes after
+// consuming; a shared spy stands in for it so tests that don't assert on it still
+// satisfy the call.
+let ctxValue: { recentChanges: StatusChange[]; clearRecentChanges: () => void } | null;
+let clearRecentChanges: () => void;
 vi.mock('./services', () => ({
   useServicesContext: () => ctxValue,
 }));
@@ -19,7 +23,8 @@ function change(id: string, from: StatusChange['from'], to: StatusChange['to']):
 }
 
 beforeEach(() => {
-  ctxValue = { recentChanges: [] };
+  clearRecentChanges = vi.fn();
+  ctxValue = { recentChanges: [], clearRecentChanges };
   // jsdom defaults to 'visible'; be explicit so AC-012 tests are deterministic.
   Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
 });
@@ -30,26 +35,26 @@ afterEach(() => {
 
 describe('ToastContainer (cap5)', () => {
   it('T-006: renders the service name + "went DOWN" for a DOWN change', () => {
-    ctxValue = { recentChanges: [change('a', 'UP', 'DOWN')] };
+    ctxValue = { recentChanges: [change('a', 'UP', 'DOWN')], clearRecentChanges };
     render(<ToastContainer />);
     expect(screen.getByText('App a went DOWN')).toBeInTheDocument();
   });
 
   it('T-007: renders "is back UP" for an UP change', () => {
-    ctxValue = { recentChanges: [change('a', 'DOWN', 'UP')] };
+    ctxValue = { recentChanges: [change('a', 'DOWN', 'UP')], clearRecentChanges };
     render(<ToastContainer />);
     expect(screen.getByText('App a is back UP')).toBeInTheDocument();
   });
 
   it('T-008: renders nothing on initial baseline (recentChanges empty)', () => {
-    ctxValue = { recentChanges: [] };
+    ctxValue = { recentChanges: [], clearRecentChanges };
     render(<ToastContainer />);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('T-009: auto-dismisses a toast after 4 seconds', () => {
     vi.useFakeTimers();
-    ctxValue = { recentChanges: [change('a', 'UP', 'DOWN')] };
+    ctxValue = { recentChanges: [change('a', 'UP', 'DOWN')], clearRecentChanges };
     render(<ToastContainer />);
     expect(screen.getByText('App a went DOWN')).toBeInTheDocument();
     act(() => {
@@ -59,7 +64,7 @@ describe('ToastContainer (cap5)', () => {
   });
 
   it('T-010: multiple simultaneous changes produce multiple toasts', () => {
-    ctxValue = { recentChanges: [change('a', 'UP', 'DOWN'), change('b', 'DOWN', 'UP')] };
+    ctxValue = { recentChanges: [change('a', 'UP', 'DOWN'), change('b', 'DOWN', 'UP')], clearRecentChanges };
     render(<ToastContainer />);
     expect(screen.getByText('App a went DOWN')).toBeInTheDocument();
     expect(screen.getByText('App b is back UP')).toBeInTheDocument();
@@ -74,6 +79,7 @@ describe('ToastContainer (cap5)', () => {
         change('c', 'UP', 'DOWN'),
         change('d', 'UP', 'DOWN'),
       ],
+      clearRecentChanges,
     };
     render(<ToastContainer />);
     expect(screen.getAllByRole('status')).toHaveLength(3);
@@ -81,13 +87,29 @@ describe('ToastContainer (cap5)', () => {
 
   it('AC-012: drops changes detected while the tab is hidden', () => {
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
-    ctxValue = { recentChanges: [change('a', 'UP', 'DOWN')] };
+    ctxValue = { recentChanges: [change('a', 'UP', 'DOWN')], clearRecentChanges };
+    render(<ToastContainer />);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('T-012: clears recentChanges after consuming, so a remount fires no ghost toasts (AC-015)', () => {
+    ctxValue = { recentChanges: [change('a', 'UP', 'DOWN')], clearRecentChanges };
+    const first = render(<ToastContainer />);
+    expect(screen.getByText('App a went DOWN')).toBeInTheDocument();
+    // AC-015 — the container must ask the provider to reset the queue after it
+    // has enqueued, so the changes can't be replayed by a later mount.
+    expect(clearRecentChanges).toHaveBeenCalledTimes(1);
+
+    // Provider honours the reset; a fresh ToastContainer then sees an empty batch
+    // and must NOT resurrect the prior poll's toast.
+    first.unmount();
+    ctxValue = { recentChanges: [], clearRecentChanges };
     render(<ToastContainer />);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('AC-010: DOWN toast is assertive, UP toast is polite', () => {
-    ctxValue = { recentChanges: [change('a', 'UP', 'DOWN'), change('b', 'DOWN', 'UP')] };
+    ctxValue = { recentChanges: [change('a', 'UP', 'DOWN'), change('b', 'DOWN', 'UP')], clearRecentChanges };
     render(<ToastContainer />);
     const down = screen.getByText('App a went DOWN').closest('[role="status"]')!;
     const up = screen.getByText('App b is back UP').closest('[role="status"]')!;

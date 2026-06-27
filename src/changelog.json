@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.0.3",
+      "date": "2026-06-27",
+      "changes": [
+        { "type": "bug-fix", "text": "Status-change toasts no longer replay stale alerts — recentChanges is now reset after the ToastContainer consumes it, so remounts can't resurrect a prior poll's status flips (#147)" }
+      ]
+    },
+    {
       "version": "12.0.2",
       "date": "2026-06-26",
       "changes": [
