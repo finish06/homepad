@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.3.1",
+      "date": "2026-06-28",
+      "changes": [
+        { "type": "bug-fix", "text": "Edit-dashboard per-app controls now honor dark mode — the Category dropdown is no longer a glaring white box and the Edit app / Delete service buttons are no longer washed-out in the dark theme (#163)" }
+      ]
+    },
+    {
       "version": "12.3.0",
       "date": "2026-06-28",
       "changes": [

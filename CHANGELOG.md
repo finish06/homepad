@@ -7,6 +7,17 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.3.1] — 2026-06-28
+
+### Edit-Dashboard Per-App Controls Now Honor Dark Mode (#163)
+
+The per-app edit-tile controls (the `IconControls` block shown under each app in
+edit mode) carried only light-mode Tailwind utilities, so in the dark theme the
+Category dropdown rendered as a glaring white box and the **Edit app** / **Delete
+service** buttons read washed-out. Each control now carries a `dark:` variant —
+the same fix class as the Categories section (#158) — so the dropdown, buttons,
+and section divider are tuned to the dark tile surface.
+
 ## [12.3.0] — 2026-06-28
 
 ### Arrange mode — settings gear reveals tile reorder grips (#166)
