@@ -7,6 +7,19 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.0.3] — 2026-06-27
+
+### Status-Change Toasts No Longer Replay Stale Alerts (#147)
+
+The status-change toast system left `recentChanges` populated after the
+`ToastContainer` consumed it, so any remount of the container would resurrect a
+prior poll's status flips as ghost toasts. The container now resets
+`recentChanges` to `[]` after consumption, so a remount has nothing stale to
+replay.
+
+- `src/Toasts.tsx`: clear `recentChanges` once its toasts have been queued.
+- `src/services.tsx`: expose the reset alongside `recentChanges`.
+
 ## [12.0.2] — 2026-06-26
 
 ### Footer Version Shows the Build SHA, Not "(dev)" (#157)
