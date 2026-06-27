@@ -1425,7 +1425,7 @@ function IconControls({
   onAssignCategory: (serviceId: string, categoryId: string | null) => Promise<Result>;
 }) {
   return (
-    <div data-testid="icon-controls" className="mt-3 border-t border-neutral-100 pt-3">
+    <div data-testid="icon-controls" className="mt-3 border-t border-neutral-100 pt-3 dark:border-neutral-800">
       <div className="grid grid-cols-2 gap-2">
         <IconSlot
           service={service}
@@ -1450,7 +1450,7 @@ function IconControls({
         type="button"
         data-testid="edit-service"
         onClick={onEditService}
-        className="mt-2 w-full rounded-lg border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+        className="mt-2 w-full rounded-lg border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
       >
         Edit app
       </button>
@@ -1458,7 +1458,7 @@ function IconControls({
         type="button"
         data-testid="delete-service"
         onClick={() => onRemoveService(service.id)}
-        className="mt-2 w-full rounded-lg border border-red-200 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+        className="mt-2 w-full rounded-lg border border-red-200 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-500/40 dark:text-red-400 dark:hover:bg-red-500/10"
       >
         Delete service
       </button>
@@ -1735,7 +1735,7 @@ function CategorySelect({
         value={service.categoryId ?? ''}
         disabled={busy}
         onChange={onChange}
-        className="w-full rounded-md border border-neutral-300 px-2 py-1 text-xs outline-none focus:border-indigo-500"
+        className="w-full rounded-md border border-neutral-300 px-2 py-1 text-xs outline-none focus:border-indigo-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
       >
         <option value="">Uncategorized</option>
         {cats.map((c) => (
