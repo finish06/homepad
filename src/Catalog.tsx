@@ -1117,7 +1117,7 @@ function ServiceTile({
           per-tile "⋯" overflow menu. The tile stays a clean <a> link; the menu
           is the one always-on per-tile control surface (the favorite toggle is
           one tap deep). */}
-      <TileMenu service={service} onToggleFavorite={onToggleFavorite} />
+      <TileMenu service={service} onToggleFavorite={onToggleFavorite} onRemoveService={onRemoveService} />
       <a
         href={service.url}
         target="_blank"
@@ -1136,12 +1136,14 @@ function ServiceTile({
         <span data-testid="service-tile-name" className="mt-3 truncate font-semibold text-neutral-800 dark:text-neutral-100">
           {service.name}
         </span>
-        <span
-          data-testid="service-tile-description"
-          className="mt-0.5 truncate pr-14 text-sm text-neutral-500"
-        >
-          {service.description}
-        </span>
+        {service.description && (
+          <span
+            data-testid="service-tile-description"
+            className="mt-0.5 truncate pr-14 text-sm text-neutral-500"
+          >
+            {service.description}
+          </span>
+        )}
         <UptimeSparkline checks={service.uptimeChecks} />
       </a>
 
@@ -1168,11 +1170,17 @@ function ServiceTile({
 function TileMenu({
   service,
   onToggleFavorite,
+  onRemoveService,
 }: {
   service: Service;
   onToggleFavorite: (id: string) => void;
+  onRemoveService: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  // Second step of the menu: a compact confirm before the destructive remove.
+  // Lives inside the same popover (within menuRef) so the outside-click dismiss
+  // doesn't fire on its own buttons.
+  const [confirming, setConfirming] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   // #35: this trigger lives inside a dnd-kit sortable that re-renders the node
@@ -1186,7 +1194,10 @@ function TileMenu({
   const pointerHandled = useRef(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setConfirming(false);
+      return;
+    }
     // #35 (touch mode): dismiss on `pointerdown`, NOT `mousedown`. We OPEN the
     // menu on the trigger's `pointerup`; a touch tap then emits a *trailing
     // synthetic* `mousedown` for the same physical tap, which a mousedown
@@ -1217,6 +1228,28 @@ function TileMenu({
   }, [open]);
 
   const fav = service.favorite;
+  // Shared pointer/click handlers for the menu actions added in v12.2.0. Mirrors
+  // the favorite-toggle's #35 dance: act on `pointerup` (which fires reliably
+  // inside the dnd sortable's re-render) and suppress the trailing synthetic
+  // click; a keyboard Enter/Space fires `click` alone, so that path still runs.
+  const fire = (fn: () => void) => ({
+    onPointerDown: () => {
+      pointerHandled.current = false;
+    },
+    onPointerUp: (e: React.PointerEvent) => {
+      e.stopPropagation();
+      pointerHandled.current = true;
+      fn();
+    },
+    onClick: (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (pointerHandled.current) {
+        pointerHandled.current = false;
+        return;
+      }
+      fn();
+    },
+  });
   return (
     // #35 (mouse mode): `z-20` lifts the trigger above the sibling tile <a>.
     // Both were position:static/z-auto, so the anchor (later in DOM) painted on
@@ -1259,37 +1292,81 @@ function TileMenu({
           aria-label={`${service.name} options`}
           className="absolute left-0 top-full z-10 mt-1 min-w-[10rem] rounded-lg border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
         >
-          <button
-            type="button"
-            role="menuitem"
-            data-testid="favorite-toggle"
-            data-favorite={fav ? 'true' : 'false'}
-            aria-pressed={fav}
-            onPointerDown={() => {
-              pointerHandled.current = false;
-            }}
-            onPointerUp={(e) => {
-              e.stopPropagation();
-              pointerHandled.current = true;
-              onToggleFavorite(service.id);
-              setOpen(false);
-              triggerRef.current?.focus();
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (pointerHandled.current) {
-                pointerHandled.current = false;
-                return;
-              }
-              onToggleFavorite(service.id);
-              setOpen(false);
-              triggerRef.current?.focus();
-            }}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-neutral-700 outline-none hover:bg-neutral-100 focus-visible:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-700"
-          >
-            <span className={fav ? 'text-amber-400' : 'text-neutral-400'}>{fav ? '★' : '☆'}</span>
-            {fav ? 'Favorited' : 'Favorite'}
-          </button>
+          {confirming ? (
+            // Compact, in-menu confirm before the (owner-scoped) delete. Mirrors
+            // the SettingsPanel library-delete idiom — alertdialog + Remove/Cancel.
+            <div data-testid="tile-remove-confirm" role="alertdialog" aria-label={`Remove ${service.name}`} className="px-2 py-1.5">
+              <p className="text-sm text-neutral-700 dark:text-neutral-200">
+                Remove <strong>{service.name}</strong> from your dashboard?
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  data-testid="tile-remove-confirm-yes"
+                  {...fire(() => {
+                    onRemoveService(service.id);
+                    setOpen(false);
+                    triggerRef.current?.focus();
+                  })}
+                  className="flex-1 rounded-md bg-red-600 px-2 py-1 text-sm font-medium text-white outline-none hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-500"
+                >
+                  Remove
+                </button>
+                <button
+                  type="button"
+                  data-testid="tile-remove-confirm-no"
+                  {...fire(() => setConfirming(false))}
+                  className="flex-1 rounded-md border border-neutral-200 px-2 py-1 text-sm font-medium text-neutral-700 outline-none hover:bg-neutral-100 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="favorite-toggle"
+                data-favorite={fav ? 'true' : 'false'}
+                aria-pressed={fav}
+                onPointerDown={() => {
+                  pointerHandled.current = false;
+                }}
+                onPointerUp={(e) => {
+                  e.stopPropagation();
+                  pointerHandled.current = true;
+                  onToggleFavorite(service.id);
+                  setOpen(false);
+                  triggerRef.current?.focus();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (pointerHandled.current) {
+                    pointerHandled.current = false;
+                    return;
+                  }
+                  onToggleFavorite(service.id);
+                  setOpen(false);
+                  triggerRef.current?.focus();
+                }}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-neutral-700 outline-none hover:bg-neutral-100 focus-visible:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-700"
+              >
+                <span className={fav ? 'text-amber-400' : 'text-neutral-400'}>{fav ? '★' : '☆'}</span>
+                {fav ? 'Favorited' : 'Favorite'}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="remove-from-dashboard"
+                {...fire(() => setConfirming(true))}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-red-600 outline-none hover:bg-red-50 focus-visible:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+              >
+                <span aria-hidden="true">🗑</span>
+                Remove from dashboard
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

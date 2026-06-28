@@ -196,9 +196,10 @@ export async function deleteIcon(id: string, variant: IconVariant): Promise<bool
   return res.status === 204;
 }
 
-// deleteService removes a service from the shared catalog (admin-only; the
-// server 403s a non-admin). Its uploaded icons cascade away server-side.
-// Returns true on success so the caller can roll back an optimistic removal.
+// deleteService removes one of the caller's OWN dashboard services (v9 owner-
+// scoped — any authenticated user may remove a service they own; another user's
+// id 404s). Its uploaded icons cascade away server-side. Returns true on success
+// so the caller can roll back an optimistic removal.
 export async function deleteService(id: string): Promise<boolean> {
   const res = await fetch(`/api/services/${id}`, {
     method: 'DELETE',

@@ -2,6 +2,14 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.2.0",
+      "date": "2026-06-28",
+      "changes": [
+        { "type": "feature", "text": "Remove from dashboard — the per-tile “⋯” menu now offers “Remove from dashboard” (with a quick confirm) so any user can take a service off their own dashboard, not just admins in edit mode" },
+        { "type": "enhancement", "text": "Service tiles now show the service description on one line beneath the name (hidden when there is no description)" }
+      ]
+    },
+    {
       "version": "12.1.0",
       "date": "2026-06-28",
       "changes": [

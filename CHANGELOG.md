@@ -7,6 +7,28 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.2.0] — 2026-06-28
+
+### Remove from dashboard + tile descriptions
+
+Two small dashboard improvements.
+
+**Remove from dashboard.** The per-tile **"⋯"** menu previously offered only
+*Favorite*. The only way to delete a service was the admin-and-edit-mode
+`IconControls` card — so a non-admin user, whose dashboard is entirely their
+own (v9), had no way to remove a service they had added. The "⋯" menu now
+carries a **"Remove from dashboard"** item that opens a **compact in-menu
+confirm** before deleting, available to every user on their own tiles. This
+uses the already-owner-scoped `DELETE /api/services/{id}` — no API change.
+
+**Service description on the tile.** The `description` field has always been
+stored and returned by the API but was rendered as an empty element when blank.
+It now renders as a single line beneath the service name when present, and is
+**omitted entirely when empty** (no leftover gap).
+
+Respects `SPEC-settings-admin-vs-user`: removing one's own tile is a personal,
+per-user dashboard action — no new route, no global state.
+
 ## [12.1.0] — 2026-06-28
 
 ### Status Alert History (v17, #165)

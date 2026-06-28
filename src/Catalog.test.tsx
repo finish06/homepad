@@ -1381,6 +1381,80 @@ describe('A11 — favorite toggle lives in a per-tile "⋯" overflow menu (no mo
   });
 });
 
+// IDEA 3 — "Remove from dashboard" in the always-on tile "⋯" menu (no edit
+// mode, every user). The owner-delete backend already supports any user
+// deleting their OWN service; before this the only delete affordance lived in
+// the admin+edit-mode IconControls, so a non-admin could never remove a tile.
+describe('IDEA3 — remove from dashboard lives in the per-tile "⋯" menu', () => {
+  it('IDEA3-a — the menu offers "Remove from dashboard" with no edit mode', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex' })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+
+    await user.click(screen.getByTestId('tile-menu'));
+    expect(await screen.findByTestId('remove-from-dashboard')).toBeInTheDocument();
+  });
+
+  it('IDEA3-b — clicking it asks to confirm before deleting (no immediate API call)', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex' })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+
+    await user.click(screen.getByTestId('tile-menu'));
+    await user.click(await screen.findByTestId('remove-from-dashboard'));
+
+    expect(await screen.findByTestId('tile-remove-confirm')).toBeInTheDocument();
+    expect(mockedDeleteService).not.toHaveBeenCalled();
+  });
+
+  it('IDEA3-c — confirming deletes the owned service via deleteService', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex' })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+
+    await user.click(screen.getByTestId('tile-menu'));
+    await user.click(await screen.findByTestId('remove-from-dashboard'));
+    await user.click(await screen.findByTestId('tile-remove-confirm-yes'));
+
+    expect(mockedDeleteService).toHaveBeenCalledWith('a');
+  });
+
+  it('IDEA3-d — cancelling the confirm leaves the service untouched', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex' })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+
+    await user.click(screen.getByTestId('tile-menu'));
+    await user.click(await screen.findByTestId('remove-from-dashboard'));
+    await user.click(await screen.findByTestId('tile-remove-confirm-no'));
+
+    expect(mockedDeleteService).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('tile-remove-confirm')).not.toBeInTheDocument();
+  });
+});
+
+// IDEA 4 — the service description renders on the tile, but is omitted entirely
+// when empty (no blank line / leftover gap).
+describe('IDEA4 — service description on the tile', () => {
+  it('IDEA4-a — renders the description beneath the name when present', async () => {
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex', description: 'Media server' })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+    expect(screen.getByTestId('service-tile-description')).toHaveTextContent('Media server');
+  });
+
+  it('IDEA4-b — omits the description element entirely when empty', async () => {
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex', description: '' })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+    expect(screen.queryByTestId('service-tile-description')).not.toBeInTheDocument();
+  });
+});
+
 // Uptime sparkline (spec specs/uptime-sparkline.md, AC-001..013). The strip sits
 // below the description on each monitored tile: ≤20 dots oldest→newest,
 // green(success)/red, then "XX% / N checks".
