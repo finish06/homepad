@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.4.0",
+      "date": "2026-06-28",
+      "changes": [
+        { "type": "enhancement", "text": "App Library search now shows a \"No apps match …\" hint instead of a blank list when your filter excludes every app" }
+      ]
+    },
+    {
       "version": "12.3.0",
       "date": "2026-06-28",
       "changes": [

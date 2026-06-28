@@ -7,6 +7,25 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.4.0] — 2026-06-28
+
+### App Library search — no-matches hint
+
+Caleb's overnight ask was two App Library improvements: a **search filter** and
+an **"Already added" badge**. Both were already shipped in the original
+browse/add-from-library modal (`feat A16,A19`): the modal has a "Filter apps…"
+input that filters by name, description and category, and an offer with
+`added: true` already renders a "✓ Added" affordance instead of a plain "Add"
+(it intentionally stays clickable as "Add again" — tested AC-D6 — rather than a
+hard-disabled button).
+
+The one genuine gap was in the search: when the filter excluded **every** app
+the list rendered blank with no feedback. This release closes that:
+
+- Typing a query that matches nothing now shows **"No apps match …"** (reusing
+  the existing `launcher-no-results-title` token) instead of an empty list.
+- Pure frontend, no backend change. `src/LibraryBrowse.tsx`.
+
 ## [12.3.0] — 2026-06-28
 
 ### Arrange mode — settings gear reveals tile reorder grips (#166)
