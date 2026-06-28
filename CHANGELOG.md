@@ -7,6 +7,31 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.5.0] — 2026-06-29
+
+### Gear becomes a unified edit-dashboard menu (v18)
+
+The header **gear** is no longer a single Arrange toggle — it is now a **dropdown
+menu** that gathers **every edit-dashboard action** behind one discoverable entry
+point. One click on the gear and a user sees, role-appropriately:
+
+- **My Dashboard** (all users): **Arrange tiles** (toggle, checkmark when on) and
+  **Add apps** (opens the library).
+- **Admin editing** (admins only, amber/shield section): **Edit tiles** (toggle
+  for the per-tile icon controls, CategoryManager, and inline add) and **Add
+  custom app** — which opens the service form **directly, without first entering
+  edit mode**.
+
+The gear icon stays **highlighted** whenever any editing mode is active (Arrange
+or Edit tiles), so the "editing is on" signal persists with the menu closed. The
+menu closes on outside click, Escape (focus returns to the gear), and after every
+action.
+
+The admin **"Edit dashboard"** item has moved **out of the avatar menu** into this
+gear menu as **"Edit tiles"**; the avatar menu's "My Dashboard" section is now
+symmetric for all roles ("Go to my dashboard"). The standalone "+ Add apps" button
+above the grid and the "Done editing" banner exit are unchanged. No API changes.
+
 ## [12.4.1] — 2026-06-29
 
 ### Design-system alignment — light-mode contrast + 44px touch targets
