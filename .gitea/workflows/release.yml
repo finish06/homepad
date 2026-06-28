@@ -12,9 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Reference ci-shared by its FULL in-cluster Gitea URL. A bare
-      # `uses: Code/ci-shared@v1` resolves against github.com on this runner and
+      # `uses: Code/ci-shared@v2` resolves against github.com on this runner and
       # 404s — the in-cluster host clones it without a Pangolin trip. (verified)
-      - uses: http://gitea-http.gitea.svc.cluster.local:3000/Code/ci-shared@v1
+      - uses: http://gitea-http.gitea.svc.cluster.local:3000/Code/ci-shared@v2
         with:
           image-name: homepad
           staging-url: https://homepad-staging.10.17.2.213.nip.io
