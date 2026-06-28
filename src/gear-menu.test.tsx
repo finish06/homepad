@@ -30,7 +30,6 @@ function renderHeader(
         onToggleEditMode={() => {}}
         onOpenLibrary={() => {}}
         onOpenCustomAppForm={() => {}}
-        onToggleEdit={() => {}}
         onOpenAdminSettings={() => {}}
         onGoToDashboard={() => {}}
         onLogout={() => {}}

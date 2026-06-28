@@ -73,6 +73,12 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // to the decluttered launcher view); toggled by the header settings gear,
   // available to every logged-in user. Reveals the per-tile reorder grips.
   const [arrange, setArrange] = useState(false);
+  // v18 — LibraryBrowse + add-custom-app ServiceForm open-state, lifted here so
+  // the header Gear menu can trigger them (Catalog still owns the edit-existing
+  // -tile flow). `customFormOpen` opens ServiceForm in add mode directly, with no
+  // editMode required (D6).
+  const [browseOpen, setBrowseOpen] = useState(false);
+  const [customFormOpen, setCustomFormOpen] = useState(false);
   // v9.3 §7.3 — the admin Settings modal (App Library management + read-only
   // System settings). Opened from the avatar menu (admin only). OIDC is read
   // from the client-visible auth config — no API change.
@@ -129,8 +135,11 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
         <AppHeader
           user={user}
           arrange={arrange}
+          editMode={editMode}
           onToggleArrange={() => setArrange((on) => !on)}
-          onToggleEdit={isAdmin ? () => setEditMode((on) => !on) : () => {}}
+          onToggleEditMode={isAdmin ? () => setEditMode((on) => !on) : () => {}}
+          onOpenLibrary={() => setBrowseOpen(true)}
+          onOpenCustomAppForm={() => setCustomFormOpen(true)}
           onOpenAdminSettings={() => setSettingsOpen(true)}
           onGoToDashboard={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           onLogout={handleLogout}
@@ -142,7 +151,16 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
         <StatusBar />
 
         <section className={`${CONTENT_WIDTH} py-6`}>
-          <Catalog isAdmin={isAdmin} editMode={editMode} arrange={arrange} onExitEdit={() => setEditMode(false)} />
+          <Catalog
+            isAdmin={isAdmin}
+            editMode={editMode}
+            arrange={arrange}
+            onExitEdit={() => setEditMode(false)}
+            browseOpen={browseOpen}
+            onBrowseClose={() => setBrowseOpen(false)}
+            customFormOpen={customFormOpen}
+            onCustomFormClose={() => setCustomFormOpen(false)}
+          />
         </section>
 
         {/* Feeds the launcher the shared catalog array; while still loading it
