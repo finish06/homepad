@@ -1,6 +1,6 @@
 # homepad — Spec Index
 
-**Current as of:** 2026-06-26  **Maintainer:** Walt (product lead)
+**Current as of:** 2026-06-28  **Maintainer:** Walt (product lead)
 
 This directory holds the **current, authoritative** product specs and decisions for homepad.
 Historical specs for shipped versions are in [`specs/archive/`](./archive/).
@@ -11,6 +11,7 @@ Historical specs for shipped versions are in [`specs/archive/`](./archive/).
 
 | File | What it covers | Status |
 |------|---------------|--------|
+| [`v18-gear-edit-menu.md`](./v18-gear-edit-menu.md) | Gear becomes a dropdown menu with all edit-dashboard actions: Arrange tiles + Add apps (all users); Edit tiles + Add custom app (admins). Removes "Edit dashboard" from UserMenu. | **Ready for implementation** |
 | [`v15-version-changelog.md`](./v15-version-changelog.md) | Footer version badge (`homepad vN (sha)`) + changelog overlay dialog. Mirrors fleet-feed's Option B+ design adapted to homepad's Tailwind language. | **Ready for implementation** |
 | [`v16-status-bar-quick-peek.md`](./v16-status-bar-quick-peek.md) | Status bar chips become clickable — clicking "2 DOWN" opens a popover listing the down services with links to their URLs. Zero backend changes. | **Ready for implementation** |
 | [`v13-live-status-refresh.md`](./v13-live-status-refresh.md) | Live status auto-refresh every ~60s + "Updated X ago" header indicator + pulse animation on status change. | **Shipped — prod** |
