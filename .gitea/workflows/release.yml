@@ -18,6 +18,15 @@ jobs:
         with:
           image-name: homepad
           staging-url: https://homepad-staging.10.17.2.213.nip.io
+          # Build BEFORE the test gate: homepad's vitest suite includes
+          # built-output checks (pwa-icons.test.ts asserts dist/ exists), which
+          # 9-failed the default `npm test` gate and silently blocked every release
+          # (staging stayed stale). The ci.yml PR gate builds first and passes; this
+          # aligns the release gate. (Kaniko still rebuilds for the image — cheap.)
+          test-cmd: |
+            npm ci
+            npm run build
+            npm test
           deploy-cmd: |
             printf '%s' "$KUBECONFIG_STAGING" > /tmp/kc && export KUBECONFIG=/tmp/kc
             # catthehacker runner image ships no kubectl — install the pinned binary.
