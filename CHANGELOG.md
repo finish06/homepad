@@ -7,6 +7,22 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.3.0] — 2026-06-28
+
+### Arrange mode — settings gear reveals tile reorder grips (#166)
+
+A per-user **settings gear** now sits in the header (left of the alert bell),
+shown to every logged-in user. Activating it turns on **Arrange mode**, which
+reveals the per-tile **reorder grip** so tiles can be dragged into a new order;
+turning it off tucks the grips away again for a clean, decluttered launcher.
+Arrange is client-ephemeral — a reload returns to the normal view.
+
+This reconciles the #166 Arrange work with the v12.2.0 (#174) per-tile menu that
+shipped to production. Arrange gates **only** the reorder grip. The per-tile
+**"⋯"** menu — **Favorite ★** and **Remove from dashboard** — stays present in
+both the normal and the Arrange view; favoriting is not behind Arrange.
+Favorited tiles still pin to the top Favorites section regardless of mode.
+
 ## [12.2.0] — 2026-06-28
 
 ### Remove from dashboard + tile descriptions

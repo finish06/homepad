@@ -118,10 +118,16 @@ function useStatusPulse(status: ServiceStatus): boolean {
 export default function Catalog({
   isAdmin = false,
   editMode = false,
+  arrange = false,
   onExitEdit,
 }: {
   isAdmin?: boolean;
   editMode?: boolean;
+  // #166 — per-user Arrange mode (v1 A5.1). Off by default → the decluttered
+  // launcher view; on → the per-tile reorder grip is revealed so a user can
+  // drag tiles into a new order. Toggled by the header settings gear. It gates
+  // ONLY the grip — the v12.2.0 "⋯" menu (favorite + remove) stays always-on.
+  arrange?: boolean;
   onExitEdit?: () => void;
 }) {
   // v8: the Service[] is shared with the command launcher via ServicesProvider so
@@ -480,6 +486,7 @@ export default function Catalog({
                 theme={theme}
                 rev={rev}
                 editMode={adminEdit}
+                arrange={arrange}
                 cats={cats}
                 grabbed={activeDragId === s.id}
                 onToggleFavorite={toggleFavorite}
@@ -1040,6 +1047,7 @@ function ServiceTile({
   theme,
   rev,
   editMode,
+  arrange,
   cats,
   grabbed,
   onToggleFavorite,
@@ -1052,6 +1060,7 @@ function ServiceTile({
   theme: IconVariant;
   rev: number;
   editMode: boolean;
+  arrange: boolean;
   cats: Category[];
   grabbed: boolean;
   onToggleFavorite: (id: string) => void;
@@ -1090,33 +1099,37 @@ function ServiceTile({
           pulsing ? 'status-dot--pulse' : ''
         }`}
       />
-      {/* v10 §5.2 — the drag grip. A real <button> (the single drag origin for
+      {/* §5.2 — the drag grip. A real <button> (the single drag origin for
           pointer, touch, AND keyboard) at the bottom-right so it doesn't fight
-          the "⋯" menu (top-left) or the status dot (top-right). #95 (Walt
-          2026-06-19): hidden below sm — on mobile the handle is clutter and
-          reordering is a desktop task — low-emphasis from sm up.
-          `grabbed` drives the accent + aria-pressed (§10/A6). */}
-      <button
-        type="button"
-        ref={setActivatorNodeRef}
-        {...attributes}
-        {...listeners}
-        data-testid="drag-handle"
-        data-drag-type="tile"
-        data-service-id={service.id}
-        aria-label={`Reorder ${service.name}`}
-        aria-pressed={grabbed}
-        className={`absolute bottom-2 right-2 z-10 hidden h-11 w-11 cursor-grab touch-none items-center justify-center rounded-md text-base leading-none outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-500 active:cursor-grabbing sm:flex sm:h-9 sm:w-9 sm:opacity-40 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 ${
-          grabbed ? 'text-indigo-600 opacity-100 dark:text-indigo-400' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200'
-        }`}
-      >
-        {grabbed && <span data-testid="drop-indicator" className="sr-only">moving</span>}
-        ⠿
-      </button>
-      {/* v10 §7 — favoriting moved out of the (removed) arrange mode into a
-          per-tile "⋯" overflow menu. The tile stays a clean <a> link; the menu
-          is the one always-on per-tile control surface (the favorite toggle is
-          one tap deep). */}
+          the "⋯" menu (top-left) or the status dot (top-right). #166: the grip
+          is part of Arrange mode — hidden in the normal (decluttered) launcher
+          view, revealed only when Arrange is on (the header settings gear). #95
+          (Walt 2026-06-19): still hidden below sm — reordering stays a desktop
+          task — low-emphasis from sm up. `grabbed` drives the accent +
+          aria-pressed (§10/A6). */}
+      {arrange && (
+        <button
+          type="button"
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          data-testid="drag-handle"
+          data-drag-type="tile"
+          data-service-id={service.id}
+          aria-label={`Reorder ${service.name}`}
+          aria-pressed={grabbed}
+          className={`absolute bottom-2 right-2 z-10 hidden h-11 w-11 cursor-grab touch-none items-center justify-center rounded-md text-base leading-none outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-500 active:cursor-grabbing sm:flex sm:h-9 sm:w-9 sm:opacity-70 sm:hover:opacity-100 ${
+            grabbed ? 'text-indigo-600 opacity-100 dark:text-indigo-400' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200'
+          }`}
+        >
+          {grabbed && <span data-testid="drop-indicator" className="sr-only">moving</span>}
+          ⠿
+        </button>
+      )}
+      {/* v12.2.0 (#174) — the per-tile "⋯" overflow menu: Favorite ★ + Remove
+          from dashboard. ALWAYS present (in both the normal and the Arrange
+          view) — favoriting lives here, not behind Arrange. The tile stays a
+          clean <a> link; the menu is the always-on per-tile control surface. */}
       <TileMenu service={service} onToggleFavorite={onToggleFavorite} onRemoveService={onRemoveService} />
       <a
         href={service.url}

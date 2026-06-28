@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.3.0",
+      "date": "2026-06-28",
+      "changes": [
+        { "type": "feature", "text": "Arrange mode — a settings gear in the header lets any user reveal per-tile reorder grips and drag dashboard tiles into a new order, then tuck the grips away again for a clean launcher (#166). Favorite and Remove still live in each tile’s “⋯” menu." }
+      ]
+    },
+    {
       "version": "12.2.0",
       "date": "2026-06-28",
       "changes": [

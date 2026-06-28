@@ -19,12 +19,20 @@ import { mockApi, makeServices } from './mockApi';
 // We render EIGHT tiles so the grid fills its right column at the 1440px gate
 // viewport — that puts a tile's bottom-right grip directly beneath the
 // right-anchored dropdown, which is the only place the two can overlap.
+//
+// #166: the per-tile reorder grip is now revealed by per-user Arrange mode (the
+// header settings gear) rather than always-on, so we enter Arrange first. The
+// z-stacking this gate guards (header z-20 over grip z-10) is unchanged.
 
 test.beforeEach(async ({ page }) => {
   await mockApi(page, makeServices(8));
   await page.goto('/');
   await expect(page.getByTestId('user-menu-trigger')).toBeVisible();
   await expect(page.getByTestId('service-tile').first()).toBeVisible();
+  // Reveal the per-tile reorder grips (#166 Arrange mode) so they can contest
+  // the dropdown's pixels.
+  await page.getByTestId('settings-gear').click();
+  await expect(page.getByTestId('drag-handle').first()).toBeVisible();
 });
 
 test('mouse: the open UserMenu dropdown sits above tile drag-grips', async ({ page }) => {

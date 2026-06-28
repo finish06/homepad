@@ -87,8 +87,42 @@ function AlertBell({
   );
 }
 
+// #166 — the per-user settings gear, the non-admin settings/controls entry point
+// (v1 A5.1 / DECISIONS.md 2026-06-11). Shown to EVERY logged-in user (not
+// admin-gated); distinct from the admin Edit toggle in the avatar menu. It hosts
+// personal Arrange mode — `aria-pressed` reflects whether Arrange is on;
+// activating it reveals the per-tile reorder grips so tiles can be dragged into
+// a new order. (Favoriting + remove stay in each tile's always-on "⋯" menu.)
+function SettingsGear({ arrange, onToggle }: { arrange: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      data-testid="settings-gear"
+      aria-label="Personal settings"
+      aria-pressed={arrange}
+      onClick={onToggle}
+      className={`flex h-9 w-9 items-center justify-center rounded-full outline-none transition hover:bg-neutral-100 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-neutral-800 ${
+        arrange
+          ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400'
+          : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200'
+      }`}
+    >
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
+        <circle cx="12" cy="12" r="3" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
+        />
+      </svg>
+    </button>
+  );
+}
+
 export default function AppHeader({
   user,
+  arrange = false,
+  onToggleArrange = () => {},
   onToggleEdit,
   onOpenAdminSettings,
   onGoToDashboard,
@@ -98,6 +132,8 @@ export default function AppHeader({
   bellRef,
 }: {
   user: User;
+  arrange?: boolean;
+  onToggleArrange?: () => void;
   onToggleEdit: () => void;
   onOpenAdminSettings: () => void;
   onGoToDashboard: () => void;
@@ -113,6 +149,7 @@ export default function AppHeader({
         <LauncherTrigger />
         <div className="flex items-center gap-3">
           <LastUpdated />
+          <SettingsGear arrange={arrange} onToggle={onToggleArrange} />
           <AlertBell count={alertCount} onClick={onAlertClick} bellRef={bellRef} />
           <UserMenu
             user={user}

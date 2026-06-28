@@ -208,12 +208,14 @@ describe('v7 §6 — top bar declutter + user menu', () => {
     render(<App />);
     await dropLoading();
     expect(await screen.findByTestId('user-menu-trigger')).toBeInTheDocument();
-    // Everything that used to sit in the bar is gone from the bar (it now lives
-    // in the menu, which is closed by default).
+    // The admin Edit toggle + theme control still live inside the (closed)
+    // menu, not loose in the bar.
     expect(screen.queryByTestId('edit-toggle')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('settings-gear')).not.toBeInTheDocument();
     expect(screen.queryByTestId('theme-control')).not.toBeInTheDocument();
     expect(screen.queryByTestId('user-menu')).not.toBeInTheDocument();
+    // #166 — the per-user settings gear (Arrange-mode entry point) IS a
+    // deliberate always-visible bar control, shown to every logged-in user.
+    expect(screen.getByTestId('settings-gear')).toBeInTheDocument();
   });
 
   it('avatar derives real initials from the display name (Caleb Dunn → CD)', async () => {

@@ -59,6 +59,10 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // is a convenience surface, not the security boundary.
   const isAdmin = user.role === 'admin';
   const [editMode, setEditMode] = useState(false);
+  // #166 — per-user Arrange mode (v1 A5.1). Client-ephemeral (a reload returns
+  // to the decluttered launcher view); toggled by the header settings gear,
+  // available to every logged-in user. Reveals the per-tile reorder grips.
+  const [arrange, setArrange] = useState(false);
   // v9.3 §7.3 — the admin Settings modal (App Library management + read-only
   // System settings). Opened from the avatar menu (admin only). OIDC is read
   // from the client-visible auth config — no API change.
@@ -114,6 +118,8 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
       <main className="app-surface min-h-screen font-sans">
         <AppHeader
           user={user}
+          arrange={arrange}
+          onToggleArrange={() => setArrange((on) => !on)}
           onToggleEdit={isAdmin ? () => setEditMode((on) => !on) : () => {}}
           onOpenAdminSettings={() => setSettingsOpen(true)}
           onGoToDashboard={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -126,7 +132,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
         <StatusBar />
 
         <section className="mx-auto max-w-6xl px-4 py-6">
-          <Catalog isAdmin={isAdmin} editMode={editMode} onExitEdit={() => setEditMode(false)} />
+          <Catalog isAdmin={isAdmin} editMode={editMode} arrange={arrange} onExitEdit={() => setEditMode(false)} />
         </section>
 
         {/* Feeds the launcher the shared catalog array; while still loading it
