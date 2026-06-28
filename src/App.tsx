@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { authConfig, login, logout, me, register, type User } from './api';
 import AppHeader from './AppHeader';
 import Catalog from './Catalog';
 import StatusBar from './StatusBar';
 import CommandLauncher from './CommandLauncher';
-import { LauncherProvider } from './launcher';
+import { LauncherProvider, useLauncher } from './launcher';
 import { ServicesProvider, useServicesContext } from './services';
+import { AlertHistoryProvider, useAlertHistory } from './alerts';
+import AlertHistoryPanel from './AlertHistoryPanel';
 import SettingsPanel from './SettingsPanel';
 import ToastContainer from './Toasts';
 import ChangelogOverlay from './ChangelogOverlay';
@@ -32,7 +34,17 @@ export default function App() {
           loading…
         </main>
       ) : user ? (
-        <Home user={user} onLogout={() => setUser(null)} />
+        // v8/v17 — the home providers wrap Home so its body can read launcher,
+        // services, and alert-history context directly. Order matters:
+        // AlertHistoryProvider must sit above ServicesProvider so the poller can
+        // push transitions into the log.
+        <LauncherProvider>
+          <AlertHistoryProvider>
+            <ServicesProvider>
+              <Home user={user} onLogout={() => setUser(null)} />
+            </ServicesProvider>
+          </AlertHistoryProvider>
+        </LauncherProvider>
       ) : (
         <AuthForm onAuthed={setUser} />
       )}
@@ -54,13 +66,43 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [oidcEnabled, setOidcEnabled] = useState(false);
   // v15 — version badge in the footer opens the changelog overlay.
   const [changelogOpen, setChangelogOpen] = useState(false);
+  // v17 — alert-history panel open-state + the bell ref (focus returns here on
+  // close, AC-009). The log + unread badge live in AlertHistoryProvider.
+  const [alertOpen, setAlertOpen] = useState(false);
+  const bellRef = useRef<HTMLButtonElement>(null);
+  const alerts = useAlertHistory();
+  const services = useServicesContext();
+  const { open: launcherOpen, closeLauncher } = useLauncher();
+
   useEffect(() => {
     authConfig().then((c) => setOidcEnabled(c.oidcEnabled));
   }, []);
 
+  // AC-014 — one overlay at a time: opening the ⌘K launcher closes the alert panel.
+  useEffect(() => {
+    if (launcherOpen) setAlertOpen(false);
+  }, [launcherOpen]);
+
   async function handleLogout() {
     await logout();
     onLogout();
+  }
+
+  // AC-006/AC-007/AC-014 — the bell toggles the panel: opening clears the badge
+  // and closes the launcher; a second click closes the panel.
+  function toggleAlerts() {
+    if (alertOpen) {
+      setAlertOpen(false);
+      return;
+    }
+    closeLauncher();
+    alerts?.clearBadge();
+    setAlertOpen(true);
+  }
+  // AC-009 — Escape/✕/scrim close all route here and restore focus to the bell.
+  function closeAlerts() {
+    setAlertOpen(false);
+    bellRef.current?.focus();
   }
 
   // v8: LauncherProvider owns launcher open-state + the global ⌘K / `/` hotkey;
@@ -68,64 +110,63 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // launcher (no second fetch, §3/A12). CommandLauncher renders the overlay when
   // opened and filters that same array.
   return (
-    <LauncherProvider>
-      <ServicesProvider>
-        <main className="app-surface min-h-screen font-sans">
-          <AppHeader
-            user={user}
-            onToggleEdit={isAdmin ? () => setEditMode((on) => !on) : () => {}}
-            onOpenAdminSettings={() => setSettingsOpen(true)}
-            onGoToDashboard={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            onLogout={handleLogout}
+    <>
+      <main className="app-surface min-h-screen font-sans">
+        <AppHeader
+          user={user}
+          onToggleEdit={isAdmin ? () => setEditMode((on) => !on) : () => {}}
+          onOpenAdminSettings={() => setSettingsOpen(true)}
+          onGoToDashboard={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          onLogout={handleLogout}
+          alertCount={alerts?.unreadCount ?? 0}
+          onAlertClick={toggleAlerts}
+          bellRef={bellRef}
+        />
+
+        <StatusBar />
+
+        <section className="mx-auto max-w-6xl px-4 py-6">
+          <Catalog isAdmin={isAdmin} editMode={editMode} onExitEdit={() => setEditMode(false)} />
+        </section>
+
+        {/* Feeds the launcher the shared catalog array; while still loading it
+            simply has nothing to match (an empty list), never its own fetch. */}
+        <CommandLauncher services={services?.items ?? []} />
+
+        {/* cap5 — ambient status-change toasts; reads recentChanges from context. */}
+        <ToastContainer />
+
+        {/* v17 — async-review alert history; reads the log from context. */}
+        <AlertHistoryPanel open={alertOpen} events={alerts?.events ?? []} onClose={closeAlerts} />
+
+        {settingsOpen && (
+          <SettingsPanel
+            isAdmin={isAdmin}
+            oidcEnabled={oidcEnabled}
+            onClose={() => setSettingsOpen(false)}
           />
+        )}
+      </main>
 
-          <StatusBar />
-
-          <section className="mx-auto max-w-6xl px-4 py-6">
-            <Catalog isAdmin={isAdmin} editMode={editMode} onExitEdit={() => setEditMode(false)} />
-          </section>
-
-          <LauncherMount />
-
-          {/* cap5 — ambient status-change toasts; reads recentChanges from context. */}
-          <ToastContainer />
-
-          {settingsOpen && (
-            <SettingsPanel
-              isAdmin={isAdmin}
-              oidcEnabled={oidcEnabled}
-              onClose={() => setSettingsOpen(false)}
-            />
-          )}
-        </main>
-
-        {/* v15 — quiet version badge in natural page flow (not sticky). Opens
-            the changelog overlay so an operator can confirm what this build
-            shipped without leaving the dashboard. */}
-        <footer
-          data-testid="app-footer"
-          className="border-t border-neutral-100 dark:border-neutral-800 py-3 text-center"
+      {/* v15 — quiet version badge in natural page flow (not sticky). Opens
+          the changelog overlay so an operator can confirm what this build
+          shipped without leaving the dashboard. */}
+      <footer
+        data-testid="app-footer"
+        className="border-t border-neutral-100 dark:border-neutral-800 py-3 text-center"
+      >
+        <button
+          type="button"
+          aria-label="Open changelog"
+          onClick={() => setChangelogOpen(true)}
+          className="text-xs text-neutral-400 hover:text-neutral-700 hover:underline dark:text-neutral-500 dark:hover:text-neutral-300 bg-transparent border-none cursor-pointer"
         >
-          <button
-            type="button"
-            aria-label="Open changelog"
-            onClick={() => setChangelogOpen(true)}
-            className="text-xs text-neutral-400 hover:text-neutral-700 hover:underline dark:text-neutral-500 dark:hover:text-neutral-300 bg-transparent border-none cursor-pointer"
-          >
-            homepad v{__APP_VERSION__} ({__GIT_SHA__})
-          </button>
-        </footer>
-        <ChangelogOverlay open={changelogOpen} onClose={() => setChangelogOpen(false)} />
-      </ServicesProvider>
-    </LauncherProvider>
+          homepad v{__APP_VERSION__} ({__GIT_SHA__})
+        </button>
+      </footer>
+      <ChangelogOverlay open={changelogOpen} onClose={() => setChangelogOpen(false)} />
+    </>
   );
-}
-
-// Feeds the launcher the shared catalog array; while it is still loading the
-// launcher simply has nothing to match (an empty list), never its own fetch.
-function LauncherMount() {
-  const ctx = useServicesContext();
-  return <CommandLauncher services={ctx?.items ?? []} />;
 }
 
 function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {

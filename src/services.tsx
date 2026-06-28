@@ -11,6 +11,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { servicesWithStatus, type Service, type ServiceStatus } from './api';
+import { useAlertHistory } from './alerts';
 
 // How often to re-poll while visible (AC-001, ±10s tolerance).
 const POLL_MS = 60_000;
@@ -19,6 +20,17 @@ const POLL_MS = 60_000;
 export type StatusChange = {
   id: string;
   name: string;
+  from: ServiceStatus;
+  to: ServiceStatus;
+};
+
+// v17 — a single status transition for the alert-history log. Like StatusChange
+// but carries the service URL (the panel's "Visit" link) and covers ALL flips,
+// not just toastable ones.
+export type Transition = {
+  id: string;
+  name: string;
+  url: string;
   from: ServiceStatus;
   to: ServiceStatus;
 };
@@ -52,25 +64,35 @@ const ServicesContext = createContext<ServicesContextValue | null>(null);
 //
 // cap5: it also collects the toastable status flips it sees (UP/DOWN/DEGRADED
 // only) into `changes`, returning both so the provider can fire alerts.
+//
+// v17: separately, it collects EVERY status transition (any non-equal flip,
+// including ones touching UNKNOWN/NOT_MONITORED) into `transitions` for the
+// alert-history log, which records the full picture rather than just toastable
+// flips (AC-003). `changes` stays the toastable subset that drives toasts.
 export function mergeStatuses(
   current: Service[],
   fresh: Service[],
-): { next: Service[]; changes: StatusChange[] } {
+): { next: Service[]; changes: StatusChange[]; transitions: Transition[] } {
   const byId = new Map(fresh.map((s) => [s.id, s]));
   const changes: StatusChange[] = [];
+  const transitions: Transition[] = [];
   let changed = false;
   const next = current.map((s) => {
     const f = byId.get(s.id);
     if (!f) return s;
     if (f.status === s.status && sameChecks(s.uptimeChecks, f.uptimeChecks)) return s;
     changed = true;
-    // Only surface transitions between toastable states (AC-004, AC-005).
-    if (s.status !== f.status && TOASTABLE.has(s.status) && TOASTABLE.has(f.status)) {
-      changes.push({ id: s.id, name: s.name, from: s.status, to: f.status });
+    if (s.status !== f.status) {
+      // v17 — every transition goes to the alert-history log (AC-003).
+      transitions.push({ id: s.id, name: s.name, url: s.url, from: s.status, to: f.status });
+      // Only surface transitions between toastable states as toasts (AC-004, AC-005).
+      if (TOASTABLE.has(s.status) && TOASTABLE.has(f.status)) {
+        changes.push({ id: s.id, name: s.name, from: s.status, to: f.status });
+      }
     }
     return { ...s, status: f.status, uptimeChecks: f.uptimeChecks };
   });
-  return { next: changed ? next : current, changes };
+  return { next: changed ? next : current, changes, transitions };
 }
 
 function sameChecks(a?: Service['uptimeChecks'], b?: Service['uptimeChecks']): boolean {
@@ -92,6 +114,12 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
   // the grid actually shows (incl. user reorders), not a stale closure capture.
   const itemsRef = useRef<Service[] | null>(null);
   itemsRef.current = items;
+  // v17 — the alert-history sink (nullable: isolated tests render this provider
+  // without an AlertHistoryProvider). Mirrored in a ref so the once-mounted poll
+  // effect always reads the current sink without re-subscribing.
+  const alerts = useAlertHistory();
+  const alertsRef = useRef(alerts);
+  alertsRef.current = alerts;
 
   useEffect(() => {
     let cancelled = false;
@@ -118,10 +146,28 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
         setLastUpdatedAt(Date.now());
         return;
       }
-      const { next, changes } = mergeStatuses(cur, fresh);
+      const { next, changes, transitions } = mergeStatuses(cur, fresh);
+      const now = Date.now();
       setItems(next);
-      setLastUpdatedAt(Date.now());
+      setLastUpdatedAt(now);
       if (changes.length) setRecentChanges(changes);
+      // v17 — record every transition in the alert-history log (AC-003). Only
+      // poll-to-poll flips reach here; the initial baseline returns above, so no
+      // events fire on first paint (AC-004).
+      if (transitions.length) {
+        const sink = alertsRef.current;
+        transitions.forEach((t, i) =>
+          sink?.pushEvent({
+            id: `${t.id}-${now}-${i}`,
+            serviceId: t.id,
+            serviceName: t.name,
+            serviceUrl: t.url,
+            prevStatus: t.from,
+            newStatus: t.to,
+            ts: now,
+          }),
+        );
+      }
     }
 
     void load(true);

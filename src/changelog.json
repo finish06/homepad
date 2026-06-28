@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.1.0",
+      "date": "2026-06-28",
+      "changes": [
+        { "type": "feature", "text": "Status alert history — a header bell with an unread badge opens a panel listing recent service status changes (with timestamps and a from→to indicator) so you can review what changed while you were away (#165)" }
+      ]
+    },
+    {
       "version": "12.0.3",
       "date": "2026-06-27",
       "changes": [

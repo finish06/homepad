@@ -7,6 +7,29 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.1.0] — 2026-06-28
+
+### Status Alert History (v17, #165)
+
+Cap5 status-change toasts auto-dismiss in four seconds, so a user who stepped
+away had no way to review what changed. v17 adds a **session-persistent,
+in-memory alert log**: the v13 poller already diffs service status every ~60s,
+so every transition it detects is now also recorded.
+
+- A quiet **bell icon** in the header (right of ⌘K, left of the avatar) with an
+  unread badge that appears at ≥1 and caps the display at `99+`.
+- Clicking the bell opens the **Alert History panel** (same overlay chrome as
+  the ⌘K launcher) listing transitions newest-first — service name, a colored
+  from→to status-dot pair, a timestamp, and a "Visit" link that opens the
+  service in a new tab. Opening clears the badge; the list survives.
+- In-memory only (last 50 events, ring-buffered); resets on reload/logout. No
+  backend, no localStorage. The first poll after load records nothing (baseline).
+- Escape / ✕ / scrim / a second bell click all close the panel and return focus
+  to the bell. One overlay at a time — opening the launcher closes the panel.
+- `src/alerts.tsx` (provider + `statusDotClass` helper), `src/AlertHistoryPanel.tsx`,
+  bell in `src/AppHeader.tsx`, transition capture in `src/services.tsx`, wiring in
+  `src/App.tsx`.
+
 ## [12.0.3] — 2026-06-27
 
 ### Status-Change Toasts No Longer Replay Stale Alerts (#147)

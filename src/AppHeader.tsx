@@ -49,18 +49,62 @@ function LastUpdated() {
 // trigger between them (wordmark · search · avatar). v13 adds a small "Updated X
 // ago" freshness label next to the avatar. The sticky/blur bar chrome is
 // retained; everything else that used to live here moved into the menu.
+// v17 — the header alert bell. Quiet at rest (no badge at 0 unread); a numeric
+// bubble appears at ≥1, capped at "99+". Sits between the ⌘K trigger and the
+// avatar (AC-001). aria-label carries the unread count for screen readers
+// (AC-002). `bellRef` lets Home restore focus here when the panel closes.
+function AlertBell({
+  count,
+  onClick,
+  bellRef,
+}: {
+  count: number;
+  onClick: () => void;
+  bellRef?: React.Ref<HTMLButtonElement>;
+}) {
+  const label = count > 0 ? `Alert history, ${count} unread` : 'Alert history';
+  return (
+    <button
+      ref={bellRef}
+      type="button"
+      data-testid="alert-bell"
+      aria-label={label}
+      onClick={onClick}
+      className="alert-bell"
+    >
+      <svg aria-hidden="true" viewBox="0 0 20 20" className="alert-bell-glyph">
+        <path
+          d="M10 2a5 5 0 00-5 5v2.6l-1.1 2.2A1 1 0 004.8 14h10.4a1 1 0 00.9-1.4L15 9.6V7a5 5 0 00-5-5zm0 16a2.5 2.5 0 002.45-2h-4.9A2.5 2.5 0 0010 18z"
+          fill="currentColor"
+        />
+      </svg>
+      {count > 0 && (
+        <span data-testid="alert-bell-badge" aria-hidden="true" className="alert-bell-badge">
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export default function AppHeader({
   user,
   onToggleEdit,
   onOpenAdminSettings,
   onGoToDashboard,
   onLogout,
+  alertCount,
+  onAlertClick,
+  bellRef,
 }: {
   user: User;
   onToggleEdit: () => void;
   onOpenAdminSettings: () => void;
   onGoToDashboard: () => void;
   onLogout: () => void;
+  alertCount: number;
+  onAlertClick: () => void;
+  bellRef?: React.Ref<HTMLButtonElement>;
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-neutral-200/70 bg-white/70 backdrop-blur dark:border-neutral-800/70 dark:bg-neutral-900/70">
@@ -69,6 +113,7 @@ export default function AppHeader({
         <LauncherTrigger />
         <div className="flex items-center gap-3">
           <LastUpdated />
+          <AlertBell count={alertCount} onClick={onAlertClick} bellRef={bellRef} />
           <UserMenu
             user={user}
             onToggleEdit={onToggleEdit}

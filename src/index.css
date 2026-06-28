@@ -824,6 +824,185 @@
     }
   }
 
+  /* ── v17 Alert History — header bell + unread badge and the history overlay.
+     The panel reuses .launcher-overlay/.launcher-panel chrome; only the bell,
+     badge, header bar and event rows are new. ── */
+  .alert-bell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 9999px;
+    color: #475069;
+    background: transparent;
+    transition: background-color 0.12s ease, color 0.12s ease;
+  }
+  .alert-bell:hover {
+    background: #f4f5fb;
+    color: #1f2533;
+  }
+  .alert-bell-glyph {
+    width: 19px;
+    height: 19px;
+  }
+  .alert-bell-badge {
+    position: absolute;
+    top: 2px;
+    right: 1px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    box-shadow: 0 0 0 2px #fff;
+  }
+  .dark .alert-bell {
+    color: #aab2c5;
+  }
+  .dark .alert-bell:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #e6e9f2;
+  }
+  .dark .alert-bell-badge {
+    box-shadow: 0 0 0 2px #0e1117;
+  }
+
+  /* AC-011 — fixed header, internally-scrolling body, clamped height. */
+  .alert-history-panel {
+    max-height: clamp(320px, 75vh, 560px);
+  }
+  .alert-history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: none;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  }
+  .dark .alert-history-header {
+    border-bottom-color: rgba(255, 255, 255, 0.07);
+  }
+  .alert-history-title {
+    font-size: 15px;
+    font-weight: 650;
+    color: #0f172a;
+  }
+  .dark .alert-history-title {
+    color: #e6e9f2;
+  }
+  .alert-history-close {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 9999px;
+    color: #9aa3b8;
+    font-size: 13px;
+    line-height: 1;
+  }
+  .alert-history-close:hover {
+    background: #f4f5fb;
+    color: #475069;
+  }
+  .dark .alert-history-close:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #c7ccda;
+  }
+  .alert-history-empty {
+    padding: 36px 24px;
+    text-align: center;
+    color: #9aa3b8;
+    font-size: 14px;
+  }
+  .alert-history-list {
+    overflow-y: auto;
+    padding: 6px;
+    margin: 0;
+    list-style: none;
+  }
+  .alert-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 48px;
+    padding: 8px 10px;
+    border-radius: 9px;
+  }
+  .alert-row:hover {
+    background: #f4f5fb;
+  }
+  .dark .alert-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .alert-row-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .alert-row-name {
+    font-weight: 650;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dark .alert-row-name {
+    color: #e6e9f2;
+  }
+  .alert-row-transition {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+  }
+  .alert-row-arrow {
+    color: #9aa3b8;
+    font-size: 12px;
+  }
+  .alert-row-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: none;
+  }
+  .alert-row-time {
+    font-size: 11px;
+    color: #9aa3b8;
+    white-space: nowrap;
+  }
+  .alert-row-visit {
+    font-size: 12px;
+    font-weight: 600;
+    color: #4f46e5;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .alert-row-visit:hover {
+    text-decoration: underline;
+  }
+  .dark .alert-row-visit {
+    color: #a5b4fc;
+  }
+  /* AC-012 — near-full-screen panel on phones; rows stay readable at 390px. */
+  @media (max-width: 639px) {
+    .alert-history-panel {
+      width: calc(100vw - 24px);
+    }
+    .alert-row-name {
+      max-width: 42vw;
+    }
+  }
+
   /* ── v9.3 App Library (§7) — empty-dashboard CTA + browse modal. Built from
      the same v7/v8 tokens (no new palette): launcher surfaces for the modal,
      the indigo accent for primary actions, faint/hairline greys for chrome. */
