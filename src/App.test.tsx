@@ -295,42 +295,47 @@ describe('v7 §6 — top bar declutter + user menu', () => {
     expect(screen.getByTestId('menu-logout')).toBeInTheDocument();
   });
 
-  it('shows Edit dashboard in the menu for an admin, omits it for a non-admin', async () => {
+  // v18 — admin editMode moved from the avatar menu ("Edit dashboard") to the
+  // Gear menu ("Edit tiles"). The avatar menu no longer carries menu-edit.
+  it('shows Edit tiles in the Gear menu for an admin, omits it for a non-admin', async () => {
     const user = userEvent.setup();
     mockedMe.mockResolvedValue(ADMIN);
     const { unmount } = render(<App />);
     await dropLoading();
-    await openMenu(user);
-    expect(screen.getByTestId('menu-edit')).toBeInTheDocument();
+    await user.click(screen.getByTestId('settings-gear'));
+    expect(screen.getByTestId('gear-edit-tiles')).toBeInTheDocument();
+    expect(screen.queryByTestId('menu-edit')).not.toBeInTheDocument();
     unmount();
 
     mockedMe.mockResolvedValue(USER);
     render(<App />);
     await dropLoading();
-    await openMenu(user);
-    expect(screen.queryByTestId('menu-edit')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('settings-gear'));
+    expect(screen.queryByTestId('gear-edit-tiles')).not.toBeInTheDocument();
   });
 
-  it('menu Edit toggles admin edit mode through to the catalog', async () => {
+  it('Gear Edit tiles toggles admin edit mode through to the catalog', async () => {
     const user = userEvent.setup();
     mockedMe.mockResolvedValue(ADMIN);
     render(<App />);
     await dropLoading();
-    await openMenu(user);
-    await user.click(screen.getByTestId('menu-edit'));
+    await user.click(screen.getByTestId('settings-gear'));
+    await user.click(screen.getByTestId('gear-edit-tiles'));
     expect(screen.getByTestId('catalog-stub')).toHaveAttribute('data-edit', 'true');
   });
 
-  // v10 A9 — arrange mode is gone, so the empty "Personal settings" item that
-  // only toggled it is removed from the menu (the other items are untouched).
-  it('A9 — no Personal settings item; Edit/admin-settings/logout/theme remain', async () => {
+  // v10 A9 — arrange mode toggle is gone from the avatar menu; v18 also moves
+  // Edit dashboard out to the Gear. The avatar menu now carries go-dashboard,
+  // admin-settings, logout and the theme control.
+  it('A9 — avatar menu: no Personal settings / no Edit dashboard; go-dashboard/admin-settings/logout/theme remain', async () => {
     const user = userEvent.setup();
     mockedMe.mockResolvedValue(ADMIN);
     render(<App />);
     await dropLoading();
     await openMenu(user);
     expect(screen.queryByTestId('menu-settings')).not.toBeInTheDocument();
-    expect(screen.getByTestId('menu-edit')).toBeInTheDocument();
+    expect(screen.queryByTestId('menu-edit')).not.toBeInTheDocument();
+    expect(screen.getByTestId('menu-go-dashboard')).toBeInTheDocument();
     expect(screen.getByTestId('menu-admin-settings')).toBeInTheDocument();
     expect(screen.getByTestId('menu-logout')).toBeInTheDocument();
     expect(screen.getByTestId('theme-control')).toBeInTheDocument();
@@ -361,47 +366,46 @@ describe('v7 §6 — top bar declutter + user menu', () => {
   });
 });
 
-// v7 §6 relocated the admin Edit affordance from a bar button (`edit-toggle`)
-// into the avatar menu as `menu-edit` ("Edit dashboard"). These A1 cases now
-// drive it through the menu; gating + single-shot wiring also live in the §6
-// block, while the on→off round trip below is unique to A1.
-describe('A1 — admin edit-mode (via the avatar menu)', () => {
-  async function openMenu(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(await screen.findByTestId('user-menu-trigger'));
+// v18 relocated the admin Edit affordance from the avatar menu (`menu-edit`,
+// "Edit dashboard") to the Gear menu (`gear-edit-tiles`, "Edit tiles"). These A1
+// cases now drive it through the Gear; the on→off round trip is unique to A1.
+describe('A1 — admin edit-mode (via the Gear menu)', () => {
+  async function openGear(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByTestId('settings-gear'));
   }
 
-  it('shows Edit dashboard in the menu for an admin', async () => {
+  it('shows Edit tiles in the Gear menu for an admin', async () => {
     const user = userEvent.setup();
     mockedMe.mockResolvedValue(ADMIN);
     render(<App />);
     await dropLoading();
-    await openMenu(user);
-    expect(screen.getByTestId('menu-edit')).toHaveTextContent(/edit dashboard/i);
+    await openGear(user);
+    expect(screen.getByTestId('gear-edit-tiles')).toHaveTextContent(/edit tiles/i);
   });
 
-  it('omits Edit dashboard from the menu for a non-admin', async () => {
+  it('omits Edit tiles from the Gear menu for a non-admin', async () => {
     const user = userEvent.setup();
     mockedMe.mockResolvedValue(USER);
     render(<App />);
     await dropLoading();
-    await openMenu(user);
-    expect(screen.queryByTestId('menu-edit')).not.toBeInTheDocument();
+    await openGear(user);
+    expect(screen.queryByTestId('gear-edit-tiles')).not.toBeInTheDocument();
   });
 
-  it('flips edit mode on and back off across two menu visits', async () => {
+  it('flips edit mode on and back off across two Gear visits', async () => {
     const user = userEvent.setup();
     mockedMe.mockResolvedValue(ADMIN);
     render(<App />);
     await dropLoading();
     const stub = () => screen.getByTestId('catalog-stub');
 
-    // Selecting Edit closes the menu (per §6.4), so the round trip reopens it.
-    await openMenu(user);
-    await user.click(screen.getByTestId('menu-edit'));
+    // Selecting Edit tiles closes the menu, so the round trip reopens it.
+    await openGear(user);
+    await user.click(screen.getByTestId('gear-edit-tiles'));
     expect(stub()).toHaveAttribute('data-edit', 'true');
 
-    await openMenu(user);
-    await user.click(screen.getByTestId('menu-edit'));
+    await openGear(user);
+    await user.click(screen.getByTestId('gear-edit-tiles'));
     expect(stub()).toHaveAttribute('data-edit', 'false');
   });
 });
