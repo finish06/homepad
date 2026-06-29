@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.5.1",
+      "date": "2026-06-29",
+      "changes": [
+        { "type": "bug-fix", "text": "On large monitors the dashboard now shows a full 6 columns at a 1440px-wide window (it previously dropped to 5). The grid tile minimum was trimmed slightly so six columns fit once the scrollbar and page padding are accounted for (#201)." }
+      ]
+    },
+    {
       "version": "12.5.0",
       "date": "2026-06-29",
       "changes": [
