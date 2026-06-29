@@ -7,6 +7,23 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.5.1] — 2026-06-29
+
+### Six columns at 1440px on large monitors (#201)
+
+The large-monitor grid was rendering only **5 columns at a 1440px-wide viewport**
+instead of the spec's **6** (AC-004). The auto-fill column template used a 220px
+minimum track width; once the scrollbar (~15px) and the `px-4` page padding (32px)
+are subtracted from 1440px, the ~1393px of usable width is **7px short** of fitting
+six 16px-gapped 220px columns, so the browser silently dropped to 5.
+
+Trimming the minimum track width to **210px** lets six columns fit (6×210 + 5×16 =
+1340 ≤ 1393), giving ~219px tiles at 1440px. Narrower breakpoints are unchanged —
+1024px stays 4 columns, 1280px stays 5 — and there is no column **inversion** at
+2560px. A new **real-browser regression gate** (`large-monitor-grid.spec.ts`) now
+asserts the 6-column count at 1440px so jsdom-green can no longer hide this class
+of layout regression.
+
 ## [12.5.0] — 2026-06-29
 
 ### Gear becomes a unified edit-dashboard menu (v18)
