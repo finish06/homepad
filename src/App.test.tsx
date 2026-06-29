@@ -189,6 +189,44 @@ describe('auth gate', () => {
   });
 });
 
+// Design-system a11y fixes for the login screen (Kare's approved system).
+// jsdom has no layout engine, so we can't measure rendered px here — we assert
+// the Tailwind class hooks that enforce the rule, and Kare verifies the real
+// pixels in the browser before merge. Test names describe the observed symptom.
+describe('login a11y — design system', () => {
+  // #177 (Blocker, finding #2): every interactive target on the login card must
+  // be >=44x44px. Measured before fix: Sign in 36px, inputs 38px, Register 20px.
+  it('A177 — all login interactive targets carry a >=44px hit area', async () => {
+    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true });
+    render(<App />);
+    await dropLoading();
+
+    expect(screen.getByRole('button', { name: /sign in/i })).toHaveClass('min-h-[44px]');
+    expect(screen.getByLabelText(/email/i)).toHaveClass('min-h-[44px]');
+    expect(screen.getByLabelText(/password/i)).toHaveClass('min-h-[44px]');
+    expect(
+      screen.getByRole('button', { name: /need an account\? register/i }),
+    ).toHaveClass('min-h-[44px]');
+    expect(await screen.findByRole('button', { name: /pocketid/i })).toHaveClass(
+      'min-h-[44px]',
+    );
+  });
+
+  // #178 (High, finding #4): the "or" divider label was text-neutral-400
+  // (#A3A3A3, 2.52:1) — fails AA body. Must clear >=4.5:1; neutral-500
+  // (#737373) measures 4.74:1.
+  it('A178 — the "or" divider label clears AA body contrast', async () => {
+    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true });
+    render(<App />);
+    await dropLoading();
+    await screen.findByRole('button', { name: /pocketid/i });
+
+    const divider = screen.getByText((_, el) => el?.textContent === 'or');
+    expect(divider).not.toHaveClass('text-neutral-400');
+    expect(divider).toHaveClass('text-neutral-500');
+  });
+});
+
 // v7 ux-redesign §6 — top-bar declutter. The six bar controls collapse into a
 // single avatar UserMenu: theme, Edit (admin), Personal settings, identity,
 // role, Log out all move INTO the dropdown. The bar shows only the wordmark and

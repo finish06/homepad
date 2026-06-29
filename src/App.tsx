@@ -234,7 +234,7 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+            className="mt-1 min-h-[44px] w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
           />
         </label>
 
@@ -246,7 +246,7 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+            className="mt-1 min-h-[44px] w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
           />
         </label>
 
@@ -255,7 +255,7 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
         <button
           type="submit"
           disabled={busy}
-          className="mt-5 w-full rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+          className="mt-5 flex min-h-[44px] w-full items-center justify-center rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
         >
           {busy ? '…' : mode === 'login' ? 'Sign in' : 'Create account'}
         </button>
@@ -266,14 +266,14 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
             setMode(mode === 'login' ? 'register' : 'login');
             setError('');
           }}
-          className="mt-3 w-full text-center text-sm text-neutral-500 hover:text-neutral-800"
+          className="mt-3 flex min-h-[44px] w-full items-center justify-center text-center text-sm text-neutral-500 hover:text-neutral-800"
         >
           {mode === 'login' ? 'Need an account? Register' : 'Have an account? Sign in'}
         </button>
 
         {oidcEnabled && (
           <>
-            <div className="my-4 flex items-center gap-3 text-xs text-neutral-400">
+            <div className="my-4 flex items-center gap-3 text-xs text-neutral-500">
               <span className="h-px flex-1 bg-neutral-200" />
               or
               <span className="h-px flex-1 bg-neutral-200" />
@@ -281,7 +281,7 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
             <button
               type="button"
               onClick={() => window.location.assign('/api/auth/oidc/login')}
-              className="w-full rounded-lg border border-neutral-300 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              className="flex min-h-[44px] w-full items-center justify-center rounded-lg border border-neutral-300 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
             >
               Log in with PocketID
             </button>
