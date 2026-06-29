@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockApi, makeServices } from './mockApi';
+import { mockApi, makeServices, toggleArrange } from './mockApi';
 
 // #57 REGRESSION GATE — real-browser only (issue #59).
 //
@@ -29,9 +29,9 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('user-menu-trigger')).toBeVisible();
   await expect(page.getByTestId('service-tile').first()).toBeVisible();
-  // Reveal the per-tile reorder grips (#166 Arrange mode) so they can contest
-  // the dropdown's pixels.
-  await page.getByTestId('settings-gear').click();
+  // Reveal the per-tile reorder grips (Arrange mode, now entered via the v18 gear
+  // menu) so they can contest the dropdown's pixels.
+  await toggleArrange(page);
   await expect(page.getByTestId('drag-handle').first()).toBeVisible();
 });
 
