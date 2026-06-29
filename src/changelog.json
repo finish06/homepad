@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.5.0",
+      "date": "2026-06-29",
+      "changes": [
+        { "type": "feature", "text": "The header gear is now a unified edit-dashboard menu — one click surfaces every editing action in one place: Arrange tiles and Add apps for everyone, plus an admin-only “Edit tiles” toggle and “Add custom app” under an Admin editing section. The gear highlights whenever an editing mode is active, and “Edit dashboard” has moved out of the avatar menu into this gear menu." }
+      ]
+    },
+    {
       "version": "12.4.1",
       "date": "2026-06-29",
       "changes": [

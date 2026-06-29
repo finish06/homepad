@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockApi, makeServices } from './mockApi';
+import { mockApi, makeServices, toggleArrange } from './mockApi';
 
 // #166 ⨯ #174 RECONCILIATION GATE — real-browser only.
 //
@@ -25,14 +25,15 @@ test('the ⋯ menu is present in the normal view; the reorder grip is hidden unt
   await expect(page.getByTestId('drag-handle')).toHaveCount(0);
 });
 
-test('the settings gear toggles Arrange: grip appears while the ⋯ menu stays present', async ({ page }) => {
+test('the gear menu Arrange item toggles Arrange: grip appears while the ⋯ menu stays present', async ({ page }) => {
   await mockApi(page);
   await page.goto('/');
   await expect(page.getByTestId('settings-gear')).toBeVisible();
   await expect(page.getByTestId('tile-menu')).toBeVisible();
 
-  // Enter Arrange — grip revealed, menu STILL present (the two coexist).
-  await page.getByTestId('settings-gear').click();
+  // Enter Arrange via the v18 gear menu — grip revealed, menu STILL present (the
+  // two coexist).
+  await toggleArrange(page);
   await expect(page.getByTestId('drag-handle')).toBeVisible();
   await expect(page.getByTestId('tile-menu')).toBeVisible();
 
@@ -43,8 +44,8 @@ test('the settings gear toggles Arrange: grip appears while the ⋯ menu stays p
   await page.getByTestId('drag-handle').click();
   await expect(page.getByTestId('tile-menu')).toBeVisible();
 
-  // Leave Arrange — grip tucks away again, menu persists.
-  await page.getByTestId('settings-gear').click();
+  // Leave Arrange (same gear-menu path) — grip tucks away again, menu persists.
+  await toggleArrange(page);
   await expect(page.getByTestId('drag-handle')).toHaveCount(0);
   await expect(page.getByTestId('tile-menu')).toBeVisible();
 });
@@ -52,7 +53,7 @@ test('the settings gear toggles Arrange: grip appears while the ⋯ menu stays p
 test('mouse: in Arrange a real grip drag reorders and persists the new id order', async ({ page }) => {
   await mockApi(page, makeServices(3));
   await page.goto('/');
-  await page.getByTestId('settings-gear').click();
+  await toggleArrange(page);
   const grips = page.getByTestId('drag-handle');
   await expect(grips).toHaveCount(3);
 

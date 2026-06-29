@@ -33,7 +33,6 @@ function renderHeader(alertCount: number, onAlertClick = () => {}) {
     <LauncherProvider>
       <AppHeader
         user={USER}
-        onToggleEdit={() => {}}
         onOpenAdminSettings={() => {}}
         onGoToDashboard={() => {}}
         onLogout={() => {}}
@@ -168,7 +167,6 @@ function Harness({ seed }: { seed: AlertEvent[] }) {
     <LauncherProvider>
       <AppHeader
         user={USER}
-        onToggleEdit={() => {}}
         onOpenAdminSettings={() => {}}
         onGoToDashboard={() => {}}
         onLogout={() => {}}

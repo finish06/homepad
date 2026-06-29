@@ -1,4 +1,16 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+
+// v18 — the header gear is no longer a direct Arrange toggle; it now opens a
+// dropdown edit-dashboard menu. Entering (or leaving) Arrange mode is a two-step
+// gesture: click the gear to open its menu, then click the "Arrange tiles" item
+// (available to every user). The grips' reveal/tuck and the z-stacking these
+// gates guard are unchanged — only the entry path moved behind the menu. Helper
+// so each gate drives the real flow once, in one place.
+export async function toggleArrange(page: Page): Promise<void> {
+  await page.getByTestId('settings-gear').click();
+  await expect(page.getByTestId('gear-menu')).toBeVisible();
+  await page.getByTestId('gear-arrange').click();
+}
 
 // A real-browser fixture for the #35-class tile/menu/dnd gate. We deliberately
 // do NOT stand up the Go API + DB in CI — the bug this gate catches (z-index

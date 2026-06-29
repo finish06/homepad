@@ -16,7 +16,6 @@ function renderMenu(user: User, opts: { dark?: boolean } = {}) {
     <ThemeProvider userPref={opts.dark ? 'dark' : 'light'}>
       <UserMenu
         user={user}
-        onToggleEdit={vi.fn()}
         onOpenAdminSettings={vi.fn()}
         onLogout={vi.fn()}
       />
@@ -38,11 +37,13 @@ afterEach(() => {
   document.documentElement.classList.remove('dark');
 });
 
-// v12 §6 A1 — admins get a "My Dashboard" personal section label above the
-// "Edit dashboard" action. It is muted/uppercase (.menu-section-label), NOT
-// amber — amber is reserved for the Administration section.
-describe('v12 A1 — My Dashboard section (admin)', () => {
-  it('renders the My Dashboard label above Edit dashboard, in muted (non-amber) style', async () => {
+// v18 §4.3 (was v12 A1) — admins get a "My Dashboard" personal section label
+// above the now-symmetric "Go to my dashboard" action (the admin "Edit
+// dashboard" toggle moved to the Gear menu). It is muted/uppercase
+// (.menu-section-label), NOT amber — amber is reserved for the Administration
+// section.
+describe('v18 A1/A10 — My Dashboard section (admin)', () => {
+  it('renders the My Dashboard label above Go to my dashboard, in muted (non-amber) style', async () => {
     renderMenu(ADMIN);
     await open();
     const label = screen.getByTestId('menu-my-dashboard-section');
@@ -51,16 +52,17 @@ describe('v12 A1 — My Dashboard section (admin)', () => {
     // Muted personal style, not the amber administration style.
     expect(label).toHaveClass('menu-section-label');
     expect(label).not.toHaveClass('menu-administration-section');
-    // It precedes the Edit dashboard item.
-    expect(precedes(label, screen.getByTestId('menu-edit'))).toBe(true);
+    // It precedes the Go to my dashboard item; the old menu-edit is gone (v18).
+    expect(precedes(label, screen.getByTestId('menu-go-dashboard'))).toBe(true);
+    expect(screen.queryByTestId('menu-edit')).not.toBeInTheDocument();
   });
 });
 
-// v12 §6 A2 — admins get an "Administration" section label (shield + amber)
-// above "Admin settings" ONLY. "Edit dashboard" lives under My Dashboard,
-// before the Administration label — never inside the admin section.
-describe('v12 A2 — Administration section (admin)', () => {
-  it('renders the Administration label (amber) above Admin settings, after Edit dashboard', async () => {
+// v18 §4.3 (was v12 A2) — admins get an "Administration" section label (shield +
+// amber) above "Admin settings" ONLY. "Go to my dashboard" lives under My
+// Dashboard, before the Administration label — never inside the admin section.
+describe('v18 A2 — Administration section (admin)', () => {
+  it('renders the Administration label (amber) above Admin settings, after Go to my dashboard', async () => {
     renderMenu(ADMIN);
     await open();
     const admin = screen.getByTestId('menu-administration-section');
@@ -68,29 +70,29 @@ describe('v12 A2 — Administration section (admin)', () => {
     expect(admin).toHaveTextContent(/administration/i);
     expect(admin).toHaveClass('menu-administration-section');
 
-    const edit = screen.getByTestId('menu-edit');
+    const go = screen.getByTestId('menu-go-dashboard');
     const settings = screen.getByTestId('menu-admin-settings');
-    // Edit dashboard is a personal item that sits BEFORE the Administration
+    // Go to my dashboard is a personal item that sits BEFORE the Administration
     // label; Admin settings is the only item AFTER it.
-    expect(precedes(edit, admin)).toBe(true);
+    expect(precedes(go, admin)).toBe(true);
     expect(precedes(admin, settings)).toBe(true);
   });
 });
 
-// v12 §6 A3 — per-item scope tags: "personal" on Edit dashboard, "global" on
-// Admin settings, in both light and dark.
-describe('v12 A3 — scope tags on menu items', () => {
-  it('tags Edit dashboard "personal" and Admin settings "global" (light)', async () => {
+// v18 §4.3 (was v12 A3) — per-item scope tags: "personal" on Go to my
+// dashboard, "global" on Admin settings, in both light and dark.
+describe('v18 A3 — scope tags on menu items', () => {
+  it('tags Go to my dashboard "personal" and Admin settings "global" (light)', async () => {
     renderMenu(ADMIN);
     await open();
-    expect(within(screen.getByTestId('menu-edit')).getByText(/personal/i)).toBeInTheDocument();
+    expect(within(screen.getByTestId('menu-go-dashboard')).getByText(/personal/i)).toBeInTheDocument();
     expect(within(screen.getByTestId('menu-admin-settings')).getByText(/global/i)).toBeInTheDocument();
   });
 
   it('renders both scope tags in dark mode', async () => {
     renderMenu(ADMIN, { dark: true });
     await open();
-    expect(within(screen.getByTestId('menu-edit')).getByText(/personal/i)).toBeInTheDocument();
+    expect(within(screen.getByTestId('menu-go-dashboard')).getByText(/personal/i)).toBeInTheDocument();
     expect(within(screen.getByTestId('menu-admin-settings')).getByText(/global/i)).toBeInTheDocument();
   });
 });
@@ -122,19 +124,19 @@ describe('v12 A4/A5/A6 — non-admin sees a labeled personal section', () => {
   });
 });
 
-// #96 — the non-admin "My Dashboard" section used to be text-only with no
-// action, so it read as a dead/broken heading next to every other section's
-// clickable item. It now carries a real "Go to my dashboard" menuitem (parity
-// with the admin's "Edit dashboard"): a focusable, keyboard-navigable action
-// that closes the menu and returns the user to their dashboard.
-describe('#96 — non-admin My Dashboard has an actionable item', () => {
-  it('renders a "Go to my dashboard" menuitem under the My Dashboard label', async () => {
+// #96 + v18 §4.3 — the "My Dashboard" section carries a real "Go to my
+// dashboard" menuitem: a focusable, keyboard-navigable action that closes the
+// menu and returns the user to their dashboard. v18 makes it SYMMETRIC: both
+// admins and non-admins get it (the admin "Edit dashboard" toggle moved to the
+// Gear menu). Non-admins keep the explanatory note beneath it.
+describe('#96 + v18 A10 — My Dashboard has an actionable item for all roles', () => {
+  it('renders a "Go to my dashboard" menuitem under the My Dashboard label (non-admin)', async () => {
     renderMenu(USER);
     await open();
     const action = screen.getByTestId('menu-go-dashboard');
     expect(action).toHaveAttribute('role', 'menuitem');
     expect(action).toHaveTextContent(/go to my dashboard/i);
-    // Tagged "personal" like the admin's Edit dashboard — same scope vocabulary.
+    // Tagged "personal" — same scope vocabulary across the menu.
     expect(within(action).getByText(/personal/i)).toBeInTheDocument();
     // It sits between the section label and the explanatory note.
     const label = screen.getByTestId('menu-my-dashboard-section');
@@ -149,7 +151,6 @@ describe('#96 — non-admin My Dashboard has an actionable item', () => {
       <ThemeProvider userPref="light">
         <UserMenu
           user={USER}
-          onToggleEdit={vi.fn()}
           onOpenAdminSettings={vi.fn()}
           onGoToDashboard={onGoToDashboard}
           onLogout={vi.fn()}
@@ -163,10 +164,11 @@ describe('#96 — non-admin My Dashboard has an actionable item', () => {
     expect(screen.queryByTestId('user-menu')).not.toBeInTheDocument();
   });
 
-  it('admins do not get the "Go to my dashboard" item (they get Edit dashboard)', async () => {
+  it('admins ALSO get the "Go to my dashboard" item (v18 symmetry; no menu-edit)', async () => {
     renderMenu(ADMIN);
     await open();
-    expect(screen.queryByTestId('menu-go-dashboard')).not.toBeInTheDocument();
+    expect(screen.getByTestId('menu-go-dashboard')).toBeInTheDocument();
+    expect(screen.queryByTestId('menu-edit')).not.toBeInTheDocument();
   });
 });
 

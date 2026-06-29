@@ -120,6 +120,10 @@ export default function Catalog({
   editMode = false,
   arrange = false,
   onExitEdit,
+  browseOpen,
+  onBrowseClose,
+  customFormOpen,
+  onCustomFormClose,
 }: {
   isAdmin?: boolean;
   editMode?: boolean;
@@ -129,6 +133,15 @@ export default function Catalog({
   // ONLY the grip — the v12.2.0 "⋯" menu (favorite + remove) stays always-on.
   arrange?: boolean;
   onExitEdit?: () => void;
+  // v18 — the LibraryBrowse + add-custom-app ServiceForm open-state can be lifted
+  // to the parent (App) so the header Gear menu can trigger them. When these are
+  // provided, the parent owns that open-state; the inline "+ Add apps" button and
+  // the empty-CTA still drive the local copy too (both paths coexist). The
+  // edit-an-existing-tile flow stays purely internal (it has no Gear entry).
+  browseOpen?: boolean;
+  onBrowseClose?: () => void;
+  customFormOpen?: boolean;
+  onCustomFormClose?: () => void;
 }) {
   // v8: the Service[] is shared with the command launcher via ServicesProvider so
   // both render the SAME already-loaded array (no second fetch, §3/A12). When the
@@ -147,8 +160,15 @@ export default function Catalog({
   // null = closed; {} = add; { service } = edit that service (A6 admin form).
   const [form, setForm] = useState<{ service?: Service } | null>(null);
   // v9.3 §7.2 — the browse + add-from-library modal. Reachable from the empty
-  // dashboard CTA and the always-visible "Add apps" entry.
-  const [browseOpen, setBrowseOpen] = useState(false);
+  // dashboard CTA and the always-visible "Add apps" entry. v18 — the header Gear
+  // can also open it via the lifted `browseOpen` prop; the modal shows when
+  // EITHER source is open, and closing notifies both.
+  const [localBrowseOpen, setLocalBrowseOpen] = useState(false);
+  const isBrowseOpen = localBrowseOpen || !!browseOpen;
+  function setBrowseOpen(open: boolean) {
+    setLocalBrowseOpen(open);
+    if (!open) onBrowseClose?.();
+  }
   // v5: the set of collapsed category ids (a row = "this user folded it"; absence
   // = expanded, the default). Seeded synchronously from the localStorage cache so
   // first paint is correct, then reconciled with the authoritative server set on
@@ -355,6 +375,9 @@ export default function Catalog({
     }
     setRev((r) => r + 1);
     setForm(null);
+    // v18 — if the form was opened via the lifted Gear "Add custom app" path,
+    // reset the parent's state too so it can be re-triggered.
+    onCustomFormClose?.();
   }
 
   // v9.3 §7.2 — an add-from-library copy lands on MY dashboard. Append it the same
@@ -686,7 +709,7 @@ export default function Catalog({
         </div>
       )}
 
-      {browseOpen && (
+      {isBrowseOpen && (
         <LibraryBrowse
           isAdmin={isAdmin}
           onClose={() => setBrowseOpen(false)}
@@ -698,11 +721,18 @@ export default function Catalog({
         />
       )}
 
-      {form && (
+      {/* v18 — the form renders for the internal edit/add flow (`form`) OR the
+          lifted Gear "Add custom app" path (`customFormOpen`), which opens add
+          mode directly without requiring editMode. Closing clears the internal
+          form and notifies the parent so its lifted state resets too. */}
+      {(form || customFormOpen) && (
         <ServiceForm
-          service={form.service}
+          service={form?.service}
           categories={cats}
-          onClose={() => setForm(null)}
+          onClose={() => {
+            setForm(null);
+            onCustomFormClose?.();
+          }}
           onSaved={onSaved}
         />
       )}
