@@ -478,7 +478,7 @@ export default function Catalog({
         onDragCancel={onDragCancel}
       >
         <SortableContext items={sectionIds} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
             {sectionItems.map((s) => (
               <ServiceTile
                 key={s.id}
