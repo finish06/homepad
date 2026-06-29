@@ -37,7 +37,7 @@ function LastUpdated() {
   return (
     <span
       data-testid="status-last-updated"
-      className="hidden whitespace-nowrap text-xs text-neutral-400 sm:inline dark:text-neutral-500"
+      className="hidden whitespace-nowrap text-xs text-neutral-500 sm:inline dark:text-neutral-500"
     >
       Updated {formatUpdatedAgo(seconds)}
     </span>
@@ -101,7 +101,7 @@ function SettingsGear({ arrange, onToggle }: { arrange: boolean; onToggle: () =>
       aria-label="Personal settings"
       aria-pressed={arrange}
       onClick={onToggle}
-      className={`flex h-9 w-9 items-center justify-center rounded-full outline-none transition hover:bg-neutral-100 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-neutral-800 ${
+      className={`flex h-11 w-11 items-center justify-center rounded-full outline-none transition hover:bg-neutral-100 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-neutral-800 ${
         arrange
           ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400'
           : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200'

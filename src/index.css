@@ -733,11 +733,11 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    min-height: 36px;
+    min-height: 44px;
     padding: 6px 8px;
     border: 1px solid rgba(15, 23, 42, 0.08);
     border-radius: 9999px;
-    color: #9aa3b8;
+    color: #6e6e6e;
     transition:
       border-color 0.18s ease,
       background 0.18s ease,
@@ -759,7 +759,7 @@
     font-size: 13px;
   }
   .launcher-trigger-placeholder {
-    color: #9aa3b8;
+    color: #6e6e6e;
   }
   /* #97 — a keycap, not a category chip. Neutral surface + a full hairline
      border whose thicker bottom edge (and faint drop shadow) give the key its
