@@ -3,6 +3,7 @@ import type { User } from './api';
 import LauncherTrigger from './LauncherTrigger';
 import { useServicesContext } from './services';
 import UserMenu from './UserMenu';
+import { CONTENT_WIDTH } from './layout';
 
 // v13 — render the elapsed-since-last-refresh label. Seconds for the first
 // minute, then whole minutes, capped at "5m+" so the text can never grow without
@@ -144,7 +145,7 @@ export default function AppHeader({
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-neutral-200/70 bg-white/70 backdrop-blur dark:border-neutral-800/70 dark:bg-neutral-900/70">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
+      <div className={`${CONTENT_WIDTH} flex items-center justify-between gap-3 py-3`}>
         <span className="wordmark">homepad</span>
         <LauncherTrigger />
         <div className="flex items-center gap-3">

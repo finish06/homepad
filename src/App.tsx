@@ -12,6 +12,7 @@ import SettingsPanel from './SettingsPanel';
 import ToastContainer from './Toasts';
 import ChangelogOverlay from './ChangelogOverlay';
 import { ThemeProvider } from './theme';
+import { CONTENT_WIDTH } from './layout';
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -140,7 +141,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
 
         <StatusBar />
 
-        <section className="mx-auto max-w-6xl px-4 py-6">
+        <section className={`${CONTENT_WIDTH} py-6`}>
           <Catalog isAdmin={isAdmin} editMode={editMode} arrange={arrange} onExitEdit={() => setEditMode(false)} />
         </section>
 

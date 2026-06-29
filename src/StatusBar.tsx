@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useServicesContext } from './services';
 import type { Service, ServiceStatus } from './api';
+import { CONTENT_WIDTH } from './layout';
 
 // Which chip's popover is open (if any).
 type PeekStatus = 'UP' | 'DOWN_DEGRADED' | 'NOT_MONITORED';
@@ -109,28 +110,35 @@ export default function StatusBar() {
       data-testid="status-bar"
       role="status"
       aria-label="Service status summary"
-      className="relative border-b border-neutral-100 bg-white/50 py-1.5 text-center text-xs font-medium tracking-wide dark:border-neutral-800/50 dark:bg-neutral-900/50"
+      className="relative border-b border-neutral-100 bg-white/50 py-1.5 text-left text-xs font-medium tracking-wide dark:border-neutral-800/50 dark:bg-neutral-900/50"
     >
-      {segments.map((seg, i) => (
-        <span key={seg.peekId}>
-          {i > 0 && <span className="mx-2 text-neutral-300 dark:text-neutral-600">·</span>}
-          <button
-            type="button"
-            data-testid={PEEK_META[seg.peekId].testId}
-            ref={(el) => {
-              triggerRefs.current[seg.peekId] = el;
-            }}
-            aria-haspopup="dialog"
-            aria-expanded={peek === seg.peekId}
-            aria-label={`Show ${seg.count} service${seg.count === 1 ? '' : 's'} that are ${PEEK_META[seg.peekId].label}`}
-            onClick={() => setPeek((cur) => (cur === seg.peekId ? null : seg.peekId))}
-            className={`cursor-pointer rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${seg.className}`}
-          >
-            {seg.label}
-          </button>
-        </span>
-      ))}
+      {/* #196 AC-008/AC-009/AC-010: the stripe stays full-bleed; only this inner
+          content shares the App/AppHeader content width so its left edge aligns
+          with the header wordmark and the grid. */}
+      <div data-testid="status-bar-content" className={CONTENT_WIDTH}>
+        {segments.map((seg, i) => (
+          <span key={seg.peekId}>
+            {i > 0 && <span className="mx-2 text-neutral-300 dark:text-neutral-600">·</span>}
+            <button
+              type="button"
+              data-testid={PEEK_META[seg.peekId].testId}
+              ref={(el) => {
+                triggerRefs.current[seg.peekId] = el;
+              }}
+              aria-haspopup="dialog"
+              aria-expanded={peek === seg.peekId}
+              aria-label={`Show ${seg.count} service${seg.count === 1 ? '' : 's'} that are ${PEEK_META[seg.peekId].label}`}
+              onClick={() => setPeek((cur) => (cur === seg.peekId ? null : seg.peekId))}
+              className={`cursor-pointer rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${seg.className}`}
+            >
+              {seg.label}
+            </button>
+          </span>
+        ))}
+      </div>
 
+      {/* Popover stays a child of the full-bleed relative wrapper so its
+          left-1/2 anchor centers on the viewport, not the constrained box. */}
       {openSegment && <StatusPeekPopover services={peekServices} popoverRef={popoverRef} />}
     </div>
   );
