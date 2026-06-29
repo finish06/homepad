@@ -30,8 +30,17 @@ export default function App() {
   return (
     <ThemeProvider userPref={user?.themePref}>
       {loading ? (
-        <main className="min-h-screen flex items-center justify-center font-sans text-neutral-500">
-          loading…
+        // #184 — a real loading state: an indigo spinner + an AA-contrast,
+        // screen-reader-announced label, replacing the bare low-contrast text.
+        <main
+          role="status"
+          aria-live="polite"
+          className="app-surface min-h-screen flex flex-col items-center justify-center gap-3 font-sans"
+        >
+          <span data-testid="app-loading-spinner" className="app-spinner" aria-hidden="true" />
+          <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
+            Loading your dashboard…
+          </span>
         </main>
       ) : user ? (
         // v8/v17 — the home providers wrap Home so its body can read launcher,
@@ -163,9 +172,12 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
       >
         <button
           type="button"
+          data-testid="changelog-open"
           aria-label="Open changelog"
           onClick={() => setChangelogOpen(true)}
-          className="text-xs text-neutral-400 hover:text-neutral-700 hover:underline dark:text-neutral-500 dark:hover:text-neutral-300 bg-transparent border-none cursor-pointer"
+          // #181 — was neutral-400 (#A3A3A3, 2.52:1, axe serious). neutral-500
+          // (#737373) is 4.74:1 on white; dark uses neutral-400 on the dark canvas.
+          className="text-xs text-neutral-500 hover:text-neutral-700 hover:underline dark:text-neutral-400 dark:hover:text-neutral-200 bg-transparent border-none cursor-pointer"
         >
           homepad v{__APP_VERSION__} ({__GIT_SHA__})
         </button>

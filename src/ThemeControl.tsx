@@ -43,7 +43,7 @@ export default function ThemeControl() {
             data-testid={`theme-${seg.value}`}
             aria-pressed={active}
             onClick={() => choose(seg.value)}
-            className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+            className={`inline-flex min-h-[44px] items-center justify-center rounded-md px-2.5 py-1 text-xs font-medium transition ${
               active
                 ? 'bg-indigo-600 text-white'
                 : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'

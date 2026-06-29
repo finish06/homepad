@@ -90,9 +90,12 @@ export default function UserMenu({
         aria-label="Account menu"
         title={user.email}
         onClick={() => setOpen((o) => !o)}
-        className="user-avatar"
+        // #182 — the trigger box carries the >=44px touch target; the §6.2
+        // 34×34 gradient disc lives on the inner span so the visual token is
+        // unchanged while the hit area meets the design-system minimum.
+        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
       >
-        {userInitials(user)}
+        <span className="user-avatar user-avatar-disc">{userInitials(user)}</span>
       </button>
 
       {open && (

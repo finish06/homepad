@@ -21,6 +21,34 @@
       linear-gradient(180deg, #0b0d12 0%, #0e1117 100%);
   }
 
+  /* #184 — app/dashboard loading state. Replaces the bare low-contrast
+     "loading…" text with a real affordance: a rotating indigo ring (non-text
+     contrast 6.29:1 light / indigo-400 in dark) paired with an AA-contrast
+     label. Motion respects prefers-reduced-motion (the ring still reads as a
+     spinner, it just stops rotating). */
+  .app-spinner {
+    width: 32px;
+    height: 32px;
+    border-radius: 9999px;
+    border: 3px solid rgba(99, 102, 241, 0.2);
+    border-top-color: #4f46e5; /* indigo-600 — 6.29:1 on white */
+    animation: app-spin 0.7s linear infinite;
+  }
+  .dark .app-spinner {
+    border-color: rgba(129, 140, 248, 0.25);
+    border-top-color: #818cf8; /* indigo-400 — reads on the dark canvas */
+  }
+  @keyframes app-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-spinner {
+      animation: none;
+    }
+  }
+
   /* §4 Service tile — radius/gradient/rest+hover shadow, hover lift. */
   .tile {
     border-radius: 18px;
@@ -313,6 +341,10 @@
     align-items: center;
     gap: 10px;
     width: 100%;
+    /* #185 — interactive menu rows must clear the 44px touch minimum (Log out
+       measured 38px). Shared by the UserMenu and the v18 Gear menu, so both
+       inherit the compliant row height. */
+    min-height: 44px;
     text-align: left;
     padding: 9px 12px;
     border-radius: 9px;
@@ -832,8 +864,11 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    /* #182 — >=44px touch target (was 36×36, below the design-system minimum).
+       The 19px glyph stays centered; only the at-rest-invisible hover halo and
+       the hit box grow. */
+    width: 44px;
+    height: 44px;
     border-radius: 9999px;
     color: #475069;
     background: transparent;
@@ -849,8 +884,9 @@
   }
   .alert-bell-badge {
     position: absolute;
-    top: 2px;
-    right: 1px;
+    /* anchored to the glyph's top-right corner inside the larger (44px) hit box */
+    top: 6px;
+    right: 6px;
     min-width: 16px;
     height: 16px;
     padding: 0 4px;

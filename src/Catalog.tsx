@@ -1152,7 +1152,7 @@ function ServiceTile({
         {service.description && (
           <span
             data-testid="service-tile-description"
-            className="mt-0.5 truncate pr-14 text-sm text-neutral-500"
+            className="mt-0.5 truncate pr-14 text-sm text-neutral-500 dark:text-neutral-400"
           >
             {service.description}
           </span>
@@ -1294,7 +1294,7 @@ function TileMenu({
           }
           setOpen((o) => !o);
         }}
-        className="tile-menu-trigger flex h-11 w-11 items-center justify-center rounded-full text-lg leading-none text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-indigo-500 sm:h-9 sm:w-9 sm:opacity-40 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 dark:hover:bg-neutral-800"
+        className="tile-menu-trigger flex h-11 w-11 items-center justify-center rounded-full text-lg leading-none text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-indigo-500 sm:opacity-40 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 dark:hover:bg-neutral-800"
       >
         ⋯
       </button>
@@ -1363,7 +1363,7 @@ function TileMenu({
                   setOpen(false);
                   triggerRef.current?.focus();
                 }}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-neutral-700 outline-none hover:bg-neutral-100 focus-visible:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                className="flex min-h-[44px] w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-neutral-700 outline-none hover:bg-neutral-100 focus-visible:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-700"
               >
                 <span className={fav ? 'text-amber-400' : 'text-neutral-400'}>{fav ? '★' : '☆'}</span>
                 {fav ? 'Favorited' : 'Favorite'}
@@ -1373,7 +1373,7 @@ function TileMenu({
                 role="menuitem"
                 data-testid="remove-from-dashboard"
                 {...fire(() => setConfirming(true))}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-red-600 outline-none hover:bg-red-50 focus-visible:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                className="flex min-h-[44px] w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-red-600 outline-none hover:bg-red-50 focus-visible:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
               >
                 <span aria-hidden="true">🗑</span>
                 Remove from dashboard
