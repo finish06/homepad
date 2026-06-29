@@ -71,7 +71,10 @@ describe('#191 — header status captions contrast (light)', () => {
   it('A191 — "Updated X ago" caption drops the failing neutral-400 light color', () => {
     const cls = classesFor(appHeader, 'status-last-updated');
     expect(cls).not.toMatch(/(?<!dark:)text-neutral-400/);
-    expect(cls).toContain('text-neutral-500');
+    expect(cls).toContain('text-neutral-500'); // light now 4.74:1
+    // dark unified onto neutral-400 (matches the "N not monitored" caption,
+    // ~7.7:1) — neutral-500 measured a borderline ~4.1:1 on the dark header.
+    expect(cls).toContain('dark:text-neutral-400');
   });
 
   it('A191 — "N not monitored" caption uses neutral-500 (not resting neutral-400)', () => {

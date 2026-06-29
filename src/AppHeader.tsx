@@ -37,7 +37,7 @@ function LastUpdated() {
   return (
     <span
       data-testid="status-last-updated"
-      className="hidden whitespace-nowrap text-xs text-neutral-500 sm:inline dark:text-neutral-500"
+      className="hidden whitespace-nowrap text-xs text-neutral-500 sm:inline dark:text-neutral-400"
     >
       Updated {formatUpdatedAgo(seconds)}
     </span>

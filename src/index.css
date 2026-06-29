@@ -816,6 +816,13 @@
   }
   .dark .launcher-trigger {
     border-color: rgba(255, 255, 255, 0.1);
+    /* #189 light fix darkened the resting glyph/placeholder to #6e6e6e for AA on
+       white; on the dark ground that reads too dim, so keep the original light
+       gray (clean at ~7:1 on near-black) here. */
+    color: #9aa3b8;
+  }
+  .dark .launcher-trigger-placeholder {
+    color: #9aa3b8;
   }
   .dark .launcher-trigger:hover {
     border-color: rgba(129, 140, 248, 0.45);
