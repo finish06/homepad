@@ -50,7 +50,10 @@ describe('grid template (#194, AC-006)', () => {
   });
 
   it('uses auto-fill minmax columns at lg+ so columns grow with the container', () => {
-    expect(catalog).toContain('lg:grid-cols-[repeat(auto-fill,minmax(220px,1fr))]');
+    // #201: min track width is 210px (not 220px) so six 16px-gapped columns fit
+    // the ~1393px available at 1440px (scrollbar + px-4); the real column-count
+    // guarantee lives in the #35 browser gate (large-monitor-grid.spec.ts).
+    expect(catalog).toContain('lg:grid-cols-[repeat(auto-fill,minmax(210px,1fr))]');
   });
 
   it('keeps mobile 2-col and sm 3-col layouts unchanged (AC-007)', () => {
