@@ -7,6 +7,30 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.4.1] — 2026-06-29
+
+### Design-system alignment — light-mode contrast + 44px touch targets
+
+Kare's v12.4.0 (9aaad1e) alignment review (`design-review-20260629.md`) found the
+last-mile light-mode misses left after the #180–#185 a11y push. homepad is the
+design system's **reference app**, so it must pass its own bar (AA contrast, ≥44px
+targets through the iPad range).
+
+- **#188** — the tile `⋯` menu glyph was `neutral-400` (#a3a3a3) on white = 2.52:1.
+  Now `neutral-500` (4.75:1); dark keeps `neutral-400` (~7:1 on near-black).
+- **#189** — the quick-launcher placeholder/glyph was #9aa3b8 = 2.53:1 → #6e6e6e
+  (~5:1), and the bar grew from 36px to a 44px touch target.
+- **#190** — the header settings gear was 36×36 (`h-9 w-9`) → 44×44 (`h-11 w-11`),
+  matching the bell and tile `⋯` trigger beside it.
+- **#191** — the header "Updated X ago" caption was `neutral-400` = 2.52:1 →
+  `neutral-500` in light mode (dark unchanged). The "N not monitored" caption was
+  already `neutral-500`.
+- **#185** (advisory) — the "+ Add apps" button is now a ≥44px (`min-h-11`) target.
+
+`#182` (account-avatar hit area) was verified already at 44×44 on `main` — the
+44px hit box wraps the 34px disc (UserMenu, guarded by `A182`); the review measured
+the disc, not the button. `#180/#181/#183` are verified fixed and closed.
+
 ## [12.4.0] — 2026-06-28
 
 ### App Library search — no-matches hint

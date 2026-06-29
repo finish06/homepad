@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.4.1",
+      "date": "2026-06-29",
+      "changes": [
+        { "type": "bug-fix", "text": "Accessibility polish — the tile “⋯” menu glyph, quick-launcher placeholder, and header “Updated …” caption now meet AA contrast in light mode, and the quick-launcher bar, settings gear, and “+ Add apps” button are full 44px touch targets (#188–#191, #185)" }
+      ]
+    },
+    {
       "version": "12.4.0",
       "date": "2026-06-28",
       "changes": [

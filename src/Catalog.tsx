@@ -567,11 +567,11 @@ export default function Catalog({
           data-testid="open-library"
           data-emphasis={addAppsFilled ? 'filled' : 'ghost'}
           onClick={() => setBrowseOpen(true)}
-          className={
+          className={`inline-flex min-h-11 items-center rounded-lg px-3 py-1.5 text-sm font-medium ${
             addAppsFilled
-              ? 'rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700'
-              : 'rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-300'
-          }
+              ? 'bg-indigo-600 text-white shadow-sm hover:bg-indigo-700'
+              : 'border border-indigo-200 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-300'
+          }`}
         >
           + Add apps
         </button>
@@ -1294,7 +1294,7 @@ function TileMenu({
           }
           setOpen((o) => !o);
         }}
-        className="tile-menu-trigger flex h-11 w-11 items-center justify-center rounded-full text-lg leading-none text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-indigo-500 sm:opacity-40 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 dark:hover:bg-neutral-800"
+        className="tile-menu-trigger flex h-11 w-11 items-center justify-center rounded-full text-lg leading-none text-neutral-500 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-indigo-500 sm:opacity-40 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
       >
         ⋯
       </button>
