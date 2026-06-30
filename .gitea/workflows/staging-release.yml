@@ -1,0 +1,32 @@
+# Standardized post-merge build via Code/ci-shared/staging-release@v3 (fleet rollout).
+#
+# Replaces the old monolithic release.yml (ci-shared@v2). On push to main (after a
+# PR merges through the mr-staging gate + QA pool), build the integrated image
+# homepad:<sha>-beta (+ immutable :<sha>) with Kaniko, push it, and roll it to
+# staging (homepad-staging ns). No test gate / no re-QA — the PR was already gated
+# by mr-staging + the QA pool, and main is branch-protected.
+name: main -> staging build
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  staging-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: http://gitea-http.gitea.svc.cluster.local:3000/Code/ci-shared/staging-release@v3
+        with:
+          image-name: homepad
+          deploy-cmd: |
+            printf '%s' "$KUBECONFIG_STAGING" > /tmp/kc && export KUBECONFIG=/tmp/kc
+            if ! command -v kubectl >/dev/null 2>&1; then
+              curl -sSLf -o /usr/local/bin/kubectl https://dl.k8s.io/release/v1.30.2/bin/linux/amd64/kubectl
+              chmod +x /usr/local/bin/kubectl
+            fi
+            kubectl -n homepad-staging set image deploy/homepad-web web="$IMAGE_REF"
+            kubectl -n homepad-staging rollout status deploy/homepad-web --timeout=120s
+        env:
+          REGISTRY_USERNAME:  ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD:  ${{ secrets.REGISTRY_PASSWORD }}
+          KUBECONFIG_STAGING: ${{ secrets.KUBECONFIG_STAGING }}

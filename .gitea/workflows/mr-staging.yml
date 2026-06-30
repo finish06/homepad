@@ -1,0 +1,52 @@
+# Standardized PR-gate via Code/ci-shared/mr-staging@v3 (CI/CD fleet rollout).
+#
+# Migrates homepad off the old monolithic `ci-shared@v2` (which built + deployed +
+# QA'd only AFTER merge, in release.yml) to the split @v3 model: QA now runs at
+# PR time and gates the merge.
+#
+# On a pull_request to main: run the homepad web gate (build-first — see test-cmd),
+# build the candidate image homepad:<sha>-test, push it, deploy it to staging
+# (homepad-staging ns), then dispatch the QA POOL (friend.qa.task.*). On a PASS the
+# pool bot approves + merges this PR via the Gitea API with its own PAT; main is
+# branch-protected (required_approvals=1, whitelist gracie) so the merge only lands
+# behind the QA gate.
+#
+# ci.yml (Web build+unit) and browser-gate.yml (#35) stay as separate required
+# status checks.
+name: PR -> staging gate
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  mr-staging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: http://gitea-http.gitea.svc.cluster.local:3000/Code/ci-shared/mr-staging@v3
+        with:
+          image-name: homepad
+          staging-url: https://homepad-staging.10.17.2.213.nip.io
+          # Build BEFORE the test gate: homepad's vitest suite includes built-output
+          # checks (pwa-icons.test.ts asserts dist/ exists) which fail a bare
+          # `npm test`. Carried over from the old release.yml gate. (Kaniko still
+          # rebuilds for the image — cheap.)
+          test-cmd: |
+            npm ci
+            npm run build
+            npm test
+          deploy-cmd: |
+            printf '%s' "$KUBECONFIG_STAGING" > /tmp/kc && export KUBECONFIG=/tmp/kc
+            # catthehacker runner image ships no kubectl — install the pinned binary.
+            if ! command -v kubectl >/dev/null 2>&1; then
+              curl -sSLf -o /usr/local/bin/kubectl https://dl.k8s.io/release/v1.30.2/bin/linux/amd64/kubectl
+              chmod +x /usr/local/bin/kubectl
+            fi
+            kubectl -n homepad-staging set image deploy/homepad-web web="$IMAGE_REF"
+            kubectl -n homepad-staging rollout status deploy/homepad-web --timeout=120s
+        env:
+          REGISTRY_USERNAME:  ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD:  ${{ secrets.REGISTRY_PASSWORD }}
+          NATS_PUBLISH_URL:   ${{ secrets.NATS_PUBLISH_URL }}
+          NATS_PUBLISH_TOKEN: ${{ secrets.NATS_PUBLISH_TOKEN }}
+          KUBECONFIG_STAGING: ${{ secrets.KUBECONFIG_STAGING }}
