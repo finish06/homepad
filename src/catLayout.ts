@@ -161,10 +161,14 @@ export function mergeCategories<T extends CatLayout>(
   order.splice(insertAt, 0, draggedId);
 
   const [a] = resolveMergeSplit(); // 50/50 for the two-pane common case
-  const evenPct = Math.round(100 / order.length);
+  // #217 — split evenly with floor, giving the remainder to the last pane so the
+  // row's widths always sum to exactly 100% (Round(100/n) undershoots, e.g. n=3).
+  const base = Math.floor(100 / order.length);
+  const remainder = 100 - base * order.length;
   const next = cats.map((c) => {
     const pos = order.indexOf(c.id);
     if (pos === -1) return c;
+    const evenPct = pos === order.length - 1 ? base + remainder : base;
     return {
       ...c,
       layoutRow: targetRow,
