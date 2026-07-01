@@ -83,6 +83,20 @@ describe('floating-panel field replaces the auto-fill grid (v14, A-006)', () => 
   });
 });
 
+// The App Grid lives inside App.tsx's `${CONTENT_WIDTH} py-6` section, which
+// already caps + centers content at max-w-[1536px] px-4. A SECOND max-width +
+// margin:auto on `.app-grid` itself re-centers the grid independently inside
+// that section, insetting its left edge past the header/status content edges at
+// wide viewports — the #196 "grid floats untethered at 2560" symptom. The grid
+// must simply fill the shared frame. jsdom can't measure the inset, so this is a
+// CSS source-guard on the base `.app-grid` rule.
+describe('App Grid shares the content frame (#196, AC-008)', () => {
+  it('does not re-cap its own width inside the CONTENT_WIDTH section (else it floats inset from header/status)', () => {
+    expect(appGridRule, 'expected a base .app-grid rule').not.toBe('');
+    expect(appGridRule).not.toMatch(/max-width/);
+  });
+});
+
 // StatusBar structure — full-bleed stripe preserved, content constrained.
 vi.mock('./services', () => ({ useServicesContext: vi.fn() }));
 const mockedCtx = vi.mocked(useServicesContext);
