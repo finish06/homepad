@@ -99,7 +99,11 @@ describe('usage-priority category ordering', () => {
     // Bravo opened 10x, Alpha 2x → Bravo first
     seedLog(['b1', 10], ['a1', 2]);
     render(<Catalog />);
-    expect(await catOrder()).toEqual(['Bravo', 'Alpha']);
+    // The mount re-rank sets rankedOrder in an effect that fires AFTER the
+    // render where the tiles first appear, so the panels reorder on a later
+    // commit. waitFor retries the SAME equality until that re-rank commit lands
+    // (catOrder alone can read the admin order one render too early — flaky in CI).
+    await waitFor(async () => expect(await catOrder()).toEqual(['Bravo', 'Alpha']));
   });
 
   it('C-002 — the re-rank persists categoryOrder + a fresh sortRankAt', async () => {
@@ -194,7 +198,8 @@ describe('#209 — auto-mode category drag persists the display-space order', ()
     // usage ranks Bravo first → displayCats=[Bravo, Alpha] while admin cats=[A, B]
     seedLog(['b1', 10], ['a1', 2]);
     render(<Catalog />);
-    expect(await catOrder()).toEqual(['Bravo', 'Alpha']);
+    // Wait for the mount re-rank commit (see C-002 above) before driving the drag.
+    await waitFor(async () => expect(await catOrder()).toEqual(['Bravo', 'Alpha']));
 
     // Alpha renders second (below Bravo); ArrowUp drags it above Bravo.
     const grip = screen.getByRole('button', { name: 'Reorder Alpha section' });
