@@ -27,6 +27,7 @@ vi.mock('./api', () => ({
   register: vi.fn(),
   logout: vi.fn(),
   setThemePref: vi.fn(),
+  categories: vi.fn(() => Promise.resolve([])),
   services: vi.fn(() => Promise.resolve([])),
   servicesWithStatus: vi.fn(() => Promise.resolve({ status: 200, services: [] })),
 }));
