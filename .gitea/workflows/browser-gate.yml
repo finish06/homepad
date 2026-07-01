@@ -21,6 +21,14 @@ jobs:
   browser-gate:
     name: Browser gate (#35 tile/menu/dnd)
     runs-on: ubuntu-latest
+    # Run inside the Playwright-published image whose tag matches the EXACT
+    # @playwright/test version resolved in package-lock.json (1.60.0). It ships
+    # the matching Chromium (and all OS deps) preinstalled at ~/.cache/ms-playwright,
+    # so we never download ~150MB from cdn.playwright.dev at runtime — that download
+    # was timing out (5×30s → "Failed to install browsers") and wedging this gate.
+    # A version mismatch here would re-trigger a download, so keep it pinned to the
+    # lockfile version. The image bundles git + node, so checkout/setup work.
+    container: mcr.microsoft.com/playwright:v1.60.0-noble
     steps:
       - uses: actions/checkout@v4
         with:
@@ -53,9 +61,12 @@ jobs:
         if: steps.filter.outputs.run == 'true'
         run: npm ci
 
-      - name: Install Chromium (+ OS deps)
+      - name: Verify preinstalled Chromium (no download)
         if: steps.filter.outputs.run == 'true'
-        run: npx playwright install --with-deps chromium
+        # No-op inside the pinned Playwright image: Chromium + OS deps are already
+        # baked in, so this just validates the browser is present. --with-deps is
+        # dropped so no apt/network work runs.
+        run: npx playwright install chromium
 
       - name: Build app
         if: steps.filter.outputs.run == 'true'
