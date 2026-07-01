@@ -377,3 +377,10 @@ This spec is approved for implementation only when both signatures are present:
 - [x] **Kare (design):** design go — §6 complete: box/tool/selector/add-box/empty-state tokens grounded in the shipped glass system, dark+light parity, AA contrast, 44px targets, 640px breakpoint confirmed. One advisory (§6.7 iPad-portrait tablet tier) — a refinement, not a gate.
 
 _Walt pre-sign: ACs and product decisions are solid pending Caleb's confirmation on §4A (width persistence) and Kare's design section._
+
+---
+
+## DECISION LOG — §4A + build gate (Joe, 2026-07-01)
+- **§4A Width persistence: DECIDED = PERSIST.** Caleb confirmed: "Persistence is needed now. Walt is right." Box `grid_width` persists as an admin-set property: one new DB column `grid_width` on the category, one new accepted field on `PATCH /api/categories/:id`, width selector writes through. This supersedes the intake's 'out of scope' note.
+- **§9 co-sign gate: OPENED.** §6 (Kare's design) is merged, Kare co-signed, §4A is resolved (persist), Caleb + Walt + Joe all aligned. Joe authorizes the build to proceed. Stitch: the start-gate is satisfied — BUILD.
+- **Supersedes the max-4 (v12.7.0) floating-panel layout — REPLACE, per §2.**
