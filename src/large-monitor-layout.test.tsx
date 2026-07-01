@@ -19,6 +19,11 @@ const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
 const catalog = read('src/Catalog.tsx');
 const app = read('src/App.tsx');
 const appHeader = read('src/AppHeader.tsx');
+const indexCss = read('src/index.css');
+
+// The base `.app-grid { ... }` rule (page grid), not `.app-grid-box` etc. The
+// selector `.app-grid` must be immediately followed by whitespace + `{`.
+const appGridRule = indexCss.match(/\.app-grid\s*\{([^}]*)\}/)?.[1] ?? '';
 
 // The one shared content-width token. AC-009 forbids divergent max-width
 // declarations, so all three layers must consume this exact class string.
@@ -38,6 +43,26 @@ describe('shared content width (#196, AC-009)', () => {
   it('AppHeader inner div uses the shared class, not a separate max-w-6xl (AC-009)', () => {
     expect(appHeader).toContain('CONTENT_WIDTH');
     expect(appHeader).not.toContain('max-w-6xl');
+  });
+});
+
+// #194 — the App Grid page grid must fill the SAME 1536px content width as the
+// header/status bar, not stop 144px short at the v14-carryover 1392px. When it
+// caps early, a 2560px monitor's tiles (~216px) match a 1440px monitor's rather
+// than growing into the wider canvas — "more screen, same content", the tail of
+// the inversion #194 flagged. jsdom can't measure the pixels; this guards the
+// max-width that makes the browser-verified growth happen. Named for the symptom.
+describe('app grid caps tiles short of the shared content width (#194, AC-001)', () => {
+  it('sizes the page grid to the shared 1536px width, not the v14 1392px', () => {
+    expect(appGridRule).toMatch(/max-width:\s*1536px/);
+    expect(appGridRule).not.toMatch(/max-width:\s*1392px/);
+  });
+
+  it('matches the CONTENT_WIDTH token so grid, header, and status bar right-align', () => {
+    // CONTENT_WIDTH is `max-w-[1536px]`; the grid's own cap must be the same value.
+    const token = CONTENT_WIDTH.match(/max-w-\[(\d+)px\]/)?.[1];
+    expect(token).toBe('1536');
+    expect(appGridRule).toContain(`max-width: ${token}px`);
   });
 });
 
