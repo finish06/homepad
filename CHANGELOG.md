@@ -7,6 +7,17 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.7.1] — 2026-07-01 — App Grid fills the wide-monitor canvas (#194)
+
+### Fixed
+- The App Grid dashboard now fills the shared **1536px** content width instead
+  of stopping short at **1392px** (a leftover from the v14 floating-panel
+  layout). On a wide monitor the app tiles used to stay the same size as on a
+  1440px screen — "more screen, same content", the tail of the #194 inversion.
+  They now grow with the canvas (browser-measured tile width: 216px → 235px at
+  2560px), stay ≥200px on desktop, and the grid right-aligns with the header and
+  status bar. iPad and phone layouts are unchanged.
+
 ## [12.7.0] — 2026-07-01 — v14.1 floating-panel 4-column ceiling
 
 ### Changed
