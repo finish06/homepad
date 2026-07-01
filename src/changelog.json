@@ -2,6 +2,15 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.6.0",
+      "date": "2026-07-01",
+      "changes": [
+        { "type": "feature", "text": "New floating glass-panel dashboard — each category (plus Favorites and Uncategorized) is its own frosted-glass panel that hugs its apps and packs left-to-right, and tiles are now a fixed 190px so they never stretch (fixes the ~218px bloat at 1440px)." },
+        { "type": "feature", "text": "Categories now auto-sort by how often you open their apps (rolling 30-day window) so your most-used category sits top-left. Ordering is stable — it re-ranks at most once a day, on load, and only swaps categories on a decisive usage margin. An Arrange-mode “Sort: Auto / Custom” toggle lets you pin a manual order instead, with “Reset to auto order” to switch back." },
+        { "type": "enhancement", "text": "The “Recently opened” row is restyled as compact name-only glass chips — 44px tall tap targets with a 28×28 app plate — and its label now meets AA contrast." }
+      ]
+    },
+    {
       "version": "12.5.1",
       "date": "2026-06-29",
       "changes": [

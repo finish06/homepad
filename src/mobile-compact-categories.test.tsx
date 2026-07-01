@@ -15,13 +15,15 @@ const catalogSrc = readFileSync(resolve(process.cwd(), 'src/Catalog.tsx'), 'utf8
 const cssSrc = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
 
 describe('#126 — collapsed category spacing is tight on mobile, unchanged on desktop', () => {
-  it('the category-list wrappers gap tightly on phones but keep desktop breathing room', () => {
-    // Both `space-y-8` wrappers (outer categories block + inner sortable list)
-    // must switch to the responsive `space-y-2 sm:space-y-8`.
-    const responsive = catalogSrc.match(/className="space-y-2 sm:space-y-8"/g) ?? [];
-    expect(responsive.length).toBe(2);
-    // And no bare `space-y-8` (without the phone override) survives.
+  it('v14 — the vertical space-y category wrappers are gone; the panel field owns spacing', () => {
+    // v14 replaced the stacked `space-y-2 sm:space-y-8` category wrappers with the
+    // floating `.tile-field` (flex-wrap, gap 16px) — one uniform gap between panels
+    // at every breakpoint, so the #126 "collapsed headers eat the phone" problem is
+    // handled by the field gap rather than a per-list space-y override.
+    expect(catalogSrc).not.toMatch(/space-y-2 sm:space-y-8/);
     expect(catalogSrc).not.toMatch(/className="space-y-8"/);
+    // the field gap is the spacing hook now
+    expect(cssSrc).toMatch(/\.tile-field\s*\{[^}]*gap:\s*16px/s);
   });
 
   it('suppresses the .cat-head bottom margin/padding below the sm (640px) breakpoint', () => {

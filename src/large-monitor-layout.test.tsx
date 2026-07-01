@@ -41,24 +41,20 @@ describe('shared content width (#196, AC-009)', () => {
   });
 });
 
-// AC-006: the viewport-keyed 6-column jump is gone; column count is driven by
-// container width via auto-fill.
-describe('grid template (#194, AC-006)', () => {
-  it('drops the fixed 2xl:grid-cols-6 / lg:grid-cols-4 breakpoint columns', () => {
+// v14 supersedes #194/#201: the auto-fill stretch grid (which bloated tiles to
+// ~218px at 1440px) is replaced by the floating-panel field — fixed 190px tile
+// slots inside `.panel-tiles`, panels packed in a `.tile-field`. The real
+// column-count / 190px guarantees live in the CDP browser gate.
+describe('floating-panel field replaces the auto-fill grid (v14, A-006)', () => {
+  it('drops the auto-fill stretch grid that caused the 218px tile defect', () => {
+    expect(catalog).not.toContain('grid-cols-[repeat(auto-fill,minmax(210px,1fr))]');
     expect(catalog).not.toContain('2xl:grid-cols-6');
     expect(catalog).not.toContain('lg:grid-cols-4');
   });
 
-  it('uses auto-fill minmax columns at lg+ so columns grow with the container', () => {
-    // #201: min track width is 210px (not 220px) so six 16px-gapped columns fit
-    // the ~1393px available at 1440px (scrollbar + px-4); the real column-count
-    // guarantee lives in the #35 browser gate (large-monitor-grid.spec.ts).
-    expect(catalog).toContain('lg:grid-cols-[repeat(auto-fill,minmax(210px,1fr))]');
-  });
-
-  it('keeps mobile 2-col and sm 3-col layouts unchanged (AC-007)', () => {
-    expect(catalog).toContain('grid-cols-2');
-    expect(catalog).toContain('sm:grid-cols-3');
+  it('uses the fixed-190px-slot panel-tiles grid inside the tile-field', () => {
+    expect(catalog).toContain('tile-field');
+    expect(catalog).toContain('panel-tiles');
   });
 });
 

@@ -1846,4 +1846,87 @@
       flex: none;
     }
   }
+
+  /* v14 §2B — the "Recently opened" chip rail. Anchored at the panel field's
+     left edge (x=48) with a 24px gap down to the first panel row. */
+  .recently-opened-rail {
+    margin-left: 48px;
+    margin-bottom: 24px;
+  }
+  /* B-006 — horizontal scroll on overflow, scrollbar fully hidden. */
+  .recently-opened-chips {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .recently-opened-chips::-webkit-scrollbar {
+    display: none;
+  }
+  /* Each chip is the same glass material as a panel, one register quieter (the
+     shadow is a notch lighter so the rail reads as subordinate to the catalog). */
+  .recently-opened-chip {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    transition: background 120ms ease;
+  }
+  .recently-opened-chip:hover {
+    background: rgba(255, 255, 255, 0.85);
+  }
+  .dark .recently-opened-chip {
+    background: rgba(30, 30, 40, 0.68);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
+  }
+  .dark .recently-opened-chip:hover {
+    background: rgba(30, 30, 40, 0.82);
+  }
+
+  /* v14 §2A — the floating glass panel field. Fixed 190px tile slots (never
+     stretch — fixes the A-006 218px stretch defect); panels hug their content
+     and pack left→right, wrapping when the next panel won't fit the row. The
+     responsive column count (6/4/3/2) is computed in JS (useFieldCols) and fed
+     to each panel as --panel-cols = clamp(appCount, 1, fieldCols); at ≤1023px
+     every panel spans the full field so they stack. Left edge x=48 (A-002/A-004). */
+  .tile-field {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 16px;
+    margin-left: 48px;
+    max-width: 1392px;
+  }
+  /* Each panel's width is exactly its tile columns + inner gaps + 16px padding
+     each side, so the tiles inside are ALWAYS 190px (fixes the A-006 218px
+     stretch defect) and the panel hugs its content and never leaves a trailing
+     void. --panel-cols is set inline per panel (clamp(appCount,1,fieldCols)). */
+  .category-panel {
+    width: calc(var(--panel-cols, 1) * 190px + (var(--panel-cols, 1) - 1) * 16px + 32px);
+    box-sizing: border-box;
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 22px;
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.06),
+      0 8px 24px rgba(0, 0, 0, 0.04);
+    padding: 16px;
+  }
+  .dark .category-panel {
+    background: rgba(30, 30, 40, 0.68);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.32),
+      0 8px 24px rgba(0, 0, 0, 0.24);
+  }
+  /* The tile grid inside a panel: fixed 190px slots (inherits --panel-cols from
+     the panel), so tiles NEVER resize no matter how wide the panel's span is.
+     Overflow beyond the panel's column span wraps within the panel. */
+  .panel-tiles {
+    display: grid;
+    grid-template-columns: repeat(var(--panel-cols, 1), 190px);
+    gap: 16px;
+  }
 }

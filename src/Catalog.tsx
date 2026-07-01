@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -42,7 +42,23 @@ import {
   type UptimeCheck,
 } from './api';
 import { iconSrc, initialBadge, validateIconFile } from './icons';
-import { OPENED_EVENT, clearRecent, loadRecent, recordOpen } from './recently-opened';
+import {
+  OPENED_EVENT,
+  RE_RANK_INTERVAL_MS,
+  clearRecent,
+  clearSortMode,
+  loadCategoryOrder,
+  loadOpenLog,
+  loadRecent,
+  loadSortMode,
+  loadSortRankAt,
+  recordOpen,
+  saveCategoryOrder,
+  setSortMode,
+  setSortRankAt,
+  type SortMode,
+} from './recently-opened';
+import { rankCategories } from './category-ranker';
 import LibraryBrowse from './LibraryBrowse';
 import ServiceForm from './ServiceForm';
 import { useServicesContext } from './services';
@@ -115,6 +131,35 @@ function useStatusPulse(status: ServiceStatus): boolean {
   return pulsing;
 }
 
+// v14 §2A — the floating-panel field's responsive column count. 6 / 4 / 3 / 2 at
+// ≥1300 / ≥1024 / ≥768 / <768px. Drives the width of each panel and the number of
+// 190px tile slots inside it.
+function fieldColsFor(width: number): number {
+  if (width >= 1300) return 6;
+  if (width >= 1024) return 4;
+  if (width >= 768) return 3;
+  return 2;
+}
+function useFieldCols(): number {
+  const [cols, setCols] = useState(() =>
+    typeof window !== 'undefined' ? fieldColsFor(window.innerWidth) : 6,
+  );
+  useEffect(() => {
+    const onResize = () => setCols(fieldColsFor(window.innerWidth));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return cols;
+}
+// A panel's column span. At the desktop widths (≥1024, 6/4 cols) a panel hugs its
+// content: clamp(appCount, 1, fieldCols). At the stack breakpoints (≤1023, 3/2
+// cols) every panel goes full-width (span = fieldCols), so they stack in
+// usage-priority order (A-004 "panels stack full-width").
+function panelColsFor(appCount: number, fieldCols: number): number {
+  const n = Math.max(1, appCount);
+  return fieldCols >= 4 ? Math.min(n, fieldCols) : fieldCols;
+}
+
 export default function Catalog({
   isAdmin = false,
   editMode = false,
@@ -183,6 +228,36 @@ export default function Catalog({
   // the OS. Without a provider (isolated tests) it falls back to the live OS.
   const theme = useResolvedTheme();
 
+  // v14 §2A — the responsive panel-field column count (6/4/3/2), used to size
+  // each category panel and its inner 190px tile grid.
+  const fieldCols = useFieldCols();
+
+  // v14 §3 — usage-priority category ordering. `sortMode` is the persisted
+  // Auto/Custom preference; `rankedOrder` is the mount-time computed category id
+  // order (auto mode only). `cats` always stays in server order — display order
+  // is derived below, so switching to Custom shows the true server order (C-006)
+  // and the DnD/reorder path keeps operating on `cats` unchanged.
+  const [sortMode, setSortModeState] = useState<SortMode>('auto');
+  const [rankedOrder, setRankedOrder] = useState<string[] | null>(null);
+  // The re-rank runs once per mount, after both cats and items have loaded.
+  const rankedRef = useRef(false);
+
+  // Compute the usage-ranked category id order from the current cats + items +
+  // open log. `now` is threaded so the 30-day window and persistence timestamp
+  // agree within a single call.
+  function computeRankedOrder(now: number): string[] {
+    const svcByCat = new Map<string, string[]>();
+    for (const c of cats) {
+      svcByCat.set(
+        c.id,
+        (items ?? []).filter((s) => s.categoryId === c.id).map((s) => s.id),
+      );
+    }
+    const cached = loadCategoryOrder();
+    const base = cached.length > 0 ? cached : cats.map((c) => c.id);
+    return rankCategories(cats, loadOpenLog(), svcByCat, base, now);
+  }
+
   // v10: always-on drag-and-drop. `activeDragId` is the id of the tile currently
   // picked up (pointer or keyboard) — it drives the lifted style and the grip's
   // aria-pressed "grabbed" state (§10). `announce` feeds the visually-hidden
@@ -214,6 +289,58 @@ export default function Catalog({
       cacheCollapsed(set);
     });
   }, []);
+
+  // v14 §6.5 — mount-time category re-rank. Runs once, after cats + items are
+  // loaded. Custom sort mode uses the server order (skip). In auto mode, reuse the
+  // cached order if the last re-rank was <24h ago (C-004); otherwise re-rank by
+  // 30-day usage and persist the new order + timestamp (C-002/C-003/C-005).
+  useEffect(() => {
+    if (rankedRef.current) return;
+    if (!items || cats.length === 0) return;
+    rankedRef.current = true;
+    const mode = loadSortMode();
+    setSortModeState(mode);
+    if (mode === 'custom') return;
+    const now = Date.now();
+    const cached = loadCategoryOrder();
+    if (now - loadSortRankAt() < RE_RANK_INTERVAL_MS && cached.length > 0) {
+      setRankedOrder(cached);
+      return;
+    }
+    const order = computeRankedOrder(now);
+    saveCategoryOrder(order);
+    setSortRankAt(now);
+    setRankedOrder(order);
+  }, [items, cats]);
+
+  // The category list in display order: server order in Custom mode (or before
+  // the first rank), else the usage-ranked order. Categories missing from the
+  // ranked list (e.g. created after the last rank) fall to the end in server
+  // order — a stable sort with an Infinity rank keeps their relative order.
+  const displayCats = useMemo(() => {
+    if (sortMode === 'custom' || !rankedOrder) return cats;
+    const pos = new Map(rankedOrder.map((id, i) => [id, i]));
+    return [...cats].sort(
+      (a, b) => (pos.get(a.id) ?? Infinity) - (pos.get(b.id) ?? Infinity),
+    );
+  }, [cats, sortMode, rankedOrder]);
+
+  // Arrange-mode Auto/Custom toggle (C-006/C-007). Custom persists the flag and
+  // reverts to server order. Auto (also "Reset to auto order") clears the flag and
+  // forces an immediate re-rank, ignoring the 24h gate.
+  function chooseCustom() {
+    setSortMode('custom');
+    setSortModeState('custom');
+  }
+  function chooseAuto() {
+    clearSortMode();
+    setSortModeState('auto');
+    const now = Date.now();
+    const order = computeRankedOrder(now);
+    saveCategoryOrder(order);
+    setSortRankAt(now);
+    setRankedOrder(order);
+  }
 
   // Optimistically flip the star, then persist. Roll back if the API rejects.
   // `next` is derived from current state up front — not from inside the setItems
@@ -261,7 +388,12 @@ export default function Catalog({
   // context, so they can't be dragged and stay pinned first/last. Optimistic
   // with rollback + the shared inline error if the PUT fails (A10).
   async function reorderCategory(activeId: string, overId: string) {
-    const prev = cats;
+    // #209 — the drop indices come from the SortableContext, which keys off
+    // displayCats (the usage-ranked order in auto mode), so the arrayMove must
+    // happen in that same display space. Doing it on the raw `cats` order sent
+    // the wrong id order to the server whenever auto ranking had flipped the two.
+    const prev = displayCats;
+    const catsSnapshot = cats; // pre-move raw order, for rollback
     if (activeId === overId) return;
     const gi = prev.findIndex((c) => c.id === activeId);
     const gj = prev.findIndex((c) => c.id === overId);
@@ -271,7 +403,7 @@ export default function Catalog({
     setLayoutError(false);
     const ok = await setCategoryOrder(next.map((c) => c.id));
     if (!ok) {
-      setCats(prev);
+      setCats(catsSnapshot);
       setLayoutError(true);
     }
   }
@@ -454,7 +586,7 @@ export default function Catalog({
   // jumps category. The grip handle on each tile is the drag origin (the tile
   // stays a plain <a> — D2). For the flat v1 grid the section is the whole
   // catalog. Announcements (§10/A7) carry "position i of n" within `sectionIds`.
-  function renderGrid(sectionItems: Service[]) {
+  function renderGrid(sectionItems: Service[], panelCols: number) {
     const sectionIds = sectionItems.map((s) => s.id);
     const n = sectionIds.length;
     const nameOf = (id: string) => sectionItems.find((s) => s.id === id)?.name ?? '';
@@ -501,7 +633,12 @@ export default function Catalog({
         onDragCancel={onDragCancel}
       >
         <SortableContext items={sectionIds} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-[repeat(auto-fill,minmax(210px,1fr))]">
+          {/* v14 §2A — fixed 190px tile slots (never stretch); --panel-cols sets
+              how many slots per row, so overflow wraps within the panel. */}
+          <div
+            className="panel-tiles"
+            style={{ '--panel-cols': panelCols } as React.CSSProperties}
+          >
             {sectionItems.map((s) => (
               <ServiceTile
                 key={s.id}
@@ -620,6 +757,56 @@ export default function Catalog({
         </div>
       )}
 
+      {/* v14 §3/C-006 — the Arrange-mode sort toggle. Auto = usage-priority
+          ordering (the default); Custom = the manual/server order, dragged via
+          the category grips. "Reset to auto order" clears the custom flag (C-007). */}
+      {arrange && (
+        <div
+          data-testid="sort-mode-toggle"
+          className="mb-4 flex items-center gap-3 text-sm"
+        >
+          <span className="font-medium text-neutral-500">Sort</span>
+          <div className="inline-flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-600">
+            <button
+              type="button"
+              data-testid="sort-mode-auto"
+              aria-pressed={sortMode === 'auto'}
+              onClick={chooseAuto}
+              className={`px-3 py-1.5 font-medium ${
+                sortMode === 'auto'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
+              }`}
+            >
+              Auto
+            </button>
+            <button
+              type="button"
+              data-testid="sort-mode-custom"
+              aria-pressed={sortMode === 'custom'}
+              onClick={chooseCustom}
+              className={`px-3 py-1.5 font-medium ${
+                sortMode === 'custom'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
+              }`}
+            >
+              Custom
+            </button>
+          </div>
+          {sortMode === 'custom' && (
+            <button
+              type="button"
+              data-testid="sort-mode-reset"
+              onClick={chooseAuto}
+              className="text-indigo-600 hover:underline dark:text-indigo-300"
+            >
+              Reset to auto order
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Cap #3 — the "Recently opened" row. Self-contained: reads localStorage
           on mount and re-reads on the OPENED_EVENT, so it needs no prop drill.
           It guards its own visibility (hidden in edit mode, empty list, or empty
@@ -659,14 +846,28 @@ export default function Catalog({
           </button>
         </div>
       ) : !grouped ? (
-        renderGrid(items)
+        // v14 §2A — the flat (no-categories) catalog still gets the fixed-190px
+        // tile field so tiles never stretch (A-006), just without panel chrome.
+        <div className="tile-field">
+          {renderGrid(items, panelColsFor(items.length, fieldCols))}
+        </div>
       ) : (
-        <div className="space-y-2 sm:space-y-8">
+        // v14 §2A — the floating panel field. Every section (Favorites, each
+        // category, Uncategorized) is a glass panel packed left→right and
+        // wrapping. DndContext/SortableContext emit no DOM, so the category
+        // panels are direct flex children of .tile-field alongside the other two.
+        <div className="tile-field">
           {/* Favorites + Uncategorized are render-time buckets, not categories
               rows, so they have no id to key collapse state on — they stay
               always-expanded for v5 (Q2). Only real category sections collapse. */}
           {favorites.length > 0 && (
-            <Section title="Favorites" count={favorites.length}>{renderGrid(favorites)}</Section>
+            <Section
+              title="Favorites"
+              count={favorites.length}
+              panelCols={panelColsFor(favorites.length, fieldCols)}
+            >
+              {renderGrid(favorites, panelColsFor(favorites.length, fieldCols))}
+            </Section>
           )}
           {/* v10 A3 — the real category sections are a sortable list: drag a
               header grip to reorder folders (PUT /api/categories/order). Its own
@@ -679,31 +880,38 @@ export default function Catalog({
             onDragEnd={onCatDragEnd}
             onDragCancel={onCatDragCancel}
           >
-            <SortableContext items={cats.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2 sm:space-y-8">
-                {cats.map((c) => {
-                  const sectionItems = items.filter((s) => s.categoryId === c.id);
-                  return (
-                    <SortableSection
-                      key={c.id}
-                      cat={c}
-                      count={sectionItems.length}
-                      collapsed={collapsed.has(c.id)}
-                      error={collapseError === c.id}
-                      controlsId={`section-${c.id}`}
-                      grabbed={activeDragId === c.id}
-                      onToggle={() => toggleCollapse(c.id)}
-                    >
-                      {renderGrid(sectionItems)}
-                    </SortableSection>
-                  );
-                })}
-              </div>
+            {/* v10 A3 keeps verticalListSortingStrategy: ArrowUp/Down reorder the
+                category stack (the Arrange-mode contract), even though the panels
+                now pack in a 2D field at desktop widths. */}
+            <SortableContext items={displayCats.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+              {displayCats.map((c) => {
+                const sectionItems = items.filter((s) => s.categoryId === c.id);
+                const pc = panelColsFor(sectionItems.length, fieldCols);
+                return (
+                  <SortableSection
+                    key={c.id}
+                    cat={c}
+                    count={sectionItems.length}
+                    panelCols={pc}
+                    collapsed={collapsed.has(c.id)}
+                    error={collapseError === c.id}
+                    controlsId={`section-${c.id}`}
+                    grabbed={activeDragId === c.id}
+                    onToggle={() => toggleCollapse(c.id)}
+                  >
+                    {renderGrid(sectionItems, pc)}
+                  </SortableSection>
+                );
+              })}
             </SortableContext>
           </DndContext>
           {uncategorized.length > 0 && (
-            <Section title="Uncategorized" count={uncategorized.length}>
-              {renderGrid(uncategorized)}
+            <Section
+              title="Uncategorized"
+              count={uncategorized.length}
+              panelCols={panelColsFor(uncategorized.length, fieldCols)}
+            >
+              {renderGrid(uncategorized, panelColsFor(uncategorized.length, fieldCols))}
             </Section>
           )}
         </div>
@@ -773,24 +981,28 @@ function RecentlyOpenedRow({
   if (resolved.length === 0) return null;
 
   return (
-    <div data-testid="recently-opened-row" className="mb-6">
+    // v14 §2B — the chip rail sits at the panel field's left edge (x=48) with a
+    // 24px gap to the first panel row (recently-opened-rail class in index.css).
+    <div data-testid="recently-opened-row" className="recently-opened-rail">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+        {/* B-003: neutral-500 (#737373) — neutral-400 fails AA on the field bg */}
+        <span className="text-[12px] font-bold uppercase tracking-wide text-neutral-500">
           Recently opened
         </span>
         <button
           type="button"
           data-testid="recently-opened-clear"
           onClick={clearRecent}
-          className="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+          className="text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
         >
           Clear
         </button>
       </div>
-      {/* Horizontal strip — scrolls on narrow viewports, single line when ≤8
-          items fit (AC-011). Each item is the same kind of new-tab link as the
-          full tile and records its own open (AC-004). */}
-      <div className="flex gap-3 overflow-x-auto pb-1">
+      {/* Horizontal chip rail — scrolls on narrow viewports with the scrollbar
+          hidden (B-006, via .recently-opened-chips). Each chip is a name-only
+          glass miniature of the tile, a full 44px tap target, and records its own
+          open on click (B-004). */}
+      <div className="recently-opened-chips flex gap-3 overflow-x-auto pb-1">
         {resolved.map((s) => (
           <a
             key={s.id}
@@ -800,7 +1012,7 @@ function RecentlyOpenedRow({
             target="_blank"
             rel="noreferrer noopener"
             onClick={() => recordOpen(s.id)}
-            className="flex w-16 shrink-0 flex-col items-center gap-1 rounded-lg p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+            className="recently-opened-chip flex h-11 shrink-0 items-center gap-1.5 rounded-xl pl-1.5 pr-3.5"
           >
             <img
               data-testid="recently-opened-icon"
@@ -808,9 +1020,9 @@ function RecentlyOpenedRow({
               alt=""
               data-fallback={initialBadge(s.name)}
               onError={handleIconError}
-              className="h-10 w-10 rounded-lg object-contain"
+              className="h-7 w-7 rounded-lg object-contain"
             />
-            <span className="w-full truncate text-center text-xs text-neutral-700 dark:text-neutral-300">
+            <span className="max-w-[8rem] truncate text-sm font-semibold leading-tight text-neutral-800 dark:text-neutral-100">
               {s.name}
             </span>
           </a>
@@ -844,6 +1056,7 @@ function CategoryCount({ count }: { count: number }) {
 function Section({
   title,
   count,
+  panelCols = 1,
   collapsible = false,
   collapsed = false,
   error = false,
@@ -857,6 +1070,9 @@ function Section({
 }: {
   title: string;
   count: number;
+  // v14 §2A — the panel's column span; sets the .category-panel width and the
+  // inner tile grid's slot count.
+  panelCols?: number;
   collapsible?: boolean;
   collapsed?: boolean;
   error?: boolean;
@@ -870,10 +1086,13 @@ function Section({
   dragHandle?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  // v14 — every section is a floating glass panel (.category-panel), sized by
+  // --panel-cols. The var is merged with any dnd transform style.
+  const panelStyle = { ...containerStyle, '--panel-cols': panelCols } as React.CSSProperties;
   // v4 static header (Favorites / Uncategorized): no toggle, always shows tiles.
   if (!collapsible) {
     return (
-      <section>
+      <section className="category-panel" style={panelStyle}>
         <h2 data-testid="category-header" className="cat-head font-semibold uppercase">
           <span>{title}</span>
           <CategoryCount count={count} />
@@ -888,8 +1107,8 @@ function Section({
   return (
     <section
       ref={containerRef}
-      style={containerStyle}
-      className={`rounded-lg transition-transform motion-reduce:transition-none ${
+      style={panelStyle}
+      className={`category-panel transition-transform motion-reduce:transition-none ${
         grabbed ? 'z-10 scale-[1.01] shadow-lg ring-1 ring-indigo-500/35 motion-reduce:scale-100' : ''
       }`}
     >
@@ -944,6 +1163,7 @@ function Section({
 function SortableSection({
   cat,
   count,
+  panelCols,
   collapsed,
   error,
   controlsId,
@@ -953,6 +1173,7 @@ function SortableSection({
 }: {
   cat: Category;
   count: number;
+  panelCols: number;
   collapsed: boolean;
   error: boolean;
   controlsId: string;
@@ -984,6 +1205,7 @@ function SortableSection({
     <Section
       title={cat.name}
       count={count}
+      panelCols={panelCols}
       collapsible
       collapsed={collapsed}
       error={error}

@@ -1,14 +1,38 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RECENT_KEY, MAX_RECENT, recordOpen, loadRecent, clearRecent } from './recently-opened';
+import {
+  OPEN_LOG_KEY,
+  LEGACY_RECENT_KEY,
+  SORT_MODE_KEY,
+  SORT_RANK_AT_KEY,
+  CATEGORY_ORDER_KEY,
+  MAX_RECENT,
+  MAX_LOG,
+  recordOpen,
+  loadOpenLog,
+  loadRecent,
+  clearRecent,
+  loadSortMode,
+  setSortMode,
+  clearSortMode,
+  loadSortRankAt,
+  setSortRankAt,
+  loadCategoryOrder,
+  saveCategoryOrder,
+} from './recently-opened';
 
-// Cap #3 — the localStorage-backed "Recently opened" core. These are pure unit
-// tests (no DOM render): recordOpen/loadRecent/clearRecent operate on the
-// `homepad.recentlyOpened` key. Covers AC-002 (prepend + dedup + cap), AC-004
-// (re-open moves to position 0), AC-005 (clear), AC-010 (storage unavailable),
-// and AC-012 (record/dedup/cap explicitly tested).
+// v14 §6.1 — the localStorage core migrated from a string[] `recentlyOpened`
+// list to a timestamped `openLog` ({id,t}[]). These are pure unit tests (no DOM
+// render): recordOpen/loadOpenLog/loadRecent/clearRecent operate on
+// `homepad.openLog`; plus the new sortMode / sortRankAt / categoryOrder keys the
+// usage-priority ranker uses. Covers C-schema (open log dedup/prune/cap),
+// migration, B-004 (recency), and B-010 (storage unavailable).
+
+const DAY = 86_400_000;
+const NOW = 1_700_000_000_000; // fixed clock for deterministic pruning tests
 
 beforeEach(() => {
   localStorage.clear();
+  vi.spyOn(Date, 'now').mockReturnValue(NOW);
 });
 
 afterEach(() => {
@@ -16,37 +40,46 @@ afterEach(() => {
   localStorage.clear();
 });
 
-describe('recordOpen + loadRecent', () => {
-  it('AC-002 — recordOpen prepends a fresh id and persists it', () => {
+describe('recordOpen + loadOpenLog (v14 openLog schema)', () => {
+  it('recordOpen prepends a timestamped entry newest-first', () => {
     recordOpen('a');
-    expect(loadRecent()).toEqual(['a']);
-    expect(JSON.parse(localStorage.getItem(RECENT_KEY)!)).toEqual(['a']);
+    expect(loadOpenLog()).toEqual([{ id: 'a', t: NOW }]);
   });
 
-  it('AC-002 — newest id lands at position 0', () => {
-    recordOpen('a');
-    recordOpen('b');
-    expect(loadRecent()).toEqual(['b', 'a']);
-  });
-
-  it('AC-002/AC-004 — re-opening an existing id dedups and moves it to position 0', () => {
+  it('newest entry lands at position 0', () => {
+    vi.spyOn(Date, 'now').mockReturnValueOnce(NOW - 1000).mockReturnValue(NOW);
     recordOpen('a');
     recordOpen('b');
+    const log = loadOpenLog();
+    expect(log.map((e) => e.id)).toEqual(['b', 'a']);
+  });
+
+  it('re-opening an existing id dedups (drops the prior occurrence, re-adds at 0)', () => {
     recordOpen('a');
-    expect(loadRecent()).toEqual(['a', 'b']);
+    recordOpen('b');
+    recordOpen('a');
+    expect(loadOpenLog().map((e) => e.id)).toEqual(['a', 'b']);
   });
 
-  it('AC-002 — the list is capped at MAX_RECENT (8); opening a 9th drops the oldest', () => {
-    for (const id of ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8']) recordOpen(id);
-    expect(loadRecent()).toHaveLength(MAX_RECENT);
-    recordOpen('s9');
-    const list = loadRecent();
-    expect(list).toHaveLength(MAX_RECENT);
-    expect(list[0]).toBe('s9');
-    expect(list).not.toContain('s1'); // the oldest fell off
+  it('prunes entries older than 30 days on write', () => {
+    localStorage.setItem(
+      OPEN_LOG_KEY,
+      JSON.stringify([{ id: 'old', t: NOW - 31 * DAY }, { id: 'fresh', t: NOW - 1 * DAY }]),
+    );
+    recordOpen('new');
+    expect(loadOpenLog().map((e) => e.id)).toEqual(['new', 'fresh']);
   });
 
-  it('recordOpen dispatches the homepad:opened event so the row can refresh', () => {
+  it('caps the log at MAX_LOG (500) entries', () => {
+    const big = Array.from({ length: MAX_LOG }, (_, i) => ({ id: `s${i}`, t: NOW - i }));
+    localStorage.setItem(OPEN_LOG_KEY, JSON.stringify(big));
+    recordOpen('newest');
+    const log = loadOpenLog();
+    expect(log).toHaveLength(MAX_LOG);
+    expect(log[0].id).toBe('newest');
+  });
+
+  it('dispatches homepad:opened so a mounted row refreshes', () => {
     const handler = vi.fn();
     window.addEventListener('homepad:opened', handler);
     recordOpen('a');
@@ -55,32 +88,65 @@ describe('recordOpen + loadRecent', () => {
   });
 });
 
-describe('loadRecent — resilient reads', () => {
+describe('loadRecent — 8 most-recent unique ids for the chip rail', () => {
   it('returns [] when nothing is stored', () => {
     expect(loadRecent()).toEqual([]);
   });
 
-  it('returns [] when the stored value is not a JSON array', () => {
-    localStorage.setItem(RECENT_KEY, '{"not":"an array"}');
-    expect(loadRecent()).toEqual([]);
+  it('returns the ids newest-first, capped at MAX_RECENT (8)', () => {
+    for (let i = 0; i < 12; i++) {
+      vi.spyOn(Date, 'now').mockReturnValue(NOW + i);
+      recordOpen(`s${i}`);
+    }
+    const recent = loadRecent();
+    expect(recent).toHaveLength(MAX_RECENT);
+    expect(recent[0]).toBe('s11');
+    expect(recent).not.toContain('s0');
   });
 
   it('returns [] on malformed JSON', () => {
-    localStorage.setItem(RECENT_KEY, 'not json at all');
+    localStorage.setItem(OPEN_LOG_KEY, 'not json at all');
     expect(loadRecent()).toEqual([]);
+  });
+
+  it('ignores malformed entries (missing id/t)', () => {
+    localStorage.setItem(OPEN_LOG_KEY, JSON.stringify([{ id: 'a', t: NOW }, { bogus: 1 }, 'x']));
+    expect(loadRecent()).toEqual(['a']);
+  });
+});
+
+describe('migration from legacy homepad.recentlyOpened', () => {
+  it('converts a legacy string[] to openLog entries with t=now and removes the old key', () => {
+    localStorage.setItem(LEGACY_RECENT_KEY, JSON.stringify(['a', 'b', 'c']));
+    const log = loadOpenLog();
+    expect(log).toEqual([
+      { id: 'a', t: NOW },
+      { id: 'b', t: NOW },
+      { id: 'c', t: NOW },
+    ]);
+    expect(localStorage.getItem(LEGACY_RECENT_KEY)).toBeNull();
+    // and it persisted under the new key
+    expect(JSON.parse(localStorage.getItem(OPEN_LOG_KEY)!)).toHaveLength(3);
+  });
+
+  it('does NOT migrate when openLog already exists', () => {
+    localStorage.setItem(OPEN_LOG_KEY, JSON.stringify([{ id: 'x', t: NOW }]));
+    localStorage.setItem(LEGACY_RECENT_KEY, JSON.stringify(['a']));
+    expect(loadOpenLog().map((e) => e.id)).toEqual(['x']);
+    // legacy key untouched (not our data)
+    expect(localStorage.getItem(LEGACY_RECENT_KEY)).not.toBeNull();
   });
 });
 
 describe('clearRecent', () => {
-  it('AC-005 — removes the key so loadRecent returns []', () => {
+  it('removes the open log so loadRecent returns []', () => {
     recordOpen('a');
-    recordOpen('b');
     clearRecent();
     expect(loadRecent()).toEqual([]);
-    expect(localStorage.getItem(RECENT_KEY)).toBeNull();
+    expect(localStorage.getItem(OPEN_LOG_KEY)).toBeNull();
   });
 
-  it('AC-005 — dispatches homepad:opened so a mounted row hides immediately', () => {
+  it('dispatches homepad:opened so a mounted row hides immediately', () => {
     const handler = vi.fn();
     window.addEventListener('homepad:opened', handler);
     clearRecent();
@@ -89,12 +155,41 @@ describe('clearRecent', () => {
   });
 });
 
-describe('AC-010 — localStorage unavailable', () => {
-  it('loadRecent returns [] when getItem throws', () => {
+describe('sortMode / sortRankAt / categoryOrder keys', () => {
+  it('loadSortMode defaults to auto when absent', () => {
+    expect(loadSortMode()).toBe('auto');
+  });
+
+  it('setSortMode persists custom, clearSortMode returns to auto', () => {
+    setSortMode('custom');
+    expect(localStorage.getItem(SORT_MODE_KEY)).toBe('custom');
+    expect(loadSortMode()).toBe('custom');
+    clearSortMode();
+    expect(loadSortMode()).toBe('auto');
+    expect(localStorage.getItem(SORT_MODE_KEY)).toBeNull();
+  });
+
+  it('loadSortRankAt defaults to 0; setSortRankAt round-trips', () => {
+    expect(loadSortRankAt()).toBe(0);
+    setSortRankAt(NOW);
+    expect(loadSortRankAt()).toBe(NOW);
+    expect(localStorage.getItem(SORT_RANK_AT_KEY)).toBe(String(NOW));
+  });
+
+  it('loadCategoryOrder defaults to []; saveCategoryOrder round-trips', () => {
+    expect(loadCategoryOrder()).toEqual([]);
+    saveCategoryOrder(['c2', 'c1']);
+    expect(loadCategoryOrder()).toEqual(['c2', 'c1']);
+    expect(JSON.parse(localStorage.getItem(CATEGORY_ORDER_KEY)!)).toEqual(['c2', 'c1']);
+  });
+});
+
+describe('B-010 — localStorage unavailable', () => {
+  it('loadOpenLog returns [] when getItem throws', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('storage unavailable');
     });
-    expect(loadRecent()).toEqual([]);
+    expect(loadOpenLog()).toEqual([]);
   });
 
   it('recordOpen fails silently when setItem throws', () => {

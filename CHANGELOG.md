@@ -7,6 +7,40 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.6.0] — 2026-07-01 — v14 Floating Panel Layout + Usage-Priority Ordering
+
+### Floating glass panels + fixed 190px tiles (A-001…A-006)
+
+The dashboard grid is reborn as a **floating panel field**. Each category — plus
+Favorites and Uncategorized — is now its own **glass panel** that hugs its
+content: a 3-app category spans three columns, a 5-app category spans five, and
+panels **pack left-to-right and wrap** instead of each eating a full row with a
+right-side void. Panels use frosted-glass tokens (semi-transparent fill, 10px
+blur, 22px radius, layered shadow) in both light and dark mode.
+
+Crucially, tiles are now **fixed 190px slots** and never stretch — fixing the
+long-standing defect where a 1440px viewport bloated every tile to ~218px. The
+field is responsive (6 / 4 / 3 / 2 columns at ≥1300 / ≥1024 / ≥768 / <768px) with
+its left edge anchored at x=48.
+
+### Usage-priority category ordering
+
+Categories now **auto-sort by how often you open their apps** (rolling 30-day
+window), so your most-used category lands top-left. Re-ranking is **stable, not
+jittery**: it only happens on dashboard mount, at most once per 24 hours, and a
+category only jumps a neighbour when the usage margin is clearly decisive
+(hysteresis). A cold-start or cleared-data dashboard falls back to the familiar
+admin order. In **Arrange mode** a new **Sort: Auto / Custom** toggle lets you
+pin a manual drag order, with a **Reset to auto order** action to hand ordering
+back to usage.
+
+### Recently opened chip rail
+
+The "Recently opened" row is restyled to match the panels: compact **name-only
+glass chips** (44px tall tap targets, 28×28 icon plate) with the label in
+AA-compliant neutral-500. Backed by a new timestamped `homepad.openLog` store
+(migrated automatically from the old list) that also feeds the usage ranker.
+
 ## [12.5.1] — 2026-06-29
 
 ### Six columns at 1440px on large monitors (#201)
