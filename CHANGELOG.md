@@ -7,6 +7,21 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.6.1] — 2026-07-01 — v14 mobile-overflow hotfix
+
+### Fixed
+
+- **Category panels no longer overflow the viewport on mobile (#212).** On a
+  phone (~390px) the v14 floating panels ran past the right edge and the whole
+  page scrolled sideways: a 2-column panel of fixed 190px slots was
+  `2×190+16+32 = 428px` plus a 48px anchor ≈ 476px, well over the screen. Below
+  768px the panel now spans the field and the tiles **shrink below 190px to
+  fit** — a deliberate, **mobile-only exception** to the "tiles are fixed 190px
+  slots and never stretch" principle (below), taken purely to avoid horizontal
+  page overflow. The 48px left anchor also drops to the section's ~16px inset at
+  mobile widths. **Desktop (≥1024px) is unchanged** — fixed 190px tiles, 48px
+  anchor.
+
 ## [12.6.0] — 2026-07-01 — v14 Floating Panel Layout + Usage-Priority Ordering
 
 ### Floating glass panels + fixed 190px tiles (A-001…A-006)
@@ -21,7 +36,10 @@ blur, 22px radius, layered shadow) in both light and dark mode.
 Crucially, tiles are now **fixed 190px slots** and never stretch — fixing the
 long-standing defect where a 1440px viewport bloated every tile to ~218px. The
 field is responsive (6 / 4 / 3 / 2 columns at ≥1300 / ≥1024 / ≥768 / <768px) with
-its left edge anchored at x=48.
+its left edge anchored at x=48. (**Mobile exception, added in 12.6.1 / #212:**
+below 768px the tiles may shrink *below* 190px so a full-width panel fits a phone
+without overflowing the page — the "never stretch" rule still holds; only the
+"never shrink" side is relaxed, and only on mobile.)
 
 ### Usage-priority category ordering
 

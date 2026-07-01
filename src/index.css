@@ -1929,4 +1929,36 @@
     grid-template-columns: repeat(var(--panel-cols, 1), 190px);
     gap: 16px;
   }
+
+  /* PROD hotfix #212 — mobile overflow. Below 768px the field is 2 columns, and
+     a fixed 190px-slot panel is 2×190+16+32=428px + the 48px anchor ≈ 476px,
+     which overflows a ~390px phone: the panel is clipped and the whole PAGE
+     scrolls sideways. On mobile only we make the panel span the field and let
+     the tiles SHRINK BELOW 190px to fit. This is a deliberate, documented
+     EXCEPTION to Kare's "tiles never resize" principle — on small screens they
+     may go under 190px to avoid horizontal page overflow. Desktop (>=1024) is
+     untouched: it keeps the fixed 190px tiles and the 48px anchor above. */
+  @media (max-width: 767px) {
+    /* Drop the 48px anchor on the field and the rail; the content section's
+       px-4 already supplies a ~16px inset, and a block-level 48px margin here
+       would itself push the field past 100vw. */
+    .tile-field {
+      margin-left: 0;
+      max-width: none;
+    }
+    .recently-opened-rail {
+      margin-left: 0;
+    }
+    /* Panel fills the field and stacks (it no longer hugs a fixed 190px-derived
+       width), so it can never exceed the viewport. */
+    .category-panel {
+      width: 100%;
+    }
+    /* Fluid tiles: each column shrinks to fit but is capped at 190px so it never
+       grows past the desktop tile size. This is the shrink-below-190px
+       exception that kills the overflow. */
+    .panel-tiles {
+      grid-template-columns: repeat(var(--panel-cols, 1), minmax(0, 190px));
+    }
+  }
 }

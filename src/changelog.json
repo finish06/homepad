@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.6.1",
+      "date": "2026-07-01",
+      "changes": [
+        { "type": "bug-fix", "text": "Fixed the v14 floating panels overflowing the screen on phones — the category panels no longer run past the right edge and the page no longer scrolls sideways. On small screens (<768px) the tiles now shrink to fit the width instead of staying a fixed 190px (a deliberate exception to the “tiles never resize” rule, mobile-only); desktop tiles are unchanged (#212)." }
+      ]
+    },
+    {
       "version": "12.6.0",
       "date": "2026-07-01",
       "changes": [
