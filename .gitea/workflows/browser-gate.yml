@@ -31,7 +31,7 @@ jobs:
         run: |
           # On push (e.g. main) always run. On a PR, run only when the changed
           # files touch the tile/menu/dnd surface or this gate's own harness.
-          PATTERN='^src/Catalog\.tsx$|^tests/browser-gate/|^playwright\.gate\.config\.ts$|^src/.*([Tt]ile|[Mm]enu|[Dd]nd|[Dd]rag|[Ss]ortable)|^package(-lock)?\.json$'
+          PATTERN='^src/App(Grid|Header)?\.tsx$|^tests/browser-gate/|^playwright\.gate\.config\.ts$|^src/.*([Tt]ile|[Mm]enu|[Dd]nd|[Dd]rag|[Ss]ortable)|^package(-lock)?\.json$'
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
             echo "push event — running browser gate"

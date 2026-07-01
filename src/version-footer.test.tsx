@@ -7,8 +7,8 @@ import { authConfig, me, setThemePref, type User } from './api';
 // Mirror App.test's isolation: stub the heavy children + the api module so the
 // logged-in dashboard mounts without a backend. The footer (v15) lives in Home,
 // so we drive it through a real <App /> with a resolved session.
-vi.mock('./Catalog', () => ({
-  default: () => <div data-testid="catalog-stub" />,
+vi.mock('./AppGrid', () => ({
+  default: () => <div data-testid="app-grid-stub" />,
 }));
 vi.mock('./SettingsPanel', () => ({
   default: () => <div data-testid="settings-panel-stub" />,
@@ -20,6 +20,7 @@ vi.mock('./api', () => ({
   register: vi.fn(),
   logout: vi.fn(),
   setThemePref: vi.fn(),
+  categories: vi.fn(() => Promise.resolve([])),
   services: vi.fn(() => Promise.resolve([])),
   servicesWithStatus: vi.fn(() => Promise.resolve({ status: 200, services: [] })),
 }));
