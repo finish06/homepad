@@ -8,7 +8,9 @@ import { categories, saveCategoryLayout } from './api';
 // (the atomic bulk endpoint — AC10 server-side).
 
 function mockFetch(body: BodyInit | null, status: number) {
-  const fn = vi.fn(async () => new Response(body, { status }));
+  const fn = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+    new Response(body, { status }),
+  );
   vi.stubGlobal('fetch', fn);
   return fn;
 }

@@ -45,8 +45,27 @@ export type Service = {
 };
 
 // A v4 category: admin-managed shared-catalog metadata. `sortIndex` is the
-// admin-controlled order (not alphabetical).
-export type Category = { id: string; name: string; sortIndex: number };
+// admin-controlled order (not alphabetical). The layout fields (SPEC category
+// pane width) place the category in a 2D grid: `layoutRow` groups side-by-side
+// panes, `layoutColOrder` orders within a row, `layoutWidthPct` (10–100) is the
+// pane's share of screen width. Defaults (row=sortIndex, col=0, width=100)
+// reproduce the pre-feature stacked full-width layout.
+export type Category = {
+  id: string;
+  name: string;
+  sortIndex: number;
+  layoutRow: number;
+  layoutColOrder: number;
+  layoutWidthPct: number;
+};
+
+// A single category's layout assignment, the wire shape for the atomic bulk save.
+export type CategoryLayout = {
+  id: string;
+  layoutRow: number;
+  layoutColOrder: number;
+  layoutWidthPct: number;
+};
 
 export type Result = { ok: boolean; status: number; error?: string };
 
@@ -247,8 +266,31 @@ export async function updateService(
 export async function categories(): Promise<Category[]> {
   const res = await fetch('/api/categories', { credentials: 'include' });
   if (res.status !== 200) return [];
-  const data = (await res.json()) as { categories: Category[] };
-  return data.categories ?? [];
+  const data = (await res.json()) as { categories: Partial<Category>[] };
+  // Default the layout fields so a pre-migration server (no layout columns)
+  // renders identically to before: each category on its own row (row=sortIndex),
+  // first column, full width (AC9).
+  return (data.categories ?? []).map((c) => ({
+    id: c.id!,
+    name: c.name!,
+    sortIndex: c.sortIndex!,
+    layoutRow: c.layoutRow ?? c.sortIndex!,
+    layoutColOrder: c.layoutColOrder ?? 0,
+    layoutWidthPct: c.layoutWidthPct ?? 100,
+  }));
+}
+
+// saveCategoryLayout persists a batch of category layout assignments via the
+// atomic bulk endpoint (all-or-nothing server-side — AC10). Returns true on 200
+// so the caller can roll back an optimistic drag/resize on failure.
+export async function saveCategoryLayout(layout: CategoryLayout[]): Promise<boolean> {
+  const res = await fetch('/api/categories/layout', {
+    method: 'PUT',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify({ layout }),
+  });
+  return res.status === 200;
 }
 
 // createCategory adds a category to the shared catalog (v4; admin-only — the

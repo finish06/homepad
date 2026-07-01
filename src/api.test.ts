@@ -322,7 +322,12 @@ describe('categories (v4)', () => {
       { id: 'c2', name: 'Infra', sortIndex: 1 },
     ];
     const fn = mockFetch(JSON.stringify({ categories: list }), 200);
-    await expect(categories()).resolves.toEqual(list);
+    // categories() now backfills the SPEC layout fields (row=sortIndex, col=0,
+    // width=100) so a pre-migration server still renders the pre-feature stack.
+    await expect(categories()).resolves.toEqual([
+      { id: 'c1', name: 'Media', sortIndex: 0, layoutRow: 0, layoutColOrder: 0, layoutWidthPct: 100 },
+      { id: 'c2', name: 'Infra', sortIndex: 1, layoutRow: 1, layoutColOrder: 0, layoutWidthPct: 100 },
+    ]);
     expect(fn).toHaveBeenCalledWith('/api/categories', { credentials: 'include' });
   });
 

@@ -85,7 +85,7 @@ function svc(over: Partial<Service> = {}): Service {
 }
 
 function cat(over: Partial<Category> = {}): Category {
-  return { id: 'c1', name: 'Media', sortIndex: 0, ...over };
+  return { id: 'c1', name: 'Media', sortIndex: 0, layoutRow: 0, layoutColOrder: 0, layoutWidthPct: 100, ...over };
 }
 
 // Deterministic layout for jsdom: each element's rect is keyed off its position
