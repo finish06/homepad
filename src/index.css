@@ -1972,13 +1972,13 @@
     grid-template-columns: repeat(6, 1fr);
     gap: 16px;
     align-items: start;
-    /* Fill the shared content width (CONTENT_WIDTH = 1536px), not the v14
-       floating-panel field's 1392px. Capping 144px short left a 2560px
-       monitor's tiles no wider than a 1440px monitor's (the residual of the
-       #194 inversion — "more screen, same content"); at 1536px they grow with
-       the canvas and the grid right-aligns with the header/status bar. */
-    max-width: 1536px;
-    margin: 0 auto;
+    /* No inner width cap: the grid fills the outer CONTENT_WIDTH section
+       (the shared max-w-[1536px] px-4 mx-auto frame from App.tsx), so its left
+       and right edges align with the header and status-strip content at every
+       viewport (#196). #194 first matched an inner cap to 1536px to grow tiles
+       into a wide canvas; that cap is redundant inside the already-1536 frame,
+       and any narrower inner cap re-centered the grid and inset its left edge
+       at wide viewports — the "grid floats untethered at 2560" symptom. */
   }
   .app-grid-box {
     grid-column: span var(--w);

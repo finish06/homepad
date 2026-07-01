@@ -50,19 +50,22 @@ describe('shared content width (#196, AC-009)', () => {
 // header/status bar, not stop 144px short at the v14-carryover 1392px. When it
 // caps early, a 2560px monitor's tiles (~216px) match a 1440px monitor's rather
 // than growing into the wider canvas — "more screen, same content", the tail of
-// the inversion #194 flagged. jsdom can't measure the pixels; this guards the
-// max-width that makes the browser-verified growth happen. Named for the symptom.
+// the inversion #194 flagged. #194 first matched an inner `.app-grid` cap to
+// 1536px; #196 then removed that inner cap entirely so the grid inherits the
+// outer `${CONTENT_WIDTH}` section (max-w-[1536px], already asserted above) —
+// one source of truth, same fill. Either way the guard is: the grid never
+// re-caps narrower than the shared frame. jsdom can't measure the pixels.
 describe('app grid caps tiles short of the shared content width (#194, AC-001)', () => {
-  it('sizes the page grid to the shared 1536px width, not the v14 1392px', () => {
-    expect(appGridRule).toMatch(/max-width:\s*1536px/);
+  it('never re-caps the page grid at the v14 1392px, so tiles grow into the wide canvas', () => {
     expect(appGridRule).not.toMatch(/max-width:\s*1392px/);
   });
 
-  it('matches the CONTENT_WIDTH token so grid, header, and status bar right-align', () => {
-    // CONTENT_WIDTH is `max-w-[1536px]`; the grid's own cap must be the same value.
+  it('carries no divergent inner cap — it inherits the shared CONTENT_WIDTH (max-w-[1536px]) frame', () => {
+    // CONTENT_WIDTH is `max-w-[1536px]`; the grid fills that outer frame rather
+    // than declaring its own (now-removed, #196) inner max-width.
     const token = CONTENT_WIDTH.match(/max-w-\[(\d+)px\]/)?.[1];
     expect(token).toBe('1536');
-    expect(appGridRule).toContain(`max-width: ${token}px`);
+    expect(appGridRule).not.toMatch(/max-width/);
   });
 });
 
