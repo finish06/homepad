@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.7.1",
+      "date": "2026-07-01",
+      "changes": [
+        { "type": "bug-fix", "text": "On wide monitors the dashboard now uses the full page width, so your app tiles grow to fill the extra space instead of staying the same size they were on a laptop. Before, a big external monitor showed the same-size tiles as a 1440px screen; now they get roomier (about 216px → 235px at 2560px) and line up with the header and status bar. iPad and phone layouts are unchanged." }
+      ]
+    },
+    {
       "version": "12.7.0",
       "date": "2026-07-01",
       "changes": [
