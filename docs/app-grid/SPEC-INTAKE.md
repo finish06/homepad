@@ -75,3 +75,10 @@ Set `--w` per box from the `width` field. No custom layout math needed — CSS G
 - Persistence / saving layout.
 - Add/remove/reorder links in the UI.
 - Per-user configs, auth, access control.
+
+---
+
+## Caleb clarification (2026-07-01, post-intake)
+- **Column ceiling: up to 6 is the model** — 6 > 4, and 4 is NOT enough. The grid + box-width range is **1-6**.
+- **Going up to 8 is acceptable** if it helps — treat 8 as an OK upper bound (grid may go to 8-col, width selector to 8). Design/spec for 6 as the primary, 8 as the extensible ceiling.
+- This **supersedes** the max-4 layout shipped as v12.7.0 (that was an interim answer to '6 is sparse'; per-box width is the real answer). App Grid replaces it — do not keep both.
