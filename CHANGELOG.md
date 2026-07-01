@@ -7,6 +7,22 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.7.0] — 2026-07-01 — v14.1 floating-panel 4-column ceiling
+
+### Changed
+
+- **Category panels now cap at 4 columns on wide monitors, down from 6 (v14.1).**
+  Product decision (Caleb + Walt): six columns read sparse on a wide screen, and
+  four is the glance sweet spot. The responsive field ladder drops the `≥1300 → 6`
+  tier, so it is now **4 / 3 / 2 columns** at `≥1024 / ≥768 / <768`. Panel span is
+  still `clamp(appCount, 1, fieldCols)` — now capped at 4 — so a category with
+  fewer than 4 apps still hugs its content with no phantom empty columns, and a
+  larger category wraps to a second internal row past 4 tiles. Desktop tiles stay
+  a fixed **190px** and the v12.6.1 mobile fluid-tile behavior (`minmax(0, 190px)`
+  below 768px) is untouched — this only lowers the max column ceiling. Verified in
+  a real browser (CDP): no horizontal page overflow at 1536/1440/1300/1024/768/390.
+  Design doc `docs/homepad-floating-panel-layout.md` updated (Rev 2026-07-01c).
+
 ## [12.6.1] — 2026-07-01 — v14 mobile-overflow hotfix
 
 ### Fixed

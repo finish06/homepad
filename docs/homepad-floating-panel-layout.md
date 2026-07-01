@@ -1,4 +1,4 @@
-# homepad dashboard — floating-panel layout (6-column field)
+# homepad dashboard — floating-panel layout (4-column field)
 
 Build-ready design, 2026-07-01 (Kare). Caleb reviewed and **CONFIRMED** the direction:
 (1) category ordering = **usage priority, but stable** (re-rank occasionally, never live on
@@ -13,6 +13,13 @@ bug (fixed 190px tiles + 48px left margin overflowed a ~390px viewport). Tiles a
 drops to ~16px, and there is a hard **no-horizontal-page-scroll** rule. Desktop spec unchanged.
 Aligns with Stitch's code fix (task `homepad-v14-mobile-overflow`). See A.2, A.4, B.2.
 
+**Rev 2026-07-01c (v14.1 — 4-column ceiling):** Caleb + Walt lowered the field's **max column
+count from 6 to 4**. 6 read sparse on wide monitors; 4 is the glance sweet spot. The ladder is now
+**4 / 3 / 2** at ≥1024 / ≥768 / <768 (the ≥1300→6 tier is gone; ≥1024 already capped at 4).
+Column-span is still `clamp(appCount, 1, fieldCols)`, now capped at 4, so a category with <4 apps
+still hugs its content with no phantom columns. Tile size (fixed 190px desktop / fluid mobile) and
+the mobile rules are **unchanged** — this only lowers the ceiling. See A.1, A.2, A.4.
+
 **Mock:** `.kare-panels.png` (desktop 1440 field + Recently Opened rail, and iPad 768 stack).
 **Grounded on live staging tokens:** tile 190×134, gap 16, radius 18, plate 44px, tile shadow
 `0 1px 2px rgba(16,24,40,.04), 0 8px 20px -10px rgba(16,24,40,.12)` — measured off the real
@@ -23,7 +30,7 @@ authenticated dashboard, not invented.
 ## The idea (Caleb)
 Keep the **left edge**. Screens are read in an **F** — top-left → right, drop down, →
 right. Anchor everything to one left edge in priority order; don't center. Then let each
-**category be a floating glass panel** that spans 1–6 of a 6-column field. A 3-app category
+**category be a floating glass panel** that spans 1–4 of a 4-column field. A 3-app category
 is a 3-column panel, so two of them sit **side by side** instead of one row per category
 leaving a void on the right.
 
@@ -32,7 +39,7 @@ leaving a void on the right.
 ## A. The floating-panel field
 
 ### A.1 Field (measurable)
-- The dashboard body is a conceptual **6-column field**. One column = one **190px** tile slot
+- The dashboard body is a conceptual **4-column field** (v14.1; was 6). One column = one **190px** tile slot
   (desktop cap — see A.2/A.4 for the mobile fluid rule); **column-gap and panel-gap = 16px**.
   Field content max-width ≈ **1300–1392px**, centered, with **≥24px** side gutters. On a 1440
   viewport this lands the field's **left edge at x=48** (24 centering margin + 24 gutter) —
@@ -52,9 +59,9 @@ leaving a void on the right.
     inverted ink; re-run the contrast check on the header text before shipping dark.
 - **Header** (category name + count) sits top-left inside the panel, reinforcing the per-panel
   left edge. Name 14/800, count 12/600 in `text-muted` (neutral-500 min — see contrast rule).
-- **Column-span = `clamp(appCount, 1, 6)`.** Internal tile grid = `span` columns of
-  **`minmax(0, 190px)`**, gap 16, and **wraps to a second internal row past 6 apps** (a 7–12 app
-  category is a 6-col panel, two rows). The `minmax(0, 190px)` is the load-bearing rule: tiles
+- **Column-span = `clamp(appCount, 1, 4)`** (v14.1; was `…, 6`). Internal tile grid = `span`
+  columns of **`minmax(0, 190px)`**, gap 16, and **wraps to a second internal row past 4 apps** (a
+  5–8 app category is a 4-col panel, two rows). The `minmax(0, 190px)` is the load-bearing rule: tiles
   **cap at 190px** (never larger) but **may shrink below 190px when the column can't hold it** —
   see the mobile exception in A.4.
 - **Panel hugs its content — it does not stretch, and tiles never enlarge past 190px.** This
@@ -74,9 +81,9 @@ leaving a void on the right.
   the F-scan is *not* looking.
 
 ### A.4 Responsive
-Field columns = `clamp(1, floor((vw − gutters + 16) / 206), 6)` (206 = 190 tile + 16 gap):
-- **≥1300 → 6 cols** — side-by-side panels (e.g. 3+3, 2+4). ✓ mock
-- **ipad-land ~1024 → ~4 cols.**
+Field columns cap at **4** (v14.1; was 6). Implemented as a stepped ladder in `useFieldCols`:
+- **≥1024 → 4 cols** — side-by-side panels (e.g. 3+1, 2+2), the wide-monitor ceiling. Was 6 at
+  ≥1300; lowered to 4 because 6 read sparse and 4 is the glance sweet spot. ✓
 - **ipad-port 768 → 3 cols** — most categories become full-width and **stack**. ✓ mock
 - **phone 390 → 2 cols**; panels full-width, stacked.
 - When field cols < a panel's natural span, the panel **shrinks to field width and its tiles
@@ -218,7 +225,9 @@ drops data and one elevation step — never changes its silhouette into a differ
 - Recency chip renders **120.8×44px**, radius **12px**, plate **28×28**, name **14/600**,
   label neutral-500 **#737373 (4.74:1)** — all as specced; touch target ✓, contrast ✓.
 - Field left edge x=48; **every panel row starts at x=48** — left-anchored. ✓
-- Row 1: two 3-col panels side by side. Row 2: 6-col full field. Row 3: 2-col + 4-col. ✓
+- Row 1: two 3-col panels side by side. Row 2: 4-col panel + wrap. Row 3: 2-col + 2-col. ✓
+  (Original mock showed a 6-col full-field row; under the v14.1 4-col ceiling a 5–8 app category
+  is a 4-col panel that wraps to a second internal row instead.)
 - All tiles render **190px** (single value) — no enlargement vs the current 218px stretch. ✓
 - iPad 768: rail chips scroll; the two 3-col panels stack full-width, same left edge. ✓
 - **Phone ≤430 (mobile rule, to re-verify against Stitch's fix):** a full-width panel + tiles must

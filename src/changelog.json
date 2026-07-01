@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.7.0",
+      "date": "2026-07-01",
+      "changes": [
+        { "type": "enhancement", "text": "The dashboard category panels now show at most 4 columns of apps on wide monitors instead of 6 — six read sparse on a big screen, and four is the sweet spot for a quick glance (tiles stay a roomy 190px). Categories with fewer apps still hug their content, and phones and tablets are unchanged." }
+      ]
+    },
+    {
       "version": "12.6.1",
       "date": "2026-07-01",
       "changes": [

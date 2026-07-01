@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockApi, makeServices, toggleArrange } from './mockApi';
+import { mockApi, makeCategorized, toggleArrange } from './mockApi';
 
 // #57 REGRESSION GATE — real-browser only (issue #59).
 //
@@ -16,16 +16,22 @@ import { mockApi, makeServices, toggleArrange } from './mockApi';
 // at the overlap returns the drag-grip, not the dropdown); restore → green.
 // (Proof recorded in the PR: revert z-20 → red; restore → green.)
 //
-// We render EIGHT tiles so the grid fills its right column at the 1440px gate
-// viewport — that puts a tile's bottom-right grip directly beneath the
-// right-anchored dropdown, which is the only place the two can overlap.
+// v14.1 capped the floating-panel field at 4 columns (was 6). A single flat
+// (no-category) catalog therefore left-aligns 4×190px tiles and NO LONGER reaches
+// the right-anchored dropdown — the old 8-flat-tile fixture yielded zero overlaps
+// and the gate went vacuously un-runnable. So we seed FOUR categories of two apps
+// each: each renders as a glass panel that packs left→right across the field, and
+// the rightmost panel's bottom-right grip lands directly beneath the dropdown at
+// the 4-col ceiling — the only place the two can overlap. (Verified in real
+// Chromium: a tile grip sits at x≈1320 inside the menu box x∈[1163,1407].)
 //
 // #166: the per-tile reorder grip is now revealed by per-user Arrange mode (the
 // header settings gear) rather than always-on, so we enter Arrange first. The
 // z-stacking this gate guards (header z-20 over grip z-10) is unchanged.
 
 test.beforeEach(async ({ page }) => {
-  await mockApi(page, makeServices(8));
+  const { services, categories } = makeCategorized(4, 2);
+  await mockApi(page, services, categories);
   await page.goto('/');
   await expect(page.getByTestId('user-menu-trigger')).toBeVisible();
   await expect(page.getByTestId('service-tile').first()).toBeVisible();
@@ -51,7 +57,8 @@ test('mouse: the open UserMenu dropdown sits above tile drag-grips', async ({ pa
     // centre of so thin a band is Chromium-version-sensitive — elementFromPoint
     // can round to the grip and flake the gate without any real regression.
     // Require at least MIN_OVERLAP_PX of overlap on BOTH axes so only genuine,
-    // interior overlaps (like svc-4's 36px band) are tested. Test-robustness
+    // interior overlaps (like the rightmost panel's full 36px grip band, well
+    // inside the dropdown) are tested. Test-robustness
     // only; the z-20 regression teeth are unchanged.
     const MIN_OVERLAP_PX = 2;
     const menu = document.querySelector('[data-testid="user-menu"]') as HTMLElement;
