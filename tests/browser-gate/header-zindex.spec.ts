@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { mockApi, makeCategorized } from './mockApi';
 
 // #57 REGRESSION GATE (retargeted for SPEC-app-grid §2) — real-browser only.
