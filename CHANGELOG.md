@@ -7,6 +7,22 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.7.2] — 2026-07-01 — App Grid tile name keeps its distinguishing suffix (#195)
+
+### Fixed
+
+- **Sibling tiles with a shared prefix no longer become indistinguishable when a
+  tile is narrow.** `ArchiveTeam Warrior1` and `ArchiveTeam Warrior2` previously
+  both single-line end-ellipsized to `ArchiveTeam …` (at ≤173px tiles — the 6-col
+  layout on a 2560px monitor, see #194), dropping the only identifying token and
+  violating design-system principle #4. The `.app-grid-tool-name` rule now wraps
+  to a second line (`-webkit-line-clamp: 2`, `overflow-wrap: anywhere`) instead of
+  clipping to one, so the distinguishing trailing word stays on screen; names too
+  long for two lines still ellipsize the last line, and the full string remains
+  reachable via the existing `title` tooltip. CSS-only; CDP-verified at 173/235px.
+  (This is the defensive half of #195 — #194 separately raises wide-monitor tiles
+  back to ≥200px where names wrap cleanly at the space.)
+
 ## [12.7.1] — 2026-07-01 — App Grid fills the wide-monitor canvas (#194)
 
 ### Fixed
