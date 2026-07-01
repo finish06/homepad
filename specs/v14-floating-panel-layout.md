@@ -1,6 +1,6 @@
 # Spec: v14 — Floating Panel Layout + Usage-Priority Ordering
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Created:** 2026-07-01
 **Authors:** Walt (product lead) · Kare (design lead — co-owned, UI-bearing spec)
 **Status:** Approved — ready for implementation
@@ -148,6 +148,19 @@ Kare flagged these thresholds for Walt to ratify. They are now ratified as spec:
 | C-006 | When the user enters Arrange mode, a "Sort: Auto / Custom" toggle is visible. It defaults to "Auto" (usage-priority). Setting "Custom" lets the user drag categories to a manual order (v10 behavior). The `sortMode` preference persists in `homepad.sortMode` localStorage key. In Custom mode, usage ranking is fully ignored — server layout order applies. | Must |
 | C-007 | In Custom sort mode, a "Reset to auto order" action clears `homepad.sortMode` and returns to usage-priority. | Should |
 | C-008 | Favorites and Uncategorized sections always render at the end of the category stack, after usage-scored categories, regardless of sort mode. (Their existing behavior — v5 always-expanded, v4 taxonomy — is unchanged.) | Must |
+
+### 4D. Mobile-responsive layout (hotfix v12.6.1, issue #212)
+
+This section codifies the mobile overflow fix shipped in v12.6.1. The shipped tests (`src/mobile-panel-overflow.test.tsx`, on `main`) are the AC source of truth; the CDP browser gate verifies the actual pixel behavior.
+
+| ID | Criterion | Priority |
+|----|-----------|----------|
+| M-001 | No horizontal page scroll at 375px, 390px, 430px, or 768px viewport widths. The page body must not exceed the viewport width at any of these sizes. | Must |
+| M-002 | Below 768px (`@media (max-width: 767px)`), tile slots become fluid: `grid-template-columns: repeat(var(--panel-cols), minmax(0, 190px))`. Tiles shrink below 190px to fit the available width; they never grow past 190px and never force horizontal overflow. | Must |
+| M-003 | Below 768px, `.category-panel` has `width: 100%`, filling the tile-field width. The fixed desktop `calc(N * 190px …)` width is not applied on mobile. | Must |
+| M-004 | Below 768px, both `.tile-field` and `.recently-opened-rail` have `margin-left: 0` (down from the 48px desktop anchor). The surrounding section's own `px-4` padding (~16px) supplies the visual inset; the 48px anchor is a desktop-only rule. | Must |
+| M-005 | The Recently Opened chip rail scrolls horizontally within itself on narrow viewports — it never widens the page. The chip container carries `overflow-x-auto` (the `recently-opened-chips` element in `Catalog.tsx`); the scrollbar is hidden via CSS. | Must |
+| M-006 | Desktop layout (≥1024px) is unchanged by the hotfix: tiles remain fixed at 190px, `.tile-field` anchors at `margin-left: 48px`, and no mobile overrides apply. The fix is scoped exclusively to the `max-width: 767px` media block. | Must |
 
 ---
 
