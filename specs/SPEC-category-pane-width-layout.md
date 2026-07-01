@@ -1,7 +1,7 @@
 # SPEC: Category Pane Width Layout — Horizontal Screen Utilization
 
 **Issue:** TBD (to be filed)
-**Status:** Draft — awaiting Kare design sign-off
+**Status:** Design-approved (Kare, 2026-07-01) — awaiting Walt product go to ship to Stitch
 **Author:** Walt (product)
 **Co-author:** Kare (design — see Design section, required before implementation)
 **Scope:** `src/Catalog.tsx`, `src/App.tsx`, `src/api.ts`, `homepad-api` (DB migration + API), `src/index.css`
@@ -204,58 +204,229 @@ that behavior. Layout saves happen via API immediately on drag completion (not o
 
 ## Design section — Kare (REQUIRED before implementation)
 
-**Status: PENDING — spec is NOT approved until this section is filled by Kare.**
+**Status: APPROVED — Kare, 2026-07-01.** Filled below. All values are grounded in the
+homelab design system (`Code/design-system/DESIGN-SYSTEM.md`) and the current Homepad
+tokens in `src/index.css`. Where a number is derived rather than measured off a live
+render, it is flagged as a **build note** for Stitch to confirm — none block the design go.
 
-This spec has significant UI surface. Kare owns the design for all of the following.
-Neither Walt nor Stitch should make UX decisions on these items without Kare's sign-off.
+> **Terminology note (read first).** The spec calls each category a "glass pane." In the
+> shipped Homepad a category is **not** a glass card — it is a `.cat-head` header (with a
+> hairline bottom divider) above a tile grid, on the shared `.app-surface`. This feature
+> does **not** introduce a new glass card wrapper (that would be a separate visual
+> redesign and out of scope). "Pane" here means **the category column** = its header +
+> its tile grid. Separation between side-by-side panes is carried by the row gutter (D2)
+> and each pane's own header divider (D5), not by a new card chrome. The tile glass/shadow
+> language in `.tile` is unchanged.
+>
+> **Tile constant (build note).** The per-pane tile-count formula in this spec needs a
+> fixed tile cell size. Derived from `src/index.css` (`.tile-icon` 46px plate, `.tile`
+> padding 15px, grid `gap-4` = 16px) and the current desktop grid, the design tile target
+> is **`TILE_MIN = 168px`** content width with **`TILE_GAP = 16px`** (the existing
+> `gap-4`, on the 8pt grid). So `tiles_per_row = floor((pane_px + 16) / (168 + 16))`.
+> Stitch: confirm 168px against a live tile render; if the real comfortable tile is wider,
+> bump `TILE_MIN` and the D8 floor together (keep floor = `TILE_MIN + 8`).
 
-### Items requiring Kare's design
+### Items requiring Kare's design — DECISIONS
 
-**D1 — Viewport padding at scale.**
-What is the horizontal padding strategy as viewport grows from 640 → 1024 → 1920 → 2560 px?
-The `max-w-6xl` cap is removed; the design system must specify what prevents content from
-feeling glued to the viewport edge on ultrawide screens. Options: fixed padding
-(e.g., `px-8`), max padding (up to some cap), or responsive padding tokens. Kare owns this.
+**D1 — Viewport padding at scale. DECISION: responsive horizontal padding that steps up
+by breakpoint and caps at 64px. No new content max-width.**
 
-**D2 — Row gutter between side-by-side panes.**
-The horizontal gap between two category panes in the same row. Should match the rhythm of
-the vertical gap between rows. Kare to specify exact design token / pixel value.
+Replace `max-w-6xl mx-auto px-4` with `mx-auto` (centering only, no width cap) + a
+responsive `px` that grows to a **64px ceiling** and then holds. The cap on the *padding*
+(not the content) is what stops ultrawide edge-glue without reintroducing a content cap —
+at 2560px, 64px each side leaves a 2432px content band that fills the screen and still
+breathes.
 
-**D3 — Resize handle in edit mode.**
-What does the drag handle look like? (Pill, dots, gripper icon?) What is its hover state,
-active/dragging state, and touch target size? How does it snap — is there a visual snap
-indicator (e.g., ghost line at 25/50/75%)? Does it work on touch (mobile edit mode is
-admin-accessible)?
+| Viewport | Padding each side | Tailwind | On 8pt grid |
+|---------:|------------------:|----------|:-----------:|
+| < 640 (mobile) | 16px | `px-4` | ✅ |
+| 640 (sm) | 24px | `sm:px-6` | ✅ |
+| 1024 (lg) | 32px | `lg:px-8` | ✅ |
+| 1440 (xl) | 48px | `xl:px-12` | ✅ |
+| 1920 (2xl) | 64px | `2xl:px-16` | ✅ |
+| 2560+ | 64px (held — no further growth) | `2xl:px-16` | ✅ |
 
-**D4 — Row drop zones in edit mode.**
-This is the hardest design problem in this spec. When an admin drags a category pane,
-two distinct outcomes are possible:
-- Drop **into this row** (merge, show as side-by-side)
-- Drop **above/below** (new row, stay stacked)
+Vertical page padding (`py-6` = 24px) is unchanged.
 
-These two affordances must be visually unambiguous. Kare must specify: what the drop
-zones look like when idle, on hover, and on active drag. How wide/tall is the "into row"
-zone vs. the "new row" zone? What animation or transition happens on drop?
+**D2 — Row gutter between side-by-side panes. DECISION: 32px (`gap-8`), matching the
+inter-row vertical rhythm exactly.**
 
-**D5 — Row separator in view mode.**
-Are rows visually separated in view mode (a horizontal rule, a gap, nothing)? Is there a
-visual concept of "rows" for the user, or is it invisible infrastructure? If rows have no
-visual separator, does the vertical gap between a same-row pair (top-aligned, different
-heights) feel confusing?
+The current vertical gap between categories is `sm:space-y-8` = **32px**. To keep the grid
+feeling square (equal horizontal and vertical rhythm), the row gutter is the same token:
+each row is `display:flex; align-items:flex-start; gap: 2rem` (**32px**, `gap-8`). The
+vertical gap **between** rows stays 32px (`sm:space-y-8`, unchanged). One rhythm, both
+axes. The resize handle (D3) lives centered inside this 32px gutter.
 
-**D6 — Width indicator in edit mode.**
-Does the admin see the width percentage labeled on each pane in edit mode? If so, where
-(pane header? resize handle tooltip?). When does it appear (always in edit mode? only
-while dragging?)?
+**D3 — Resize handle in edit mode. DECISION: a centered vertical grip pill in the gutter,
+44px invisible hit area, snaps to 25% increments with ghost guides.**
 
-**D7 — Mobile collapse visual.**
-Below 640 px, row layout collapses to single-column. Is this transition animated or
-instant? Is there any visual signal that the multi-column layout exists but is collapsed?
+- **Appearance (rest, edit mode only):** a **6px-wide × 48px-tall** rounded pill
+  (`radius-full`), vertically centered in the shared height of the two panes, sitting in
+  the middle of the 32px gutter. Fill `rgba(15,23,42,0.12)` light / `rgba(255,255,255,0.14)`
+  dark. No icon — the pill *is* the affordance. `cursor: col-resize`.
+- **Hit target:** the pill is visually 6px, but the interactive zone is an invisible band
+  **44px wide × full pane height**, centered on the gutter — clears the 44×44 minimum
+  (WCAG 2.5.5) even though the visible grip is thin. This is the design-system
+  "transparent hit-area expansion" pattern (§1.3).
+- **Hover:** pill widens to **8px**, fill → `#6366f1` (indigo-500), 160ms `ease-out`.
+- **Active / dragging:** pill → solid `#4F46E5` (primary). A **1px indigo dashed ghost
+  line** spans the full pane height at each valid snap position (25 / 50 / 75%); the line
+  nearest the cursor brightens to solid `#4F46E5`, the others sit at `#6366f1` @ 0.4. A
+  floating **percentage label** (D6 style, indigo fill) follows the handle showing the
+  live split, e.g. `60% · 40%`.
+- **Snap:** because both panes must sum to 100% and each has a **25% floor** (spec), the
+  only valid two-pane splits are **25/75, 50/50, 75/25** — three positions. The handle is
+  magnetic: free 1% drag, but snaps when within 3% of a snap point; it **hard-stops at the
+  25% floor** (the pill cannot be dragged past it — the label freezes at `25%`).
+- **Touch (admin mobile edit):** honor the existing tile-drag pattern — **200ms
+  press-hold to grab** (see `src/Catalog.tsx:167`) so it doesn't fight page scroll. Under
+  `@media (pointer:coarse)` the visible pill is **12px** wide (still inside the 32px
+  gutter) and the ghost label is shown persistently while dragging (no hover on touch).
+- **Reduced motion:** pill width/color changes are instant; no ghost-line fade.
 
-**D8 — Minimum pane state.**
-At 25% width on a narrow-for-that-breakpoint screen, a pane may only fit 1 tile per row.
-Is a 1-tile-wide pane an acceptable state visually? Does it need a minimum pixel width
-floor regardless of percentage?
+**D4 — Row drop zones in edit mode. DECISION: orientation is the disambiguator — a
+VERTICAL indigo bar means "merge as a column," a HORIZONTAL indigo bar means "new row" —
+each reinforced by a placeholder opening in the matching axis and an explicit text label.**
+
+This is the core interaction; it is designed to be legible on the *first* drag.
+
+*The single rule the admin learns in one gesture:* **the indicator points the way the
+layout will grow.** A tall vertical bar → the row gains a column. A wide horizontal bar →
+the stack gains a row. Same indigo, different axis.
+
+**Two zone types and their geometry** (active only while a pane is grabbed):
+
+1. **Merge zone (→ side-by-side).** Each pane in a row exposes a **left half** and a
+   **right half** as merge targets (split at the pane's horizontal center; full pane
+   height). Hovering the left half inserts the dragged pane as a column immediately to
+   that pane's **left**; right half → to its **right**.
+   - **Indicator:** a **4px-wide vertical bar**, `radius-full`, `#6366f1`, full pane
+     height, that grows **center-out** (140ms `ease-out`) at the insertion seam.
+   - **Placeholder:** a **dashed indigo column** (1px dashed `#6366f1` @ 0.6) opens
+     inline at the even-split target width; the sibling panes slide to make room
+     (160ms `ease-out`) so the admin literally sees the row make space.
+2. **New-row zone (→ stacked).** The **inter-row gutters** (the 32px vertical gaps), plus
+   a band above the first row and below the last row, are new-row targets. At rest during
+   a drag they show a **faint 1px dashed horizontal hairline** across the full content
+   width so the admin can see where rows can be inserted. Active hit height is expanded to
+   **44px** (invisible) so it is easy to land on both mouse and touch.
+   - **Indicator:** a **4px-tall horizontal bar**, `radius-full`, `#6366f1`, spanning the
+     **full content width**, that grows **left-to-right** (140ms `ease-out`).
+   - **Placeholder:** a **full-width dashed row** opens vertically (panes below slide down,
+     160ms `ease-out`).
+
+**Precedence (never ambiguous):** exactly **one** zone is active — the one nearest the
+pointer. Pointer over a pane body → merge (vertical bar). Pointer in an inter-row gutter or
+the top/bottom band → new row (horizontal bar). The pane bodies are large and the gutters
+are a distinct 32px strip, so the two never fight for the same pixels.
+
+**Text label (kills first-run ambiguity):** a small floating pill tracks the cursor
+reading **"Merge into row"** or **"New row"** (12/600, white text on `#4F46E5`,
+`radius-full`, `shadow` per `.user-menu` elevation). On touch it is **always shown** while
+dragging (no hover to rely on).
+
+**Drop animation:** the dashed placeholder collapses as the real pane snaps into it
+(180ms `ease-out`); the pane scales 1.02 → 1.0 and its shadow settles. On a **merge**,
+both panes animate their width to the even split over **200ms** (`ease-out`) so the sibling
+visibly yields space. On a **new row**, the pane lands at 100% width. Widths persist
+immediately via `PUT /categories/layout` (spec) — no save button.
+
+**Dragged-pane state:** reuse the existing grabbed treatment (opacity ~0.9, lifted shadow,
+`scale(1.02)`) already used for tile/section drags, for consistency (design-system
+principle #8).
+
+**Touch specifics:** 200ms press-hold to grab; merge halves and new-row bands both meet
+the 44px active-size floor under `pointer:coarse`; auto-scroll when the drag nears the
+viewport top/bottom edge.
+
+**Reduced motion:** bars appear/disappear instantly, placeholders open without the slide
+(they just occupy their final size), pane snaps without scale. The color/position
+information is preserved; only the easing is dropped.
+
+**D5 — Row separator in view mode. DECISION: no rule, no explicit "row" concept — rows are
+invisible infrastructure. Separation is the 32px gutter + each pane's own header divider.**
+
+Users do not own the layout (admin-only) and should never have to think in "rows." In view
+mode the page just reads as a considered multi-column arrangement. There is **no horizontal
+rule** between rows. What delineates the columns:
+
+- The **32px row gutter** (D2) between side-by-side panes and the **32px vertical gap**
+  between rows — one consistent rhythm, so grouping reads without a drawn line.
+- Each pane's **`.cat-head` bottom divider** spans only that pane's own width, so from the
+  first pixel of each column the header + its hairline mark "this is a distinct category."
+
+**Different heights (top-aligned):** panes are `align-items: flex-start` (spec) — a shorter
+pane simply ends; the next row begins 32px below the **tallest** pane in the current row.
+To guarantee rows never interleave, **each row is its own flex block**, and the row blocks
+are stacked with `space-y-8` (the parent owns the 32px vertical gap; the flex row owns the
+32px horizontal gap). The ragged bottom edge of a mismatched pair is expected and fine —
+categories are independent; nothing needs to visually "connect" them. This is preferable to
+height-equalizing (which the spec forbids) because empty tile-less space at the bottom of a
+short pane would read as a bug, not a design.
+
+**D6 — Width indicator in edit mode. DECISION: a small `%` pill in the pane header, shown
+whenever edit mode is on; emphasized (indigo) while that pane is being resized.**
+
+- **Where:** in the `.cat-head`, right-aligned, immediately after the existing `.cat-count`
+  pill. Reuse the count-pill shape but on the grid: **padding `2px 8px`** (not the
+  design-system-flagged `1px 6px`), **12px / 700**, `font-variant-numeric: tabular-nums`
+  (so the width doesn't jitter as the value changes), `radius-full`. Text `#475569`
+  (slate-600) on `rgba(15,23,42,0.06)` light / `#9aa3b8` on `rgba(255,255,255,0.08)` dark —
+  measured **6.9:1** on the light pill, clears AA body (the design-system count pill's
+  lighter `#64748b` sits at ~4.3:1, so this uses the slightly darker header ink to be safe).
+  Label reads e.g. **`50%`**.
+- **When:** **always visible in edit mode** (so the admin can read the current config at a
+  glance without dragging), **hidden in view mode**. While that pane is actively being
+  resized, the pill switches to **solid `#4F46E5` fill with white text** (6.29:1) for
+  emphasis and updates live; the floating handle label (D3) carries the paired split.
+- A lone pane in a row (renders 100% per spec) shows **`100%`** — honest about the stored
+  vs. rendered width being reconciled to full.
+
+**D7 — Mobile collapse visual. DECISION: instant at the breakpoint (no layout animation);
+no view-mode "hidden columns" badge; an edit-mode-only info line explains the collapse.**
+
+- **Transition:** the collapse is a **CSS media-query switch** at the row-active threshold
+  (see D8 — it is per-row, not a single global 640px cut). Crossing it is **instant** — we
+  do **not** animate a full layout reflow (it janks, and on real devices you don't
+  live-resize across it). This also satisfies `prefers-reduced-motion` by construction.
+- **View mode:** **no** persistent "a wider layout exists" badge. Users don't control
+  layout; surfacing a collapsed-feature hint would be noise. The single column simply looks
+  correct.
+- **Edit mode (where it matters):** if an admin is in edit mode on a viewport too narrow
+  for a given row to go side-by-side, show a **non-blocking info line** under that row:
+  *"Row layout collapses at this width — widths apply on wider screens."* (13/500,
+  `text-secondary` `#737373`, 4.74:1). This tells the admin *why* their columns aren't
+  showing, scoped to the one context where the question arises.
+
+**D8 — Minimum pane state. DECISION: a 176px per-pane floor; rows whose panes can't all
+clear it collapse to single-column at that viewport (per-row responsive); 1-tile panes are
+allowed but headers ellipsize; a non-blocking amber advisory warns the admin.**
+
+- **Floor:** a pane never renders narrower than **`PANE_MIN = 176px`** (= `TILE_MIN 168` +
+  8px slack, on-grid). This guarantees at least one full tile with no clipping (AC2).
+- **Per-row responsive collapse (this replaces a single global 640px cut):** for each row,
+  if the current viewport can't give **every** pane in that row ≥176px at its assigned
+  percentage, **that row** collapses to single-column stacking at this viewport (its panes
+  render full-width in `layoutColOrder`). Wider rows on the same page can stay side-by-side.
+  Worked example: at 640px with 24px padding → 592px usable; a 25% pane = 148px < 176 → that
+  row collapses; a 50/50 row = 296px each ≥ 176 → stays side-by-side. So the "640px
+  collapse" in the spec is the *common* case, but the real trigger is the 176px floor.
+- **Is a 1-tile pane acceptable?** Yes, as a deliberate admin choice on a wide-enough
+  screen — it renders as header + a single column of tiles. It only appears when the pane
+  clears 176px but is under two tile cells (352px); below 176px the row collapses instead,
+  so a *clipped* tile never happens.
+- **Header in a narrow pane:** the `.cat-head` **label** gets `overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap` with the accent chip, count pill, and width
+  pill held `flex:none`. A long category name **ellipsizes** ("Home Automation" →
+  "Home Auto…"); it never wraps or pushes the pills off the row.
+- **Admin warning (non-blocking):** when a resize or width assignment would make a pane
+  render ≤ 1 tile wide at 1440px (the common desktop), show a small inline advisory next to
+  the width pill — an amber **⚠ "Narrow — 1 tile"** (12/600, `#B45309` amber-700 on
+  `#FEF3C7` amber-100, ≥4.5:1). It **does not block** the save (per spec, narrow panes are
+  a permitted config) — it just makes the consequence visible before the admin leaves the
+  row. This warning color is a **new token** introduced by this feature; I'm folding
+  `warning` = `#B45309` on `#FEF3C7` into the design system in the same breath (it fills
+  the gap the system flagged: no amber/warning token existed for Homepad).
 
 ---
 
@@ -264,6 +435,6 @@ floor regardless of percentage?
 | Role | Person | Status |
 |------|--------|--------|
 | Product | Walt | DRAFT — pending design |
-| Design | Kare | PENDING |
+| Design | Kare | **APPROVED** — 2026-07-01 (Design section D1–D8 filled; see build notes on the tile constant) |
 | Implementation | Stitch | — |
 | Tech QA | Gracie | — |
