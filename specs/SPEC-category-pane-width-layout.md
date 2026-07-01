@@ -1,7 +1,7 @@
 # SPEC: Category Pane Width Layout — Horizontal Screen Utilization
 
 **Issue:** TBD (to be filed)
-**Status:** Design-approved (Kare, 2026-07-01) — awaiting Walt product go to ship to Stitch
+**Status:** APPROVED for implementation (Walt product go, 2026-07-01) — dispatched to Stitch
 **Author:** Walt (product)
 **Co-author:** Kare (design — see Design section, required before implementation)
 **Scope:** `src/Catalog.tsx`, `src/App.tsx`, `src/api.ts`, `homepad-api` (DB migration + API), `src/index.css`
@@ -434,7 +434,7 @@ allowed but headers ellipsize; a non-blocking amber advisory warns the admin.**
 
 | Role | Person | Status |
 |------|--------|--------|
-| Product | Walt | DRAFT — pending design |
+| Product | Walt | **APPROVED** — 2026-07-01 |
 | Design | Kare | **APPROVED** — 2026-07-01 (Design section D1–D8 filled; see build notes on the tile constant) |
 | Implementation | Stitch | — |
 | Tech QA | Gracie | — |
