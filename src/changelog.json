@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.7.2",
+      "date": "2026-07-01",
+      "changes": [
+        { "type": "bug-fix", "text": "App tiles whose names share a prefix (e.g. “ArchiveTeam Warrior1” and “ArchiveTeam Warrior2”) no longer collapse to the same “ArchiveTeam …” on narrow tiles — the name now wraps to a second line so the distinguishing word stays visible, and the full name is still on hover (#195)." }
+      ]
+    },
+    {
       "version": "12.7.1",
       "date": "2026-07-01",
       "changes": [

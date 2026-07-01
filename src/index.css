@@ -2083,10 +2083,18 @@
     font-size: 15px;
     font-weight: 650;
     color: #262626;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     min-width: 0;
+    /* Wrap to a second line instead of single-line clipping so a distinguishing
+       trailing token survives (#195): "ArchiveTeam Warrior1" / "…Warrior2" keep
+       their suffix on line 2 rather than both ending "ArchiveTeam …". Names too
+       long for two lines still ellipsize (last line), and the full string stays
+       reachable via the title tooltip. */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
   }
   .dark .app-grid-tool-name {
     color: #f5f5f5;
