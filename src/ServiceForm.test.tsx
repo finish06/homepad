@@ -13,8 +13,8 @@ vi.mock('./api', () => ({
 const noop = () => {};
 
 const cats: Category[] = [
-  { id: 'c1', name: 'Media', sortIndex: 0 },
-  { id: 'c2', name: 'Tools', sortIndex: 1 },
+  { id: 'c1', name: 'Media', sortIndex: 0, layoutRow: 0, layoutColOrder: 0, layoutWidthPct: 100 },
+  { id: 'c2', name: 'Tools', sortIndex: 1, layoutRow: 1, layoutColOrder: 0, layoutWidthPct: 100 },
 ];
 
 function svc(overrides: Partial<Service> = {}): Service {

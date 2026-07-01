@@ -83,7 +83,7 @@ const mockedGetCollapsed = vi.mocked(getCollapsedCategories);
 const mockedSetCollapsed = vi.mocked(setCollapsedCategories);
 
 function cat(over: Partial<Category> = {}): Category {
-  return { id: 'c1', name: 'Media', sortIndex: 0, ...over };
+  return { id: 'c1', name: 'Media', sortIndex: 0, layoutRow: 0, layoutColOrder: 0, layoutWidthPct: 100, ...over };
 }
 
 function svc(over: Partial<Service> = {}): Service {
