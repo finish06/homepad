@@ -1972,7 +1972,12 @@
     grid-template-columns: repeat(6, 1fr);
     gap: 16px;
     align-items: start;
-    max-width: 1392px;
+    /* Fill the shared content width (CONTENT_WIDTH = 1536px), not the v14
+       floating-panel field's 1392px. Capping 144px short left a 2560px
+       monitor's tiles no wider than a 1440px monitor's (the residual of the
+       #194 inversion — "more screen, same content"); at 1536px they grow with
+       the canvas and the grid right-aligns with the header/status bar. */
+    max-width: 1536px;
     margin: 0 auto;
   }
   .app-grid-box {
