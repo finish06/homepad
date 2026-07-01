@@ -32,6 +32,7 @@ const SERVICE = {
   favorite: false,
   iconLight: false,
   iconDark: false,
+  categoryId: null as string | null, // Uncategorized by default; makeCategorized sets it.
 };
 
 // header-zindex.spec needs SEVERAL tiles so the grid fills its right column and a
@@ -46,11 +47,50 @@ export function makeServices(n: number): (typeof SERVICE)[] {
   }));
 }
 
+// A minimal Category literal for the fixture (camelCase, as api.categories()
+// consumes it; layout fields default server-side and are omitted here).
+type FixtureCategory = { id: string; name: string; sortIndex: number };
+
+// header-zindex.spec fixture: `nCats` categories of `appsPer` apps each. v14.1
+// capped the field at 4 columns, so a single flat catalog left-aligns and never
+// reaches the right-anchored dropdown. Grouping the apps into categories makes
+// each render as its own glass panel that PACKS left→right across the field, so
+// the rightmost panel's tile grip lands under the dropdown again (the #57 overlap)
+// at the 4-col ceiling. 4×2 fills the 1440px gate row with a grip well inside the
+// dropdown box (verified in real Chromium: svc grip at x≈1320, menu x∈[1163,1407]).
+export function makeCategorized(
+  nCats: number,
+  appsPer: number,
+): { services: (typeof SERVICE)[]; categories: FixtureCategory[] } {
+  const categories: FixtureCategory[] = [];
+  const services: (typeof SERVICE)[] = [];
+  let sid = 0;
+  for (let c = 0; c < nCats; c++) {
+    const cid = `cat-${c + 1}`;
+    categories.push({ id: cid, name: `Group ${c + 1}`, sortIndex: c });
+    for (let i = 0; i < appsPer; i++) {
+      sid += 1;
+      services.push({
+        ...SERVICE,
+        id: `svc-${sid}`,
+        slug: `svc-${sid}`,
+        name: `Service ${sid}`,
+        categoryId: cid,
+      });
+    }
+  }
+  return { services, categories };
+}
+
 export async function mockApi(
   page: Page,
   // Defaults to the single-tile fixture (tile-menu.spec). Pass a wider set for
   // gates that need tiles in the grid's right column (header-zindex.spec).
   services: (typeof SERVICE)[] = [SERVICE],
+  // Optional categories. Empty (default) → the flat v1 render (one grid, no
+  // panels). Non-empty → the grouped v14 render where each category is a glass
+  // panel that packs left→right (header-zindex needs this to reach the dropdown).
+  categories: FixtureCategory[] = [],
 ): Promise<void> {
   // Catch-all registered FIRST so the specific handlers below (LIFO order) take
   // precedence — anything unmocked resolves empty instead of hanging the page.
@@ -59,7 +99,7 @@ export async function mockApi(
   await page.route('**/api/me', (route) => route.fulfill({ json: USER }));
   await page.route('**/api/auth/config', (route) => route.fulfill({ json: { oidcEnabled: false } }));
   await page.route('**/api/services', (route) => route.fulfill({ json: { services } }));
-  await page.route('**/api/categories', (route) => route.fulfill({ json: { categories: [] } }));
+  await page.route('**/api/categories', (route) => route.fulfill({ json: { categories } }));
   await page.route('**/api/me/collapsed-categories', (route) =>
     route.fulfill({ json: { collapsed: [] } }),
   );
