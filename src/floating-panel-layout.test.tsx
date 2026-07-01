@@ -66,6 +66,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
+  window.innerWidth = 1024; // jsdom default; a wide-monitor test may have raised it
 });
 
 async function renderCatalog() {
@@ -100,6 +101,20 @@ describe('floating panel field', () => {
     // jsdom innerWidth defaults to 1024 → fieldCols 4; Media has 3 apps → 3
     const media = screen.getByText('Media').closest('.category-panel') as HTMLElement;
     expect(media.style.getPropertyValue('--panel-cols')).toBe('3');
+  });
+
+  it('A-004 — the field caps at 4 columns on a wide monitor (v14.1: was 6-max)', async () => {
+    // v14.1 (Caleb+Walt): the ladder tops out at 4 columns, not 6 — 6 read sparse
+    // on wide monitors. A large category on a ≥1300 monitor now spans at most 4
+    // tiles; the old ladder gave 6 here. Panel span = clamp(appCount, 1, fieldCols).
+    mockedCategories.mockResolvedValue([{ id: 'c1', name: 'Media', sortIndex: 0 }]);
+    mockedServices.mockResolvedValue(
+      Array.from({ length: 6 }, (_, i) => svc({ id: `m${i}`, name: `App${i}`, categoryId: 'c1' })),
+    );
+    window.innerWidth = 1400; // ≥1300 tier
+    await renderCatalog();
+    const media = screen.getByText('Media').closest('.category-panel') as HTMLElement;
+    expect(media.style.getPropertyValue('--panel-cols')).toBe('4');
   });
 
   it('A-006-proxy — tiles live in a .panel-tiles grid (fixed 190px slots), not the old auto-fill grid', async () => {
