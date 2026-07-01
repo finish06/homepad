@@ -54,9 +54,13 @@ export type Category = {
   id: string;
   name: string;
   sortIndex: number;
-  layoutRow: number;
-  layoutColOrder: number;
-  layoutWidthPct: number;
+  // Optional on the type: a pre-migration server omits them and hand-built
+  // Category literals (tests, fixtures) needn't set them. `categories()` always
+  // backfills the defaults below, so objects that flow from the API have them;
+  // layout consumers normalize with the same defaults for any that don't.
+  layoutRow?: number;
+  layoutColOrder?: number;
+  layoutWidthPct?: number;
 };
 
 // A single category's layout assignment, the wire shape for the atomic bulk save.
