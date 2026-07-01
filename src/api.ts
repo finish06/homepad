@@ -54,6 +54,10 @@ export type Category = {
   id: string;
   name: string;
   sortIndex: number;
+  // The App Grid box width 1–6 (SPEC-app-grid §3B): drives the box's page-column
+  // span and its links-per-row. Optional on the type (fixtures/pre-migration
+  // servers may omit it); `categories()` backfills the default 3.
+  gridWidth?: number;
   // Optional on the type: a pre-migration server omits them and hand-built
   // Category literals (tests, fixtures) needn't set them. `categories()` always
   // backfills the defaults below, so objects that flow from the API have them;
