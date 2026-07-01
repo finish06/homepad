@@ -9,6 +9,7 @@ import {
 } from './api';
 import { boxesFromData, effectiveWidth, MAX_WIDTH, type Box } from './appGrid';
 import { iconSrc, initialBadge } from './icons';
+import { useServicesContext } from './services';
 import { useResolvedTheme } from './theme';
 
 // AppGrid (SPEC-app-grid) — the primary dashboard layout: a 6-column page grid
@@ -38,25 +39,39 @@ function useIsMobile(): boolean {
 }
 
 export default function AppGrid({ isAdmin }: { isAdmin: boolean }) {
+  // Services come from the shared provider (the SAME array the launcher + live
+  // poll use — §3/A12); AppGrid self-fetches only when rendered without a
+  // provider (isolated tests). Categories (box list + widths) AppGrid owns.
+  const ctx = useServicesContext();
   const [cats, setCats] = useState<Category[]>([]);
-  const [svcs, setSvcs] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [catsLoaded, setCatsLoaded] = useState(false);
+  const [ownSvcs, setOwnSvcs] = useState<Service[] | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const isMobile = useIsMobile();
 
   useEffect(() => {
     let alive = true;
-    Promise.all([fetchCategories(), fetchServices()])
-      .then(([c, s]) => {
-        if (!alive) return;
-        setCats(c);
-        setSvcs(s);
-      })
-      .finally(() => alive && setLoading(false));
+    fetchCategories().then((c) => {
+      if (!alive) return;
+      setCats(c);
+      setCatsLoaded(true);
+    });
     return () => {
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (ctx) return; // provider owns the services load
+    let alive = true;
+    fetchServices().then((s) => alive && setOwnSvcs(s));
+    return () => {
+      alive = false;
+    };
+  }, [ctx]);
+
+  const svcs = ctx ? ctx.items : ownSvcs;
+  const loading = !catsLoaded || svcs === null;
 
   // Optimistic width change: update local state immediately (AC-015 — no
   // reload), persist, and roll back on failure (§4A persist).
@@ -95,7 +110,7 @@ export default function AppGrid({ isAdmin }: { isAdmin: boolean }) {
     );
   }
 
-  const boxes = boxesFromData(cats, svcs);
+  const boxes = boxesFromData(cats, svcs ?? []);
 
   return (
     <>
