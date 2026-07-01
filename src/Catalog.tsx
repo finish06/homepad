@@ -131,18 +131,18 @@ function useStatusPulse(status: ServiceStatus): boolean {
   return pulsing;
 }
 
-// v14 §2A — the floating-panel field's responsive column count. 6 / 4 / 3 / 2 at
-// ≥1300 / ≥1024 / ≥768 / <768px. Drives the width of each panel and the number of
-// 190px tile slots inside it.
+// v14 §2A — the floating-panel field's responsive column count. 4 / 3 / 2 at
+// ≥1024 / ≥768 / <768px. Drives the width of each panel and the number of 190px
+// tile slots inside it. v14.1 (Caleb+Walt): the ceiling dropped from 6 to 4 — 6
+// read sparse on wide monitors; 4 is the glance sweet spot.
 function fieldColsFor(width: number): number {
-  if (width >= 1300) return 6;
   if (width >= 1024) return 4;
   if (width >= 768) return 3;
   return 2;
 }
 function useFieldCols(): number {
   const [cols, setCols] = useState(() =>
-    typeof window !== 'undefined' ? fieldColsFor(window.innerWidth) : 6,
+    typeof window !== 'undefined' ? fieldColsFor(window.innerWidth) : 4,
   );
   useEffect(() => {
     const onResize = () => setCols(fieldColsFor(window.innerWidth));
@@ -151,10 +151,10 @@ function useFieldCols(): number {
   }, []);
   return cols;
 }
-// A panel's column span. At the desktop widths (≥1024, 6/4 cols) a panel hugs its
-// content: clamp(appCount, 1, fieldCols). At the stack breakpoints (≤1023, 3/2
-// cols) every panel goes full-width (span = fieldCols), so they stack in
-// usage-priority order (A-004 "panels stack full-width").
+// A panel's column span. At the desktop width (≥1024, 4 cols) a panel hugs its
+// content: clamp(appCount, 1, fieldCols), capped at 4. At the stack breakpoints
+// (≤1023, 3/2 cols) every panel goes full-width (span = fieldCols), so they stack
+// in usage-priority order (A-004 "panels stack full-width").
 function panelColsFor(appCount: number, fieldCols: number): number {
   const n = Math.max(1, appCount);
   return fieldCols >= 4 ? Math.min(n, fieldCols) : fieldCols;

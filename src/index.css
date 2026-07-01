@@ -1886,7 +1886,7 @@
   /* v14 §2A — the floating glass panel field. Fixed 190px tile slots (never
      stretch — fixes the A-006 218px stretch defect); panels hug their content
      and pack left→right, wrapping when the next panel won't fit the row. The
-     responsive column count (6/4/3/2) is computed in JS (useFieldCols) and fed
+     responsive column count (4/3/2, capped at 4 — v14.1) is computed in JS (useFieldCols) and fed
      to each panel as --panel-cols = clamp(appCount, 1, fieldCols); at ≤1023px
      every panel spans the full field so they stack. Left edge x=48 (A-002/A-004). */
   .tile-field {
