@@ -34,15 +34,6 @@ export function fitsViewport(w: number, vw: number): boolean {
   return boxWidthPx(w) <= vw;
 }
 
-// effectiveWidth — retained for the component's current --w wiring; the A1 tools
-// track is auto-fill and the ≤640px mobile behavior is pure CSS (D-4), so its
-// mobile cap is no longer load-bearing. Removed when the component is rewired.
-export const MOBILE_CAP = 2;
-export function effectiveWidth(w: number, isMobile: boolean): number {
-  const c = clampWidth(w);
-  return isMobile ? Math.min(c, MOBILE_CAP) : c;
-}
-
 // A box is one App Grid container: a category plus the caller's own tools in it.
 // An empty `id` marks the synthetic "Uncategorized" box (no real category → no
 // width selector, no persistence).

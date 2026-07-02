@@ -33,6 +33,11 @@ const svc = (id: string, name: string, categoryId: string | null): Service =>
   ({ id, name, categoryId, slug: id, description: '', url: `https://${id}.test`, icon: '', status: 'UNKNOWN', favorite: false, iconLight: false, iconDark: false }) as Service;
 
 beforeEach(() => {
+  // A1 D-3: the width selector disables a --w whose box would overflow the
+  // viewport. jsdom defaults innerWidth to 1024 (a width-5 box is 1046px), which
+  // would disable the higher widths these tests pick. Set a wide viewport so the
+  // full 1–8 range is selectable — the D-3 disable itself is covered separately.
+  window.innerWidth = 1920;
   vi.mocked(api.categories).mockResolvedValue([cat('c1', 'Media', 0, 4), cat('c2', 'Infra', 1, 2)]);
   vi.mocked(api.services).mockResolvedValue([svc('s1', 'Plex', 'c1'), svc('s2', 'Grafana', 'c2')]);
   vi.mocked(api.saveCategoryWidth).mockResolvedValue(true);
@@ -130,6 +135,23 @@ describe('width selector (AC-013/014/015)', () => {
     expect(media.style.getPropertyValue('--w')).toBe('6');
     expect(within(media).getByTestId('width-btn-6')).toHaveAttribute('aria-pressed', 'true');
     expect(api.saveCategoryWidth).toHaveBeenCalledWith('c1', 6);
+  });
+
+  it('offers an off-screen width as disabled and ignores its click (D-3)', async () => {
+    // At a 1024px viewport a width-8 box (1664px) can't fit: D-3 renders that
+    // button disabled (aria-disabled + a "Wider than this screen" title) so the
+    // admin never sets an off-screen box, and clicking it persists nothing.
+    window.innerWidth = 1024;
+    const user = userEvent.setup();
+    await renderGridEdit(true, true);
+    const media = screen.getAllByTestId('app-grid-box')[0];
+    const w8 = within(media).getByTestId('width-btn-8');
+    expect(w8).toHaveAttribute('aria-disabled', 'true');
+    expect(w8).toHaveAttribute('title', 'Wider than this screen');
+    // A width that fits (width-3 = 634px) stays enabled.
+    expect(within(media).getByTestId('width-btn-3')).not.toHaveAttribute('aria-disabled');
+    await user.click(w8);
+    expect(api.saveCategoryWidth).not.toHaveBeenCalled();
   });
 
   it('rolls the width back when the save fails', async () => {
