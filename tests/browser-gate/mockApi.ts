@@ -46,6 +46,26 @@ export function makeBoxes(
   return { services, categories };
 }
 
+// SPEC-242 fixture: one width-8 box holding one tile per given status, so the
+// per-tile status-dot gate can measure the pip's colour/position for every state
+// on a single page. Names encode the status ("App UP") for easy locating.
+export function makeStatusTiles(
+  statuses: string[],
+): { services: (typeof SERVICE)[]; categories: FixtureCategory[] } {
+  const categories: FixtureCategory[] = [
+    { id: 'cat-1', name: 'Status', sortIndex: 0, gridWidth: 8 },
+  ];
+  const services = statuses.map((status, i) => ({
+    ...SERVICE,
+    id: `svc-${i + 1}`,
+    slug: `svc-${i + 1}`,
+    name: `App ${status}`,
+    status,
+    categoryId: 'cat-1',
+  }));
+  return { services, categories };
+}
+
 // header-zindex.spec fixture: `nCats` categories of `appsPer` apps each. In the
 // App Grid, each category renders as a glass box that packs left→right across the
 // 6-column page grid, so the rightmost top-row box (its width selector + tool
