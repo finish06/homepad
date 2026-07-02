@@ -11,13 +11,11 @@ import { userInitials } from './initials';
 // restores focus, arrow keys move between items, and motion respects the OS.
 export default function UserMenu({
   user,
-  onToggleEdit,
   onOpenAdminSettings,
   onGoToDashboard,
   onLogout,
 }: {
   user: User;
-  onToggleEdit: () => void;
   onOpenAdminSettings: () => void;
   onGoToDashboard?: () => void;
   onLogout: () => void;
@@ -90,9 +88,12 @@ export default function UserMenu({
         aria-label="Account menu"
         title={user.email}
         onClick={() => setOpen((o) => !o)}
-        className="user-avatar"
+        // #182 — the trigger box carries the >=44px touch target; the §6.2
+        // 34×34 gradient disc lives on the inner span so the visual token is
+        // unchanged while the hit area meets the design-system minimum.
+        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
       >
-        {userInitials(user)}
+        <span className="user-avatar user-avatar-disc">{userInitials(user)}</span>
       </button>
 
       {open && (
@@ -124,50 +125,33 @@ export default function UserMenu({
 
           <div className="menu-sep" />
 
-          {/* v12 §4.1 D1/D2 — My Dashboard: a PERSONAL section for ALL users.
-              Admins get the active "Edit dashboard" button; non-admins get the
-              note INSIDE this labeled section (not floating below it), so both
-              roles see a personal section and the personal action no longer
-              hides under an "Admin" label. */}
+          {/* v18 §4.3 — My Dashboard: a PERSONAL, purely navigational section,
+              now SYMMETRIC for all roles. The admin "Edit dashboard" toggle moved
+              to the Gear menu ("Edit tiles"), so this section carries only
+              "Go to my dashboard" for both admins and non-admins. Non-admins keep
+              the explanatory note beneath it. */}
           <div data-testid="menu-my-dashboard-section" className="menu-section-label">
             My Dashboard
           </div>
-          {isAdmin ? (
-            /* Edit dashboard — touches only the admin's personal tiles. */
-            <button
-              type="button"
-              role="menuitem"
-              data-testid="menu-edit"
-              onClick={() => choose(onToggleEdit)}
-              className="menu-item"
-            >
-              <PencilIcon />
-              Edit dashboard
-              <span className="menu-scope-tag">personal</span>
-            </button>
-          ) : (
-            <>
-              {/* #96 — non-admins get a real action here too, not a dead label.
-                  "Go to my dashboard" closes the menu and returns focus to the
-                  home screen (where favorites, reorder, and "+ Add apps" live),
-                  giving this section the same clickable parity every other one
-                  has. The note stays beneath it as a short explainer. */}
-              <button
-                type="button"
-                role="menuitem"
-                data-testid="menu-go-dashboard"
-                onClick={() => choose(onGoToDashboard ?? (() => {}))}
-                className="menu-item"
-              >
-                <GridIcon />
-                Go to my dashboard
-                <span className="menu-scope-tag">personal</span>
-              </button>
-              <p data-testid="menu-dashboard-note" className="menu-dashboard-note">
-                Your tiles, categories, and icons are your personal dashboard —
-                manage them directly on the home screen.
-              </p>
-            </>
+          {/* #96 — a real action, not a dead label: "Go to my dashboard" closes
+              the menu and returns the user to the home screen (where favorites,
+              reorder, and "+ Add apps" live). */}
+          <button
+            type="button"
+            role="menuitem"
+            data-testid="menu-go-dashboard"
+            onClick={() => choose(onGoToDashboard ?? (() => {}))}
+            className="menu-item"
+          >
+            <GridIcon />
+            Go to my dashboard
+            <span className="menu-scope-tag">personal</span>
+          </button>
+          {!isAdmin && (
+            <p data-testid="menu-dashboard-note" className="menu-dashboard-note">
+              Your tiles, categories, and icons are your personal dashboard —
+              manage them directly on the home screen.
+            </p>
           )}
 
           {/* v12 §4.1 D3/D4 — Administration: GLOBAL, admin-only. The shield +
@@ -217,14 +201,6 @@ export default function UserMenu({
 
 // 16×16 leading icons (opacity handled by .menu-item). aria-hidden — the menu
 // item's text label carries the meaning.
-function PencilIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="menu-icon">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />
-    </svg>
-  );
-}
-
 function GridIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="menu-icon">

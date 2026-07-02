@@ -1,0 +1,187 @@
+{
+  "pending": [],
+  "versions": [
+    {
+      "version": "12.7.2",
+      "date": "2026-07-01",
+      "changes": [
+        { "type": "bug-fix", "text": "App tiles whose names share a prefix (e.g. “ArchiveTeam Warrior1” and “ArchiveTeam Warrior2”) no longer collapse to the same “ArchiveTeam …” on narrow tiles — the name now wraps to a second line so the distinguishing word stays visible, and the full name is still on hover (#195)." }
+      ]
+    },
+    {
+      "version": "12.7.1",
+      "date": "2026-07-01",
+      "changes": [
+        { "type": "bug-fix", "text": "On wide monitors the dashboard now uses the full page width, so your app tiles grow to fill the extra space instead of staying the same size they were on a laptop. Before, a big external monitor showed the same-size tiles as a 1440px screen; now they get roomier (about 216px → 235px at 2560px) and line up with the header and status bar. iPad and phone layouts are unchanged." }
+      ]
+    },
+    {
+      "version": "12.7.0",
+      "date": "2026-07-01",
+      "changes": [
+        { "type": "enhancement", "text": "The dashboard category panels now show at most 4 columns of apps on wide monitors instead of 6 — six read sparse on a big screen, and four is the sweet spot for a quick glance (tiles stay a roomy 190px). Categories with fewer apps still hug their content, and phones and tablets are unchanged." }
+      ]
+    },
+    {
+      "version": "12.6.1",
+      "date": "2026-07-01",
+      "changes": [
+        { "type": "bug-fix", "text": "Fixed the v14 floating panels overflowing the screen on phones — the category panels no longer run past the right edge and the page no longer scrolls sideways. On small screens (<768px) the tiles now shrink to fit the width instead of staying a fixed 190px (a deliberate exception to the “tiles never resize” rule, mobile-only); desktop tiles are unchanged (#212)." }
+      ]
+    },
+    {
+      "version": "12.6.0",
+      "date": "2026-07-01",
+      "changes": [
+        { "type": "feature", "text": "New floating glass-panel dashboard — each category (plus Favorites and Uncategorized) is its own frosted-glass panel that hugs its apps and packs left-to-right, and tiles are now a fixed 190px so they never stretch (fixes the ~218px bloat at 1440px)." },
+        { "type": "feature", "text": "Categories now auto-sort by how often you open their apps (rolling 30-day window) so your most-used category sits top-left. Ordering is stable — it re-ranks at most once a day, on load, and only swaps categories on a decisive usage margin. An Arrange-mode “Sort: Auto / Custom” toggle lets you pin a manual order instead, with “Reset to auto order” to switch back." },
+        { "type": "enhancement", "text": "The “Recently opened” row is restyled as compact name-only glass chips — 44px tall tap targets with a 28×28 app plate — and its label now meets AA contrast." }
+      ]
+    },
+    {
+      "version": "12.5.1",
+      "date": "2026-06-29",
+      "changes": [
+        { "type": "bug-fix", "text": "On large monitors the dashboard now shows a full 6 columns at a 1440px-wide window (it previously dropped to 5). The grid tile minimum was trimmed slightly so six columns fit once the scrollbar and page padding are accounted for (#201)." }
+      ]
+    },
+    {
+      "version": "12.5.0",
+      "date": "2026-06-29",
+      "changes": [
+        { "type": "feature", "text": "The header gear is now a unified edit-dashboard menu — one click surfaces every editing action in one place: Arrange tiles and Add apps for everyone, plus an admin-only “Edit tiles” toggle and “Add custom app” under an Admin editing section. The gear highlights whenever an editing mode is active, and “Edit dashboard” has moved out of the avatar menu into this gear menu." }
+      ]
+    },
+    {
+      "version": "12.4.1",
+      "date": "2026-06-29",
+      "changes": [
+        { "type": "bug-fix", "text": "Accessibility polish — the tile “⋯” menu glyph, quick-launcher placeholder, and header “Updated …” caption now meet AA contrast in light mode, and the quick-launcher bar, settings gear, and “+ Add apps” button are full 44px touch targets (#188–#191, #185)" }
+      ]
+    },
+    {
+      "version": "12.4.0",
+      "date": "2026-06-28",
+      "changes": [
+        { "type": "enhancement", "text": "App Library search now shows a \"No apps match …\" hint instead of a blank list when your filter excludes every app" }
+      ]
+    },
+    {
+      "version": "12.3.0",
+      "date": "2026-06-28",
+      "changes": [
+        { "type": "feature", "text": "Arrange mode — a settings gear in the header lets any user reveal per-tile reorder grips and drag dashboard tiles into a new order, then tuck the grips away again for a clean launcher (#166). Favorite and Remove still live in each tile’s “⋯” menu." }
+      ]
+    },
+    {
+      "version": "12.2.0",
+      "date": "2026-06-28",
+      "changes": [
+        { "type": "feature", "text": "Remove from dashboard — the per-tile “⋯” menu now offers “Remove from dashboard” (with a quick confirm) so any user can take a service off their own dashboard, not just admins in edit mode" },
+        { "type": "enhancement", "text": "Service tiles now show the service description on one line beneath the name (hidden when there is no description)" }
+      ]
+    },
+    {
+      "version": "12.1.0",
+      "date": "2026-06-28",
+      "changes": [
+        { "type": "feature", "text": "Status alert history — a header bell with an unread badge opens a panel listing recent service status changes (with timestamps and a from→to indicator) so you can review what changed while you were away (#165)" }
+      ]
+    },
+    {
+      "version": "12.0.3",
+      "date": "2026-06-27",
+      "changes": [
+        { "type": "bug-fix", "text": "Status-change toasts no longer replay stale alerts — recentChanges is now reset after the ToastContainer consumes it, so remounts can't resurrect a prior poll's status flips (#147)" }
+      ]
+    },
+    {
+      "version": "12.0.2",
+      "date": "2026-06-26",
+      "changes": [
+        { "type": "bug-fix", "text": "Footer version badge now shows the real build commit SHA in production instead of '(dev)'" },
+        { "type": "bug-fix", "text": "Edit-dashboard Categories section now honors dark mode — its inputs and buttons are no longer washed-out in the dark theme" }
+      ]
+    },
+    {
+      "version": "12.0.1",
+      "date": "2026-06-26",
+      "changes": [
+        { "type": "bug-fix", "text": "Degraded services now show a red dot in the status quick-peek popover, matching down (was amber)" }
+      ]
+    },
+    {
+      "version": "12.0.0",
+      "date": "2026-06-26",
+      "changes": [
+        { "type": "feature", "text": "Status bar quick-peek — click an up/down/not-monitored chip to open a popover listing the services in that state, each a link to its app" },
+        { "type": "feature", "text": "Version badge footer — the running app version and git SHA show in the footer" },
+        { "type": "feature", "text": "Changelog overlay — click the version badge to browse what shipped in each release" }
+      ]
+    },
+    {
+      "version": "11.0.0",
+      "date": "2026-06-23",
+      "changes": [
+        { "type": "feature", "text": "Dashboard status summary bar — at-a-glance up/down/unknown counts across all tiles" },
+        { "type": "feature", "text": "Recently opened row — a localStorage-backed recency strip of the apps you last launched" },
+        { "type": "enhancement", "text": "Uptime sparkline dots gain a hover tooltip with the per-check timestamp and status" },
+        { "type": "feature", "text": "Ambient status-change toasts — a quiet alert when a service flips up or down" }
+      ]
+    },
+    {
+      "version": "10.0.0",
+      "date": "2026-06-23",
+      "changes": [
+        { "type": "feature", "text": "Live status auto-refresh with a 'last updated' indicator — tiles repoll without a page reload" }
+      ]
+    },
+    {
+      "version": "9.0.0",
+      "date": "2026-06-19",
+      "changes": [
+        { "type": "enhancement", "text": "Settings boundary clarity — the user menu splits into 'My Dashboard' (all users) and 'Administration' (admin only)" },
+        { "type": "enhancement", "text": "Per-field [env] badges mark admin settings that are sourced from environment configuration" }
+      ]
+    },
+    {
+      "version": "8.0.0",
+      "date": "2026-06-18",
+      "changes": [
+        { "type": "enhancement", "text": "Admin/personal scope clarity — admin items grouped under a labelled section, the Settings modal retitled 'Admin Panel' with a global-scope subtitle" },
+        { "type": "bug-fix", "text": "UserMenu dropdown was painted over by the tile drag-grips — lifted the header stacking context so menu items are reachable" },
+        { "type": "enhancement", "text": "Real-browser regression gate for the dropdown z-index (invisible to jsdom)" }
+      ]
+    },
+    {
+      "version": "7.0.0",
+      "date": "2026-06-13",
+      "changes": [
+        { "type": "feature", "text": "Always-on tile drag-and-drop (dnd-kit) with a per-tile '⋯' overflow menu" },
+        { "type": "bug-fix", "text": "'⋯' tile menu was unreachable by mouse/touch — open on pointerup, not the swallowed click" },
+        { "type": "enhancement", "text": "Real-browser gate for pointer/touch tile interactions" }
+      ]
+    },
+    {
+      "version": "6.0.0",
+      "date": "2026-06-05",
+      "changes": [
+        { "type": "feature", "text": "Per-user dashboards — personal tile ordering, favorites, and an App Library to browse and add apps" }
+      ]
+    },
+    {
+      "version": "5.0.0",
+      "date": "2026-05-30",
+      "changes": [
+        { "type": "feature", "text": "Command launcher — a ⌘K / '/' fuzzy-search palette to jump to any app" }
+      ]
+    },
+    {
+      "version": "4.0.0",
+      "date": "2026-05-24",
+      "changes": [
+        { "type": "feature", "text": "UX redesign — refreshed tiles, headers, status glow, and surface; identity moved into an avatar UserMenu" }
+      ]
+    }
+  ]
+}

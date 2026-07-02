@@ -85,7 +85,7 @@ function svc(over: Partial<Service> = {}): Service {
 }
 
 function cat(over: Partial<Category> = {}): Category {
-  return { id: 'c1', name: 'Media', sortIndex: 0, ...over };
+  return { id: 'c1', name: 'Media', sortIndex: 0, layoutRow: 0, layoutColOrder: 0, layoutWidthPct: 100, ...over };
 }
 
 // Deterministic layout for jsdom: each element's rect is keyed off its position
@@ -149,10 +149,10 @@ async function keyboardDrag(user: ReturnType<typeof userEvent.setup>, handle: HT
   await user.keyboard('{ }'); // Space: drop
 }
 
-describe('A1 — tiles draggable on the regular dashboard, no mode toggle', () => {
-  it('renders a tile drag-handle per tile on first render, no arrange/edit interaction', async () => {
+describe('A1 — tiles draggable in Arrange mode (#166 grip gating)', () => {
+  it('renders a tile drag-handle per tile when Arrange is on', async () => {
     vi.mocked(services).mockResolvedValue([svc({ id: 'a', name: 'Plex' }), svc({ id: 'b', name: 'Grafana' })]);
-    render(<Catalog />);
+    render(<Catalog arrange />);
     const handles = await screen.findAllByTestId('drag-handle');
     expect(handles).toHaveLength(2);
     handles.forEach((h) => expect(h).toHaveAttribute('data-drag-type', 'tile'));
@@ -168,7 +168,7 @@ describe('A2 — keyboard tile reorder persists once via setLayout with the full
       svc({ id: 'b', name: 'Bravo' }),
       svc({ id: 'c', name: 'Charlie' }),
     ]);
-    render(<Catalog />);
+    render(<Catalog arrange />);
     const handle = await screen.findByRole('button', { name: 'Reorder Alpha' });
     await keyboardDrag(user, handle, 'ArrowDown');
 
@@ -186,7 +186,7 @@ describe('A4 — tile reorder is section-scoped (cannot cross a category boundar
       svc({ id: 'a2', name: 'A-two', categoryId: 'A', categoryName: 'AAA' }),
       svc({ id: 'b1', name: 'B-one', categoryId: 'B', categoryName: 'BBB' }),
     ]);
-    render(<Catalog />);
+    render(<Catalog arrange />);
     const handle = await screen.findByRole('button', { name: 'Reorder A-two' });
     // Try to push the last A tile down past the section boundary into B.
     await keyboardDrag(user, handle, 'ArrowDown', 'ArrowDown');
@@ -205,7 +205,7 @@ describe('A5 — Esc mid-drag cancels: no PUT, order unchanged', () => {
   it('Space, ArrowDown, Esc sends no setLayout and announces cancellation', async () => {
     const user = userEvent.setup();
     vi.mocked(services).mockResolvedValue([svc({ id: 'a', name: 'Alpha' }), svc({ id: 'b', name: 'Bravo' })]);
-    render(<Catalog />);
+    render(<Catalog arrange />);
     const handle = await screen.findByRole('button', { name: 'Reorder Alpha' });
     handle.focus();
     await user.keyboard('{ }');
@@ -221,7 +221,7 @@ describe('A6 — keyboard grab exposes grabbed state (aria-pressed)', () => {
   it('Space toggles aria-pressed on the handle', async () => {
     const user = userEvent.setup();
     vi.mocked(services).mockResolvedValue([svc({ id: 'a', name: 'Alpha' }), svc({ id: 'b', name: 'Bravo' })]);
-    render(<Catalog />);
+    render(<Catalog arrange />);
     const handle = await screen.findByRole('button', { name: 'Reorder Alpha' });
     expect(handle).toHaveAttribute('aria-pressed', 'false');
     handle.focus();
@@ -240,7 +240,7 @@ describe('A7 — live region announces grab / move / drop with numeric position'
       svc({ id: 'b', name: 'Bravo' }),
       svc({ id: 'c', name: 'Charlie' }),
     ]);
-    render(<Catalog />);
+    render(<Catalog arrange />);
     const handle = await screen.findByRole('button', { name: 'Reorder Alpha' });
     const region = screen.getByTestId('drag-live-region');
     expect(region).toHaveAttribute('aria-live');
@@ -262,7 +262,7 @@ describe('A10 — optimistic update + rollback when the PUT fails', () => {
       svc({ id: 'a', name: 'Alpha' }),
       svc({ id: 'b', name: 'Bravo' }),
     ]);
-    render(<Catalog />);
+    render(<Catalog arrange />);
     const handle = await screen.findByRole('button', { name: 'Reorder Alpha' });
     await keyboardDrag(user, handle, 'ArrowDown');
 
@@ -280,7 +280,7 @@ describe('A12 — click-vs-drag safety', () => {
   it('a plain click on the grip does not reorder (no setLayout)', async () => {
     const user = userEvent.setup();
     vi.mocked(services).mockResolvedValue([svc({ id: 'a', name: 'Alpha' }), svc({ id: 'b', name: 'Bravo' })]);
-    render(<Catalog />);
+    render(<Catalog arrange />);
     const handle = await screen.findByRole('button', { name: 'Reorder Alpha' });
     await user.click(handle);
     expect(mockedSetLayout).not.toHaveBeenCalled();
@@ -359,7 +359,7 @@ describe('A13/A14 — dark, reduced-motion, responsive grip, a11y', () => {
   it('grip renders in dark mode with motion-reduce affordance and a touch-visible emphasis class', async () => {
     document.documentElement.classList.add('dark');
     vi.mocked(services).mockResolvedValue([svc({ id: 'a', name: 'Alpha' })]);
-    render(<Catalog />);
+    render(<Catalog arrange />);
     const handle = await screen.findByTestId('drag-handle');
     // low-emphasis on desktop, brightening on hover/focus (hidden on mobile — see #95)
     expect(handle.className).toMatch(/sm:opacity/);
@@ -368,9 +368,9 @@ describe('A13/A14 — dark, reduced-motion, responsive grip, a11y', () => {
     expect(tile.className).toMatch(/motion-reduce:transition-none/);
   });
 
-  it('jest-axe finds no violations on the dashboard at rest', async () => {
+  it('jest-axe finds no violations on the dashboard in Arrange mode', async () => {
     vi.mocked(services).mockResolvedValue([svc({ id: 'a', name: 'Alpha' }), svc({ id: 'b', name: 'Bravo' })]);
-    const { container } = render(<Catalog />);
+    const { container } = render(<Catalog arrange />);
     await screen.findAllByTestId('drag-handle');
     expect(await axe(container)).toHaveNoViolations();
   });
@@ -383,7 +383,7 @@ describe('A13/A14 — dark, reduced-motion, responsive grip, a11y', () => {
 describe('#95 — ⠿ drag handle hidden on mobile', () => {
   it('the per-tile grip is hidden below sm and shown from sm up', async () => {
     vi.mocked(services).mockResolvedValue([svc({ id: 'a', name: 'Alpha' })]);
-    render(<Catalog />);
+    render(<Catalog arrange />);
     const handle = await screen.findByTestId('drag-handle');
     expect(handle.className).toMatch(/(?:^|\s)hidden(?:\s|$)/);
     expect(handle.className).toMatch(/sm:flex/);

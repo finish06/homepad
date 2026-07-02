@@ -1,13 +1,30 @@
-import { useEffect, useState } from 'react';
-import { authConfig, login, logout, me, register, type User } from './api';
+import { useEffect, useRef, useState } from 'react';
+import {
+  authConfig,
+  categories as fetchCategories,
+  login,
+  logout,
+  me,
+  register,
+  type Category,
+  type Service,
+  type User,
+} from './api';
 import AppHeader from './AppHeader';
-import Catalog from './Catalog';
+import AppGrid from './AppGrid';
+import LibraryBrowse from './LibraryBrowse';
+import ServiceForm from './ServiceForm';
 import StatusBar from './StatusBar';
 import CommandLauncher from './CommandLauncher';
-import { LauncherProvider } from './launcher';
+import { LauncherProvider, useLauncher } from './launcher';
 import { ServicesProvider, useServicesContext } from './services';
+import { AlertHistoryProvider, useAlertHistory } from './alerts';
+import AlertHistoryPanel from './AlertHistoryPanel';
 import SettingsPanel from './SettingsPanel';
+import ToastContainer from './Toasts';
+import ChangelogOverlay from './ChangelogOverlay';
 import { ThemeProvider } from './theme';
+import { CONTENT_WIDTH } from './layout';
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -26,11 +43,30 @@ export default function App() {
   return (
     <ThemeProvider userPref={user?.themePref}>
       {loading ? (
-        <main className="min-h-screen flex items-center justify-center font-sans text-neutral-500">
-          loading…
+        // #184 — a real loading state: an indigo spinner + an AA-contrast,
+        // screen-reader-announced label, replacing the bare low-contrast text.
+        <main
+          role="status"
+          aria-live="polite"
+          className="app-surface min-h-screen flex flex-col items-center justify-center gap-3 font-sans"
+        >
+          <span data-testid="app-loading-spinner" className="app-spinner" aria-hidden="true" />
+          <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
+            Loading your dashboard…
+          </span>
         </main>
       ) : user ? (
-        <Home user={user} onLogout={() => setUser(null)} />
+        // v8/v17 — the home providers wrap Home so its body can read launcher,
+        // services, and alert-history context directly. Order matters:
+        // AlertHistoryProvider must sit above ServicesProvider so the poller can
+        // push transitions into the log.
+        <LauncherProvider>
+          <AlertHistoryProvider>
+            <ServicesProvider>
+              <Home user={user} onLogout={() => setUser(null)} />
+            </ServicesProvider>
+          </AlertHistoryProvider>
+        </LauncherProvider>
       ) : (
         <AuthForm onAuthed={setUser} />
       )}
@@ -44,19 +80,85 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // mutating endpoint is independently admin-gated server-side, so this toggle
   // is a convenience surface, not the security boundary.
   const isAdmin = user.role === 'admin';
-  const [editMode, setEditMode] = useState(false);
+  // SPEC-app-grid §2 — App Grid REPLACES the v14 floating-panel Catalog. The
+  // Catalog-only edit-tiles / arrange modes are retired with that layout (§7
+  // scopes inline tool editing + reorder out of v1), so their state + header
+  // items are gone. Library browse + add-custom-app remain (service management,
+  // not layout), lifted here so the header Gear can trigger them and their result
+  // flows into the shared services context that AppGrid renders from.
+  const [browseOpen, setBrowseOpen] = useState(false);
+  const [customFormOpen, setCustomFormOpen] = useState(false);
   // v9.3 §7.3 — the admin Settings modal (App Library management + read-only
   // System settings). Opened from the avatar menu (admin only). OIDC is read
   // from the client-visible auth config — no API change.
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [oidcEnabled, setOidcEnabled] = useState(false);
+  // v15 — version badge in the footer opens the changelog overlay.
+  const [changelogOpen, setChangelogOpen] = useState(false);
+  // v17 — alert-history panel open-state + the bell ref (focus returns here on
+  // close, AC-009). The log + unread badge live in AlertHistoryProvider.
+  const [alertOpen, setAlertOpen] = useState(false);
+  const bellRef = useRef<HTMLButtonElement>(null);
+  const alerts = useAlertHistory();
+  const services = useServicesContext();
+  const { open: launcherOpen, closeLauncher } = useLauncher();
+  // Categories feed the add-custom-app form's category picker (parity with the
+  // list Catalog used to pass). AppGrid owns box widths independently; this is a
+  // read-only list for the form dropdown.
+  const [cats, setCats] = useState<Category[]>([]);
+
   useEffect(() => {
     authConfig().then((c) => setOidcEnabled(c.oidcEnabled));
+    fetchCategories().then(setCats);
   }, []);
+
+  // Reflect a service added via the Library, or created/edited via the custom-app
+  // form, into the shared services list — the SAME array AppGrid + the launcher
+  // read — so the new tool appears without a refetch (mirrors the old Catalog
+  // handlers). An edit keeps the existing favorite/icon flags, which the
+  // create/update response serializes as zero values.
+  function onAddedFromLibrary(added: Service) {
+    services?.setItems((cur) => [...(cur ?? []), added]);
+  }
+  function onSavedCustom(saved: Service, mode: 'add' | 'edit') {
+    services?.setItems((cur) => {
+      if (mode === 'add') return [...(cur ?? []), saved];
+      return (
+        cur?.map((s) =>
+          s.id === saved.id
+            ? { ...saved, favorite: s.favorite, iconLight: s.iconLight, iconDark: s.iconDark }
+            : s,
+        ) ?? cur
+      );
+    });
+    setCustomFormOpen(false);
+  }
+
+  // AC-014 — one overlay at a time: opening the ⌘K launcher closes the alert panel.
+  useEffect(() => {
+    if (launcherOpen) setAlertOpen(false);
+  }, [launcherOpen]);
 
   async function handleLogout() {
     await logout();
     onLogout();
+  }
+
+  // AC-006/AC-007/AC-014 — the bell toggles the panel: opening clears the badge
+  // and closes the launcher; a second click closes the panel.
+  function toggleAlerts() {
+    if (alertOpen) {
+      setAlertOpen(false);
+      return;
+    }
+    closeLauncher();
+    alerts?.clearBadge();
+    setAlertOpen(true);
+  }
+  // AC-009 — Escape/✕/scrim close all route here and restore focus to the bell.
+  function closeAlerts() {
+    setAlertOpen(false);
+    bellRef.current?.focus();
   }
 
   // v8: LauncherProvider owns launcher open-state + the global ⌘K / `/` hotkey;
@@ -64,43 +166,91 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // launcher (no second fetch, §3/A12). CommandLauncher renders the overlay when
   // opened and filters that same array.
   return (
-    <LauncherProvider>
-      <ServicesProvider>
-        <main className="app-surface min-h-screen font-sans">
-          <AppHeader
-            user={user}
-            onToggleEdit={isAdmin ? () => setEditMode((on) => !on) : () => {}}
-            onOpenAdminSettings={() => setSettingsOpen(true)}
-            onGoToDashboard={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            onLogout={handleLogout}
+    <>
+      <main className="app-surface min-h-screen font-sans">
+        <AppHeader
+          user={user}
+          onOpenLibrary={() => setBrowseOpen(true)}
+          onOpenCustomAppForm={() => setCustomFormOpen(true)}
+          onOpenAdminSettings={() => setSettingsOpen(true)}
+          onGoToDashboard={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          onLogout={handleLogout}
+          alertCount={alerts?.unreadCount ?? 0}
+          onAlertClick={toggleAlerts}
+          bellRef={bellRef}
+        />
+
+        <StatusBar />
+
+        <section className={`${CONTENT_WIDTH} py-6`}>
+          <AppGrid isAdmin={isAdmin} />
+        </section>
+
+        {/* SPEC-app-grid §7 — service management stays on the existing surfaces.
+            The header Gear's "Add apps" opens the Library; "Add custom app"
+            (admin) opens the add-mode form. Both lifted to App level now that
+            AppGrid (unlike Catalog) doesn't host them; their result lands in the
+            shared services context AppGrid renders from. */}
+        {browseOpen && (
+          <LibraryBrowse
+            isAdmin={isAdmin}
+            onClose={() => setBrowseOpen(false)}
+            onAdded={onAddedFromLibrary}
+            onCustomAdd={() => {
+              setBrowseOpen(false);
+              setCustomFormOpen(true);
+            }}
           />
+        )}
+        {customFormOpen && (
+          <ServiceForm
+            categories={cats}
+            onClose={() => setCustomFormOpen(false)}
+            onSaved={onSavedCustom}
+          />
+        )}
 
-          <StatusBar />
+        {/* Feeds the launcher the shared catalog array; while still loading it
+            simply has nothing to match (an empty list), never its own fetch. */}
+        <CommandLauncher services={services?.items ?? []} />
 
-          <section className="mx-auto max-w-6xl px-4 py-6">
-            <Catalog isAdmin={isAdmin} editMode={editMode} />
-          </section>
+        {/* cap5 — ambient status-change toasts; reads recentChanges from context. */}
+        <ToastContainer />
 
-          <LauncherMount />
+        {/* v17 — async-review alert history; reads the log from context. */}
+        <AlertHistoryPanel open={alertOpen} events={alerts?.events ?? []} onClose={closeAlerts} />
 
-          {settingsOpen && (
-            <SettingsPanel
-              isAdmin={isAdmin}
-              oidcEnabled={oidcEnabled}
-              onClose={() => setSettingsOpen(false)}
-            />
-          )}
-        </main>
-      </ServicesProvider>
-    </LauncherProvider>
+        {settingsOpen && (
+          <SettingsPanel
+            isAdmin={isAdmin}
+            oidcEnabled={oidcEnabled}
+            onClose={() => setSettingsOpen(false)}
+          />
+        )}
+      </main>
+
+      {/* v15 — quiet version badge in natural page flow (not sticky). Opens
+          the changelog overlay so an operator can confirm what this build
+          shipped without leaving the dashboard. */}
+      <footer
+        data-testid="app-footer"
+        className="border-t border-neutral-100 dark:border-neutral-800 py-3 text-center"
+      >
+        <button
+          type="button"
+          data-testid="changelog-open"
+          aria-label="Open changelog"
+          onClick={() => setChangelogOpen(true)}
+          // #181 — was neutral-400 (#A3A3A3, 2.52:1, axe serious). neutral-500
+          // (#737373) is 4.74:1 on white; dark uses neutral-400 on the dark canvas.
+          className="text-xs text-neutral-500 hover:text-neutral-700 hover:underline dark:text-neutral-400 dark:hover:text-neutral-200 bg-transparent border-none cursor-pointer"
+        >
+          homepad v{__APP_VERSION__} ({__GIT_SHA__})
+        </button>
+      </footer>
+      <ChangelogOverlay open={changelogOpen} onClose={() => setChangelogOpen(false)} />
+    </>
   );
-}
-
-// Feeds the launcher the shared catalog array; while it is still loading the
-// launcher simply has nothing to match (an empty list), never its own fetch.
-function LauncherMount() {
-  const ctx = useServicesContext();
-  return <CommandLauncher services={ctx?.items ?? []} />;
 }
 
 function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
@@ -162,7 +312,7 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+            className="mt-1 min-h-[44px] w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
           />
         </label>
 
@@ -174,7 +324,7 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+            className="mt-1 min-h-[44px] w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
           />
         </label>
 
@@ -183,7 +333,7 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
         <button
           type="submit"
           disabled={busy}
-          className="mt-5 w-full rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+          className="mt-5 flex min-h-[44px] w-full items-center justify-center rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
         >
           {busy ? '…' : mode === 'login' ? 'Sign in' : 'Create account'}
         </button>
@@ -194,14 +344,14 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
             setMode(mode === 'login' ? 'register' : 'login');
             setError('');
           }}
-          className="mt-3 w-full text-center text-sm text-neutral-500 hover:text-neutral-800"
+          className="mt-3 flex min-h-[44px] w-full items-center justify-center text-center text-sm text-neutral-500 hover:text-neutral-800"
         >
           {mode === 'login' ? 'Need an account? Register' : 'Have an account? Sign in'}
         </button>
 
         {oidcEnabled && (
           <>
-            <div className="my-4 flex items-center gap-3 text-xs text-neutral-400">
+            <div className="my-4 flex items-center gap-3 text-xs text-neutral-500">
               <span className="h-px flex-1 bg-neutral-200" />
               or
               <span className="h-px flex-1 bg-neutral-200" />
@@ -209,7 +359,7 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
             <button
               type="button"
               onClick={() => window.location.assign('/api/auth/oidc/login')}
-              className="w-full rounded-lg border border-neutral-300 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              className="flex min-h-[44px] w-full items-center justify-center rounded-lg border border-neutral-300 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
             >
               Log in with PocketID
             </button>

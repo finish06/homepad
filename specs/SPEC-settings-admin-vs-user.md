@@ -87,6 +87,9 @@ When a logged-in admin opens the user menu, they see a visually distinct "ADMIN"
 **AC-03 — Non-admin users see a plain-language explanation in the menu.**  
 When a non-admin opens the user menu, they see a note reading "Your tiles, categories, and icons are your personal dashboard — manage them directly on the home screen." Admins do not see this note.
 
+**AC-03a — Non-admin "My Dashboard" section has a real navigation action.**  
+*(Reconciled 2026-06-28, issue #167 — documents shipped #96/PR #116, not a v9 multi-tenant artifact.)* Above the AC-03 note, a non-admin sees a "Go to my dashboard" menuitem (`menu-go-dashboard`, "personal" scope tag) that closes the menu and returns them to the home screen, giving the personal section the same clickable parity every other menu section has. Admins do not see this item — they get "Edit dashboard." See `specs/v12-settings-boundary-clarity.md` §4.1.1 for the canonical detail.
+
 **AC-04 — The admin settings modal is titled "Admin Panel," not "Settings."**  
 Opening the admin settings modal shows the heading "Admin Panel" and a subtitle reading "Changes here are global — they affect all users on this homepad." The word "Settings" no longer appears as the modal heading.
 

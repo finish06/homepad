@@ -45,8 +45,35 @@ export type Service = {
 };
 
 // A v4 category: admin-managed shared-catalog metadata. `sortIndex` is the
-// admin-controlled order (not alphabetical).
-export type Category = { id: string; name: string; sortIndex: number };
+// admin-controlled order (not alphabetical). The layout fields (SPEC category
+// pane width) place the category in a 2D grid: `layoutRow` groups side-by-side
+// panes, `layoutColOrder` orders within a row, `layoutWidthPct` (10–100) is the
+// pane's share of screen width. Defaults (row=sortIndex, col=0, width=100)
+// reproduce the pre-feature stacked full-width layout.
+export type Category = {
+  id: string;
+  name: string;
+  sortIndex: number;
+  // The App Grid box width 1–6 (SPEC-app-grid §3B): drives the box's page-column
+  // span and its links-per-row. Optional on the type (fixtures/pre-migration
+  // servers may omit it); `categories()` backfills the default 3.
+  gridWidth?: number;
+  // Optional on the type: a pre-migration server omits them and hand-built
+  // Category literals (tests, fixtures) needn't set them. `categories()` always
+  // backfills the defaults below, so objects that flow from the API have them;
+  // layout consumers normalize with the same defaults for any that don't.
+  layoutRow?: number;
+  layoutColOrder?: number;
+  layoutWidthPct?: number;
+};
+
+// A single category's layout assignment, the wire shape for the atomic bulk save.
+export type CategoryLayout = {
+  id: string;
+  layoutRow: number;
+  layoutColOrder: number;
+  layoutWidthPct: number;
+};
 
 export type Result = { ok: boolean; status: number; error?: string };
 
@@ -196,9 +223,10 @@ export async function deleteIcon(id: string, variant: IconVariant): Promise<bool
   return res.status === 204;
 }
 
-// deleteService removes a service from the shared catalog (admin-only; the
-// server 403s a non-admin). Its uploaded icons cascade away server-side.
-// Returns true on success so the caller can roll back an optimistic removal.
+// deleteService removes one of the caller's OWN dashboard services (v9 owner-
+// scoped — any authenticated user may remove a service they own; another user's
+// id 404s). Its uploaded icons cascade away server-side. Returns true on success
+// so the caller can roll back an optimistic removal.
 export async function deleteService(id: string): Promise<boolean> {
   const res = await fetch(`/api/services/${id}`, {
     method: 'DELETE',
@@ -246,8 +274,45 @@ export async function updateService(
 export async function categories(): Promise<Category[]> {
   const res = await fetch('/api/categories', { credentials: 'include' });
   if (res.status !== 200) return [];
-  const data = (await res.json()) as { categories: Category[] };
-  return data.categories ?? [];
+  const data = (await res.json()) as { categories: Partial<Category>[] };
+  // Default the layout fields so a pre-migration server (no layout columns)
+  // renders identically to before: each category on its own row (row=sortIndex),
+  // first column, full width (AC9).
+  return (data.categories ?? []).map((c) => ({
+    id: c.id!,
+    name: c.name!,
+    sortIndex: c.sortIndex!,
+    gridWidth: c.gridWidth ?? 3,
+    layoutRow: c.layoutRow ?? c.sortIndex!,
+    layoutColOrder: c.layoutColOrder ?? 0,
+    layoutWidthPct: c.layoutWidthPct ?? 100,
+  }));
+}
+
+// saveCategoryWidth persists one box's App Grid width via the category PATCH
+// endpoint (SPEC-app-grid §3B — the server validates 1–6 and admin/owner scope).
+// Returns true on 200 so the caller can roll back an optimistic width change.
+export async function saveCategoryWidth(id: string, gridWidth: number): Promise<boolean> {
+  const res = await fetch(`/api/categories/${id}`, {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify({ gridWidth }),
+  });
+  return res.status === 200;
+}
+
+// saveCategoryLayout persists a batch of category layout assignments via the
+// atomic bulk endpoint (all-or-nothing server-side — AC10). Returns true on 200
+// so the caller can roll back an optimistic drag/resize on failure.
+export async function saveCategoryLayout(layout: CategoryLayout[]): Promise<boolean> {
+  const res = await fetch('/api/categories/layout', {
+    method: 'PUT',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify({ layout }),
+  });
+  return res.status === 200;
 }
 
 // createCategory adds a category to the shared catalog (v4; admin-only — the

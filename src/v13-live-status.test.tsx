@@ -149,10 +149,11 @@ describe('AC-004 / AC-010 — "Updated X ago" indicator in the header', () => {
         <ServicesProvider>
           <AppHeader
             user={USER}
-            onToggleEdit={() => {}}
             onOpenAdminSettings={() => {}}
             onGoToDashboard={() => {}}
             onLogout={() => {}}
+            alertCount={0}
+            onAlertClick={() => {}}
           />
         </ServicesProvider>
       </LauncherProvider>,

@@ -191,6 +191,10 @@ export default function LibraryBrowse({
                 </button>
               )}
             </div>
+          ) : visible.length === 0 ? (
+            <p data-testid="library-no-matches" className="launcher-no-results-title">
+              No apps match “{query.trim()}”.
+            </p>
           ) : (
             <ul className="library-list" aria-label="Library offers">
               {visible.map((o) => (

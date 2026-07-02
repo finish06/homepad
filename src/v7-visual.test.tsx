@@ -92,7 +92,7 @@ describe('v7 §4 — service tile visual refresh', () => {
 
 describe('v7 §5 — category section header', () => {
   function withCategory(): Category {
-    return { id: 'c1', name: 'Media', sortIndex: 0 };
+    return { id: 'c1', name: 'Media', sortIndex: 0, layoutRow: 0, layoutColOrder: 0, layoutWidthPct: 100 };
   }
 
   it('tags the category header with .cat-head (accent chip + hairline)', async () => {

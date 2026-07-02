@@ -4,6 +4,13 @@ WORKDIR /src
 COPY package.json package-lock.json* ./
 RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 COPY . .
+# #157: the build context has no .git, so vite.config.ts's `git rev-parse` always
+# fell back to 'dev' and prod footers showed "homepad vN (dev)". CI knows the
+# commit sha and passes it as --build-arg GIT_SHA=<short-sha>; promote it to an
+# ENV so `vite build` reads process.env.GIT_SHA and bakes the real 7-char sha
+# into __GIT_SHA__. Defaults to 'dev' for a context-only `docker build` with no arg.
+ARG GIT_SHA=dev
+ENV GIT_SHA=${GIT_SHA}
 RUN npm run build
 
 # --- runtime ---

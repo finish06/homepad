@@ -4,15 +4,12 @@ import userEvent from '@testing-library/user-event';
 import App from './App';
 import { authConfig, login, logout, me, register, setThemePref, type User } from './api';
 
-// Catalog has its own tests; stub it so the auth-gate tests stay isolated from
-// the /api/services fetch. The stub reflects the props App passes down so we
-// can assert the Edit toggle wires through.
-vi.mock('./Catalog', () => ({
-  default: (props: { isAdmin?: boolean; editMode?: boolean }) => (
-    <div
-      data-testid="catalog-stub"
-      data-edit={String(!!props.editMode)}
-    />
+// AppGrid (SPEC-app-grid §2) is the dashboard layout; it has its own tests, so
+// stub it here to keep the auth-gate tests isolated from its data fetch. The stub
+// reflects isAdmin so we can assert App threads it through.
+vi.mock('./AppGrid', () => ({
+  default: (props: { isAdmin?: boolean }) => (
+    <div data-testid="app-grid-stub" data-admin={String(!!props.isAdmin)} />
   ),
 }));
 
@@ -40,6 +37,8 @@ vi.mock('./api', () => ({
   register: vi.fn(),
   logout: vi.fn(),
   setThemePref: vi.fn(),
+  // Home fetches categories for the add-custom-app form's category picker.
+  categories: vi.fn(() => Promise.resolve([])),
   // v8: Home now wraps the grid in ServicesProvider, which loads the shared
   // Service[] for the command launcher. Stub it so the provider's fetch resolves.
   services: vi.fn(() => Promise.resolve([])),
@@ -92,7 +91,7 @@ describe('auth gate', () => {
     render(<App />);
     await dropLoading();
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
-    expect(screen.queryByTestId('catalog-stub')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('app-grid-stub')).not.toBeInTheDocument();
   });
 
   it('shows the homepad logo on the auth page (#88)', async () => {
@@ -106,7 +105,7 @@ describe('auth gate', () => {
     mockedMe.mockResolvedValue(USER);
     render(<App />);
     await dropLoading();
-    expect(screen.getByTestId('catalog-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('app-grid-stub')).toBeInTheDocument();
     // v7 §6: the email moved into the avatar menu; identity is still always
     // present via the trigger (its title carries the email per §8).
     expect(screen.getByTestId('user-menu-trigger')).toHaveAttribute('title', USER.email);
@@ -122,7 +121,7 @@ describe('auth gate', () => {
     await user.type(screen.getByLabelText(/password/i), 'stitch626');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
-    expect(await screen.findByTestId('catalog-stub')).toBeInTheDocument();
+    expect(await screen.findByTestId('app-grid-stub')).toBeInTheDocument();
     expect(mockedLogin).toHaveBeenCalledWith(USER.email, 'stitch626');
   });
 
@@ -137,7 +136,7 @@ describe('auth gate', () => {
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(await screen.findByText('bad credentials')).toBeInTheDocument();
-    expect(screen.queryByTestId('catalog-stub')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('app-grid-stub')).not.toBeInTheDocument();
   });
 
   it('registers then logs in the new account', async () => {
@@ -152,7 +151,7 @@ describe('auth gate', () => {
     await user.type(screen.getByLabelText(/password/i), 'stitch626');
     await user.click(screen.getByRole('button', { name: /create account/i }));
 
-    expect(await screen.findByTestId('catalog-stub')).toBeInTheDocument();
+    expect(await screen.findByTestId('app-grid-stub')).toBeInTheDocument();
     expect(mockedRegister).toHaveBeenCalledWith(USER.email, 'stitch626');
     expect(mockedLogin).toHaveBeenCalledWith(USER.email, 'stitch626');
   });
@@ -185,7 +184,45 @@ describe('auth gate', () => {
 
     expect(await screen.findByRole('button', { name: /sign in/i })).toBeInTheDocument();
     expect(mockedLogout).toHaveBeenCalled();
-    expect(screen.queryByTestId('catalog-stub')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('app-grid-stub')).not.toBeInTheDocument();
+  });
+});
+
+// Design-system a11y fixes for the login screen (Kare's approved system).
+// jsdom has no layout engine, so we can't measure rendered px here — we assert
+// the Tailwind class hooks that enforce the rule, and Kare verifies the real
+// pixels in the browser before merge. Test names describe the observed symptom.
+describe('login a11y — design system', () => {
+  // #177 (Blocker, finding #2): every interactive target on the login card must
+  // be >=44x44px. Measured before fix: Sign in 36px, inputs 38px, Register 20px.
+  it('A177 — all login interactive targets carry a >=44px hit area', async () => {
+    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true });
+    render(<App />);
+    await dropLoading();
+
+    expect(screen.getByRole('button', { name: /sign in/i })).toHaveClass('min-h-[44px]');
+    expect(screen.getByLabelText(/email/i)).toHaveClass('min-h-[44px]');
+    expect(screen.getByLabelText(/password/i)).toHaveClass('min-h-[44px]');
+    expect(
+      screen.getByRole('button', { name: /need an account\? register/i }),
+    ).toHaveClass('min-h-[44px]');
+    expect(await screen.findByRole('button', { name: /pocketid/i })).toHaveClass(
+      'min-h-[44px]',
+    );
+  });
+
+  // #178 (High, finding #4): the "or" divider label was text-neutral-400
+  // (#A3A3A3, 2.52:1) — fails AA body. Must clear >=4.5:1; neutral-500
+  // (#737373) measures 4.74:1.
+  it('A178 — the "or" divider label clears AA body contrast', async () => {
+    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true });
+    render(<App />);
+    await dropLoading();
+    await screen.findByRole('button', { name: /pocketid/i });
+
+    const divider = screen.getByText((_, el) => el?.textContent === 'or');
+    expect(divider).not.toHaveClass('text-neutral-400');
+    expect(divider).toHaveClass('text-neutral-500');
   });
 });
 
@@ -208,12 +245,14 @@ describe('v7 §6 — top bar declutter + user menu', () => {
     render(<App />);
     await dropLoading();
     expect(await screen.findByTestId('user-menu-trigger')).toBeInTheDocument();
-    // Everything that used to sit in the bar is gone from the bar (it now lives
-    // in the menu, which is closed by default).
+    // The admin Edit toggle + theme control still live inside the (closed)
+    // menu, not loose in the bar.
     expect(screen.queryByTestId('edit-toggle')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('settings-gear')).not.toBeInTheDocument();
     expect(screen.queryByTestId('theme-control')).not.toBeInTheDocument();
     expect(screen.queryByTestId('user-menu')).not.toBeInTheDocument();
+    // #166 — the per-user settings gear (Arrange-mode entry point) IS a
+    // deliberate always-visible bar control, shown to every logged-in user.
+    expect(screen.getByTestId('settings-gear')).toBeInTheDocument();
   });
 
   it('avatar derives real initials from the display name (Caleb Dunn → CD)', async () => {
@@ -255,42 +294,32 @@ describe('v7 §6 — top bar declutter + user menu', () => {
     expect(screen.getByTestId('menu-logout')).toBeInTheDocument();
   });
 
-  it('shows Edit dashboard in the menu for an admin, omits it for a non-admin', async () => {
-    const user = userEvent.setup();
-    mockedMe.mockResolvedValue(ADMIN);
-    const { unmount } = render(<App />);
-    await dropLoading();
-    await openMenu(user);
-    expect(screen.getByTestId('menu-edit')).toBeInTheDocument();
-    unmount();
-
-    mockedMe.mockResolvedValue(USER);
-    render(<App />);
-    await dropLoading();
-    await openMenu(user);
-    expect(screen.queryByTestId('menu-edit')).not.toBeInTheDocument();
-  });
-
-  it('menu Edit toggles admin edit mode through to the catalog', async () => {
+  // SPEC-app-grid §2/§7 — the Catalog-only Edit-tiles / Arrange modes are retired
+  // with that layout; the Gear no longer carries them (#223). It keeps the
+  // service-management actions that outlive the swap (Add apps / Add custom app).
+  it('the Gear no longer offers Edit tiles or Arrange (retired with Catalog, #223)', async () => {
     const user = userEvent.setup();
     mockedMe.mockResolvedValue(ADMIN);
     render(<App />);
     await dropLoading();
-    await openMenu(user);
-    await user.click(screen.getByTestId('menu-edit'));
-    expect(screen.getByTestId('catalog-stub')).toHaveAttribute('data-edit', 'true');
+    await user.click(screen.getByTestId('settings-gear'));
+    expect(screen.queryByTestId('gear-edit-tiles')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('gear-arrange')).not.toBeInTheDocument();
+    expect(screen.getByTestId('gear-add-apps')).toBeInTheDocument();
   });
 
-  // v10 A9 — arrange mode is gone, so the empty "Personal settings" item that
-  // only toggled it is removed from the menu (the other items are untouched).
-  it('A9 — no Personal settings item; Edit/admin-settings/logout/theme remain', async () => {
+  // v10 A9 — arrange mode toggle is gone from the avatar menu; v18 also moves
+  // Edit dashboard out to the Gear. The avatar menu now carries go-dashboard,
+  // admin-settings, logout and the theme control.
+  it('A9 — avatar menu: no Personal settings / no Edit dashboard; go-dashboard/admin-settings/logout/theme remain', async () => {
     const user = userEvent.setup();
     mockedMe.mockResolvedValue(ADMIN);
     render(<App />);
     await dropLoading();
     await openMenu(user);
     expect(screen.queryByTestId('menu-settings')).not.toBeInTheDocument();
-    expect(screen.getByTestId('menu-edit')).toBeInTheDocument();
+    expect(screen.queryByTestId('menu-edit')).not.toBeInTheDocument();
+    expect(screen.getByTestId('menu-go-dashboard')).toBeInTheDocument();
     expect(screen.getByTestId('menu-admin-settings')).toBeInTheDocument();
     expect(screen.getByTestId('menu-logout')).toBeInTheDocument();
     expect(screen.getByTestId('theme-control')).toBeInTheDocument();
@@ -318,51 +347,6 @@ describe('v7 §6 — top bar declutter + user menu', () => {
     await user.keyboard('{Escape}');
     expect(screen.queryByTestId('user-menu')).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
-  });
-});
-
-// v7 §6 relocated the admin Edit affordance from a bar button (`edit-toggle`)
-// into the avatar menu as `menu-edit` ("Edit dashboard"). These A1 cases now
-// drive it through the menu; gating + single-shot wiring also live in the §6
-// block, while the on→off round trip below is unique to A1.
-describe('A1 — admin edit-mode (via the avatar menu)', () => {
-  async function openMenu(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(await screen.findByTestId('user-menu-trigger'));
-  }
-
-  it('shows Edit dashboard in the menu for an admin', async () => {
-    const user = userEvent.setup();
-    mockedMe.mockResolvedValue(ADMIN);
-    render(<App />);
-    await dropLoading();
-    await openMenu(user);
-    expect(screen.getByTestId('menu-edit')).toHaveTextContent(/edit dashboard/i);
-  });
-
-  it('omits Edit dashboard from the menu for a non-admin', async () => {
-    const user = userEvent.setup();
-    mockedMe.mockResolvedValue(USER);
-    render(<App />);
-    await dropLoading();
-    await openMenu(user);
-    expect(screen.queryByTestId('menu-edit')).not.toBeInTheDocument();
-  });
-
-  it('flips edit mode on and back off across two menu visits', async () => {
-    const user = userEvent.setup();
-    mockedMe.mockResolvedValue(ADMIN);
-    render(<App />);
-    await dropLoading();
-    const stub = () => screen.getByTestId('catalog-stub');
-
-    // Selecting Edit closes the menu (per §6.4), so the round trip reopens it.
-    await openMenu(user);
-    await user.click(screen.getByTestId('menu-edit'));
-    expect(stub()).toHaveAttribute('data-edit', 'true');
-
-    await openMenu(user);
-    await user.click(screen.getByTestId('menu-edit'));
-    expect(stub()).toHaveAttribute('data-edit', 'false');
   });
 });
 

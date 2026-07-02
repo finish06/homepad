@@ -9,12 +9,14 @@ import {
   type Category,
   type Service,
 } from './api';
-import { RECENT_KEY } from './recently-opened';
+import { OPEN_LOG_KEY, type OpenEntry } from './recently-opened';
 
-// Cap #3 — the "Recently opened" row rendered inside Catalog. Render-level
-// coverage for AC-001 (present/absent), AC-002/004 (click records + reorders),
-// AC-005 (clear hides), AC-006 (deleted ids filtered), AC-007 (testids),
-// AC-008 (hidden in edit mode), AC-009 (hidden on empty dashboard).
+// v14 §2B — the "Recently opened" chip rail rendered inside Catalog. Render-level
+// coverage for B-001/B-008 (present/absent + testids + data-service-id),
+// B-002 (chip is a name-only glass chip: 44px tall / 28×28 plate — asserted via
+// class, jsdom has no layout), B-003 (label color neutral-500 #737373),
+// B-004 (click records), B-005/B-007 (edit-mode + clear hide), B-009 (deleted
+// ids filtered), B-010-adjacent (empty dashboard).
 
 vi.mock('./api', () => ({
   services: vi.fn(),
@@ -57,8 +59,12 @@ function svc(over: Partial<Service> = {}): Service {
 
 const TWO = [svc({ id: 's1', name: 'Plex', url: 'https://plex.test' }), svc({ id: 's2', name: 'Grafana', url: 'https://grafana.test' })];
 
+// Seed the v14 open log directly (newest-first) — the chip rail reads the 8
+// most-recent unique ids from homepad.openLog.
 function seed(ids: string[]) {
-  localStorage.setItem(RECENT_KEY, JSON.stringify(ids));
+  const now = Date.now();
+  const log: OpenEntry[] = ids.map((id, i) => ({ id, t: now - i }));
+  localStorage.setItem(OPEN_LOG_KEY, JSON.stringify(log));
 }
 
 beforeEach(() => {
@@ -147,7 +153,40 @@ describe('RecentlyOpenedRow', () => {
     expect(await screen.findByTestId('recently-opened-row')).toBeInTheDocument();
     await userEvent.click(screen.getByTestId('recently-opened-clear'));
     await waitFor(() => expect(screen.queryByTestId('recently-opened-row')).toBeNull());
-    expect(localStorage.getItem(RECENT_KEY)).toBeNull();
+    expect(localStorage.getItem(OPEN_LOG_KEY)).toBeNull();
+  });
+});
+
+describe('v14 chip rail treatment', () => {
+  it('B-003 — the "Recently opened" label is neutral-500 (#737373), not neutral-400', async () => {
+    seed(['s1']);
+    await renderCatalog();
+    const row = await screen.findByTestId('recently-opened-row');
+    const label = within(row).getByText('Recently opened');
+    expect(label.className).toContain('text-neutral-500');
+    expect(label.className).not.toContain('text-neutral-400');
+  });
+
+  it('B-002 — each chip is a 44px-tall glass chip with a 28×28 plate (asserted via class)', async () => {
+    seed(['s1']);
+    await renderCatalog();
+    const chip = await screen.findByTestId('recently-opened-item');
+    // 44px tap target = h-11; radius 12 = rounded-xl
+    expect(chip.className).toContain('h-11');
+    expect(chip.className).toContain('rounded-xl');
+    // 28×28 plate = h-7 w-7, radius 8 = rounded-lg
+    const plate = within(chip).getByTestId('recently-opened-icon');
+    expect(plate.className).toContain('h-7');
+    expect(plate.className).toContain('w-7');
+  });
+
+  it('B-002 — chip is name-only: the service name shows, the url/source line does not', async () => {
+    seed(['s2']);
+    await renderCatalog();
+    const chip = await screen.findByTestId('recently-opened-item');
+    expect(within(chip).getByText('Grafana')).toBeInTheDocument();
+    // no source/url line (name-only treatment)
+    expect(chip.textContent).not.toContain('grafana.test');
   });
 });
 

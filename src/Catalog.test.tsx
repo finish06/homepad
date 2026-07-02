@@ -83,7 +83,7 @@ const mockedGetCollapsed = vi.mocked(getCollapsedCategories);
 const mockedSetCollapsed = vi.mocked(setCollapsedCategories);
 
 function cat(over: Partial<Category> = {}): Category {
-  return { id: 'c1', name: 'Media', sortIndex: 0, ...over };
+  return { id: 'c1', name: 'Media', sortIndex: 0, layoutRow: 0, layoutColOrder: 0, layoutWidthPct: 100, ...over };
 }
 
 function svc(over: Partial<Service> = {}): Service {
@@ -266,12 +266,13 @@ describe('A16 — empty-dashboard CTA opens the browse surface', () => {
 });
 
 describe('#83 — "+ Add apps" emphasis follows how full the dashboard is', () => {
-  it('is a FILLED (primary) button when the dashboard is empty', async () => {
+  it('is suppressed when the dashboard is empty, deferring to the empty-state CTA (#119)', async () => {
     mockedServices.mockResolvedValue([]);
     render(<Catalog />);
-    const btn = await screen.findByTestId('open-library');
-    expect(btn).toHaveAttribute('data-emphasis', 'filled');
-    expect(btn.className).toMatch(/bg-indigo-600/);
+    // The empty-state block renders its own prominent CTA, so the always-on
+    // "+ Add apps" button stands down to avoid two competing indigo CTAs.
+    await screen.findByTestId('dashboard-empty');
+    expect(screen.queryByTestId('open-library')).not.toBeInTheDocument();
   });
 
   it('is FILLED when the dashboard is sparse (a couple of apps)', async () => {
@@ -289,6 +290,17 @@ describe('#83 — "+ Add apps" emphasis follows how full the dashboard is', () =
     const btn = await screen.findByTestId('open-library');
     expect(btn).toHaveAttribute('data-emphasis', 'ghost');
     expect(btn.className).not.toMatch(/bg-indigo-600/);
+  });
+});
+
+describe('#119 — exactly one filled CTA on the empty dashboard', () => {
+  it('shows only the empty-state CTA, not also the filled "+ Add apps" button', async () => {
+    mockedServices.mockResolvedValue([]);
+    render(<Catalog />);
+    // The empty-state gradient CTA is the single primary action...
+    expect(await screen.findByTestId('browse-library-cta')).toBeInTheDocument();
+    // ...and the always-on filled "+ Add apps" button is not duplicated here.
+    expect(screen.queryByTestId('open-library')).not.toBeInTheDocument();
   });
 });
 
@@ -374,6 +386,43 @@ describe('v11 A7 — edit-mode banner', () => {
     render(<Catalog isAdmin={false} editMode />);
     await screen.findByTestId('service-tile');
     expect(screen.queryByTestId('edit-mode-banner')).not.toBeInTheDocument();
+  });
+});
+
+describe('#149 — quick exit from edit mode via the banner', () => {
+  it('A1 — renders a "Done editing" exit button inside the banner in edit mode', async () => {
+    render(<Catalog isAdmin editMode onExitEdit={() => {}} />);
+    await screen.findByTestId('service-tile');
+    const banner = screen.getByTestId('edit-mode-banner');
+    const exit = within(banner).getByTestId('exit-edit-mode');
+    expect(exit).toHaveTextContent(/done editing/i);
+  });
+
+  it('A2 — clicking "Done editing" fires onExitEdit once', async () => {
+    const onExitEdit = vi.fn();
+    render(<Catalog isAdmin editMode onExitEdit={onExitEdit} />);
+    await screen.findByTestId('service-tile');
+    await userEvent.click(screen.getByTestId('exit-edit-mode'));
+    expect(onExitEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it('A7 — renders no exit button when onExitEdit is not provided', async () => {
+    render(<Catalog isAdmin editMode />);
+    await screen.findByTestId('service-tile');
+    expect(screen.getByTestId('edit-mode-banner')).toBeInTheDocument();
+    expect(screen.queryByTestId('exit-edit-mode')).not.toBeInTheDocument();
+  });
+
+  it('renders no exit button when edit mode is off', async () => {
+    render(<Catalog isAdmin editMode={false} onExitEdit={() => {}} />);
+    await screen.findByTestId('service-tile');
+    expect(screen.queryByTestId('exit-edit-mode')).not.toBeInTheDocument();
+  });
+
+  it('A9 — no axe violations with the exit button rendered in edit mode', async () => {
+    const { container } = render(<Catalog isAdmin editMode onExitEdit={() => {}} />);
+    await screen.findByTestId('exit-edit-mode');
+    expect(await axe(container)).toHaveNoViolations();
   });
 });
 
@@ -1332,6 +1381,80 @@ describe('A11 — favorite toggle lives in a per-tile "⋯" overflow menu (no mo
   });
 });
 
+// IDEA 3 — "Remove from dashboard" in the always-on tile "⋯" menu (no edit
+// mode, every user). The owner-delete backend already supports any user
+// deleting their OWN service; before this the only delete affordance lived in
+// the admin+edit-mode IconControls, so a non-admin could never remove a tile.
+describe('IDEA3 — remove from dashboard lives in the per-tile "⋯" menu', () => {
+  it('IDEA3-a — the menu offers "Remove from dashboard" with no edit mode', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex' })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+
+    await user.click(screen.getByTestId('tile-menu'));
+    expect(await screen.findByTestId('remove-from-dashboard')).toBeInTheDocument();
+  });
+
+  it('IDEA3-b — clicking it asks to confirm before deleting (no immediate API call)', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex' })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+
+    await user.click(screen.getByTestId('tile-menu'));
+    await user.click(await screen.findByTestId('remove-from-dashboard'));
+
+    expect(await screen.findByTestId('tile-remove-confirm')).toBeInTheDocument();
+    expect(mockedDeleteService).not.toHaveBeenCalled();
+  });
+
+  it('IDEA3-c — confirming deletes the owned service via deleteService', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex' })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+
+    await user.click(screen.getByTestId('tile-menu'));
+    await user.click(await screen.findByTestId('remove-from-dashboard'));
+    await user.click(await screen.findByTestId('tile-remove-confirm-yes'));
+
+    expect(mockedDeleteService).toHaveBeenCalledWith('a');
+  });
+
+  it('IDEA3-d — cancelling the confirm leaves the service untouched', async () => {
+    const user = userEvent.setup();
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex' })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+
+    await user.click(screen.getByTestId('tile-menu'));
+    await user.click(await screen.findByTestId('remove-from-dashboard'));
+    await user.click(await screen.findByTestId('tile-remove-confirm-no'));
+
+    expect(mockedDeleteService).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('tile-remove-confirm')).not.toBeInTheDocument();
+  });
+});
+
+// IDEA 4 — the service description renders on the tile, but is omitted entirely
+// when empty (no blank line / leftover gap).
+describe('IDEA4 — service description on the tile', () => {
+  it('IDEA4-a — renders the description beneath the name when present', async () => {
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex', description: 'Media server' })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+    expect(screen.getByTestId('service-tile-description')).toHaveTextContent('Media server');
+  });
+
+  it('IDEA4-b — omits the description element entirely when empty', async () => {
+    mockedServices.mockResolvedValue([svc({ id: 'a', name: 'Plex', description: '' })]);
+    render(<Catalog />);
+    await screen.findByTestId('service-tile');
+    expect(screen.queryByTestId('service-tile-description')).not.toBeInTheDocument();
+  });
+});
+
 // Uptime sparkline (spec specs/uptime-sparkline.md, AC-001..013). The strip sits
 // below the description on each monitored tile: ≤20 dots oldest→newest,
 // green(success)/red, then "XX% / N checks".
@@ -1425,5 +1548,62 @@ describe('uptime sparkline (AC-001..013)', () => {
     expect(row.className).toContain('flex-nowrap');
     expect(row.className).not.toContain('flex-wrap');
     expect(row.className).toContain('overflow-hidden');
+  });
+})
+
+// Cap #4 (spec specs/cap4-sparkline-dot-tooltip.md): hovering a sparkline dot
+// reveals a tooltip with the check's local timestamp and pass/fail result, and
+// each dot carries an aria-label so screen readers enumerate the history.
+describe('cap4 — sparkline dot hover tooltip', () => {
+  function checks(n: number, failAt: number[] = []) {
+    return Array.from({ length: n }, (_, i) => ({
+      success: !failAt.includes(i),
+      timestamp: `2026-06-14T08:${String(i).padStart(2, '0')}:00Z`,
+    }));
+  }
+
+  it('AC-011 — each dot has an aria-label with its result and timestamp', async () => {
+    mockedServices.mockResolvedValue([svc({ uptimeChecks: checks(3, [1]) })]);
+    render(<Catalog />);
+    const tile = await screen.findByTestId('service-tile');
+    const dots = within(tile).getAllByTestId('uptime-dot');
+
+    // Pass/fail wording matches the dot color; a timestamp follows after " – ".
+    expect(dots[0].getAttribute('aria-label')).toMatch(/^Passed – .+/);
+    expect(dots[1].getAttribute('aria-label')).toMatch(/^Failed – .+/);
+    // The container is no longer aria-hidden, so the labels are exposed.
+    expect(dots[0].parentElement).not.toHaveAttribute('aria-hidden');
+  });
+
+  it('AC-001/007 — tooltip appears on mouseEnter and clears on mouseLeave', async () => {
+    mockedServices.mockResolvedValue([svc({ uptimeChecks: checks(3, [1]) })]);
+    render(<Catalog />);
+    const tile = await screen.findByTestId('service-tile');
+    const dots = within(tile).getAllByTestId('uptime-dot');
+
+    expect(within(tile).queryByTestId('uptime-tooltip')).not.toBeInTheDocument();
+
+    fireEvent.mouseEnter(dots[1]);
+    const tip = within(tile).getByTestId('uptime-tooltip');
+    expect(tip).toHaveTextContent('✗ Failed');
+
+    fireEvent.mouseLeave(dots[1]);
+    expect(within(tile).queryByTestId('uptime-tooltip')).not.toBeInTheDocument();
+  });
+
+  it('AC-008 — a dot with an empty timestamp renders and hovers without crashing', async () => {
+    mockedServices.mockResolvedValue([
+      svc({ uptimeChecks: [{ success: true, timestamp: '' }] }),
+    ]);
+    render(<Catalog />);
+    const tile = await screen.findByTestId('service-tile');
+    const dot = within(tile).getByTestId('uptime-dot');
+
+    // No timestamp → aria-label carries the result only, no trailing " – ".
+    expect(dot.getAttribute('aria-label')).toBe('Passed');
+
+    fireEvent.mouseEnter(dot);
+    const tip = within(tile).getByTestId('uptime-tooltip');
+    expect(tip).toHaveTextContent('✓ Passed');
   });
 })

@@ -83,6 +83,25 @@ describe('A16 — browse the App Library', () => {
   });
 });
 
+describe('Library search filter', () => {
+  it('filters the list to offers whose name matches the query (case-insensitive)', async () => {
+    renderBrowse();
+    await screen.findAllByTestId('library-row');
+    await userEvent.type(screen.getByLabelText(/filter the app library/i), 'JELLY');
+    const rows = screen.getAllByTestId('library-row');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveAttribute('data-library-id', 'L1');
+  });
+
+  it('shows a no-matches hint (not a blank list) when the query excludes every offer', async () => {
+    renderBrowse();
+    await screen.findAllByTestId('library-row');
+    await userEvent.type(screen.getByLabelText(/filter the app library/i), 'zzzznope');
+    expect(screen.queryAllByTestId('library-row')).toHaveLength(0);
+    expect(screen.getByTestId('library-no-matches')).toHaveTextContent(/no apps match/i);
+  });
+});
+
 describe('A16 — add from the library', () => {
   it('clicking Add POSTs the offer and flips to Added ✓, announcing it', async () => {
     const onAdded = vi.fn();

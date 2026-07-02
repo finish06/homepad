@@ -92,11 +92,25 @@ A user — any role — should be able to answer these questions from the UI alo
     <span className="menu-scope-tag">personal</span>
   </button>
 ) : (
-  /* Non-admins: contextual note inside the section (not floating below it) */
-  <p data-testid="menu-dashboard-note" className="menu-dashboard-note">
-    Your tiles, categories, and icons are your personal dashboard —
-    manage them directly on the home screen.
-  </p>
+  /* Non-admins: a real "Go to my dashboard" action (added by #96 — see
+     §4.1.1) followed by the contextual note inside the section. */
+  <>
+    <button
+      type="button"
+      role="menuitem"
+      data-testid="menu-go-dashboard"
+      onClick={() => choose(onGoToDashboard ?? (() => {}))}
+      className="menu-item"
+    >
+      <GridIcon />
+      Go to my dashboard
+      <span className="menu-scope-tag">personal</span>
+    </button>
+    <p data-testid="menu-dashboard-note" className="menu-dashboard-note">
+      Your tiles, categories, and icons are your personal dashboard —
+      manage them directly on the home screen.
+    </p>
+  </>
 )}
 
 {/* Administration — global section, admins only */}
@@ -159,6 +173,29 @@ A user — any role — should be able to answer these questions from the UI alo
 ```
 
 Remove the old `.menu-admin-section` CSS rule after renaming.
+
+#### 4.1.1 Non-admin "Go to my dashboard" action (reconciled — issue #167)
+
+> **Reconcile note (2026-06-28, issue #167).** As originally written, this spec
+> gave the non-admin "My Dashboard" branch only the `menu-dashboard-note`
+> paragraph (a dead label with no affordance). That asymmetry was closed by
+> **issue #96 (PR #116, commit `0626f51`)**, which added a real
+> `menu-go-dashboard` menuitem so the non-admin section has the same clickable
+> parity every other section has. The code above and the acceptance criteria
+> (A6a) are updated to match shipped staging. This is **not** a v9 multi-tenant
+> per-user-dashboard artifact — homepad has no multi-tenant nav; it is a v12-era
+> UX-parity addition layered on top of this menu structure.
+
+The non-admin "My Dashboard" section therefore contains, in order:
+
+1. `menu-go-dashboard` — a "Go to my dashboard" menuitem (grid icon, `personal`
+   scope tag). Choosing it closes the menu and returns the user to the home
+   screen (where favorites, reorder, and "+ Add apps" live) via the
+   `onGoToDashboard` callback. The App wires this to a smooth scroll-to-top.
+2. `menu-dashboard-note` — the unchanged explainer paragraph beneath it.
+
+Admins are unaffected: they still get `menu-edit` ("Edit dashboard") and never
+see `menu-go-dashboard`.
 
 ---
 
@@ -256,6 +293,7 @@ Add new assertions:
 | **A4** | A non-admin opening the UserMenu sees **"My Dashboard"** section label (`menu-my-dashboard-section`). | Component (non-admin user) |
 | **A5** | A non-admin does **not** see an `Administration` section (`menu-administration-section` absent) and does **not** see `menu-edit`. | Component (non-admin user) |
 | **A6** | Non-admin `menu-dashboard-note` appears inside or directly adjacent to the "My Dashboard" section — not floating between the separator and Log out with no heading. | Component (non-admin user) |
+| **A6a** | A non-admin opening the UserMenu sees a **"Go to my dashboard"** menuitem (`menu-go-dashboard`, `personal` scope tag) inside the "My Dashboard" section; choosing it fires `onGoToDashboard` and closes the menu. Admins do **not** see `menu-go-dashboard` (they get `menu-edit`). *(Reconciled from shipped #96 — see §4.1.1.)* | Component (non-admin + admin) |
 | **A7** | Admin does **not** see `menu-dashboard-note`. | Component (admin user) |
 | **A8** | Each System Settings row in the Admin Panel has an **env badge**: `settings-env-badge-oidc` and `settings-env-badge-registration` both render, contain the text "env". | Component (admin, settings open) |
 | **A9** | Self-registration `<dd>` text does **not** contain `"HOMEPAD_REGISTRATION"` or any raw env-var name. It reads `"Controlled by server environment"`. | Component assertion on `dd` text content |

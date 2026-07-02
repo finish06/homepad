@@ -10,10 +10,34 @@
 // show data freshness.
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { servicesWithStatus, type Service } from './api';
+import { servicesWithStatus, type Service, type ServiceStatus } from './api';
+import { useAlertHistory } from './alerts';
 
 // How often to re-poll while visible (AC-001, ±10s tolerance).
 const POLL_MS = 60_000;
+
+// cap5 — a meaningful status transition between two polls, worth a toast alert.
+export type StatusChange = {
+  id: string;
+  name: string;
+  from: ServiceStatus;
+  to: ServiceStatus;
+};
+
+// v17 — a single status transition for the alert-history log. Like StatusChange
+// but carries the service URL (the panel's "Visit" link) and covers ALL flips,
+// not just toastable ones.
+export type Transition = {
+  id: string;
+  name: string;
+  url: string;
+  from: ServiceStatus;
+  to: ServiceStatus;
+};
+
+// cap5 — the only states worth toasting. UNKNOWN/NOT_MONITORED are monitoring
+// infra, not real flips, so transitions touching them are dropped (AC-004, AC-005).
+const TOASTABLE: ReadonlySet<ServiceStatus> = new Set(['UP', 'DOWN', 'DEGRADED']);
 
 export type ServicesContextValue = {
   items: Service[] | null;
@@ -21,6 +45,12 @@ export type ServicesContextValue = {
   // v13: epoch-ms of the last successful load/refresh, or null before the first
   // load resolves. Drives the header's "Updated X ago" indicator.
   lastUpdatedAt: number | null;
+  // cap5: status flips detected by the most-recent poll. Empty on initial load
+  // (baseline only, AC-003); set whenever a non-initial poll detects changes.
+  recentChanges: StatusChange[];
+  // cap5/AC-015: reset recentChanges to [] once ToastContainer has consumed it, so
+  // a fresh ToastContainer mount can't replay a prior poll's flips as ghost toasts.
+  clearRecentChanges: () => void;
 };
 
 const ServicesContext = createContext<ServicesContextValue | null>(null);
@@ -31,17 +61,38 @@ const ServicesContext = createContext<ServicesContextValue | null>(null);
 // only the tiles that actually changed get a new object reference (so only those
 // re-render — AC-009). Returns the SAME array reference when nothing changed, so a
 // no-op poll triggers no render at all. Tiles absent from `fresh` are left as-is.
-export function mergeStatuses(current: Service[], fresh: Service[]): Service[] {
+//
+// cap5: it also collects the toastable status flips it sees (UP/DOWN/DEGRADED
+// only) into `changes`, returning both so the provider can fire alerts.
+//
+// v17: separately, it collects EVERY status transition (any non-equal flip,
+// including ones touching UNKNOWN/NOT_MONITORED) into `transitions` for the
+// alert-history log, which records the full picture rather than just toastable
+// flips (AC-003). `changes` stays the toastable subset that drives toasts.
+export function mergeStatuses(
+  current: Service[],
+  fresh: Service[],
+): { next: Service[]; changes: StatusChange[]; transitions: Transition[] } {
   const byId = new Map(fresh.map((s) => [s.id, s]));
+  const changes: StatusChange[] = [];
+  const transitions: Transition[] = [];
   let changed = false;
   const next = current.map((s) => {
     const f = byId.get(s.id);
     if (!f) return s;
     if (f.status === s.status && sameChecks(s.uptimeChecks, f.uptimeChecks)) return s;
     changed = true;
+    if (s.status !== f.status) {
+      // v17 — every transition goes to the alert-history log (AC-003).
+      transitions.push({ id: s.id, name: s.name, url: s.url, from: s.status, to: f.status });
+      // Only surface transitions between toastable states as toasts (AC-004, AC-005).
+      if (TOASTABLE.has(s.status) && TOASTABLE.has(f.status)) {
+        changes.push({ id: s.id, name: s.name, from: s.status, to: f.status });
+      }
+    }
     return { ...s, status: f.status, uptimeChecks: f.uptimeChecks };
   });
-  return changed ? next : current;
+  return { next: changed ? next : current, changes, transitions };
 }
 
 function sameChecks(a?: Service['uptimeChecks'], b?: Service['uptimeChecks']): boolean {
@@ -53,10 +104,22 @@ function sameChecks(a?: Service['uptimeChecks'], b?: Service['uptimeChecks']): b
 export function ServicesProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<Service[] | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+  // cap5 — flips from the most-recent poll; empty until a non-initial poll sees one.
+  const [recentChanges, setRecentChanges] = useState<StatusChange[]>([]);
   // Set once a refresh returns 401 (session expired) — polling then stops for good
   // (AC-011). A ref so flipping it doesn't trigger a render and the running poll
   // reads the latest value.
   const stopped = useRef(false);
+  // cap5 — mirror the latest committed items so a poll merges against the array
+  // the grid actually shows (incl. user reorders), not a stale closure capture.
+  const itemsRef = useRef<Service[] | null>(null);
+  itemsRef.current = items;
+  // v17 — the alert-history sink (nullable: isolated tests render this provider
+  // without an AlertHistoryProvider). Mirrored in a ref so the once-mounted poll
+  // effect always reads the current sink without re-subscribing.
+  const alerts = useAlertHistory();
+  const alertsRef = useRef(alerts);
+  alertsRef.current = alerts;
 
   useEffect(() => {
     let cancelled = false;
@@ -75,8 +138,36 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
       // existing freshness counter (don't bump lastUpdatedAt). The initial load
       // is the one exception — it has nothing to keep, so an empty list stands.
       if (status !== 200 && !initial) return;
-      setItems((cur) => (cur && status === 200 ? mergeStatuses(cur, fresh) : fresh));
-      setLastUpdatedAt(Date.now());
+      const cur = itemsRef.current;
+      // Initial load (or nothing to merge against) just sets the baseline — no
+      // recentChanges, so no toasts fire on first paint (AC-003).
+      if (initial || !cur) {
+        setItems(fresh);
+        setLastUpdatedAt(Date.now());
+        return;
+      }
+      const { next, changes, transitions } = mergeStatuses(cur, fresh);
+      const now = Date.now();
+      setItems(next);
+      setLastUpdatedAt(now);
+      if (changes.length) setRecentChanges(changes);
+      // v17 — record every transition in the alert-history log (AC-003). Only
+      // poll-to-poll flips reach here; the initial baseline returns above, so no
+      // events fire on first paint (AC-004).
+      if (transitions.length) {
+        const sink = alertsRef.current;
+        transitions.forEach((t, i) =>
+          sink?.pushEvent({
+            id: `${t.id}-${now}-${i}`,
+            serviceId: t.id,
+            serviceName: t.name,
+            serviceUrl: t.url,
+            prevStatus: t.from,
+            newStatus: t.to,
+            ts: now,
+          }),
+        );
+      }
     }
 
     void load(true);
@@ -97,7 +188,16 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <ServicesContext.Provider value={{ items, setItems, lastUpdatedAt }}>
+    <ServicesContext.Provider
+      value={{
+        items,
+        setItems,
+        lastUpdatedAt,
+        recentChanges,
+        // AC-015 — let the consumer drain the queue after enqueuing.
+        clearRecentChanges: () => setRecentChanges([]),
+      }}
+    >
       {children}
     </ServicesContext.Provider>
   );

@@ -21,6 +21,34 @@
       linear-gradient(180deg, #0b0d12 0%, #0e1117 100%);
   }
 
+  /* #184 — app/dashboard loading state. Replaces the bare low-contrast
+     "loading…" text with a real affordance: a rotating indigo ring (non-text
+     contrast 6.29:1 light / indigo-400 in dark) paired with an AA-contrast
+     label. Motion respects prefers-reduced-motion (the ring still reads as a
+     spinner, it just stops rotating). */
+  .app-spinner {
+    width: 32px;
+    height: 32px;
+    border-radius: 9999px;
+    border: 3px solid rgba(99, 102, 241, 0.2);
+    border-top-color: #4f46e5; /* indigo-600 — 6.29:1 on white */
+    animation: app-spin 0.7s linear infinite;
+  }
+  .dark .app-spinner {
+    border-color: rgba(129, 140, 248, 0.25);
+    border-top-color: #818cf8; /* indigo-400 — reads on the dark canvas */
+  }
+  @keyframes app-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-spinner {
+      animation: none;
+    }
+  }
+
   /* §4 Service tile — radius/gradient/rest+hover shadow, hover lift. */
   .tile {
     border-radius: 18px;
@@ -107,6 +135,21 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .status-dot--pulse {
+      animation: none;
+    }
+  }
+
+  /* cap5 — toast slide/fade-in (AC-011 disables it under reduced motion, so the
+     toast appears instantly). Independent of the tile pulse (AC-013). */
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(0.5rem); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .toast-item {
+    animation: toast-in 0.15s ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .toast-item {
       animation: none;
     }
   }
@@ -245,6 +288,38 @@
     }
   }
 
+  /* v18 — the Gear dropdown. Same card chrome as .user-menu (tokens, shadow,
+     dark variant), narrower min-width, right-aligned under the gear. */
+  .gear-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 50;
+    min-width: 200px;
+    padding: 6px;
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 14px;
+    box-shadow:
+      0 18px 40px -12px rgba(16, 24, 40, 0.28),
+      0 0 0 1px rgba(15, 23, 42, 0.03);
+    animation: user-menu-in 0.14s ease;
+  }
+  .dark .gear-menu {
+    background: #12161e;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  /* v18 — trailing checkmark on an active toggle item (Arrange/Edit tiles). */
+  .menu-check {
+    margin-left: auto;
+    opacity: 0.9;
+    color: #4f46e5;
+  }
+  .dark .menu-check {
+    color: #c7d2fe;
+  }
+
   /* §6.3.1 Identity — email + role pill. */
   .user-menu-email {
     font-size: 13px;
@@ -298,6 +373,10 @@
     align-items: center;
     gap: 10px;
     width: 100%;
+    /* #185 — interactive menu rows must clear the 44px touch minimum (Log out
+       measured 38px). Shared by the UserMenu and the v18 Gear menu, so both
+       inherit the compliant row height. */
+    min-height: 44px;
     text-align: left;
     padding: 9px 12px;
     border-radius: 9px;
@@ -391,10 +470,11 @@
     line-height: 1.4;
   }
 
-  /* v11 §4.4 D6 — edit-mode contextual banner on the catalog. */
+  /* v11 §4.4 D6 — edit-mode contextual banner; #149 adds inline exit button. */
   .edit-mode-banner {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 6px;
     padding: 6px 12px;
     margin-bottom: 12px;
@@ -408,6 +488,36 @@
   .dark .edit-mode-banner {
     background: rgba(99, 102, 241, 0.12);
     border-color: rgba(99, 102, 241, 0.25);
+  }
+
+  .edit-mode-banner-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .edit-mode-banner-exit {
+    font-size: 11px;
+    font-weight: 600;
+    color: #4f46e5;
+    background: none;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 5px;
+    padding: 2px 8px;
+    cursor: pointer;
+    line-height: 1.5;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .edit-mode-banner-exit:hover {
+    background: rgba(99, 102, 241, 0.1);
+  }
+  .dark .edit-mode-banner-exit {
+    color: #a5b4fc;
+    border-color: rgba(165, 180, 252, 0.3);
+  }
+  .dark .edit-mode-banner-exit:hover {
+    background: rgba(99, 102, 241, 0.15);
   }
 
   /* §2 Motion — disable transforms under prefers-reduced-motion, keep opacity. */
@@ -655,11 +765,11 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    min-height: 36px;
+    min-height: 44px;
     padding: 6px 8px;
     border: 1px solid rgba(15, 23, 42, 0.08);
     border-radius: 9999px;
-    color: #9aa3b8;
+    color: #6e6e6e;
     transition:
       border-color 0.18s ease,
       background 0.18s ease,
@@ -681,7 +791,7 @@
     font-size: 13px;
   }
   .launcher-trigger-placeholder {
-    color: #9aa3b8;
+    color: #6e6e6e;
   }
   /* #97 — a keycap, not a category chip. Neutral surface + a full hairline
      border whose thicker bottom edge (and faint drop shadow) give the key its
@@ -738,6 +848,13 @@
   }
   .dark .launcher-trigger {
     border-color: rgba(255, 255, 255, 0.1);
+    /* #189 light fix darkened the resting glyph/placeholder to #6e6e6e for AA on
+       white; on the dark ground that reads too dim, so keep the original light
+       gray (clean at ~7:1 on near-black) here. */
+    color: #9aa3b8;
+  }
+  .dark .launcher-trigger-placeholder {
+    color: #9aa3b8;
   }
   .dark .launcher-trigger:hover {
     border-color: rgba(129, 140, 248, 0.45);
@@ -775,6 +892,189 @@
     }
     .launcher-panel {
       animation: launcher-scrim-in 0.14s ease;
+    }
+  }
+
+  /* ── v17 Alert History — header bell + unread badge and the history overlay.
+     The panel reuses .launcher-overlay/.launcher-panel chrome; only the bell,
+     badge, header bar and event rows are new. ── */
+  .alert-bell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* #182 — >=44px touch target (was 36×36, below the design-system minimum).
+       The 19px glyph stays centered; only the at-rest-invisible hover halo and
+       the hit box grow. */
+    width: 44px;
+    height: 44px;
+    border-radius: 9999px;
+    color: #475069;
+    background: transparent;
+    transition: background-color 0.12s ease, color 0.12s ease;
+  }
+  .alert-bell:hover {
+    background: #f4f5fb;
+    color: #1f2533;
+  }
+  .alert-bell-glyph {
+    width: 19px;
+    height: 19px;
+  }
+  .alert-bell-badge {
+    position: absolute;
+    /* anchored to the glyph's top-right corner inside the larger (44px) hit box */
+    top: 6px;
+    right: 6px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    box-shadow: 0 0 0 2px #fff;
+  }
+  .dark .alert-bell {
+    color: #aab2c5;
+  }
+  .dark .alert-bell:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #e6e9f2;
+  }
+  .dark .alert-bell-badge {
+    box-shadow: 0 0 0 2px #0e1117;
+  }
+
+  /* AC-011 — fixed header, internally-scrolling body, clamped height. */
+  .alert-history-panel {
+    max-height: clamp(320px, 75vh, 560px);
+  }
+  .alert-history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: none;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  }
+  .dark .alert-history-header {
+    border-bottom-color: rgba(255, 255, 255, 0.07);
+  }
+  .alert-history-title {
+    font-size: 15px;
+    font-weight: 650;
+    color: #0f172a;
+  }
+  .dark .alert-history-title {
+    color: #e6e9f2;
+  }
+  .alert-history-close {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 9999px;
+    color: #9aa3b8;
+    font-size: 13px;
+    line-height: 1;
+  }
+  .alert-history-close:hover {
+    background: #f4f5fb;
+    color: #475069;
+  }
+  .dark .alert-history-close:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #c7ccda;
+  }
+  .alert-history-empty {
+    padding: 36px 24px;
+    text-align: center;
+    color: #9aa3b8;
+    font-size: 14px;
+  }
+  .alert-history-list {
+    overflow-y: auto;
+    padding: 6px;
+    margin: 0;
+    list-style: none;
+  }
+  .alert-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 48px;
+    padding: 8px 10px;
+    border-radius: 9px;
+  }
+  .alert-row:hover {
+    background: #f4f5fb;
+  }
+  .dark .alert-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .alert-row-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .alert-row-name {
+    font-weight: 650;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dark .alert-row-name {
+    color: #e6e9f2;
+  }
+  .alert-row-transition {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+  }
+  .alert-row-arrow {
+    color: #9aa3b8;
+    font-size: 12px;
+  }
+  .alert-row-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: none;
+  }
+  .alert-row-time {
+    font-size: 11px;
+    color: #9aa3b8;
+    white-space: nowrap;
+  }
+  .alert-row-visit {
+    font-size: 12px;
+    font-weight: 600;
+    color: #4f46e5;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .alert-row-visit:hover {
+    text-decoration: underline;
+  }
+  .dark .alert-row-visit {
+    color: #a5b4fc;
+  }
+  /* AC-012 — near-full-screen panel on phones; rows stay readable at 390px. */
+  @media (max-width: 639px) {
+    .alert-history-panel {
+      width: calc(100vw - 24px);
+    }
+    .alert-row-name {
+      max-width: 42vw;
     }
   }
 
@@ -1291,5 +1591,628 @@
   .service-form-submit {
     flex: 1;
     min-height: 38px;
+  }
+
+  /* v15 — changelog overlay. fleet-feed Option B+ adapted to homepad tokens:
+     a two-panel dialog with an 88px chip gutter so every description starts at
+     the same x. Semi-transparent chip backgrounds read on both surfaces; chip
+     text color is the only thing that flips for dark mode. */
+  .changelog-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 70; /* clears the launcher overlay (60) */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 24px 16px;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+    animation: launcher-scrim-in 0.14s ease;
+  }
+  .changelog-dialog {
+    display: flex;
+    flex-direction: column;
+    width: min(720px, calc(100vw - 32px));
+    max-height: clamp(400px, 85vh, 680px);
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 16px;
+    box-shadow:
+      0 24px 48px -12px rgba(16, 24, 40, 0.32),
+      0 0 0 1px rgba(15, 23, 42, 0.03);
+    overflow: hidden;
+    animation: launcher-panel-in 0.14s ease;
+  }
+  .dark .changelog-dialog {
+    background: #171717; /* neutral-900 */
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  .changelog-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    flex: none;
+  }
+  .dark .changelog-head {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+  .changelog-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f2937;
+  }
+  .dark .changelog-title {
+    color: #f5f5f5;
+  }
+  .changelog-close {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    padding: 4px 8px;
+    border-radius: 8px;
+    color: #6b7280;
+  }
+  .changelog-close:hover {
+    background: rgba(15, 23, 42, 0.06);
+    color: #111827;
+  }
+  .dark .changelog-close {
+    color: #9ca3af;
+  }
+  .dark .changelog-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f5f5f5;
+  }
+  .changelog-body {
+    display: flex;
+    min-height: 0; /* let the detail panel scroll, not the dialog */
+    flex: 1;
+  }
+  .changelog-versions {
+    flex: none;
+    width: 184px;
+    border-right: 1px solid rgba(15, 23, 42, 0.08);
+    padding: 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .dark .changelog-versions {
+    border-right-color: rgba(255, 255, 255, 0.08);
+  }
+  .changelog-version-btn {
+    text-align: left;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 13px;
+    color: #4b5563;
+    cursor: pointer;
+  }
+  .changelog-version-btn:hover {
+    background: rgba(15, 23, 42, 0.05);
+  }
+  .changelog-version-btn.is-selected {
+    background: rgba(99, 102, 241, 0.1); /* indigo accent */
+    border-color: rgba(99, 102, 241, 0.4);
+    color: #4338ca;
+    font-weight: 600;
+  }
+  .dark .changelog-version-btn {
+    color: #d4d4d4;
+  }
+  .dark .changelog-version-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .dark .changelog-version-btn.is-selected {
+    background: rgba(129, 140, 248, 0.16);
+    border-color: rgba(129, 140, 248, 0.5);
+    color: #a5b4fc;
+  }
+  .changelog-detail {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    padding: 16px;
+  }
+  .changelog-detail-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  }
+  .dark .changelog-detail-head {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+  .changelog-detail-version {
+    font-weight: 700;
+    font-size: 15px;
+    color: #4f46e5; /* indigo-600, wordmark palette */
+  }
+  .dark .changelog-detail-version {
+    color: #818cf8; /* indigo-400 */
+  }
+  .changelog-detail-date {
+    font-size: 12px;
+    color: #9ca3af;
+  }
+  .changelog-empty {
+    font-size: 13px;
+    color: #9ca3af;
+  }
+  /* B+ grid — 88px chip gutter + 1fr description, 8px gap. The chip cell
+     right-aligns so every description starts at the same x (= 96px). */
+  .changelog-row {
+    display: grid;
+    grid-template-columns: 88px 1fr;
+    gap: 8px;
+    align-items: baseline;
+    padding: 5px 0;
+  }
+  .changelog-chip-cell {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  .changelog-row-text {
+    font-size: 13px;
+    line-height: 1.45;
+    color: #374151;
+  }
+  .dark .changelog-row-text {
+    color: #d4d4d4;
+  }
+  .changelog-chip {
+    display: inline-block;
+    max-width: 88px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.6;
+    white-space: nowrap;
+    overflow: hidden; /* belt-and-suspenders — 'enhancement' fits at this size */
+    text-overflow: ellipsis;
+  }
+  .changelog-chip--feature {
+    color: #16a34a;
+  }
+  .dark .changelog-chip--feature {
+    color: #4ade80;
+  }
+  .changelog-chip--enhancement {
+    color: #2563eb;
+  }
+  .dark .changelog-chip--enhancement {
+    color: #60a5fa;
+  }
+  .changelog-chip--bug-fix {
+    color: #b45309;
+  }
+  .dark .changelog-chip--bug-fix {
+    color: #fbbf24;
+  }
+  .changelog-chip--security {
+    color: #dc2626;
+  }
+  .dark .changelog-chip--security {
+    color: #f87171;
+  }
+  .changelog-chip--unknown {
+    color: #6b7280;
+  }
+  .dark .changelog-chip--unknown {
+    color: #9ca3af;
+  }
+
+  /* Mobile (<640px): near-full-screen, panels stack, version pills become a
+     horizontally scrollable row. */
+  @media (max-width: 639px) {
+    .changelog-overlay {
+      padding: 0;
+    }
+    .changelog-dialog {
+      width: 100vw;
+      height: 100vh;
+      max-height: 100vh;
+      border-radius: 0;
+      border: none;
+    }
+    .changelog-body {
+      flex-direction: column;
+    }
+    .changelog-versions {
+      width: 100%;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      border-right: none;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    }
+    .dark .changelog-versions {
+      border-bottom-color: rgba(255, 255, 255, 0.08);
+    }
+    .changelog-version-btn {
+      white-space: nowrap;
+      flex: none;
+    }
+  }
+
+  /* v14 §2B — the "Recently opened" chip rail. Anchored at the panel field's
+     left edge (x=48) with a 24px gap down to the first panel row. */
+  .recently-opened-rail {
+    margin-left: 48px;
+    margin-bottom: 24px;
+  }
+  /* B-006 — horizontal scroll on overflow, scrollbar fully hidden. */
+  .recently-opened-chips {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .recently-opened-chips::-webkit-scrollbar {
+    display: none;
+  }
+  /* Each chip is the same glass material as a panel, one register quieter (the
+     shadow is a notch lighter so the rail reads as subordinate to the catalog). */
+  .recently-opened-chip {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    transition: background 120ms ease;
+  }
+  .recently-opened-chip:hover {
+    background: rgba(255, 255, 255, 0.85);
+  }
+  .dark .recently-opened-chip {
+    background: rgba(30, 30, 40, 0.68);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
+  }
+  .dark .recently-opened-chip:hover {
+    background: rgba(30, 30, 40, 0.82);
+  }
+
+  /* v14 §2A — the floating glass panel field. Fixed 190px tile slots (never
+     stretch — fixes the A-006 218px stretch defect); panels hug their content
+     and pack left→right, wrapping when the next panel won't fit the row. The
+     responsive column count (4/3/2, capped at 4 — v14.1) is computed in JS (useFieldCols) and fed
+     to each panel as --panel-cols = clamp(appCount, 1, fieldCols); at ≤1023px
+     every panel spans the full field so they stack. Left edge x=48 (A-002/A-004). */
+  .tile-field {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 16px;
+    margin-left: 48px;
+    max-width: 1392px;
+  }
+  /* Each panel's width is exactly its tile columns + inner gaps + 16px padding
+     each side, so the tiles inside are ALWAYS 190px (fixes the A-006 218px
+     stretch defect) and the panel hugs its content and never leaves a trailing
+     void. --panel-cols is set inline per panel (clamp(appCount,1,fieldCols)). */
+  .category-panel {
+    width: calc(var(--panel-cols, 1) * 190px + (var(--panel-cols, 1) - 1) * 16px + 32px);
+    box-sizing: border-box;
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 22px;
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.06),
+      0 8px 24px rgba(0, 0, 0, 0.04);
+    padding: 16px;
+  }
+  .dark .category-panel {
+    background: rgba(30, 30, 40, 0.68);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.32),
+      0 8px 24px rgba(0, 0, 0, 0.24);
+  }
+  /* The tile grid inside a panel: fixed 190px slots (inherits --panel-cols from
+     the panel), so tiles NEVER resize no matter how wide the panel's span is.
+     Overflow beyond the panel's column span wraps within the panel. */
+  .panel-tiles {
+    display: grid;
+    grid-template-columns: repeat(var(--panel-cols, 1), 190px);
+    gap: 16px;
+  }
+
+  /* PROD hotfix #212 — mobile overflow. Below 768px the field is 2 columns, and
+     a fixed 190px-slot panel is 2×190+16+32=428px + the 48px anchor ≈ 476px,
+     which overflows a ~390px phone: the panel is clipped and the whole PAGE
+     scrolls sideways. On mobile only we make the panel span the field and let
+     the tiles SHRINK BELOW 190px to fit. This is a deliberate, documented
+     EXCEPTION to Kare's "tiles never resize" principle — on small screens they
+     may go under 190px to avoid horizontal page overflow. Desktop (>=1024) is
+     untouched: it keeps the fixed 190px tiles and the 48px anchor above. */
+  @media (max-width: 767px) {
+    /* Drop the 48px anchor on the field and the rail; the content section's
+       px-4 already supplies a ~16px inset, and a block-level 48px margin here
+       would itself push the field past 100vw. */
+    .tile-field {
+      margin-left: 0;
+      max-width: none;
+    }
+    .recently-opened-rail {
+      margin-left: 0;
+    }
+    /* Panel fills the field and stacks (it no longer hugs a fixed 190px-derived
+       width), so it can never exceed the viewport. */
+    .category-panel {
+      width: 100%;
+    }
+    /* Fluid tiles: each column shrinks to fit but is capped at 190px so it never
+       grows past the desktop tile size. This is the shrink-below-190px
+       exception that kills the overflow. */
+    .panel-tiles {
+      grid-template-columns: repeat(var(--panel-cols, 1), minmax(0, 190px));
+    }
+  }
+
+  /* ── SPEC-app-grid: App Grid layout ───────────────────────────────────
+     A 6-column page grid of glass boxes (= categories). Each box's --w (the
+     effective, mobile-capped width, computed in AppGrid.tsx) drives both its
+     column span and its inner links-per-row. Inherits the floating-panel glass
+     so the two systems read as one product (§6.1). */
+  .app-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 16px;
+    align-items: start;
+    /* No inner width cap: the grid fills the outer CONTENT_WIDTH section
+       (the shared max-w-[1536px] px-4 mx-auto frame from App.tsx), so its left
+       and right edges align with the header and status-strip content at every
+       viewport (#196). #194 first matched an inner cap to 1536px to grow tiles
+       into a wide canvas; that cap is redundant inside the already-1536 frame,
+       and any narrower inner cap re-centered the grid and inset its left edge
+       at wide viewports — the "grid floats untethered at 2560" symptom. */
+  }
+  .app-grid-box {
+    grid-column: span var(--w);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 120px;
+    padding: 16px;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.72);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.04);
+  }
+  .dark .app-grid-box {
+    background: rgba(30, 30, 40, 0.68);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.32), 0 8px 24px rgba(0, 0, 0, 0.24);
+  }
+  .app-grid-box-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .app-grid-box-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .dark .app-grid-box-title {
+    color: #f5f5f5;
+  }
+  .app-grid-empty {
+    font-size: 13px;
+    color: #737373;
+    padding: 8px 2px;
+  }
+  .dark .app-grid-empty {
+    color: #9aa3b8;
+  }
+  .app-grid-tools {
+    display: grid;
+    grid-template-columns: repeat(var(--w), 1fr);
+    gap: 12px;
+  }
+  .app-grid-tool {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 56px;
+    min-width: 0;
+    padding: 8px 12px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    text-decoration: none;
+    transition: transform 0.18s, border-color 0.25s;
+  }
+  .dark .app-grid-tool {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  .app-grid-tool:hover {
+    border-color: rgba(99, 102, 241, 0.45);
+    transform: translateY(-1px);
+  }
+  .app-grid-tool:active {
+    transform: translateY(0);
+  }
+  .app-grid-tool:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #6366f1;
+  }
+  .app-grid-tool-icon {
+    flex: none;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #f2f4fc, #e9edf9);
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  }
+  .dark .app-grid-tool-icon {
+    background: linear-gradient(135deg, #1b2130, #161b26);
+  }
+  .app-grid-tool-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .app-grid-tool-name {
+    font-size: 15px;
+    font-weight: 650;
+    color: #262626;
+    min-width: 0;
+    /* Wrap to a second line instead of single-line clipping so a distinguishing
+       trailing token survives (#195): "ArchiveTeam Warrior1" / "…Warrior2" keep
+       their suffix on line 2 rather than both ending "ArchiveTeam …". Names too
+       long for two lines still ellipsize (last line), and the full string stays
+       reachable via the title tooltip. */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+  .dark .app-grid-tool-name {
+    color: #f5f5f5;
+  }
+  /* Width selector: 28px visual centered in a ≥44px hit area (§6.3), horizontally
+     scrollable inside a narrow box so it never overflows the box or the page. */
+  .app-grid-width {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .app-grid-width::-webkit-scrollbar {
+    display: none;
+  }
+  .app-grid-width-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #737373;
+    margin-right: 4px;
+  }
+  .dark .app-grid-width-label {
+    color: #9aa3b8;
+  }
+  .app-grid-width-btn {
+    position: relative;
+    flex: none;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475069;
+  }
+  .app-grid-width-btn::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+  }
+  .dark .app-grid-width-btn {
+    color: #aab2c5;
+  }
+  .dark .app-grid-width-btn::before {
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+  .app-grid-width-btn:hover::before {
+    background: #f4f5fb;
+  }
+  .dark .app-grid-width-btn:hover::before {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .app-grid-width-btn.is-selected {
+    color: #fff;
+    font-weight: 700;
+  }
+  .app-grid-width-btn.is-selected::before {
+    background: #4f46e5;
+    border-color: #4f46e5;
+  }
+  .app-grid-width-btn:focus-visible {
+    outline: none;
+  }
+  .app-grid-width-btn:focus-visible::before {
+    box-shadow: 0 0 0 2px #6366f1;
+  }
+  /* + Add box: dashed full-width bar at the grid's end (§6.5). */
+  .app-grid-add {
+    grid-column: 1 / -1;
+    min-height: 64px;
+    border-radius: 16px;
+    border: 1px dashed rgba(15, 23, 42, 0.12);
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: #475069;
+    transition: background 0.18s, color 0.18s;
+  }
+  .dark .app-grid-add {
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #aab2c5;
+  }
+  .app-grid-add:hover {
+    background: rgba(99, 102, 241, 0.03);
+    color: #0f172a;
+  }
+  .dark .app-grid-add:hover {
+    background: rgba(99, 102, 241, 0.06);
+    color: #e6e9f2;
+  }
+  .app-grid-add-error {
+    font-size: 13px;
+    color: #dc2626;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-grid-tool {
+      transition: border-color 0.25s;
+    }
+    .app-grid-tool:hover,
+    .app-grid-tool:active {
+      transform: none;
+    }
+  }
+  /* ≤640px: 2-column page grid; per-box span + links-per-row already capped at
+     2 via the JS effective width (AC-022). No horizontal page scroll (§6.7). */
+  @media (max-width: 640px) {
+    .app-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
 }

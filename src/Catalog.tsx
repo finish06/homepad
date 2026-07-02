@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -42,7 +42,23 @@ import {
   type UptimeCheck,
 } from './api';
 import { iconSrc, initialBadge, validateIconFile } from './icons';
-import { OPENED_EVENT, clearRecent, loadRecent, recordOpen } from './recently-opened';
+import {
+  OPENED_EVENT,
+  RE_RANK_INTERVAL_MS,
+  clearRecent,
+  clearSortMode,
+  loadCategoryOrder,
+  loadOpenLog,
+  loadRecent,
+  loadSortMode,
+  loadSortRankAt,
+  recordOpen,
+  saveCategoryOrder,
+  setSortMode,
+  setSortRankAt,
+  type SortMode,
+} from './recently-opened';
+import { rankCategories } from './category-ranker';
 import LibraryBrowse from './LibraryBrowse';
 import ServiceForm from './ServiceForm';
 import { useServicesContext } from './services';
@@ -115,12 +131,62 @@ function useStatusPulse(status: ServiceStatus): boolean {
   return pulsing;
 }
 
+// v14 §2A — the floating-panel field's responsive column count. 4 / 3 / 2 at
+// ≥1024 / ≥768 / <768px. Drives the width of each panel and the number of 190px
+// tile slots inside it. v14.1 (Caleb+Walt): the ceiling dropped from 6 to 4 — 6
+// read sparse on wide monitors; 4 is the glance sweet spot.
+function fieldColsFor(width: number): number {
+  if (width >= 1024) return 4;
+  if (width >= 768) return 3;
+  return 2;
+}
+function useFieldCols(): number {
+  const [cols, setCols] = useState(() =>
+    typeof window !== 'undefined' ? fieldColsFor(window.innerWidth) : 4,
+  );
+  useEffect(() => {
+    const onResize = () => setCols(fieldColsFor(window.innerWidth));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return cols;
+}
+// A panel's column span. At the desktop width (≥1024, 4 cols) a panel hugs its
+// content: clamp(appCount, 1, fieldCols), capped at 4. At the stack breakpoints
+// (≤1023, 3/2 cols) every panel goes full-width (span = fieldCols), so they stack
+// in usage-priority order (A-004 "panels stack full-width").
+function panelColsFor(appCount: number, fieldCols: number): number {
+  const n = Math.max(1, appCount);
+  return fieldCols >= 4 ? Math.min(n, fieldCols) : fieldCols;
+}
+
 export default function Catalog({
   isAdmin = false,
   editMode = false,
+  arrange = false,
+  onExitEdit,
+  browseOpen,
+  onBrowseClose,
+  customFormOpen,
+  onCustomFormClose,
 }: {
   isAdmin?: boolean;
   editMode?: boolean;
+  // #166 — per-user Arrange mode (v1 A5.1). Off by default → the decluttered
+  // launcher view; on → the per-tile reorder grip is revealed so a user can
+  // drag tiles into a new order. Toggled by the header settings gear. It gates
+  // ONLY the grip — the v12.2.0 "⋯" menu (favorite + remove) stays always-on.
+  arrange?: boolean;
+  onExitEdit?: () => void;
+  // v18 — the LibraryBrowse + add-custom-app ServiceForm open-state can be lifted
+  // to the parent (App) so the header Gear menu can trigger them. When these are
+  // provided, the parent owns that open-state; the inline "+ Add apps" button and
+  // the empty-CTA still drive the local copy too (both paths coexist). The
+  // edit-an-existing-tile flow stays purely internal (it has no Gear entry).
+  browseOpen?: boolean;
+  onBrowseClose?: () => void;
+  customFormOpen?: boolean;
+  onCustomFormClose?: () => void;
 }) {
   // v8: the Service[] is shared with the command launcher via ServicesProvider so
   // both render the SAME already-loaded array (no second fetch, §3/A12). When the
@@ -139,8 +205,15 @@ export default function Catalog({
   // null = closed; {} = add; { service } = edit that service (A6 admin form).
   const [form, setForm] = useState<{ service?: Service } | null>(null);
   // v9.3 §7.2 — the browse + add-from-library modal. Reachable from the empty
-  // dashboard CTA and the always-visible "Add apps" entry.
-  const [browseOpen, setBrowseOpen] = useState(false);
+  // dashboard CTA and the always-visible "Add apps" entry. v18 — the header Gear
+  // can also open it via the lifted `browseOpen` prop; the modal shows when
+  // EITHER source is open, and closing notifies both.
+  const [localBrowseOpen, setLocalBrowseOpen] = useState(false);
+  const isBrowseOpen = localBrowseOpen || !!browseOpen;
+  function setBrowseOpen(open: boolean) {
+    setLocalBrowseOpen(open);
+    if (!open) onBrowseClose?.();
+  }
   // v5: the set of collapsed category ids (a row = "this user folded it"; absence
   // = expanded, the default). Seeded synchronously from the localStorage cache so
   // first paint is correct, then reconciled with the authoritative server set on
@@ -154,6 +227,36 @@ export default function Catalog({
   // OS), so the icon variant follows the System/Light/Dark control — not just
   // the OS. Without a provider (isolated tests) it falls back to the live OS.
   const theme = useResolvedTheme();
+
+  // v14 §2A — the responsive panel-field column count (6/4/3/2), used to size
+  // each category panel and its inner 190px tile grid.
+  const fieldCols = useFieldCols();
+
+  // v14 §3 — usage-priority category ordering. `sortMode` is the persisted
+  // Auto/Custom preference; `rankedOrder` is the mount-time computed category id
+  // order (auto mode only). `cats` always stays in server order — display order
+  // is derived below, so switching to Custom shows the true server order (C-006)
+  // and the DnD/reorder path keeps operating on `cats` unchanged.
+  const [sortMode, setSortModeState] = useState<SortMode>('auto');
+  const [rankedOrder, setRankedOrder] = useState<string[] | null>(null);
+  // The re-rank runs once per mount, after both cats and items have loaded.
+  const rankedRef = useRef(false);
+
+  // Compute the usage-ranked category id order from the current cats + items +
+  // open log. `now` is threaded so the 30-day window and persistence timestamp
+  // agree within a single call.
+  function computeRankedOrder(now: number): string[] {
+    const svcByCat = new Map<string, string[]>();
+    for (const c of cats) {
+      svcByCat.set(
+        c.id,
+        (items ?? []).filter((s) => s.categoryId === c.id).map((s) => s.id),
+      );
+    }
+    const cached = loadCategoryOrder();
+    const base = cached.length > 0 ? cached : cats.map((c) => c.id);
+    return rankCategories(cats, loadOpenLog(), svcByCat, base, now);
+  }
 
   // v10: always-on drag-and-drop. `activeDragId` is the id of the tile currently
   // picked up (pointer or keyboard) — it drives the lifted style and the grip's
@@ -186,6 +289,58 @@ export default function Catalog({
       cacheCollapsed(set);
     });
   }, []);
+
+  // v14 §6.5 — mount-time category re-rank. Runs once, after cats + items are
+  // loaded. Custom sort mode uses the server order (skip). In auto mode, reuse the
+  // cached order if the last re-rank was <24h ago (C-004); otherwise re-rank by
+  // 30-day usage and persist the new order + timestamp (C-002/C-003/C-005).
+  useEffect(() => {
+    if (rankedRef.current) return;
+    if (!items || cats.length === 0) return;
+    rankedRef.current = true;
+    const mode = loadSortMode();
+    setSortModeState(mode);
+    if (mode === 'custom') return;
+    const now = Date.now();
+    const cached = loadCategoryOrder();
+    if (now - loadSortRankAt() < RE_RANK_INTERVAL_MS && cached.length > 0) {
+      setRankedOrder(cached);
+      return;
+    }
+    const order = computeRankedOrder(now);
+    saveCategoryOrder(order);
+    setSortRankAt(now);
+    setRankedOrder(order);
+  }, [items, cats]);
+
+  // The category list in display order: server order in Custom mode (or before
+  // the first rank), else the usage-ranked order. Categories missing from the
+  // ranked list (e.g. created after the last rank) fall to the end in server
+  // order — a stable sort with an Infinity rank keeps their relative order.
+  const displayCats = useMemo(() => {
+    if (sortMode === 'custom' || !rankedOrder) return cats;
+    const pos = new Map(rankedOrder.map((id, i) => [id, i]));
+    return [...cats].sort(
+      (a, b) => (pos.get(a.id) ?? Infinity) - (pos.get(b.id) ?? Infinity),
+    );
+  }, [cats, sortMode, rankedOrder]);
+
+  // Arrange-mode Auto/Custom toggle (C-006/C-007). Custom persists the flag and
+  // reverts to server order. Auto (also "Reset to auto order") clears the flag and
+  // forces an immediate re-rank, ignoring the 24h gate.
+  function chooseCustom() {
+    setSortMode('custom');
+    setSortModeState('custom');
+  }
+  function chooseAuto() {
+    clearSortMode();
+    setSortModeState('auto');
+    const now = Date.now();
+    const order = computeRankedOrder(now);
+    saveCategoryOrder(order);
+    setSortRankAt(now);
+    setRankedOrder(order);
+  }
 
   // Optimistically flip the star, then persist. Roll back if the API rejects.
   // `next` is derived from current state up front — not from inside the setItems
@@ -233,7 +388,12 @@ export default function Catalog({
   // context, so they can't be dragged and stay pinned first/last. Optimistic
   // with rollback + the shared inline error if the PUT fails (A10).
   async function reorderCategory(activeId: string, overId: string) {
-    const prev = cats;
+    // #209 — the drop indices come from the SortableContext, which keys off
+    // displayCats (the usage-ranked order in auto mode), so the arrayMove must
+    // happen in that same display space. Doing it on the raw `cats` order sent
+    // the wrong id order to the server whenever auto ranking had flipped the two.
+    const prev = displayCats;
+    const catsSnapshot = cats; // pre-move raw order, for rollback
     if (activeId === overId) return;
     const gi = prev.findIndex((c) => c.id === activeId);
     const gj = prev.findIndex((c) => c.id === overId);
@@ -243,7 +403,7 @@ export default function Catalog({
     setLayoutError(false);
     const ok = await setCategoryOrder(next.map((c) => c.id));
     if (!ok) {
-      setCats(prev);
+      setCats(catsSnapshot);
       setLayoutError(true);
     }
   }
@@ -347,6 +507,9 @@ export default function Catalog({
     }
     setRev((r) => r + 1);
     setForm(null);
+    // v18 — if the form was opened via the lifted Gear "Add custom app" path,
+    // reset the parent's state too so it can be re-triggered.
+    onCustomFormClose?.();
   }
 
   // v9.3 §7.2 — an add-from-library copy lands on MY dashboard. Append it the same
@@ -423,7 +586,7 @@ export default function Catalog({
   // jumps category. The grip handle on each tile is the drag origin (the tile
   // stays a plain <a> — D2). For the flat v1 grid the section is the whole
   // catalog. Announcements (§10/A7) carry "position i of n" within `sectionIds`.
-  function renderGrid(sectionItems: Service[]) {
+  function renderGrid(sectionItems: Service[], panelCols: number) {
     const sectionIds = sectionItems.map((s) => s.id);
     const n = sectionIds.length;
     const nameOf = (id: string) => sectionItems.find((s) => s.id === id)?.name ?? '';
@@ -470,7 +633,12 @@ export default function Catalog({
         onDragCancel={onDragCancel}
       >
         <SortableContext items={sectionIds} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+          {/* v14 §2A — fixed 190px tile slots (never stretch); --panel-cols sets
+              how many slots per row, so overflow wraps within the panel. */}
+          <div
+            className="panel-tiles"
+            style={{ '--panel-cols': panelCols } as React.CSSProperties}
+          >
             {sectionItems.map((s) => (
               <ServiceTile
                 key={s.id}
@@ -478,6 +646,7 @@ export default function Catalog({
                 theme={theme}
                 rev={rev}
                 editMode={adminEdit}
+                arrange={arrange}
                 cats={cats}
                 grabbed={activeDragId === s.id}
                 onToggleFavorite={toggleFavorite}
@@ -519,8 +688,20 @@ export default function Catalog({
           says so at point-of-use, distinct from the global Admin Panel. */}
       {adminEdit && (
         <div data-testid="edit-mode-banner" className="edit-mode-banner" role="status">
-          <PencilIcon />
-          Editing your personal dashboard
+          <span className="edit-mode-banner-label">
+            <PencilIcon />
+            Editing your personal dashboard
+          </span>
+          {onExitEdit && (
+            <button
+              type="button"
+              data-testid="exit-edit-mode"
+              onClick={onExitEdit}
+              className="edit-mode-banner-exit"
+            >
+              Done editing
+            </button>
+          )}
         </div>
       )}
 
@@ -535,22 +716,27 @@ export default function Catalog({
           their personal dashboard is theirs to fill. #83: while the dashboard is
           empty or sparse, adding apps is the primary onboarding action, so this
           reads as a filled (solid) button; once the dashboard is well populated it
-          steps back to a quiet ghost so it doesn't compete with the apps. */}
+          steps back to a quiet ghost so it doesn't compete with the apps. #119:
+          when the dashboard is fully empty the empty-state block below renders its
+          own prominent CTA, so this button stands down to avoid two competing
+          indigo CTAs that do the identical thing. */}
+      {items.length > 0 && (
       <div className="mb-4 flex items-center gap-3">
         <button
           type="button"
           data-testid="open-library"
           data-emphasis={addAppsFilled ? 'filled' : 'ghost'}
           onClick={() => setBrowseOpen(true)}
-          className={
+          className={`inline-flex min-h-11 items-center rounded-lg px-3 py-1.5 text-sm font-medium ${
             addAppsFilled
-              ? 'rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700'
-              : 'rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-300'
-          }
+              ? 'bg-indigo-600 text-white shadow-sm hover:bg-indigo-700'
+              : 'border border-indigo-200 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-300'
+          }`}
         >
           + Add apps
         </button>
       </div>
+      )}
 
       {adminEdit && (
         <div className="mb-4 space-y-4">
@@ -568,6 +754,56 @@ export default function Catalog({
             onRename={renameCat}
             onDelete={removeCat}
           />
+        </div>
+      )}
+
+      {/* v14 §3/C-006 — the Arrange-mode sort toggle. Auto = usage-priority
+          ordering (the default); Custom = the manual/server order, dragged via
+          the category grips. "Reset to auto order" clears the custom flag (C-007). */}
+      {arrange && (
+        <div
+          data-testid="sort-mode-toggle"
+          className="mb-4 flex items-center gap-3 text-sm"
+        >
+          <span className="font-medium text-neutral-500">Sort</span>
+          <div className="inline-flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-600">
+            <button
+              type="button"
+              data-testid="sort-mode-auto"
+              aria-pressed={sortMode === 'auto'}
+              onClick={chooseAuto}
+              className={`px-3 py-1.5 font-medium ${
+                sortMode === 'auto'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
+              }`}
+            >
+              Auto
+            </button>
+            <button
+              type="button"
+              data-testid="sort-mode-custom"
+              aria-pressed={sortMode === 'custom'}
+              onClick={chooseCustom}
+              className={`px-3 py-1.5 font-medium ${
+                sortMode === 'custom'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
+              }`}
+            >
+              Custom
+            </button>
+          </div>
+          {sortMode === 'custom' && (
+            <button
+              type="button"
+              data-testid="sort-mode-reset"
+              onClick={chooseAuto}
+              className="text-indigo-600 hover:underline dark:text-indigo-300"
+            >
+              Reset to auto order
+            </button>
+          )}
         </div>
       )}
 
@@ -610,14 +846,28 @@ export default function Catalog({
           </button>
         </div>
       ) : !grouped ? (
-        renderGrid(items)
+        // v14 §2A — the flat (no-categories) catalog still gets the fixed-190px
+        // tile field so tiles never stretch (A-006), just without panel chrome.
+        <div className="tile-field">
+          {renderGrid(items, panelColsFor(items.length, fieldCols))}
+        </div>
       ) : (
-        <div className="space-y-2 sm:space-y-8">
+        // v14 §2A — the floating panel field. Every section (Favorites, each
+        // category, Uncategorized) is a glass panel packed left→right and
+        // wrapping. DndContext/SortableContext emit no DOM, so the category
+        // panels are direct flex children of .tile-field alongside the other two.
+        <div className="tile-field">
           {/* Favorites + Uncategorized are render-time buckets, not categories
               rows, so they have no id to key collapse state on — they stay
               always-expanded for v5 (Q2). Only real category sections collapse. */}
           {favorites.length > 0 && (
-            <Section title="Favorites" count={favorites.length}>{renderGrid(favorites)}</Section>
+            <Section
+              title="Favorites"
+              count={favorites.length}
+              panelCols={panelColsFor(favorites.length, fieldCols)}
+            >
+              {renderGrid(favorites, panelColsFor(favorites.length, fieldCols))}
+            </Section>
           )}
           {/* v10 A3 — the real category sections are a sortable list: drag a
               header grip to reorder folders (PUT /api/categories/order). Its own
@@ -630,37 +880,44 @@ export default function Catalog({
             onDragEnd={onCatDragEnd}
             onDragCancel={onCatDragCancel}
           >
-            <SortableContext items={cats.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2 sm:space-y-8">
-                {cats.map((c) => {
-                  const sectionItems = items.filter((s) => s.categoryId === c.id);
-                  return (
-                    <SortableSection
-                      key={c.id}
-                      cat={c}
-                      count={sectionItems.length}
-                      collapsed={collapsed.has(c.id)}
-                      error={collapseError === c.id}
-                      controlsId={`section-${c.id}`}
-                      grabbed={activeDragId === c.id}
-                      onToggle={() => toggleCollapse(c.id)}
-                    >
-                      {renderGrid(sectionItems)}
-                    </SortableSection>
-                  );
-                })}
-              </div>
+            {/* v10 A3 keeps verticalListSortingStrategy: ArrowUp/Down reorder the
+                category stack (the Arrange-mode contract), even though the panels
+                now pack in a 2D field at desktop widths. */}
+            <SortableContext items={displayCats.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+              {displayCats.map((c) => {
+                const sectionItems = items.filter((s) => s.categoryId === c.id);
+                const pc = panelColsFor(sectionItems.length, fieldCols);
+                return (
+                  <SortableSection
+                    key={c.id}
+                    cat={c}
+                    count={sectionItems.length}
+                    panelCols={pc}
+                    collapsed={collapsed.has(c.id)}
+                    error={collapseError === c.id}
+                    controlsId={`section-${c.id}`}
+                    grabbed={activeDragId === c.id}
+                    onToggle={() => toggleCollapse(c.id)}
+                  >
+                    {renderGrid(sectionItems, pc)}
+                  </SortableSection>
+                );
+              })}
             </SortableContext>
           </DndContext>
           {uncategorized.length > 0 && (
-            <Section title="Uncategorized" count={uncategorized.length}>
-              {renderGrid(uncategorized)}
+            <Section
+              title="Uncategorized"
+              count={uncategorized.length}
+              panelCols={panelColsFor(uncategorized.length, fieldCols)}
+            >
+              {renderGrid(uncategorized, panelColsFor(uncategorized.length, fieldCols))}
             </Section>
           )}
         </div>
       )}
 
-      {browseOpen && (
+      {isBrowseOpen && (
         <LibraryBrowse
           isAdmin={isAdmin}
           onClose={() => setBrowseOpen(false)}
@@ -672,11 +929,18 @@ export default function Catalog({
         />
       )}
 
-      {form && (
+      {/* v18 — the form renders for the internal edit/add flow (`form`) OR the
+          lifted Gear "Add custom app" path (`customFormOpen`), which opens add
+          mode directly without requiring editMode. Closing clears the internal
+          form and notifies the parent so its lifted state resets too. */}
+      {(form || customFormOpen) && (
         <ServiceForm
-          service={form.service}
+          service={form?.service}
           categories={cats}
-          onClose={() => setForm(null)}
+          onClose={() => {
+            setForm(null);
+            onCustomFormClose?.();
+          }}
           onSaved={onSaved}
         />
       )}
@@ -717,24 +981,28 @@ function RecentlyOpenedRow({
   if (resolved.length === 0) return null;
 
   return (
-    <div data-testid="recently-opened-row" className="mb-6">
+    // v14 §2B — the chip rail sits at the panel field's left edge (x=48) with a
+    // 24px gap to the first panel row (recently-opened-rail class in index.css).
+    <div data-testid="recently-opened-row" className="recently-opened-rail">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+        {/* B-003: neutral-500 (#737373) — neutral-400 fails AA on the field bg */}
+        <span className="text-[12px] font-bold uppercase tracking-wide text-neutral-500">
           Recently opened
         </span>
         <button
           type="button"
           data-testid="recently-opened-clear"
           onClick={clearRecent}
-          className="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+          className="text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
         >
           Clear
         </button>
       </div>
-      {/* Horizontal strip — scrolls on narrow viewports, single line when ≤8
-          items fit (AC-011). Each item is the same kind of new-tab link as the
-          full tile and records its own open (AC-004). */}
-      <div className="flex gap-3 overflow-x-auto pb-1">
+      {/* Horizontal chip rail — scrolls on narrow viewports with the scrollbar
+          hidden (B-006, via .recently-opened-chips). Each chip is a name-only
+          glass miniature of the tile, a full 44px tap target, and records its own
+          open on click (B-004). */}
+      <div className="recently-opened-chips flex gap-3 overflow-x-auto pb-1">
         {resolved.map((s) => (
           <a
             key={s.id}
@@ -744,7 +1012,7 @@ function RecentlyOpenedRow({
             target="_blank"
             rel="noreferrer noopener"
             onClick={() => recordOpen(s.id)}
-            className="flex w-16 shrink-0 flex-col items-center gap-1 rounded-lg p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+            className="recently-opened-chip flex h-11 shrink-0 items-center gap-1.5 rounded-xl pl-1.5 pr-3.5"
           >
             <img
               data-testid="recently-opened-icon"
@@ -752,9 +1020,9 @@ function RecentlyOpenedRow({
               alt=""
               data-fallback={initialBadge(s.name)}
               onError={handleIconError}
-              className="h-10 w-10 rounded-lg object-contain"
+              className="h-7 w-7 rounded-lg object-contain"
             />
-            <span className="w-full truncate text-center text-xs text-neutral-700 dark:text-neutral-300">
+            <span className="max-w-[8rem] truncate text-sm font-semibold leading-tight text-neutral-800 dark:text-neutral-100">
               {s.name}
             </span>
           </a>
@@ -788,6 +1056,7 @@ function CategoryCount({ count }: { count: number }) {
 function Section({
   title,
   count,
+  panelCols = 1,
   collapsible = false,
   collapsed = false,
   error = false,
@@ -801,6 +1070,9 @@ function Section({
 }: {
   title: string;
   count: number;
+  // v14 §2A — the panel's column span; sets the .category-panel width and the
+  // inner tile grid's slot count.
+  panelCols?: number;
   collapsible?: boolean;
   collapsed?: boolean;
   error?: boolean;
@@ -814,10 +1086,13 @@ function Section({
   dragHandle?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  // v14 — every section is a floating glass panel (.category-panel), sized by
+  // --panel-cols. The var is merged with any dnd transform style.
+  const panelStyle = { ...containerStyle, '--panel-cols': panelCols } as React.CSSProperties;
   // v4 static header (Favorites / Uncategorized): no toggle, always shows tiles.
   if (!collapsible) {
     return (
-      <section>
+      <section className="category-panel" style={panelStyle}>
         <h2 data-testid="category-header" className="cat-head font-semibold uppercase">
           <span>{title}</span>
           <CategoryCount count={count} />
@@ -832,8 +1107,8 @@ function Section({
   return (
     <section
       ref={containerRef}
-      style={containerStyle}
-      className={`rounded-lg transition-transform motion-reduce:transition-none ${
+      style={panelStyle}
+      className={`category-panel transition-transform motion-reduce:transition-none ${
         grabbed ? 'z-10 scale-[1.01] shadow-lg ring-1 ring-indigo-500/35 motion-reduce:scale-100' : ''
       }`}
     >
@@ -888,6 +1163,7 @@ function Section({
 function SortableSection({
   cat,
   count,
+  panelCols,
   collapsed,
   error,
   controlsId,
@@ -897,6 +1173,7 @@ function SortableSection({
 }: {
   cat: Category;
   count: number;
+  panelCols: number;
   collapsed: boolean;
   error: boolean;
   controlsId: string;
@@ -928,6 +1205,7 @@ function SortableSection({
     <Section
       title={cat.name}
       count={count}
+      panelCols={panelCols}
       collapsible
       collapsed={collapsed}
       error={error}
@@ -948,23 +1226,67 @@ function SortableSection({
 // Renders nothing when the service has no monitoring (absent/empty checks), so
 // unmonitored tiles keep their current height (AC-005/006/012). The dot row is
 // aria-hidden decoration; the label text carries the accessible summary.
+// Local-time "MMM D, HH:MM" (24h), or '' when the timestamp is absent/unparseable.
+function fmtCheckTime(ts: string): string {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
 function UptimeSparkline({ checks }: { checks?: UptimeCheck[] }) {
+  // Index of the dot currently hovered/focused, or null. Cleared on leave/blur.
+  const [hovered, setHovered] = useState<number | null>(null);
   if (!checks || checks.length === 0) return null;
   const total = checks.length;
   const successes = checks.reduce((n, c) => (c.success ? n + 1 : n), 0);
   const pct = Math.round((successes / total) * 100);
+  // Touch devices report no hover capability — skip the tooltip there so it never
+  // flickers on tap (AC-004). Defaults to enabled where matchMedia is absent.
+  const canHover = window.matchMedia?.('(hover: hover)').matches ?? true;
+  const active = hovered != null ? checks[hovered] : null;
+  const activeTime = active ? fmtCheckTime(active.timestamp) : '';
   return (
-    <div data-testid="uptime-sparkline" className="mt-1.5 flex flex-col gap-1">
-      <div aria-hidden="true" className="flex flex-nowrap gap-0.5 overflow-hidden">
-        {checks.map((c, i) => (
-          <span
-            key={i}
-            data-testid="uptime-dot"
-            data-success={c.success}
-            className={`h-1.5 min-w-px flex-1 rounded-[1px] ${c.success ? 'bg-emerald-500' : 'bg-red-500'}`}
-          />
-        ))}
+    <div data-testid="uptime-sparkline" className="relative mt-1.5 flex flex-col gap-1">
+      <div className="flex flex-nowrap gap-0.5 overflow-hidden">
+        {checks.map((c, i) => {
+          const time = fmtCheckTime(c.timestamp);
+          const result = c.success ? 'Passed' : 'Failed';
+          return (
+            <span
+              key={i}
+              data-testid="uptime-dot"
+              data-success={c.success}
+              aria-label={time ? `${result} – ${time}` : result}
+              className={`h-1.5 min-w-px flex-1 rounded-[1px] ${c.success ? 'bg-emerald-500' : 'bg-red-500'}`}
+              onMouseEnter={canHover ? () => setHovered(i) : undefined}
+              onMouseLeave={canHover ? () => setHovered(null) : undefined}
+              onFocus={canHover ? () => setHovered(i) : undefined}
+              onBlur={canHover ? () => setHovered(null) : undefined}
+            />
+          );
+        })}
       </div>
+      {active && (
+        // Anchored to the (non-clipping) sparkline wrapper, not the overflow-hidden
+        // dot row — otherwise the tooltip is clipped away. Floats above the dots.
+        <div
+          data-testid="uptime-tooltip"
+          role="tooltip"
+          className="pointer-events-none absolute bottom-full left-0 z-10 mb-1 whitespace-nowrap rounded bg-neutral-800 px-2 py-1 text-xs text-white shadow-md"
+        >
+          <span className={active.success ? 'text-emerald-400' : 'text-red-400'}>
+            {active.success ? '✓ Passed' : '✗ Failed'}
+          </span>
+          {activeTime && <div className="text-neutral-300">{activeTime}</div>}
+        </div>
+      )}
       <span data-testid="uptime-label" className="text-xs text-neutral-400 dark:text-neutral-500">
         {pct}% / {total} {total === 1 ? 'check' : 'checks'}
       </span>
@@ -977,6 +1299,7 @@ function ServiceTile({
   theme,
   rev,
   editMode,
+  arrange,
   cats,
   grabbed,
   onToggleFavorite,
@@ -989,6 +1312,7 @@ function ServiceTile({
   theme: IconVariant;
   rev: number;
   editMode: boolean;
+  arrange: boolean;
   cats: Category[];
   grabbed: boolean;
   onToggleFavorite: (id: string) => void;
@@ -1027,34 +1351,38 @@ function ServiceTile({
           pulsing ? 'status-dot--pulse' : ''
         }`}
       />
-      {/* v10 §5.2 — the drag grip. A real <button> (the single drag origin for
+      {/* §5.2 — the drag grip. A real <button> (the single drag origin for
           pointer, touch, AND keyboard) at the bottom-right so it doesn't fight
-          the "⋯" menu (top-left) or the status dot (top-right). #95 (Walt
-          2026-06-19): hidden below sm — on mobile the handle is clutter and
-          reordering is a desktop task — low-emphasis from sm up.
-          `grabbed` drives the accent + aria-pressed (§10/A6). */}
-      <button
-        type="button"
-        ref={setActivatorNodeRef}
-        {...attributes}
-        {...listeners}
-        data-testid="drag-handle"
-        data-drag-type="tile"
-        data-service-id={service.id}
-        aria-label={`Reorder ${service.name}`}
-        aria-pressed={grabbed}
-        className={`absolute bottom-2 right-2 z-10 hidden h-11 w-11 cursor-grab touch-none items-center justify-center rounded-md text-base leading-none outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-500 active:cursor-grabbing sm:flex sm:h-9 sm:w-9 sm:opacity-40 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 ${
-          grabbed ? 'text-indigo-600 opacity-100 dark:text-indigo-400' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200'
-        }`}
-      >
-        {grabbed && <span data-testid="drop-indicator" className="sr-only">moving</span>}
-        ⠿
-      </button>
-      {/* v10 §7 — favoriting moved out of the (removed) arrange mode into a
-          per-tile "⋯" overflow menu. The tile stays a clean <a> link; the menu
-          is the one always-on per-tile control surface (the favorite toggle is
-          one tap deep). */}
-      <TileMenu service={service} onToggleFavorite={onToggleFavorite} />
+          the "⋯" menu (top-left) or the status dot (top-right). #166: the grip
+          is part of Arrange mode — hidden in the normal (decluttered) launcher
+          view, revealed only when Arrange is on (the header settings gear). #95
+          (Walt 2026-06-19): still hidden below sm — reordering stays a desktop
+          task — low-emphasis from sm up. `grabbed` drives the accent +
+          aria-pressed (§10/A6). */}
+      {arrange && (
+        <button
+          type="button"
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          data-testid="drag-handle"
+          data-drag-type="tile"
+          data-service-id={service.id}
+          aria-label={`Reorder ${service.name}`}
+          aria-pressed={grabbed}
+          className={`absolute bottom-2 right-2 z-10 hidden h-11 w-11 cursor-grab touch-none items-center justify-center rounded-md text-base leading-none outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-500 active:cursor-grabbing sm:flex sm:h-9 sm:w-9 sm:opacity-70 sm:hover:opacity-100 ${
+            grabbed ? 'text-indigo-600 opacity-100 dark:text-indigo-400' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200'
+          }`}
+        >
+          {grabbed && <span data-testid="drop-indicator" className="sr-only">moving</span>}
+          ⠿
+        </button>
+      )}
+      {/* v12.2.0 (#174) — the per-tile "⋯" overflow menu: Favorite ★ + Remove
+          from dashboard. ALWAYS present (in both the normal and the Arrange
+          view) — favoriting lives here, not behind Arrange. The tile stays a
+          clean <a> link; the menu is the always-on per-tile control surface. */}
+      <TileMenu service={service} onToggleFavorite={onToggleFavorite} onRemoveService={onRemoveService} />
       <a
         href={service.url}
         target="_blank"
@@ -1073,12 +1401,14 @@ function ServiceTile({
         <span data-testid="service-tile-name" className="mt-3 truncate font-semibold text-neutral-800 dark:text-neutral-100">
           {service.name}
         </span>
-        <span
-          data-testid="service-tile-description"
-          className="mt-0.5 truncate pr-14 text-sm text-neutral-500"
-        >
-          {service.description}
-        </span>
+        {service.description && (
+          <span
+            data-testid="service-tile-description"
+            className="mt-0.5 truncate pr-14 text-sm text-neutral-500 dark:text-neutral-400"
+          >
+            {service.description}
+          </span>
+        )}
         <UptimeSparkline checks={service.uptimeChecks} />
       </a>
 
@@ -1105,11 +1435,17 @@ function ServiceTile({
 function TileMenu({
   service,
   onToggleFavorite,
+  onRemoveService,
 }: {
   service: Service;
   onToggleFavorite: (id: string) => void;
+  onRemoveService: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  // Second step of the menu: a compact confirm before the destructive remove.
+  // Lives inside the same popover (within menuRef) so the outside-click dismiss
+  // doesn't fire on its own buttons.
+  const [confirming, setConfirming] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   // #35: this trigger lives inside a dnd-kit sortable that re-renders the node
@@ -1123,7 +1459,10 @@ function TileMenu({
   const pointerHandled = useRef(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setConfirming(false);
+      return;
+    }
     // #35 (touch mode): dismiss on `pointerdown`, NOT `mousedown`. We OPEN the
     // menu on the trigger's `pointerup`; a touch tap then emits a *trailing
     // synthetic* `mousedown` for the same physical tap, which a mousedown
@@ -1154,6 +1493,28 @@ function TileMenu({
   }, [open]);
 
   const fav = service.favorite;
+  // Shared pointer/click handlers for the menu actions added in v12.2.0. Mirrors
+  // the favorite-toggle's #35 dance: act on `pointerup` (which fires reliably
+  // inside the dnd sortable's re-render) and suppress the trailing synthetic
+  // click; a keyboard Enter/Space fires `click` alone, so that path still runs.
+  const fire = (fn: () => void) => ({
+    onPointerDown: () => {
+      pointerHandled.current = false;
+    },
+    onPointerUp: (e: React.PointerEvent) => {
+      e.stopPropagation();
+      pointerHandled.current = true;
+      fn();
+    },
+    onClick: (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (pointerHandled.current) {
+        pointerHandled.current = false;
+        return;
+      }
+      fn();
+    },
+  });
   return (
     // #35 (mouse mode): `z-20` lifts the trigger above the sibling tile <a>.
     // Both were position:static/z-auto, so the anchor (later in DOM) painted on
@@ -1185,7 +1546,7 @@ function TileMenu({
           }
           setOpen((o) => !o);
         }}
-        className="tile-menu-trigger flex h-11 w-11 items-center justify-center rounded-full text-lg leading-none text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-indigo-500 sm:h-9 sm:w-9 sm:opacity-40 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 dark:hover:bg-neutral-800"
+        className="tile-menu-trigger flex h-11 w-11 items-center justify-center rounded-full text-lg leading-none text-neutral-500 outline-none transition hover:bg-neutral-100 hover:text-neutral-600 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-indigo-500 sm:opacity-40 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
       >
         ⋯
       </button>
@@ -1196,37 +1557,81 @@ function TileMenu({
           aria-label={`${service.name} options`}
           className="absolute left-0 top-full z-10 mt-1 min-w-[10rem] rounded-lg border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
         >
-          <button
-            type="button"
-            role="menuitem"
-            data-testid="favorite-toggle"
-            data-favorite={fav ? 'true' : 'false'}
-            aria-pressed={fav}
-            onPointerDown={() => {
-              pointerHandled.current = false;
-            }}
-            onPointerUp={(e) => {
-              e.stopPropagation();
-              pointerHandled.current = true;
-              onToggleFavorite(service.id);
-              setOpen(false);
-              triggerRef.current?.focus();
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (pointerHandled.current) {
-                pointerHandled.current = false;
-                return;
-              }
-              onToggleFavorite(service.id);
-              setOpen(false);
-              triggerRef.current?.focus();
-            }}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-neutral-700 outline-none hover:bg-neutral-100 focus-visible:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-700"
-          >
-            <span className={fav ? 'text-amber-400' : 'text-neutral-400'}>{fav ? '★' : '☆'}</span>
-            {fav ? 'Favorited' : 'Favorite'}
-          </button>
+          {confirming ? (
+            // Compact, in-menu confirm before the (owner-scoped) delete. Mirrors
+            // the SettingsPanel library-delete idiom — alertdialog + Remove/Cancel.
+            <div data-testid="tile-remove-confirm" role="alertdialog" aria-label={`Remove ${service.name}`} className="px-2 py-1.5">
+              <p className="text-sm text-neutral-700 dark:text-neutral-200">
+                Remove <strong>{service.name}</strong> from your dashboard?
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  data-testid="tile-remove-confirm-yes"
+                  {...fire(() => {
+                    onRemoveService(service.id);
+                    setOpen(false);
+                    triggerRef.current?.focus();
+                  })}
+                  className="flex-1 rounded-md bg-red-600 px-2 py-1 text-sm font-medium text-white outline-none hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-500"
+                >
+                  Remove
+                </button>
+                <button
+                  type="button"
+                  data-testid="tile-remove-confirm-no"
+                  {...fire(() => setConfirming(false))}
+                  className="flex-1 rounded-md border border-neutral-200 px-2 py-1 text-sm font-medium text-neutral-700 outline-none hover:bg-neutral-100 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="favorite-toggle"
+                data-favorite={fav ? 'true' : 'false'}
+                aria-pressed={fav}
+                onPointerDown={() => {
+                  pointerHandled.current = false;
+                }}
+                onPointerUp={(e) => {
+                  e.stopPropagation();
+                  pointerHandled.current = true;
+                  onToggleFavorite(service.id);
+                  setOpen(false);
+                  triggerRef.current?.focus();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (pointerHandled.current) {
+                    pointerHandled.current = false;
+                    return;
+                  }
+                  onToggleFavorite(service.id);
+                  setOpen(false);
+                  triggerRef.current?.focus();
+                }}
+                className="flex min-h-[44px] w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-neutral-700 outline-none hover:bg-neutral-100 focus-visible:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-700"
+              >
+                <span className={fav ? 'text-amber-400' : 'text-neutral-400'}>{fav ? '★' : '☆'}</span>
+                {fav ? 'Favorited' : 'Favorite'}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="remove-from-dashboard"
+                {...fire(() => setConfirming(true))}
+                className="flex min-h-[44px] w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-red-600 outline-none hover:bg-red-50 focus-visible:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+              >
+                <span aria-hidden="true">🗑</span>
+                Remove from dashboard
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -1460,14 +1865,14 @@ function CategoryManager({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="New category"
-          className="flex-1 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm outline-none focus:border-indigo-500"
+          className="flex-1 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm outline-none focus:border-indigo-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-500"
         />
         <button
           type="button"
           data-testid="category-create"
           disabled={busy}
           onClick={create}
-          className="rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-60"
+          className="rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-60 dark:border-indigo-500/40 dark:text-indigo-300 dark:hover:bg-indigo-500/10"
         >
           Add category
         </button>
@@ -1517,14 +1922,14 @@ function CategoryRow({
         value={name}
         onChange={(e) => setName(e.target.value)}
         aria-label={`Rename ${cat.name}`}
-        className="min-w-0 flex-1 rounded-lg border border-neutral-300 px-2 py-1 text-sm outline-none focus:border-indigo-500"
+        className="min-w-0 flex-1 rounded-lg border border-neutral-300 px-2 py-1 text-sm outline-none focus:border-indigo-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
       />
       <button
         type="button"
         data-testid="category-rename"
         disabled={busy}
         onClick={save}
-        className="rounded-md border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
+        className="rounded-md border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-60 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
       >
         Save
       </button>
@@ -1533,7 +1938,7 @@ function CategoryRow({
         data-testid="category-delete"
         aria-label={`Delete ${cat.name}`}
         onClick={() => onDelete(cat.id)}
-        className="rounded-md border border-red-200 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+        className="rounded-md border border-red-200 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-500/40 dark:text-red-400 dark:hover:bg-red-500/10"
       >
         Delete
       </button>
