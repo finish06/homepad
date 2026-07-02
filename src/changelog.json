@@ -2,6 +2,14 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.9.0",
+      "date": "2026-07-02",
+      "changes": [
+        { "type": "enhancement", "text": "Pinning is back. Every app tile now has a ★ favorite toggle in its corner — tap it to pin an app to the top of your quick-launch Favorites (in the ⌘K launcher), tap again to unpin. It updates live and is personal to you. The control had been dropped when the App Grid replaced the old dashboard (#240)." },
+        { "type": "enhancement", "text": "Admins can rename and delete dashboard boxes again. Turn on “Edit dashboard” from the header gear and each box gets Rename and Delete buttons. Deleting a box doesn’t delete its apps — they move to “Uncategorized” so nothing disappears. Renaming and deleting were only possible in the old dashboard; the App Grid dropped them (#241)." }
+      ]
+    },
+    {
       "version": "12.8.0",
       "date": "2026-07-02",
       "changes": [

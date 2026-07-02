@@ -7,6 +7,45 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.9.0] — 2026-07-02 — Restore favorites toggle + box rename/delete in the App Grid
+
+### Added
+
+- **Per-tile favorite toggle is back (#240).** The App Grid's tool tiles had
+  dropped the favorite control the old Catalog ⋯ menu carried — `setFavorite` and
+  the launcher **Favorites** section still existed, but there was no UI to pin or
+  unpin. Each tile now shows a ★ toggle (a real `<button>` layered over the tool
+  link, corner-anchored above it so a real center click lands on the star, not the
+  navigation). Activating it pins/unpins via `POST`/`DELETE /api/favorites/{id}`
+  (optimistic, with rollback on failure) and mirrors into the shared services
+  context so the ⌘K launcher's Favorites section updates live. Available to every
+  logged-in user in the normal view (favoriting is personal, not admin edit).
+- **Box (category) rename + delete are back (#241).** `SPEC-app-grid §7` had
+  deferred these to the old Catalog CategoryManager, which the App Grid replace
+  retired — so admins could create boxes but not rename or delete them. In **Edit
+  Dashboard** mode each real category box header now exposes **Rename** (inline
+  editor → `PATCH /api/categories/{id}`, optimistic, reconciled to the server's
+  canonical name, inline error + rollback on a 409 duplicate) and **Delete**
+  (in-place confirm → `DELETE /api/categories/{id}`). Because the FK is
+  `ON DELETE SET NULL`, a deleted box's apps fall back to **Uncategorized** — the
+  client re-homes them live (clears `categoryId` in the shared services) so they
+  don't vanish until reload, and rolls both back if the delete fails. The synthetic
+  Uncategorized box and non-admins never get the controls.
+
+### Fixed
+
+- **App Grid drag-reorder browser-gate mock (#239).** The `#35` reorder gate mocked
+  `PUT /api/categories/order` as HTTP 200, but the real API returns **204** and the
+  client only treats 204 as success — so the keyboard drag-reorder rolled straight
+  back under test. The gate mock now returns 204, matching the backend.
+
+### Notes
+
+- Per-tile **status dots (#242)** remain deferred (Caleb's call) — untouched here.
+- Edit Dashboard mode + drag-to-rearrange (12.8.0), box width (1–6) + the width
+  selector + `grid_width` persistence, the ≤640px 2-column layout, and the a11y
+  contract are all unchanged by this restoration.
+
 ## [12.8.0] — 2026-07-02 — Restore Edit Dashboard + rearrange categories in the App Grid
 
 ### Added
