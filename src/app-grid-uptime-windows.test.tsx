@@ -83,6 +83,20 @@ describe('AppGrid long-window uptime', () => {
     expect(txt).toContain('99.8%');
   });
 
+  it('drops the decimal when a fraction rounds up to exactly 100% (AC-U07)', async () => {
+    vi.mocked(api.services).mockResolvedValue([
+      // 0.9995 -> 99.95%, which rounds to the 100% boundary: must render "100%",
+      // not "100.0%". 0.999 -> 99.9% keeps its one decimal.
+      svc('boundary', 'Boundary App', { '24h': 0.9995, '7d': 0.999 }),
+    ]);
+    await renderGrid();
+    const txt =
+      within(tileFor('Boundary App')).getByTestId('tile-uptime').textContent ?? '';
+    expect(txt).toContain('100%');
+    expect(txt).not.toContain('100.0');
+    expect(txt).toContain('99.9%');
+  });
+
   it('renders NO uptime element for an unmonitored service (AC-U06 height parity)', async () => {
     await renderGrid();
     expect(
