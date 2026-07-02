@@ -19,6 +19,8 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   categories as fetchCategories,
   createCategory,
+  deleteCategory,
+  renameCategory,
   saveCategoryWidth,
   setCategoryOrder,
   setFavorite,
@@ -181,6 +183,47 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
     [cats],
   );
 
+  // #241 — box (category) rename. Optimistic name swap, then reconcile to the
+  // server's canonical name; roll back + surface the error inline on a rejection
+  // (409 duplicate etc.). Returns true or the error string for the row to show.
+  const onRenameBox = useCallback(
+    async (id: string, name: string): Promise<true | string> => {
+      const prev = cats;
+      setCats((cs) => cs.map((c) => (c.id === id ? { ...c, name } : c)));
+      const r = await renameCategory(id, name);
+      if (!r.ok) {
+        setCats(prev);
+        return r.error ?? 'Could not rename box';
+      }
+      if (r.category) {
+        setCats((cs) => cs.map((c) => (c.id === id ? { ...c, name: r.category!.name } : c)));
+      }
+      return true;
+    },
+    [cats],
+  );
+
+  // #241 — box delete. The FK is ON DELETE SET NULL server-side, so the box's
+  // apps fall back to Uncategorized — none are deleted. Optimistically drop the
+  // box AND re-home its apps in the shared services (clear categoryId) so they
+  // render under Uncategorized live instead of vanishing until a reload; roll
+  // both back if the DELETE fails.
+  const onDeleteBox = useCallback(
+    async (id: string): Promise<boolean> => {
+      const prevCats = cats;
+      const prevSvcs = svcs;
+      setCats((cs) => cs.filter((c) => c.id !== id));
+      updateSvcs((list) => list.map((s) => (s.categoryId === id ? { ...s, categoryId: null } : s)));
+      const ok = await deleteCategory(id);
+      if (!ok) {
+        setCats(prevCats);
+        if (prevSvcs) updateSvcs(() => prevSvcs);
+      }
+      return ok;
+    },
+    [cats, svcs, updateSvcs],
+  );
+
   const onCreate = useCallback(async (title: string) => {
     const r = await createCategory(title);
     if (r.ok && r.category) {
@@ -230,17 +273,17 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext items={sortableBoxes.map((b) => b.id)} strategy={rectSortingStrategy}>
                 {sortableBoxes.map((box) => (
-                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} isMobile={isMobile} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} />
+                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} isMobile={isMobile} editing={editing} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
                 ))}
               </SortableContext>
             </DndContext>
             {uncatBox && (
-              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} isMobile={isMobile} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} />
+              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} isMobile={isMobile} editing={editing} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
             )}
           </>
         ) : (
           boxes.map((box) => (
-            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} isMobile={isMobile} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} />
+            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} isMobile={isMobile} editing={editing} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
           ))
         )}
         {addButton}
@@ -274,25 +317,55 @@ function BoxCard({
   box,
   isAdmin,
   isMobile,
+  editing,
   onWidth,
   onToggleFavorite,
+  onRename,
+  onDelete,
   sortable,
 }: {
   box: Box;
   isAdmin: boolean;
   isMobile: boolean;
+  editing: boolean;
   onWidth: (id: string, width: number) => void;
   onToggleFavorite: (id: string) => void;
+  onRename: (id: string, name: string) => Promise<true | string>;
+  onDelete: (id: string) => Promise<boolean>;
   sortable?: BoxSortable;
 }) {
   const theme = useResolvedTheme();
   // A synthetic Uncategorized box (empty id) has no real category → no selector.
   const showSelector = isAdmin && box.id !== '';
+  // #241 — rename/delete manage only REAL category boxes, and only in Edit
+  // Dashboard mode. The synthetic Uncategorized box never gets them.
+  const canManage = editing && box.id !== '';
+  const [renaming, setRenaming] = useState(false);
+  const [name, setName] = useState(box.title);
+  const [renameError, setRenameError] = useState('');
+  const [renamingBusy, setRenamingBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const style: React.CSSProperties = { ['--w' as string]: effectiveWidth(box.width, isMobile) };
   if (sortable) {
     style.transform = CSS.Transform.toString(sortable.transform);
     style.transition = sortable.transition;
   }
+
+  const startRename = () => {
+    setName(box.title);
+    setRenameError('');
+    setRenaming(true);
+  };
+  const saveRename = async () => {
+    const n = name.trim();
+    if (!n || renamingBusy) return;
+    setRenamingBusy(true);
+    const r = await onRename(box.id, n);
+    setRenamingBusy(false);
+    if (r === true) setRenaming(false);
+    else setRenameError(r);
+  };
+
   return (
     <section
       ref={sortable?.setNodeRef}
@@ -324,10 +397,108 @@ function BoxCard({
         <h2 className="app-grid-box-title" data-testid="box-title" title={box.title}>
           {box.title}
         </h2>
+        {canManage && (
+          <div className="app-grid-box-actions">
+            <button
+              type="button"
+              className="app-grid-box-action"
+              data-testid="box-rename"
+              aria-label={`Rename ${box.title}`}
+              onClick={startRename}
+            >
+              Rename
+            </button>
+            <button
+              type="button"
+              className="app-grid-box-action is-danger"
+              data-testid="box-delete"
+              aria-label={`Delete ${box.title}`}
+              onClick={() => setConfirming(true)}
+            >
+              Delete
+            </button>
+          </div>
+        )}
         {showSelector && (
           <WidthSelector width={box.width} onPick={(w) => onWidth(box.id, w)} />
         )}
       </header>
+      {canManage && renaming && (
+        // Rename editor (kept below the header so the h2 box-title stays present).
+        <div className="app-grid-box-rename">
+          <input
+            className="settings-input"
+            data-testid="box-rename-input"
+            aria-label={`New name for ${box.title}`}
+            value={name}
+            autoFocus
+            onChange={(e) => {
+              setName(e.target.value);
+              setRenameError('');
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveRename();
+              if (e.key === 'Escape') setRenaming(false);
+            }}
+          />
+          <button
+            type="button"
+            className="app-grid-box-action"
+            data-testid="box-rename-save"
+            disabled={!name.trim() || renamingBusy}
+            onClick={saveRename}
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            className="app-grid-box-action"
+            data-testid="box-rename-cancel"
+            onClick={() => setRenaming(false)}
+          >
+            Cancel
+          </button>
+          {renameError && (
+            <p className="app-grid-add-error" role="alert" data-testid="box-rename-error">
+              {renameError}
+            </p>
+          )}
+        </div>
+      )}
+      {canManage && confirming && (
+        // In-place delete confirm (apps fall back to Uncategorized, none deleted).
+        <div
+          className="app-grid-box-confirm"
+          role="alertdialog"
+          aria-label={`Delete ${box.title}`}
+          data-testid="box-delete-confirm"
+        >
+          <p className="app-grid-box-confirm-text">
+            Delete <strong>{box.title}</strong>? Its apps move to Uncategorized.
+          </p>
+          <div className="app-grid-box-confirm-actions">
+            <button
+              type="button"
+              className="app-grid-box-action is-danger"
+              data-testid="box-delete-yes"
+              onClick={() => {
+                setConfirming(false);
+                void onDelete(box.id);
+              }}
+            >
+              Delete box
+            </button>
+            <button
+              type="button"
+              className="app-grid-box-action"
+              data-testid="box-delete-no"
+              onClick={() => setConfirming(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
       {box.tools.length === 0 ? (
         <p className="app-grid-empty" data-testid="box-empty">
           {isAdmin ? 'No apps yet — add from the Library.' : 'No apps in this box.'}
@@ -350,14 +521,20 @@ function SortableBox({
   box,
   isAdmin,
   isMobile,
+  editing,
   onWidth,
   onToggleFavorite,
+  onRename,
+  onDelete,
 }: {
   box: Box;
   isAdmin: boolean;
   isMobile: boolean;
+  editing: boolean;
   onWidth: (id: string, width: number) => void;
   onToggleFavorite: (id: string) => void;
+  onRename: (id: string, name: string) => Promise<true | string>;
+  onDelete: (id: string) => Promise<boolean>;
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: box.id });
@@ -366,8 +543,11 @@ function SortableBox({
       box={box}
       isAdmin={isAdmin}
       isMobile={isMobile}
+      editing={editing}
       onWidth={onWidth}
       onToggleFavorite={onToggleFavorite}
+      onRename={onRename}
+      onDelete={onDelete}
       sortable={{ attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging }}
     />
   );
