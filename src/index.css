@@ -2318,6 +2318,90 @@
   .dark .app-grid-tool-fav.is-favorite {
     color: #fbbf24;
   }
+  /* #242 — per-tile status pip on the App Grid tool tile (SPEC-242 §5, Kare).
+     9px solid circle at top-LEFT (8/8) — mirrors the favorite ★ at top-right so
+     the two corner affordances never collide (D-1). pointer-events:none + absolute
+     in .app-grid-tool-wrap → zero layout impact; the 120px tile height (A1 AC-007)
+     is untouched. A mandatory 1px definition ring (D-2) lifts the emerald/amber/
+     neutral fills — which fail the 3:1 non-text floor on the near-white tile — to a
+     ≥3:1 boundary; the state-coloured glow (D-3) is the at-a-glance calm/alarm read
+     and is OFF for UNKNOWN + NOT_MONITORED (infra noise / absence, not a failure). */
+  .app-grid-tool-status {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 9px;
+    height: 9px;
+    box-sizing: border-box;
+    border-radius: 9999px;
+    pointer-events: none;
+  }
+  /* Light-mode fills + composed box-shadow: 1px definition ring, then the state
+     glow (UP/DOWN/DEGRADED). UNKNOWN carries the ring only — no alarm glow (§4). */
+  .app-grid-tool-status[data-status='UP'] {
+    background: #10b981;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.55),
+      0 0 0 3px rgba(16, 185, 129, 0.14), 0 0 8px rgba(16, 185, 129, 0.5);
+  }
+  .app-grid-tool-status[data-status='DOWN'] {
+    background: #ef4444;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.55),
+      0 0 0 3px rgba(244, 63, 94, 0.14), 0 0 8px rgba(244, 63, 94, 0.45);
+  }
+  .app-grid-tool-status[data-status='DEGRADED'] {
+    background: #fbbf24;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.55),
+      0 0 0 3px rgba(251, 191, 36, 0.16), 0 0 8px rgba(251, 191, 36, 0.5);
+  }
+  .app-grid-tool-status[data-status='UNKNOWN'] {
+    background: #a3a3a3;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.55);
+  }
+  /* NOT_MONITORED — the sole hollow/dashed shape (AC-017): transparent fill + a
+     1.5px dashed neutral-500 ring that IS the boundary (no extra definition ring),
+     no glow. neutral-500 #737373 measures 4.74:1 vs #fff — raised from the failing
+     neutral-400 (#80 fix, D-5). */
+  .app-grid-tool-status[data-status='NOT_MONITORED'] {
+    background: transparent;
+    border: 1.5px dashed #737373;
+  }
+  /* Dark parity — swap the definition ring to a light hairline (dark fills already
+     clear 3:1; the hairline is separation + parity, D-2); keep the same glow. */
+  .dark .app-grid-tool-status[data-status='UP'] {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28),
+      0 0 0 3px rgba(16, 185, 129, 0.14), 0 0 8px rgba(16, 185, 129, 0.5);
+  }
+  .dark .app-grid-tool-status[data-status='DOWN'] {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28),
+      0 0 0 3px rgba(244, 63, 94, 0.14), 0 0 8px rgba(244, 63, 94, 0.45);
+  }
+  .dark .app-grid-tool-status[data-status='DEGRADED'] {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28),
+      0 0 0 3px rgba(251, 191, 36, 0.16), 0 0 8px rgba(251, 191, 36, 0.5);
+  }
+  .dark .app-grid-tool-status[data-status='UNKNOWN'] {
+    background: #737373;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28);
+  }
+  .dark .app-grid-tool-status[data-status='NOT_MONITORED'] {
+    border-color: #a3a3a3;
+  }
+  /* D-4 — single-shot pulse fired only on the tile whose status changed (JS adds
+     the class on a poll diff). scale(1→1.7→1), 0.6s, transform only (no reflow).
+     Reduced-motion: no pulse — JS skips the class; this @media is belt-and-braces. */
+  @keyframes app-grid-status-pulse {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.7); }
+    100% { transform: scale(1); }
+  }
+  .app-grid-tool-status--pulse {
+    animation: app-grid-status-pulse 0.6s ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-grid-tool-status--pulse {
+      animation: none;
+    }
+  }
   /* Touch devices have no hover — keep the star reachable (always visible). */
   @media (hover: none) {
     .app-grid-tool-fav {

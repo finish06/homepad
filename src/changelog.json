@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "13.1.0",
+      "date": "2026-07-02",
+      "changes": [
+        { "type": "enhancement", "text": "Every app tile now shows a small status dot in its top-left corner so you can see at a glance whether a service is up. Green means up, red means down, amber means degraded. A plain grey dot means the monitoring system itself couldn't get a reading (not a real outage), and a dashed hollow ring means that app just doesn't have monitoring set up — neither of those is shown as an alarm. The dot sits opposite the favorite star so they never overlap, it never gets in the way of tapping the app, and when a service's status changes it gives a brief one-time pulse (which is skipped if you've asked your device to reduce motion)." }
+      ]
+    },
+    {
       "version": "13.0.0",
       "date": "2026-07-02",
       "changes": [

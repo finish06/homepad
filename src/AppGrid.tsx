@@ -27,6 +27,7 @@ import {
   services as fetchServices,
   type Category,
   type Service,
+  type ServiceStatus,
 } from './api';
 import { boxesFromData, fitsViewport, MAX_WIDTH, moveCategory, type Box } from './appGrid';
 import { iconSrc, initialBadge } from './icons';
@@ -559,6 +560,40 @@ function SortableBox({
   );
 }
 
+// SPEC-242 §5 — the per-tile status indicator's human labels. NOT_MONITORED is
+// "not monitored" (absence of monitoring, not a failure — D-6); the rest are the
+// raw state. Drives both the aria-label ("status: {label}") and the title.
+const statusLabel: Record<ServiceStatus, string> = {
+  UP: 'UP',
+  DOWN: 'DOWN',
+  DEGRADED: 'DEGRADED',
+  UNKNOWN: 'UNKNOWN',
+  NOT_MONITORED: 'not monitored',
+};
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+}
+
+// SPEC-242 D-4 — pulse a tile's status pip once when its status flips between
+// poll cycles (AC-011/013). Tracks the previous status across renders: the first
+// render (mount) never pulses, an unchanged status never pulses, and only the
+// tile that changed pulses. Under prefers-reduced-motion the pip snaps to the new
+// state with no animation (AC-012). Mirrors the shipped Catalog useStatusPulse.
+function useStatusPulse(status: ServiceStatus): boolean {
+  const prev = useRef(status);
+  const [pulsing, setPulsing] = useState(false);
+  useEffect(() => {
+    if (prev.current === status) return;
+    prev.current = status;
+    if (prefersReducedMotion()) return;
+    setPulsing(true);
+    const t = setTimeout(() => setPulsing(false), 700);
+    return () => clearTimeout(t);
+  }, [status]);
+  return pulsing;
+}
+
 // One tool link: icon plate + name, opens the tool in a new tab (AC-011, §6.4).
 // The visible name truncates; the accessible name (aria-label) + native title
 // carry the full string (§6.2.1). A favorite ★ toggle (#240) sits in the corner
@@ -575,8 +610,25 @@ function ToolLink({
   onToggleFavorite: (id: string) => void;
 }) {
   const fav = service.favorite;
+  // SPEC-242 D-4 — one-shot pulse when this tile's status changes on a live poll.
+  const pulsing = useStatusPulse(service.status);
   return (
     <div className="app-grid-tool-wrap">
+      {/* SPEC-242 §5 — per-tile status pip. A SIBLING of the <a> (not nested), so
+          it stays out of the anchor's accessible name — its own aria-label carries
+          the status independently (D-1 DOM). top-LEFT at 8/8 mirrors the favorite ★
+          (top-right) so the two corner affordances never collide; pointer-events:
+          none (CSS) → it never intercepts a tap and adds zero layout (120px height,
+          AC-007). data-status drives the fill/ring/glow per state. */}
+      <span
+        className={`app-grid-tool-status${pulsing ? ' app-grid-tool-status--pulse' : ''}`}
+        data-testid="tile-status"
+        data-status={service.status}
+        data-pulsing={pulsing ? 'true' : 'false'}
+        role="img"
+        title={statusLabel[service.status] ?? service.status}
+        aria-label={`status: ${statusLabel[service.status] ?? service.status}`}
+      />
       <a
         className="app-grid-tool"
         data-testid="tool-link"
