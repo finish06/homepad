@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { Category, Service } from './api';
-import { boxesFromData, clampWidth, effectiveWidth, moveCategory } from './appGrid';
+import { boxesFromData, boxWidthPx, clampWidth, fitsViewport, MAX_WIDTH, moveCategory } from './appGrid';
 
-// SPEC-app-grid — pure layout helpers. The greedy pack + wrap is done by CSS
-// grid auto-placement (browser-gate territory); these cover the JS-side math:
-// the box width clamp (1–6), the ≤640px mobile cap (AC-022), and grouping the
-// user's own services under their box in admin order (AC-012, AC-024).
+// SPEC-app-grid (Amendment A1) — pure layout helpers. The flex-wrap page pack +
+// the fixed-190px auto-fill tools track are pure CSS (browser-gate territory);
+// these cover the JS-side math: the box width clamp (1–8, A1), the content-sized
+// box-width formula (AC-002-A1), the viewport-fit test that drives the D-3 width
+// selector disable, and grouping the user's own services under their box in admin
+// order (AC-012, AC-024).
 
 const cat = (id: string, name: string, sortIndex: number, gridWidth?: number): Category => ({
   id,
@@ -17,25 +19,38 @@ const cat = (id: string, name: string, sortIndex: number, gridWidth?: number): C
 const svc = (id: string, name: string, categoryId?: string | null): Service =>
   ({ id, name, categoryId, slug: id, description: '', url: 'https://x', icon: '', status: 'UNKNOWN', favorite: false, iconLight: false, iconDark: false }) as Service;
 
-describe('clampWidth', () => {
-  it('clamps to the 1–6 range and rounds', () => {
+describe('clampWidth (A1 — range 1–8)', () => {
+  it('clamps to the 1–8 range and rounds', () => {
+    expect(MAX_WIDTH).toBe(8);
     expect(clampWidth(0)).toBe(1);
     expect(clampWidth(-3)).toBe(1);
-    expect(clampWidth(7)).toBe(6);
+    expect(clampWidth(9)).toBe(8);
+    expect(clampWidth(7)).toBe(7);
     expect(clampWidth(3)).toBe(3);
     expect(clampWidth(2.6)).toBe(3);
   });
 });
 
-describe('effectiveWidth (AC-022)', () => {
-  it('is the clamped width on desktop', () => {
-    expect(effectiveWidth(5, false)).toBe(5);
-    expect(effectiveWidth(6, false)).toBe(6);
+describe('boxWidthPx (AC-002-A1 — content-sized box)', () => {
+  // box width = w × TILE_PX(190) + (w-1) × GAP(16) + 2 × PADDING(16)
+  it('computes the exact content width for a given --w', () => {
+    expect(boxWidthPx(1)).toBe(190 + 32); // 222
+    expect(boxWidthPx(3)).toBe(634); // 3×190 + 2×16 + 32
+    expect(boxWidthPx(6)).toBe(1252); // fits 1280 (A1 table)
+    expect(boxWidthPx(7)).toBe(1458); // overflows 1440
+    expect(boxWidthPx(8)).toBe(1664); // overflows 1440, fits 1920
   });
-  it('caps at 2 on mobile regardless of configured width', () => {
-    expect(effectiveWidth(5, true)).toBe(2);
-    expect(effectiveWidth(6, true)).toBe(2);
-    expect(effectiveWidth(1, true)).toBe(1);
+});
+
+describe('fitsViewport (D-3 — width selector disable)', () => {
+  // A --w whose box would exceed the available width is offered DISABLED so an
+  // admin never sets an off-screen box on their own display (A1 D-3 option c).
+  it('is true when the box fits, false when it would overflow', () => {
+    expect(fitsViewport(6, 1280)).toBe(true); // 1252 ≤ 1280
+    expect(fitsViewport(7, 1440)).toBe(false); // 1458 > 1440
+    expect(fitsViewport(8, 1440)).toBe(false); // 1664 > 1440
+    expect(fitsViewport(8, 1920)).toBe(true); // 1664 ≤ 1920
+    expect(fitsViewport(1, 320)).toBe(true); // 222 ≤ 320
   });
 });
 
