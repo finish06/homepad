@@ -94,29 +94,31 @@ describe('AppGrid rendering', () => {
   describe('pane fill grow model (R3/R4)', () => {
     it('exposes --floor, --grow, --cap on each box (R3)', async () => {
       // Media = width-4, 1 app (Plex); shares the 1920 row with Infra (width-2, 1 app),
-      // so it is NOT lone: floor = boxWidthPx(4) = 812, grow = 1 app, cap = max(floor,
-      // contentMaxPx(1)=222) = 812 (floor wins — the admin width-4 is honoured).
+      // so it is NOT lone: floor = boxWidthPx(4) = 840, grow = 1 app, cap = max(floor,
+      // contentMaxPx(1)=222) = 840 (floor wins — the admin width-4 is honoured).
       await renderGrid(true);
       const media = screen.getAllByTestId('app-grid-box')[0];
-      expect(media.style.getPropertyValue('--floor')).toBe('812px');
+      expect(media.style.getPropertyValue('--floor')).toBe('840px');
       expect(media.style.getPropertyValue('--grow')).toBe('1');
-      expect(media.style.getPropertyValue('--cap')).toBe('812px');
+      expect(media.style.getPropertyValue('--cap')).toBe('840px');
     });
 
     it('caps a many-app box at its content-max, above the --w floor (R3)', async () => {
-      // Media width-2 (floor 396) with 4 apps → cap grows to contentMaxPx(4)=780.
-      vi.mocked(api.categories).mockResolvedValue([cat('c1', 'Media', 0, 2)]);
+      // Media width-2 (floor boxWidthPx(2)=428) with 4 apps → cap grows to
+      // contentMaxPx(4)=840. A sibling Infra keeps it off a lone row (else R4 → 100%).
+      vi.mocked(api.categories).mockResolvedValue([cat('c1', 'Media', 0, 2), cat('c2', 'Infra', 1, 2)]);
       vi.mocked(api.services).mockResolvedValue([
         svc('s1', 'Plex', 'c1'),
         svc('s2', 'Sonarr', 'c1'),
         svc('s3', 'Radarr', 'c1'),
         svc('s4', 'Jellyfin', 'c1'),
+        svc('s5', 'Grafana', 'c2'),
       ]);
       await renderGrid(true);
       const media = screen.getAllByTestId('app-grid-box')[0];
-      expect(media.style.getPropertyValue('--floor')).toBe('396px');
+      expect(media.style.getPropertyValue('--floor')).toBe('428px');
       expect(media.style.getPropertyValue('--grow')).toBe('4');
-      expect(media.style.getPropertyValue('--cap')).toBe('780px');
+      expect(media.style.getPropertyValue('--cap')).toBe('840px');
     });
 
     it('keeps an empty box at its floor with grow 0 (AC-R3-5)', async () => {
@@ -124,9 +126,9 @@ describe('AppGrid rendering', () => {
       await renderGrid(true);
       const media = screen.getAllByTestId('app-grid-box')[0]; // Media width-4, no apps
       expect(media.style.getPropertyValue('--grow')).toBe('0');
-      expect(media.style.getPropertyValue('--floor')).toBe('812px');
+      expect(media.style.getPropertyValue('--floor')).toBe('840px');
       // cap never drops below the floor, so max-width can't shrink it under --w.
-      expect(media.style.getPropertyValue('--cap')).toBe('812px');
+      expect(media.style.getPropertyValue('--cap')).toBe('840px');
     });
 
     it('lifts a lone box (alone in its row) to a 100% cap so it fills the frame (R4)', async () => {

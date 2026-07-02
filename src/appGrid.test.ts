@@ -63,7 +63,7 @@ describe('contentMaxPx (R3 content-max grow cap)', () => {
   it('computes the single-row content width for n apps (n × 190 + (n−1) × 16 + 32)', () => {
     expect(contentMaxPx(1)).toBe(222);
     expect(contentMaxPx(3)).toBe(634);
-    expect(contentMaxPx(5)).toBe(1006);
+    expect(contentMaxPx(5)).toBe(1046);
   });
 
   it('is 0 for an empty box (0 apps) — the box stays at its --w floor, never grows (AC-R3-5)', () => {

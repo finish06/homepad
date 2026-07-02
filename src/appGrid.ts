@@ -25,6 +25,47 @@ export function boxWidthPx(w: number): number {
   return c * TILE_PX + (c - 1) * GAP_PX + 2 * PADDING_PX;
 }
 
+// SPEC-pane-fill-reflow (Phase 1, R3) — contentMaxPx is a box's content-max GROW
+// CAP: the exact width to lay all `n` apps out in ONE row (n fixed 190px tiles +
+// (n-1) gaps + 2×16 pad). Same slot formula as boxWidthPx but DELIBERATELY
+// UNCLAMPED: boxWidthPx clamps --w to the admin 1–8 range, whereas a box can hold
+// more than 8 apps and must report its true single-row width so R3 can grow it to
+// reveal every column. An empty box (0 apps) has no content, so its cap is 0 (the
+// --w floor is the box's minimum; the caller maxes cap against it).
+export function contentMaxPx(n: number): number {
+  const c = Math.max(0, Math.round(n));
+  if (c === 0) return 0;
+  return c * TILE_PX + (c - 1) * GAP_PX + 2 * PADDING_PX;
+}
+
+// SPEC-pane-fill-reflow (Phase 1, R4) — rowFillCounts bins boxes into the visual
+// flex-wrap rows the browser forms, greedily filling a row by each box's FLOOR
+// width (its --w basis) until the next box won't fit, then wrapping. It returns,
+// per box (input order), how many boxes share its row. A count of 1 marks a LONE
+// box: R4 grows a lone populated box to 100% of the frame rather than stranding it
+// at its content-max. The pack need only tell rows-of-one from rows-of-many (the
+// floor-sum approach does that reliably); it is not a pixel-perfect layout.
+export function rowFillCounts(floors: number[], contentWidth: number, gap: number = GAP_PX): number[] {
+  const counts = new Array<number>(floors.length).fill(1);
+  const rows: number[][] = [];
+  let row: number[] = [];
+  let used = 0;
+  for (let i = 0; i < floors.length; i++) {
+    const next = row.length === 0 ? floors[i] : used + gap + floors[i];
+    if (row.length > 0 && next > contentWidth) {
+      rows.push(row);
+      row = [i];
+      used = floors[i];
+    } else {
+      row.push(i);
+      used = next;
+    }
+  }
+  if (row.length > 0) rows.push(row);
+  for (const r of rows) for (const idx of r) counts[idx] = r.length;
+  return counts;
+}
+
 // fitsViewport answers "does a box at width `w` fit `vw` px without overflowing?"
 // It drives the D-3 width-selector disable: a --w whose box would exceed the
 // admin's current viewport is offered disabled so they never set an off-screen
