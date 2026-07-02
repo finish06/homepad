@@ -364,14 +364,14 @@ describe('A2(v2) — edit-mode icon controls', () => {
   });
 });
 
-// SPEC-245-224 §6 — the catalog is a SHARED, admin-managed set, so the edit-mode
-// banner tells the admin their changes affect all users (not a personal dashboard).
+// v11 §4.4 A7 — an edit-mode contextual banner tells the admin they are editing
+// their own personal dashboard (vs. the global Admin Panel).
 describe('v11 A7 — edit-mode banner', () => {
-  it('shows the "Editing the shared catalog" banner when edit mode is on', async () => {
+  it('shows the "Editing your personal dashboard" banner when edit mode is on', async () => {
     render(<Catalog isAdmin editMode />);
     await screen.findByTestId('service-tile');
     const banner = screen.getByTestId('edit-mode-banner');
-    expect(banner).toHaveTextContent(/editing the shared catalog — changes affect all users/i);
+    expect(banner).toHaveTextContent(/editing your personal dashboard/i);
   });
 
   it('does not show the banner when edit mode is off', async () => {

@@ -139,19 +139,23 @@ function GearMenuTrigger({
 // on outside click and Escape.
 function GearMenu({
   isAdmin,
+  arrange,
   editMode,
   triggerRef,
+  onToggleArrange,
+  onToggleEditMode,
   onAddApps,
   onAddCustomApp,
-  onToggleEdit,
   onClose,
 }: {
   isAdmin: boolean;
+  arrange: boolean;
   editMode: boolean;
   triggerRef: React.RefObject<HTMLButtonElement>;
+  onToggleArrange: () => void;
+  onToggleEditMode: () => void;
   onAddApps: () => void;
   onAddCustomApp: () => void;
-  onToggleEdit: () => void;
   onClose: () => void;
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -203,6 +207,18 @@ function GearMenu({
       <button
         type="button"
         role="menuitem"
+        data-testid="gear-arrange"
+        onClick={() => act(onToggleArrange)}
+        className="menu-item"
+      >
+        <ArrangeIcon />
+        Arrange tiles
+        {arrange && <CheckIcon testid="gear-arrange-check" />}
+      </button>
+
+      <button
+        type="button"
+        role="menuitem"
         data-testid="gear-add-apps"
         onClick={() => act(onAddApps)}
         className="menu-item"
@@ -223,30 +239,24 @@ function GearMenu({
           <button
             type="button"
             role="menuitem"
+            data-testid="gear-edit-tiles"
+            onClick={() => act(onToggleEditMode)}
+            className="menu-item"
+          >
+            <PencilIcon />
+            Edit tiles
+            {editMode && <CheckIcon testid="gear-edit-tiles-check" />}
+          </button>
+
+          <button
+            type="button"
+            role="menuitem"
             data-testid="gear-add-custom-app"
             onClick={() => act(onAddCustomApp)}
             className="menu-item"
           >
             <PlusIcon />
             Add custom app
-          </button>
-
-          {/* Edit Dashboard — the admin, client-ephemeral rearrange mode restored
-              for the App Grid (a reload returns to view mode). A checkbox item so
-              its on/off state is announced; the trailing checkmark mirrors the
-              old Arrange/Edit-tiles toggles. Toggling drives AppGrid's box
-              drag-to-reorder. */}
-          <button
-            type="button"
-            role="menuitemcheckbox"
-            aria-checked={editMode}
-            data-testid="gear-edit-dashboard"
-            onClick={() => act(onToggleEdit)}
-            className="menu-item"
-          >
-            <ArrangeIcon />
-            Edit dashboard
-            {editMode && <span className="menu-check" aria-hidden="true">✓</span>}
           </button>
         </>
       )}
@@ -255,11 +265,39 @@ function GearMenu({
 }
 
 // v18 menu icons — inline SVGs, aria-hidden; the item text carries the meaning.
+function ArrangeIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="menu-icon">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
+
+// Trailing checkmark — pushed to the right edge (.menu-check) to signal a toggle
+// item is active. `testid` lets a test assert the active state per item.
+function CheckIcon({ testid }: { testid?: string }) {
+  return (
+    <svg data-testid={testid} aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="menu-icon menu-check">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 12l4.5 4.5L19 6" />
+    </svg>
+  );
+}
+
 function PlusIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="menu-icon">
       <circle cx="12" cy="12" r="9" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v8M8 12h8" />
+    </svg>
+  );
+}
+
+// Copied from UserMenu.tsx (spec §4.1 allows copy-or-share); kept local so the
+// Gear menu is self-contained.
+function PencilIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="menu-icon">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />
     </svg>
   );
 }
@@ -272,20 +310,12 @@ function ShieldIcon() {
   );
 }
 
-// Edit-dashboard (rearrange) icon — a 4-arrow move glyph, signalling drag-to-
-// reorder, aria-hidden; the item text carries the meaning.
-function ArrangeIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="menu-icon">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18M3 12h18M8 7l4-4 4 4M8 17l4 4 4-4M7 8l-4 4 4 4M17 8l4 4-4 4" />
-    </svg>
-  );
-}
-
 export default function AppHeader({
   user,
+  arrange = false,
   editMode = false,
-  onToggleEdit = () => {},
+  onToggleArrange = () => {},
+  onToggleEditMode = () => {},
   onOpenLibrary = () => {},
   onOpenCustomAppForm = () => {},
   onOpenAdminSettings,
@@ -296,8 +326,10 @@ export default function AppHeader({
   bellRef,
 }: {
   user: User;
+  arrange?: boolean;
   editMode?: boolean;
-  onToggleEdit?: () => void;
+  onToggleArrange?: () => void;
+  onToggleEditMode?: () => void;
   onOpenLibrary?: () => void;
   onOpenCustomAppForm?: () => void;
   onOpenAdminSettings: () => void;
@@ -312,6 +344,7 @@ export default function AppHeader({
   const [gearOpen, setGearOpen] = useState(false);
   const gearRef = useRef<HTMLButtonElement>(null);
   const isAdmin = user.role === 'admin';
+  const anyModeActive = arrange || editMode;
 
   // Escape's focus-restore is handled inside GearMenu; closing here just drops
   // the open-state so an outside click doesn't yank focus back to the gear.
@@ -328,7 +361,7 @@ export default function AppHeader({
           <LastUpdated />
           <div className="relative">
             <GearMenuTrigger
-              anyModeActive={editMode}
+              anyModeActive={anyModeActive}
               open={gearOpen}
               triggerRef={gearRef}
               onClick={() => setGearOpen((o) => !o)}
@@ -336,11 +369,13 @@ export default function AppHeader({
             {gearOpen && (
               <GearMenu
                 isAdmin={isAdmin}
+                arrange={arrange}
                 editMode={editMode}
                 triggerRef={gearRef}
+                onToggleArrange={onToggleArrange}
+                onToggleEditMode={onToggleEditMode}
                 onAddApps={onOpenLibrary}
                 onAddCustomApp={onOpenCustomAppForm}
-                onToggleEdit={onToggleEdit}
                 onClose={closeGear}
               />
             )}

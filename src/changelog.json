@@ -2,57 +2,6 @@
   "pending": [],
   "versions": [
     {
-      "version": "13.1.0",
-      "date": "2026-07-02",
-      "changes": [
-        { "type": "enhancement", "text": "Every app tile now shows a small status dot in its top-left corner so you can see at a glance whether a service is up. Green means up, red means down, amber means degraded. A plain grey dot means the monitoring system itself couldn't get a reading (not a real outage), and a dashed hollow ring means that app just doesn't have monitoring set up — neither of those is shown as an alarm. The dot sits opposite the favorite star so they never overlap, it never gets in the way of tapping the app, and when a service's status changes it gives a brief one-time pulse (which is skipped if you've asked your device to reduce motion)." }
-      ]
-    },
-    {
-      "version": "13.0.0",
-      "date": "2026-07-02",
-      "changes": [
-        { "type": "enhancement", "text": "App tiles are now a consistent size everywhere. Before, a tile in a narrow box and a tile in a wide box came out different widths (the box width was split into equal fractions). Now every app tile is the same fixed size no matter which box it's in — boxes hug their content and wrap to the next row when they don't fit, instead of stretching. Tiles show the icon above the name, and a one-line name and a two-line name take the same height so the grid never jumps." },
-        { "type": "enhancement", "text": "Box width now goes up to 8 (was 6). If a width would be wider than your screen, that button is shown disabled (“Wider than this screen”) so you can't accidentally set a box off the edge. On phones each box fills the width and shows 2 tiles per row." }
-      ]
-    },
-    {
-      "version": "12.9.1",
-      "date": "2026-07-02",
-      "changes": [
-        { "type": "bug-fix", "text": "The box width buttons now only appear in “Edit dashboard” mode. Before, admins saw the 1–6 width selector on every box during normal browsing; it now stays hidden until you turn on Edit dashboard from the header gear — matching the Rename and Delete controls — so the everyday view stays clean. Changing width still works exactly the same inside edit mode." }
-      ]
-    },
-    {
-      "version": "12.9.0",
-      "date": "2026-07-02",
-      "changes": [
-        { "type": "enhancement", "text": "Pinning is back. Every app tile now has a ★ favorite toggle in its corner — tap it to pin an app to the top of your quick-launch Favorites (in the ⌘K launcher), tap again to unpin. It updates live and is personal to you. The control had been dropped when the App Grid replaced the old dashboard (#240)." },
-        { "type": "enhancement", "text": "Admins can rename and delete dashboard boxes again. Turn on “Edit dashboard” from the header gear and each box gets Rename and Delete buttons. Deleting a box doesn’t delete its apps — they move to “Uncategorized” so nothing disappears. Renaming and deleting were only possible in the old dashboard; the App Grid dropped them (#241)." }
-      ]
-    },
-    {
-      "version": "12.8.0",
-      "date": "2026-07-02",
-      "changes": [
-        { "type": "enhancement", "text": "Edit Dashboard is back. Admins can open the header gear and turn on “Edit dashboard”, then drag the category boxes to rearrange them — the new order is saved and shared for everyone. Both features had been dropped when the App Grid replaced the old dashboard layout; this restores them. Turning edit mode off (or reloading) returns to the normal view. Box width, the width selector, and the mobile 2-column layout are unchanged." }
-      ]
-    },
-    {
-      "version": "12.7.2",
-      "date": "2026-07-01",
-      "changes": [
-        { "type": "bug-fix", "text": "App tiles whose names share a prefix (e.g. “ArchiveTeam Warrior1” and “ArchiveTeam Warrior2”) no longer collapse to the same “ArchiveTeam …” on narrow tiles — the name now wraps to a second line so the distinguishing word stays visible, and the full name is still on hover (#195)." }
-      ]
-    },
-    {
-      "version": "12.7.1",
-      "date": "2026-07-01",
-      "changes": [
-        { "type": "bug-fix", "text": "On wide monitors the dashboard now uses the full page width, so your app tiles grow to fill the extra space instead of staying the same size they were on a laptop. Before, a big external monitor showed the same-size tiles as a 1440px screen; now they get roomier (about 216px → 235px at 2560px) and line up with the header and status bar. iPad and phone layouts are unchanged." }
-      ]
-    },
-    {
       "version": "12.7.0",
       "date": "2026-07-01",
       "changes": [
