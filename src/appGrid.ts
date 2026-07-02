@@ -65,3 +65,22 @@ export function boxesFromData(categories: Category[], services: Service[]): Box[
   }
   return boxes;
 }
+
+// moveCategory reorders the boxes for Edit-Dashboard drag-to-reorder: it takes the
+// admin (sortIndex) order, moves `activeId` into `overId`'s slot preserving every
+// other box's relative order, and rewrites sortIndex to the new contiguous
+// positions so boxesFromData renders the new order. Returns the input untouched
+// (same reference) when the drop is a no-op or an id is unknown, so callers can
+// skip a needless persist. AppGrid's onDragEnd persists the new id order via
+// setCategoryOrder — the same whole-array contract the old Catalog reorder used.
+export function moveCategory(categories: Category[], activeId: string, overId: string): Category[] {
+  if (activeId === overId) return categories;
+  const ordered = [...categories].sort((a, b) => a.sortIndex - b.sortIndex);
+  const from = ordered.findIndex((c) => c.id === activeId);
+  const to = ordered.findIndex((c) => c.id === overId);
+  if (from < 0 || to < 0) return categories;
+  const moved = ordered.slice();
+  const [item] = moved.splice(from, 1);
+  moved.splice(to, 0, item);
+  return moved.map((c, i) => ({ ...c, sortIndex: i }));
+}

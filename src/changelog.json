@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.8.0",
+      "date": "2026-07-02",
+      "changes": [
+        { "type": "enhancement", "text": "Edit Dashboard is back. Admins can open the header gear and turn on “Edit dashboard”, then drag the category boxes to rearrange them — the new order is saved and shared for everyone. Both features had been dropped when the App Grid replaced the old dashboard layout; this restores them. Turning edit mode off (or reloading) returns to the normal view. Box width, the width selector, and the mobile 2-column layout are unchanged." }
+      ]
+    },
+    {
       "version": "12.7.2",
       "date": "2026-07-01",
       "changes": [

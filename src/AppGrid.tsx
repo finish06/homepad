@@ -1,13 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   categories as fetchCategories,
   createCategory,
   saveCategoryWidth,
+  setCategoryOrder,
   services as fetchServices,
   type Category,
   type Service,
 } from './api';
-import { boxesFromData, effectiveWidth, MAX_WIDTH, type Box } from './appGrid';
+import { boxesFromData, effectiveWidth, MAX_WIDTH, moveCategory, type Box } from './appGrid';
 import { iconSrc, initialBadge } from './icons';
 import { useServicesContext } from './services';
 import { useResolvedTheme } from './theme';
@@ -38,7 +56,7 @@ function useIsMobile(): boolean {
   return mobile;
 }
 
-export default function AppGrid({ isAdmin }: { isAdmin: boolean }) {
+export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolean; editMode?: boolean }) {
   // Services come from the shared provider (the SAME array the launcher + live
   // poll use — §3/A12); AppGrid self-fetches only when rendered without a
   // provider (isolated tests). Categories (box list + widths) AppGrid owns.
@@ -47,7 +65,20 @@ export default function AppGrid({ isAdmin }: { isAdmin: boolean }) {
   const [catsLoaded, setCatsLoaded] = useState(false);
   const [ownSvcs, setOwnSvcs] = useState<Service[] | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  // aria-live announcement for the drag-to-reorder a11y path (mirrors the old
+  // Catalog category reorder — §10/A7).
+  const [announce, setAnnounce] = useState('');
   const isMobile = useIsMobile();
+
+  // Sensors for box drag-to-reorder (Edit Dashboard). Pointer with an 8px
+  // activation so a click on a width button still registers; touch with a
+  // press-hold so a drag doesn't fight page scroll; keyboard (the REQUIRED a11y
+  // path) with the sortable coordinate getter. Same recipe as the retired Catalog.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   useEffect(() => {
     let alive = true;
@@ -92,6 +123,33 @@ export default function AppGrid({ isAdmin }: { isAdmin: boolean }) {
     [],
   );
 
+  // Commit a box (category) reorder on drop: move the dragged box into the
+  // target's slot and persist the whole new id order via PUT /api/categories/order
+  // — the same whole-array contract the old Catalog reorder + v7 arrows used.
+  // moveCategory renumbers sortIndex so boxesFromData renders the new order.
+  // Optimistic with rollback if the PUT fails. The synthetic Uncategorized box
+  // (empty id) is outside the sortable context, so it can't be a drag source or
+  // target here.
+  const onDragEnd = useCallback(
+    async (e: DragEndEvent) => {
+      const { active, over } = e;
+      if (!over || active.id === over.id) return;
+      const prev = cats;
+      const next = moveCategory(prev, active.id as string, over.id as string);
+      if (next === prev) return;
+      setCats(next);
+      const name = prev.find((c) => c.id === active.id)?.name ?? 'Box';
+      const pos = next.findIndex((c) => c.id === active.id) + 1;
+      setAnnounce(`${name} moved to position ${pos} of ${next.length}.`);
+      const ok = await setCategoryOrder(next.map((c) => c.id));
+      if (!ok) {
+        setCats(prev);
+        setAnnounce('Could not save the new order.');
+      }
+    },
+    [cats],
+  );
+
   const onCreate = useCallback(async (title: string) => {
     const r = await createCategory(title);
     if (r.ok && r.category) {
@@ -111,53 +169,125 @@ export default function AppGrid({ isAdmin }: { isAdmin: boolean }) {
   }
 
   const boxes = boxesFromData(cats, svcs ?? []);
+  // Edit Dashboard is admin-only + client-ephemeral (a reload returns to view
+  // mode). Only REAL category boxes rearrange; the synthetic Uncategorized box
+  // (empty id) stays pinned last, outside the sortable context.
+  const editing = isAdmin && editMode;
+  const sortableBoxes = boxes.filter((b) => b.id !== '');
+  const uncatBox = boxes.find((b) => b.id === '');
+
+  const addButton = isAdmin && (
+    <button
+      type="button"
+      className="app-grid-add"
+      data-testid="add-box"
+      onClick={() => setAddOpen(true)}
+    >
+      + Add box
+    </button>
+  );
 
   return (
     <>
-      <div className="app-grid" data-testid="app-grid">
-        {boxes.map((box) => (
-          <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} isMobile={isMobile} onWidth={changeWidth} />
-        ))}
-        {isAdmin && (
-          <button
-            type="button"
-            className="app-grid-add"
-            data-testid="add-box"
-            onClick={() => setAddOpen(true)}
-          >
-            + Add box
-          </button>
+      <div
+        className={`app-grid${editing ? ' is-editing' : ''}`}
+        data-testid="app-grid"
+        data-editing={editing || undefined}
+      >
+        {editing ? (
+          <>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+              <SortableContext items={sortableBoxes.map((b) => b.id)} strategy={rectSortingStrategy}>
+                {sortableBoxes.map((box) => (
+                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} isMobile={isMobile} onWidth={changeWidth} />
+                ))}
+              </SortableContext>
+            </DndContext>
+            {uncatBox && (
+              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} isMobile={isMobile} onWidth={changeWidth} />
+            )}
+          </>
+        ) : (
+          boxes.map((box) => (
+            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} isMobile={isMobile} onWidth={changeWidth} />
+          ))
         )}
+        {addButton}
+      </div>
+      {/* a11y: announce reorder outcomes to screen readers (drag path — §10/A7). */}
+      <div className="sr-only" role="status" aria-live="polite" data-testid="app-grid-announce">
+        {announce}
       </div>
       {addOpen && <AddBoxModal onCreate={onCreate} onClose={() => setAddOpen(false)} />}
     </>
   );
 }
 
-// A single box: glass container, header (title + admin width selector), and the
-// inner tools grid (or the designed empty state, §6.6).
+// The dnd-kit sortable wiring a box needs in Edit Dashboard mode: the node ref,
+// the lifted transform, and the drag-handle grip (activator ref + listeners).
+type BoxSortable = {
+  setNodeRef: (el: HTMLElement | null) => void;
+  setActivatorNodeRef: (el: HTMLElement | null) => void;
+  attributes: React.HTMLAttributes<HTMLButtonElement>;
+  listeners: Record<string, unknown> | undefined;
+  transform: { x: number; y: number; scaleX: number; scaleY: number } | null;
+  transition: string | undefined;
+  isDragging: boolean;
+};
+
+// A single box: glass container, header (drag grip in edit mode + title + admin
+// width selector), and the inner tools grid (or the designed empty state, §6.6).
+// `sortable` is present only when the box is draggable (Edit Dashboard, real
+// categories); it supplies the node ref, lifted transform, and grip.
 function BoxCard({
   box,
   isAdmin,
   isMobile,
   onWidth,
+  sortable,
 }: {
   box: Box;
   isAdmin: boolean;
   isMobile: boolean;
   onWidth: (id: string, width: number) => void;
+  sortable?: BoxSortable;
 }) {
   const theme = useResolvedTheme();
   // A synthetic Uncategorized box (empty id) has no real category → no selector.
   const showSelector = isAdmin && box.id !== '';
+  const style: React.CSSProperties = { ['--w' as string]: effectiveWidth(box.width, isMobile) };
+  if (sortable) {
+    style.transform = CSS.Transform.toString(sortable.transform);
+    style.transition = sortable.transition;
+  }
   return (
     <section
-      className="app-grid-box"
+      ref={sortable?.setNodeRef}
+      className={`app-grid-box${sortable?.isDragging ? ' is-grabbed' : ''}`}
       data-testid="app-grid-box"
       data-box-id={box.id}
-      style={{ ['--w' as string]: effectiveWidth(box.width, isMobile) }}
+      style={style}
     >
       <header className="app-grid-box-header">
+        {sortable && (
+          // The sole drag origin (a real <button>, keyboard-operable). #35 gate:
+          // it lives inside the sortable subtree but must never contest a pixel
+          // an open header dropdown owns — CSS keeps the grid stacking below the
+          // header (z-20) / dropdown (z-50).
+          <button
+            type="button"
+            ref={sortable.setActivatorNodeRef}
+            {...sortable.attributes}
+            {...(sortable.listeners as React.DOMAttributes<HTMLButtonElement>)}
+            className="app-grid-box-grip"
+            data-testid="box-drag-handle"
+            data-category-id={box.id}
+            aria-label={`Reorder ${box.title}`}
+            aria-pressed={sortable.isDragging}
+          >
+            ⠿
+          </button>
+        )}
         <h2 className="app-grid-box-title" data-testid="box-title" title={box.title}>
           {box.title}
         </h2>
@@ -177,6 +307,33 @@ function BoxCard({
         </div>
       )}
     </section>
+  );
+}
+
+// SortableBox makes one real-category box draggable in Edit Dashboard mode. It
+// calls useSortable (which needs a DndContext ancestor — hence a distinct
+// component rendered only in edit mode) and hands the wiring to BoxCard.
+function SortableBox({
+  box,
+  isAdmin,
+  isMobile,
+  onWidth,
+}: {
+  box: Box;
+  isAdmin: boolean;
+  isMobile: boolean;
+  onWidth: (id: string, width: number) => void;
+}) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+    useSortable({ id: box.id });
+  return (
+    <BoxCard
+      box={box}
+      isAdmin={isAdmin}
+      isMobile={isMobile}
+      onWidth={onWidth}
+      sortable={{ attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging }}
+    />
   );
 }
 

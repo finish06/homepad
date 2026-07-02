@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Category, Service } from './api';
-import { boxesFromData, clampWidth, effectiveWidth } from './appGrid';
+import { boxesFromData, clampWidth, effectiveWidth, moveCategory } from './appGrid';
 
 // SPEC-app-grid — pure layout helpers. The greedy pack + wrap is done by CSS
 // grid auto-placement (browser-gate territory); these cover the JS-side math:
@@ -75,5 +75,42 @@ describe('boxesFromData', () => {
 
     const noUncat = boxesFromData([cat('c1', 'Media', 0, 3)], [svc('s1', 'Plex', 'c1')]);
     expect(noUncat.map((b) => b.title)).toEqual(['Media']);
+  });
+});
+
+// AG-EDIT-3 — drag-to-reorder boxes (Edit Dashboard). The pure move: `activeId`
+// takes `overId`'s slot in the admin (sortIndex) order, every other box keeps its
+// relative order, and sortIndex is rewritten to the new positions so boxesFromData
+// renders the new order. This is the JS-side math the DnD onDragEnd persists via
+// setCategoryOrder — the drag itself is browser-gate territory.
+describe('moveCategory (AG-EDIT-3 drag-to-reorder)', () => {
+  const c = (id: string, sortIndex: number): Category => ({ id, name: id, sortIndex, gridWidth: 3 });
+
+  it('moves the dragged box into the target slot, preserving other order', () => {
+    const cats = [c('a', 0), c('b', 1), c('c', 2), c('d', 3)];
+    // drag 'a' onto 'c' → order becomes b, c, a, d
+    const next = moveCategory(cats, 'a', 'c');
+    expect(next.map((x) => x.id)).toEqual(['b', 'c', 'a', 'd']);
+  });
+
+  it('rewrites sortIndex to the new contiguous positions', () => {
+    const cats = [c('a', 0), c('b', 1), c('c', 2)];
+    const next = moveCategory(cats, 'c', 'a'); // c, a, b
+    expect(next.map((x) => x.id)).toEqual(['c', 'a', 'b']);
+    expect(next.map((x) => x.sortIndex)).toEqual([0, 1, 2]);
+  });
+
+  it('operates in sortIndex order even when the input array order differs', () => {
+    // input array is NOT in sortIndex order; move must respect the displayed order
+    const cats = [c('c', 2), c('a', 0), c('b', 1)];
+    const next = moveCategory(cats, 'a', 'b'); // display a,b,c → move a onto b → b,a,c
+    expect(next.map((x) => x.id)).toEqual(['b', 'a', 'c']);
+    expect(next.map((x) => x.sortIndex)).toEqual([0, 1, 2]);
+  });
+
+  it('returns the input unchanged when active === over or an id is unknown', () => {
+    const cats = [c('a', 0), c('b', 1)];
+    expect(moveCategory(cats, 'a', 'a')).toBe(cats);
+    expect(moveCategory(cats, 'a', 'zzz')).toBe(cats);
   });
 });

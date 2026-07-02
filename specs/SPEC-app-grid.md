@@ -342,13 +342,36 @@ standing process.
 
 ---
 
-## 7. Out of scope (v1)
+## 7. Scope: in and out (v1)
 
-These items are explicitly excluded from this spec. They may be revisited in future specs.
+### IN scope — Edit Dashboard + rearrange categories (restored 2026-07-02, Caleb's call)
+
+The initial App Grid build deferred **Edit Dashboard mode** and **rearrange
+categories** out of v1 (see the struck items below). Caleb uses both daily — the
+App Grid replacing the old Catalog layout dropped them, a **regression**. They are
+now IN scope and shipped:
+
+- **Edit Dashboard mode** — the admin gear (header) toggles a client-ephemeral,
+  admin-only edit mode (a reload returns to view mode; every mutating endpoint is
+  independently admin-gated server-side, so the toggle is a convenience surface,
+  not the security boundary). When on, the boxes become rearrangeable.
+- **Rearrange categories (box order)** — in edit mode each real category box shows
+  a drag grip (`@dnd-kit` sortable, pointer + touch + keyboard sensors). Dropping
+  reorders the boxes within the 6-col greedy-pack grid and **persists** the new
+  admin order via `PUT /api/categories/order` (the existing `setCategoryOrder`
+  whole-array contract), optimistic with rollback on failure. `category.sortIndex`
+  is the persisted order (shared, admin-set — not per-user). The synthetic
+  Uncategorized box stays pinned last, outside the sortable context.
+- Box width (1–6), the width selector + `grid_width` persistence, the ≤640px
+  2-column cap, and the a11y contract are unchanged by this restoration.
+
+### OUT of scope (v1)
+
+These items remain excluded from this spec. They may be revisited in future specs.
 
 - **Per-user width preferences** — box width is admin-set and shared; a user cannot have a different width from another user for the same box.
 - **Add/remove/reorder tools in the UI** — tools come from the existing per-user service management surfaces (Library, admin catalog). App Grid renders what exists.
-- **Per-user box order preferences** — box order follows `category.sortIndex` (admin-set); user-level reorder is not in v1.
+- ~~**Per-user box order preferences**~~ — box order is admin-set (shared) and now **reorderable in Edit Dashboard mode** (see IN scope); *per-user* box order remains out of scope (order follows the shared `category.sortIndex`).
 - **Drag-to-resize boxes** — width is set via the 1–6 button selector, not drag.
 - **Inline tool editing** — clicking a tool navigates to its URL; no in-place edit affordance.
 - **Box deletion UI** — admin-managed via existing category management (not in the App Grid surface in v1).

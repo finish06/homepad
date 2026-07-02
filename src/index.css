@@ -2014,9 +2014,55 @@
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
+    flex: 1 1 auto;
   }
   .dark .app-grid-box-title {
     color: #f5f5f5;
+  }
+  /* Edit Dashboard — the box drag grip. A ≥44px hit target (§6.3 touch), the sole
+     drag origin; grab cursor + touch-none so a drag doesn't fight page scroll. */
+  .app-grid-box-grip {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin: -6px -4px -6px -6px;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 18px;
+    line-height: 1;
+    border-radius: 10px;
+    cursor: grab;
+    touch-action: none;
+    transition: color 120ms ease, background 120ms ease;
+  }
+  .app-grid-box-grip:hover {
+    color: #475569;
+    background: rgba(15, 23, 42, 0.05);
+  }
+  .app-grid-box-grip:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #6366f1;
+  }
+  .app-grid-box-grip[aria-pressed='true'] {
+    color: #6366f1;
+    cursor: grabbing;
+  }
+  .dark .app-grid-box-grip {
+    color: #64748b;
+  }
+  .dark .app-grid-box-grip:hover {
+    color: #cbd5e1;
+    background: rgba(255, 255, 255, 0.06);
+  }
+  /* The box being dragged lifts above its siblings + dims slightly. */
+  .app-grid-box.is-grabbed {
+    z-index: 1;
+    opacity: 0.9;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.1);
   }
   .app-grid-empty {
     font-size: 13px;

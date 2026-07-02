@@ -15,6 +15,7 @@ vi.mock('./api', () => ({
   categories: vi.fn(),
   services: vi.fn(),
   saveCategoryWidth: vi.fn(),
+  setCategoryOrder: vi.fn(),
   createCategory: vi.fn(),
 }));
 
@@ -38,6 +39,11 @@ afterEach(() => vi.clearAllMocks());
 
 async function renderGrid(isAdmin: boolean) {
   render(<AppGrid isAdmin={isAdmin} />);
+  await screen.findByTestId('app-grid');
+}
+
+async function renderGridEdit(isAdmin: boolean, editMode: boolean) {
+  render(<AppGrid isAdmin={isAdmin} editMode={editMode} />);
   await screen.findByTestId('app-grid');
 }
 
@@ -157,5 +163,50 @@ describe('+ Add box (AC-019/020/021)', () => {
     expect(screen.getByTestId('add-box-create')).toBeDisabled();
     await user.type(screen.getByTestId('add-box-input'), '   ');
     expect(screen.getByTestId('add-box-create')).toBeDisabled();
+  });
+});
+
+// AG-EDIT-1/2 — Edit Dashboard mode restores drag-to-rearrange for the App Grid
+// boxes (regression: the App Grid replaced Catalog and dropped edit + reorder).
+// Edit mode is admin-only + client-ephemeral; when on, each REAL category box
+// gets a drag handle (the synthetic Uncategorized box stays pinned, not
+// draggable). jsdom can't perform the drag itself (browser-gate territory); these
+// cover the DOM contract that the handles appear/disappear with the mode.
+describe('AppGrid Edit Dashboard mode (AG-EDIT-1/2)', () => {
+  it('shows no drag handles when not in edit mode (view mode)', async () => {
+    await renderGridEdit(true, false);
+    expect(screen.queryByTestId('box-drag-handle')).not.toBeInTheDocument();
+  });
+
+  it('shows a drag handle on each real category box in edit mode (admin)', async () => {
+    await renderGridEdit(true, true);
+    const handles = screen.getAllByTestId('box-drag-handle');
+    expect(handles).toHaveLength(2); // Media + Infra
+    expect(handles[0]).toHaveAttribute('aria-label', expect.stringMatching(/reorder/i));
+  });
+
+  it('never shows drag handles to a non-admin, even with editMode set', async () => {
+    await renderGridEdit(false, true);
+    expect(screen.queryByTestId('box-drag-handle')).not.toBeInTheDocument();
+  });
+
+  it('does not make the synthetic Uncategorized box draggable', async () => {
+    vi.mocked(api.services).mockResolvedValue([
+      svc('s1', 'Plex', 'c1'),
+      svc('s2', 'Grafana', 'c2'),
+      svc('s3', 'Loose', null),
+    ]);
+    await renderGridEdit(true, true);
+    // 3 boxes render (Media, Infra, Uncategorized) but only the 2 real ones drag.
+    expect(screen.getAllByTestId('app-grid-box')).toHaveLength(3);
+    expect(screen.getAllByTestId('box-drag-handle')).toHaveLength(2);
+  });
+
+  it('keeps the admin width selector working in edit mode (regression guard)', async () => {
+    const user = userEvent.setup();
+    await renderGridEdit(true, true);
+    const media = screen.getAllByTestId('app-grid-box')[0];
+    await user.click(within(media).getByTestId('width-btn-5'));
+    await waitFor(() => expect(api.saveCategoryWidth).toHaveBeenCalledWith('c1', 5));
   });
 });

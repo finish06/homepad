@@ -7,6 +7,24 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.8.0] — 2026-07-02 — Restore Edit Dashboard + rearrange categories in the App Grid
+
+### Added
+
+- **Edit Dashboard mode + drag-to-rearrange categories are back.** The App Grid
+  that replaced the old Catalog layout had dropped two features Caleb uses daily —
+  a **regression**. The admin header gear now carries an **"Edit dashboard"**
+  toggle (client-ephemeral, admin-only — a reload returns to view mode). While
+  it's on, each real category box shows a drag grip; dragging reorders the boxes
+  in the 6-column greedy-pack grid and **persists** the new shared order via
+  `PUT /api/categories/order` (optimistic, with rollback if the save fails). The
+  grip is a real keyboard-operable button (pointer + touch + keyboard sensors, an
+  aria-live reorder announcement), so the a11y path is intact. The synthetic
+  Uncategorized box stays pinned last and is not draggable. Box width (1–6), the
+  width selector + `grid_width` persistence, and the ≤640px 2-column layout are
+  unchanged. `SPEC-app-grid.md §7` updated to move these from "out of v1" to IN
+  scope.
+
 ## [12.7.2] — 2026-07-01 — App Grid tile name keeps its distinguishing suffix (#195)
 
 ### Fixed

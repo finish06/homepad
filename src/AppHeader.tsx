@@ -139,15 +139,19 @@ function GearMenuTrigger({
 // on outside click and Escape.
 function GearMenu({
   isAdmin,
+  editMode,
   triggerRef,
   onAddApps,
   onAddCustomApp,
+  onToggleEdit,
   onClose,
 }: {
   isAdmin: boolean;
+  editMode: boolean;
   triggerRef: React.RefObject<HTMLButtonElement>;
   onAddApps: () => void;
   onAddCustomApp: () => void;
+  onToggleEdit: () => void;
   onClose: () => void;
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -226,6 +230,24 @@ function GearMenu({
             <PlusIcon />
             Add custom app
           </button>
+
+          {/* Edit Dashboard — the admin, client-ephemeral rearrange mode restored
+              for the App Grid (a reload returns to view mode). A checkbox item so
+              its on/off state is announced; the trailing checkmark mirrors the
+              old Arrange/Edit-tiles toggles. Toggling drives AppGrid's box
+              drag-to-reorder. */}
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={editMode}
+            data-testid="gear-edit-dashboard"
+            onClick={() => act(onToggleEdit)}
+            className="menu-item"
+          >
+            <ArrangeIcon />
+            Edit dashboard
+            {editMode && <span className="menu-check" aria-hidden="true">✓</span>}
+          </button>
         </>
       )}
     </div>
@@ -250,8 +272,20 @@ function ShieldIcon() {
   );
 }
 
+// Edit-dashboard (rearrange) icon — a 4-arrow move glyph, signalling drag-to-
+// reorder, aria-hidden; the item text carries the meaning.
+function ArrangeIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="menu-icon">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18M3 12h18M8 7l4-4 4 4M8 17l4 4 4-4M7 8l-4 4 4 4M17 8l4 4-4 4" />
+    </svg>
+  );
+}
+
 export default function AppHeader({
   user,
+  editMode = false,
+  onToggleEdit = () => {},
   onOpenLibrary = () => {},
   onOpenCustomAppForm = () => {},
   onOpenAdminSettings,
@@ -262,6 +296,8 @@ export default function AppHeader({
   bellRef,
 }: {
   user: User;
+  editMode?: boolean;
+  onToggleEdit?: () => void;
   onOpenLibrary?: () => void;
   onOpenCustomAppForm?: () => void;
   onOpenAdminSettings: () => void;
@@ -292,7 +328,7 @@ export default function AppHeader({
           <LastUpdated />
           <div className="relative">
             <GearMenuTrigger
-              anyModeActive={false}
+              anyModeActive={editMode}
               open={gearOpen}
               triggerRef={gearRef}
               onClick={() => setGearOpen((o) => !o)}
@@ -300,9 +336,11 @@ export default function AppHeader({
             {gearOpen && (
               <GearMenu
                 isAdmin={isAdmin}
+                editMode={editMode}
                 triggerRef={gearRef}
                 onAddApps={onOpenLibrary}
                 onAddCustomApp={onOpenCustomAppForm}
+                onToggleEdit={onToggleEdit}
                 onClose={closeGear}
               />
             )}

@@ -80,12 +80,15 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // mutating endpoint is independently admin-gated server-side, so this toggle
   // is a convenience surface, not the security boundary.
   const isAdmin = user.role === 'admin';
-  // SPEC-app-grid §2 — App Grid REPLACES the v14 floating-panel Catalog. The
-  // Catalog-only edit-tiles / arrange modes are retired with that layout (§7
-  // scopes inline tool editing + reorder out of v1), so their state + header
-  // items are gone. Library browse + add-custom-app remain (service management,
-  // not layout), lifted here so the header Gear can trigger them and their result
-  // flows into the shared services context that AppGrid renders from.
+  // SPEC-app-grid §7 — Edit Dashboard mode: admin-only + client-ephemeral (a
+  // reload returns to view mode). When on, AppGrid's boxes become drag-to-reorder
+  // sortables; the header Gear toggles it. Every mutating endpoint is
+  // independently admin-gated server-side, so this toggle is a convenience
+  // surface, not the security boundary.
+  const [editMode, setEditMode] = useState(false);
+  // Library browse + add-custom-app remain (service management, not layout),
+  // lifted here so the header Gear can trigger them and their result flows into
+  // the shared services context that AppGrid renders from.
   const [browseOpen, setBrowseOpen] = useState(false);
   const [customFormOpen, setCustomFormOpen] = useState(false);
   // v9.3 §7.3 — the admin Settings modal (App Library management + read-only
@@ -170,6 +173,8 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
       <main className="app-surface min-h-screen font-sans">
         <AppHeader
           user={user}
+          editMode={editMode}
+          onToggleEdit={() => setEditMode((e) => !e)}
           onOpenLibrary={() => setBrowseOpen(true)}
           onOpenCustomAppForm={() => setCustomFormOpen(true)}
           onOpenAdminSettings={() => setSettingsOpen(true)}
@@ -183,7 +188,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
         <StatusBar />
 
         <section className={`${CONTENT_WIDTH} py-6`}>
-          <AppGrid isAdmin={isAdmin} />
+          <AppGrid isAdmin={isAdmin} editMode={editMode} />
         </section>
 
         {/* SPEC-app-grid §7 — service management stays on the existing surfaces.
