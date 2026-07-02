@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { mockApi, makeCategorized } from './mockApi';
+import { mockApi, makeBoxes } from './mockApi';
 
 // #57 REGRESSION GATE (retargeted for SPEC-app-grid §2) — real-browser only.
 //
@@ -17,10 +17,13 @@ import { mockApi, makeCategorized } from './mockApi';
 // which creates a stacking context; their tool links + width buttons are the
 // elements that would contest the dropdown's pixels under a z regression).
 //
-// Teeth: the App Grid packs boxes left→right across the top row, so the top-right
-// box's header (width selector) + tool links land directly beneath the right-
-// anchored dropdown. Drop AppHeader/dropdown below the content's stacking and a
-// tool link / width button wins the contested centre — this spec goes red.
+// Teeth: under A1 boxes are CONTENT-SIZED (they no longer stretch to fill the
+// row), so a default width-3 box (634px) would leave a gap at the right edge and
+// the dropdown would float over empty space — no overlap, vacuous pass. To keep
+// the teeth we hand the fixture one WIDE box (width 8) that max-width:100%-clamps
+// to fill the top row: its header (width selector) + auto-filled tool links then
+// land directly beneath the right-anchored dropdown. Drop AppHeader/dropdown below
+// the content's stacking and a tool link / width button wins the contested centre.
 
 async function enterEditMode(page: import('@playwright/test').Page) {
   await page.getByTestId('settings-gear').click();
@@ -30,9 +33,11 @@ async function enterEditMode(page: import('@playwright/test').Page) {
 test.beforeEach(async ({ page }) => {
   // Admin + Edit Dashboard mode so the per-box width selector renders (an extra
   // interactive element in the contested top row — it now only appears in edit
-  // mode, alongside box rename/delete); four categories of two apps pack the row
-  // so the rightmost box sits under the dropdown.
-  const { services, categories } = makeCategorized(4, 2);
+  // mode, alongside box rename/delete). One wide box (width 8) clamps to the full
+  // content frame so its header + tool links reach the top-right under the dropdown.
+  const { services, categories } = makeBoxes([
+    { width: 8, tools: ['Plex', 'Sonarr', 'Radarr', 'Grafana', 'Prometheus', 'Loki', 'Jellyfin', 'Tautulli'] },
+  ]);
   await mockApi(page, services, categories, 'admin');
   await page.goto('/');
   await expect(page.getByTestId('user-menu-trigger')).toBeVisible();

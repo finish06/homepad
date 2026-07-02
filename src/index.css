@@ -1962,26 +1962,32 @@
     }
   }
 
-  /* ── SPEC-app-grid: App Grid layout ───────────────────────────────────
-     A 6-column page grid of glass boxes (= categories). Each box's --w (the
-     effective, mobile-capped width, computed in AppGrid.tsx) drives both its
-     column span and its inner links-per-row. Inherits the floating-panel glass
-     so the two systems read as one product (§6.1). */
+  /* ── SPEC-app-grid (Amendment A1): fixed-width tile layout ─────────────
+     Content-sized glass boxes (= categories) that pack left→right with flex-wrap
+     — NOT a repeat(6,1fr) page grid. Each box's --w (the raw configured width,
+     1–8) drives ONLY its content width via calc(); the tile track inside is a
+     fixed 190px auto-fill so a tool tile is the SAME width in every box (Caleb's
+     invariant, AC-001-A1). This corrects the 1fr regression where a tile scaled
+     with box_width ÷ --w. Byte-identical box model to the v14 .category-panel
+     (index.css:1905); inherits the floating-panel glass so the two systems read
+     as one product (§6.1). */
   .app-grid {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
     gap: 16px;
-    align-items: start;
-    /* No inner width cap: the grid fills the outer CONTENT_WIDTH section
+    /* No inner width cap: the flex row fills the outer CONTENT_WIDTH section
        (the shared max-w-[1536px] px-4 mx-auto frame from App.tsx), so its left
        and right edges align with the header and status-strip content at every
-       viewport (#196). #194 first matched an inner cap to 1536px to grow tiles
-       into a wide canvas; that cap is redundant inside the already-1536 frame,
-       and any narrower inner cap re-centered the grid and inset its left edge
-       at wide viewports — the "grid floats untethered at 2560" symptom. */
+       viewport (#196). */
   }
   .app-grid-box {
-    grid-column: span var(--w);
+    /* Content-sized (AC-002-A1): --w fixed 190px tiles + inner gaps + 2×16 pad.
+       max-width:100% is the D-3 backstop — a box whose natural --w×190 exceeds
+       the frame never overflows the page; its tiles auto-fill-wrap instead. */
+    width: calc(var(--w) * 190px + (var(--w) - 1) * 16px + 32px);
+    max-width: 100%;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -1991,13 +1997,19 @@
     background: rgba(255, 255, 255, 0.72);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.04);
+    /* The glass edge is an INSET box-shadow ring, not a `border`: a 1px border
+       (2px total) would shrink the content box to 806px, and auto-fill needs the
+       full 808px (4×190 + 3×16) to pack a width-4 box's 4th column — the border
+       silently dropped the last tile to a second row. The inset ring reads the
+       same but leaves the content width exactly N-tiles wide, so auto-fill packs
+       exactly --w columns (AC-004–008). */
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), 0 2px 8px rgba(0, 0, 0, 0.06),
+      0 8px 24px rgba(0, 0, 0, 0.04);
   }
   .dark .app-grid-box {
     background: rgba(30, 30, 40, 0.68);
-    border-color: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.32), 0 8px 24px rgba(0, 0, 0, 0.24);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 2px 8px rgba(0, 0, 0, 0.32),
+      0 8px 24px rgba(0, 0, 0, 0.24);
   }
   .app-grid-box-header {
     display: flex;
@@ -2062,7 +2074,8 @@
   .app-grid-box.is-grabbed {
     z-index: 1;
     opacity: 0.9;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), 0 8px 24px rgba(0, 0, 0, 0.18),
+      0 2px 8px rgba(0, 0, 0, 0.1);
   }
   /* #241 — box rename/delete controls (Edit Dashboard, real category boxes). */
   .app-grid-box-actions {
@@ -2154,39 +2167,56 @@
   .dark .app-grid-empty {
     color: #9aa3b8;
   }
+  /* A1 — fixed 190px auto-fill track. On a --w-sized box this packs EXACTLY --w
+     columns (Caleb's invariant), and when the box is max-width:100%-clamped below
+     its natural width (D-3), the fixed 190px tiles WRAP rather than resize. Never
+     1fr (the regression), never repeat(var(--w),…) (wouldn't wrap under clamp). */
   .app-grid-tools {
     display: grid;
-    grid-template-columns: repeat(var(--w), 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, 190px);
+    gap: 16px;
+    justify-content: start;
   }
-  /* #240 — the grid cell now wraps the tool link + its favorite ★ sibling; the
-     link fills the cell, the star is corner-anchored above it. */
+  /* #240 — the grid cell wraps the tool link + its favorite ★ sibling; the link
+     fills the 190px cell, the star is corner-anchored above it. */
   .app-grid-tool-wrap {
     position: relative;
     display: flex;
     min-width: 0;
   }
+  /* A1 D-1/D-2 — the shipped vertical .tile grammar (index.css:53) at the fixed
+     190px slot: icon plate over a full-width, 2-line-clamped name. min-height:120
+     (15 pad-top + 46 plate + 8 gap + 38 name + 13 pad-bottom) so a 1-line and a
+     2-line name render at the IDENTICAL height — tiles never jump. */
   .app-grid-tool {
     flex: 1 1 auto;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-height: 56px;
     min-width: 0;
-    padding: 8px 34px 8px 12px;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.55);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-height: 120px;
+    box-sizing: border-box;
+    padding: 15px 15px 13px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #fff, #fbfcff);
     border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 20px -10px rgba(16, 24, 40, 0.12);
     text-decoration: none;
-    transition: transform 0.18s, border-color 0.25s;
+    text-align: center;
+    transition: transform 0.18s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   }
   .dark .app-grid-tool {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, #12161e, #0e1117);
+    border-color: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 24px -12px rgba(0, 0, 0, 0.7),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
   .app-grid-tool:hover {
+    transform: translateY(-3px);
     border-color: rgba(99, 102, 241, 0.45);
-    transform: translateY(-1px);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 18px 34px -14px rgba(79, 70, 229, 0.3),
+      0 0 0 1px rgba(99, 102, 241, 0.12);
   }
   .app-grid-tool:active {
     transform: translateY(0);
@@ -2197,12 +2227,14 @@
   }
   .app-grid-tool-icon {
     flex: none;
-    width: 36px;
-    height: 36px;
+    width: 46px;
+    height: 46px;
+    padding: 7px;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 10px;
+    border-radius: 13px;
     overflow: hidden;
     background: linear-gradient(135deg, #f2f4fc, #e9edf9);
     box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
@@ -2216,15 +2248,18 @@
     object-fit: contain;
   }
   .app-grid-tool-name {
+    width: 100%;
+    min-height: 38px;
     font-size: 15px;
-    font-weight: 650;
+    font-weight: 600;
+    line-height: 1.25;
     color: #262626;
-    min-width: 0;
-    /* Wrap to a second line instead of single-line clipping so a distinguishing
-       trailing token survives (#195): "ArchiveTeam Warrior1" / "…Warrior2" keep
-       their suffix on line 2 rather than both ending "ArchiveTeam …". Names too
-       long for two lines still ellipsize (last line), and the full string stays
-       reachable via the title tooltip. */
+    text-align: center;
+    /* Two-line clamp (D-2): a distinguishing trailing token survives (#195) —
+       "ArchiveTeam Warrior1" / "…Warrior2" keep their suffix on line 2. The name
+       block reserves 2 lines (min-height:38 = 2×15×1.25) on EVERY tile so 1-line
+       and 2-line names are the same height. Full name stays reachable via the
+       title/aria-label (iPad-first: hover tooltip never fires on touch). */
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -2346,6 +2381,14 @@
   .dark .app-grid-width-btn:hover::before {
     background: rgba(255, 255, 255, 0.05);
   }
+  /* D-3 — a width whose box would overflow this screen is offered disabled. */
+  .app-grid-width-btn[aria-disabled='true'] {
+    opacity: 0.32;
+    cursor: default;
+  }
+  .app-grid-width-btn[aria-disabled='true']:hover::before {
+    background: transparent;
+  }
   .app-grid-width-btn.is-selected {
     color: #fff;
     font-weight: 700;
@@ -2360,9 +2403,11 @@
   .app-grid-width-btn:focus-visible::before {
     box-shadow: 0 0 0 2px #6366f1;
   }
-  /* + Add box: dashed full-width bar at the grid's end (§6.5). */
+  /* + Add box: dashed full-width bar at the grid's end (§6.5). flex-basis:100%
+     so it takes its own full row in the flex-wrap page (was grid-column:1/-1). */
   .app-grid-add {
-    grid-column: 1 / -1;
+    flex: 0 0 100%;
+    width: 100%;
     min-height: 64px;
     border-radius: 16px;
     border: 1px dashed rgba(15, 23, 42, 0.12);
@@ -2398,11 +2443,19 @@
       transform: none;
     }
   }
-  /* ≤640px: 2-column page grid; per-box span + links-per-row already capped at
-     2 via the JS effective width (AC-022). No horizontal page scroll (§6.7). */
+  /* ≤640px (A1 D-4): each box goes full-width and its tools cap at 2 columns with
+     tiles allowed to shrink below 190px (repeat(2, minmax(0,190px))), so two fixed
+     190px tiles (428px) can't overflow a 390px phone (the #212 h-scroll bug). The
+     fixed-190 invariant is a >640px property; on phones killing horizontal scroll
+     outranks pixel-perfect width. Breakpoint is 640px, not v14's 767 — the desktop
+     auto-fill track already wraps 190px tiles natively at 768 (§6.7). */
   @media (max-width: 640px) {
-    .app-grid {
-      grid-template-columns: repeat(2, 1fr);
+    .app-grid-box {
+      width: 100%;
+      max-width: 100%;
+    }
+    .app-grid-tools {
+      grid-template-columns: repeat(2, minmax(0, 190px));
     }
   }
 }

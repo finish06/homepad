@@ -28,35 +28,33 @@ import {
   type Category,
   type Service,
 } from './api';
-import { boxesFromData, effectiveWidth, MAX_WIDTH, moveCategory, type Box } from './appGrid';
+import { boxesFromData, fitsViewport, MAX_WIDTH, moveCategory, type Box } from './appGrid';
 import { iconSrc, initialBadge } from './icons';
 import { useServicesContext } from './services';
 import { useResolvedTheme } from './theme';
 
-// AppGrid (SPEC-app-grid) — the primary dashboard layout: a 6-column page grid
-// of boxes (= categories). Each box's width (1–6) drives BOTH its column span
-// and its links-per-row via one `--w` CSS variable; the greedy pack + wrap and
-// the ≤640px 2-column cap are pure CSS (index.css `.app-grid`). This component
-// owns the data fetch, the admin width selector, and the "+ Add box" flow. It
-// replaces the v14 floating-panel Catalog layout (§2).
+// AppGrid (SPEC-app-grid, Amendment A1) — the primary dashboard layout: glass
+// boxes (= categories) that pack left→right with flex-wrap. Each box's width
+// (1–8) drives ONLY its content width via one `--w` CSS variable; the tool tiles
+// inside are a FIXED 190px auto-fill track, so a tile is the same width in every
+// box (Caleb's invariant, AC-001-A1). The flex-wrap page pack and the ≤640px
+// 2-column cap are pure CSS (index.css `.app-grid`). This component owns the data
+// fetch, the admin width selector, and the "+ Add box" flow. It replaces the v14
+// floating-panel Catalog layout (§2).
 
-const WIDTHS = Array.from({ length: MAX_WIDTH }, (_, i) => i + 1); // [1..6]
+const WIDTHS = Array.from({ length: MAX_WIDTH }, (_, i) => i + 1); // [1..8]
 
-// useIsMobile tracks the ≤640px breakpoint (AC-022). CSS min() can't be used
-// inside repeat()/span, so the effective (mobile-capped) width is computed in JS
-// and written to `--w`; the page grid itself flips to 2 columns via CSS media.
-function useIsMobile(): boolean {
-  const query = '(max-width: 640px)';
-  const [mobile, setMobile] = useState(() => window.matchMedia?.(query)?.matches ?? false);
+// useViewportWidth tracks window.innerWidth so the width selector can offer a
+// --w that would render off-screen as DISABLED (A1 D-3). The ≤640px mobile
+// behavior itself is pure CSS now (D-4) — no JS width cap is needed.
+function useViewportWidth(): number {
+  const [vw, setVw] = useState(() => window.innerWidth || 1024);
   useEffect(() => {
-    const mq = window.matchMedia?.(query);
-    if (!mq) return;
-    const onChange = () => setMobile(mq.matches);
-    onChange();
-    mq.addEventListener?.('change', onChange);
-    return () => mq.removeEventListener?.('change', onChange);
+    const onResize = () => setVw(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, []);
-  return mobile;
+  return vw;
 }
 
 export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolean; editMode?: boolean }) {
@@ -71,7 +69,7 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
   // aria-live announcement for the drag-to-reorder a11y path (mirrors the old
   // Catalog category reorder — §10/A7).
   const [announce, setAnnounce] = useState('');
-  const isMobile = useIsMobile();
+  const viewportWidth = useViewportWidth();
 
   // Sensors for box drag-to-reorder (Edit Dashboard). Pointer with an 8px
   // activation so a click on a width button still registers; touch with a
@@ -273,17 +271,17 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext items={sortableBoxes.map((b) => b.id)} strategy={rectSortingStrategy}>
                 {sortableBoxes.map((box) => (
-                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} isMobile={isMobile} editing={editing} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
+                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
                 ))}
               </SortableContext>
             </DndContext>
             {uncatBox && (
-              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} isMobile={isMobile} editing={editing} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
+              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
             )}
           </>
         ) : (
           boxes.map((box) => (
-            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} isMobile={isMobile} editing={editing} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
+            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
           ))
         )}
         {addButton}
@@ -316,7 +314,7 @@ type BoxSortable = {
 function BoxCard({
   box,
   isAdmin,
-  isMobile,
+  viewportWidth,
   editing,
   onWidth,
   onToggleFavorite,
@@ -326,7 +324,7 @@ function BoxCard({
 }: {
   box: Box;
   isAdmin: boolean;
-  isMobile: boolean;
+  viewportWidth: number;
   editing: boolean;
   onWidth: (id: string, width: number) => void;
   onToggleFavorite: (id: string) => void;
@@ -345,7 +343,11 @@ function BoxCard({
   const [renameError, setRenameError] = useState('');
   const [renamingBusy, setRenamingBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const style: React.CSSProperties = { ['--w' as string]: effectiveWidth(box.width, isMobile) };
+  // --w is the RAW configured width (A1): it feeds only the box's content-width
+  // calc(). The ≤640px mobile behavior (full-width box, 2-col shrink) is pure CSS
+  // (D-4), and the tools track auto-fill-wraps when the box is clamped — so no JS
+  // mobile cap is needed here anymore.
+  const style: React.CSSProperties = { ['--w' as string]: box.width };
   if (sortable) {
     style.transform = CSS.Transform.toString(sortable.transform);
     style.transition = sortable.transition;
@@ -420,7 +422,11 @@ function BoxCard({
           </div>
         )}
         {showSelector && (
-          <WidthSelector width={box.width} onPick={(w) => onWidth(box.id, w)} />
+          <WidthSelector
+            width={box.width}
+            viewportWidth={viewportWidth}
+            onPick={(w) => onWidth(box.id, w)}
+          />
         )}
       </header>
       {canManage && renaming && (
@@ -520,7 +526,7 @@ function BoxCard({
 function SortableBox({
   box,
   isAdmin,
-  isMobile,
+  viewportWidth,
   editing,
   onWidth,
   onToggleFavorite,
@@ -529,7 +535,7 @@ function SortableBox({
 }: {
   box: Box;
   isAdmin: boolean;
-  isMobile: boolean;
+  viewportWidth: number;
   editing: boolean;
   onWidth: (id: string, width: number) => void;
   onToggleFavorite: (id: string) => void;
@@ -542,7 +548,7 @@ function SortableBox({
     <BoxCard
       box={box}
       isAdmin={isAdmin}
-      isMobile={isMobile}
+      viewportWidth={viewportWidth}
       editing={editing}
       onWidth={onWidth}
       onToggleFavorite={onToggleFavorite}
@@ -615,9 +621,22 @@ function onIconError(e: React.SyntheticEvent<HTMLImageElement>) {
   if (fb && img.src !== fb) img.src = fb;
 }
 
-// The admin width selector: six 1–6 buttons; the active one carries fill + weight
-// (never color alone, §6.3). Each button is a ≥44px hit area (CSS).
-function WidthSelector({ width, onPick }: { width: number; onPick: (w: number) => void }) {
+// The admin width selector: eight 1–8 buttons (A1 range); the active one carries
+// fill + weight (never color alone, §6.3). Each button is a ≥44px hit area (CSS).
+// D-3: a --w whose box would render wider than the current viewport is offered
+// DISABLED (aria-disabled + a "Wider than this screen" title) so the admin never
+// sets an off-screen box on their own display. Below 640px the box is CSS-forced
+// full-width (D-4), so the fit check is skipped there — every width is selectable.
+function WidthSelector({
+  width,
+  viewportWidth,
+  onPick,
+}: {
+  width: number;
+  viewportWidth: number;
+  onPick: (w: number) => void;
+}) {
+  const mobile = viewportWidth <= 640;
   return (
     <div className="app-grid-width" data-testid="width-selector" role="group" aria-label="Box width">
       <span className="app-grid-width-label" aria-hidden="true">
@@ -625,6 +644,9 @@ function WidthSelector({ width, onPick }: { width: number; onPick: (w: number) =
       </span>
       {WIDTHS.map((n) => {
         const selected = n === width;
+        // Never disable the currently-selected width (it's already set) — only
+        // widths that would newly overflow this screen.
+        const disabled = !mobile && !selected && !fitsViewport(n, viewportWidth);
         return (
           <button
             key={n}
@@ -632,8 +654,10 @@ function WidthSelector({ width, onPick }: { width: number; onPick: (w: number) =
             data-testid={`width-btn-${n}`}
             className={`app-grid-width-btn${selected ? ' is-selected' : ''}`}
             aria-pressed={selected}
+            aria-disabled={disabled || undefined}
             aria-label={`Width ${n}`}
-            onClick={() => onPick(n)}
+            title={disabled ? 'Wider than this screen' : undefined}
+            onClick={() => !disabled && onPick(n)}
           >
             {n}
           </button>

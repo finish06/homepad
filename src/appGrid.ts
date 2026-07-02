@@ -1,25 +1,37 @@
 import type { Category, Service } from './api';
 
-// SPEC-app-grid — pure layout helpers. The greedy pack + wrap of boxes across
-// the 6-column page grid is done by CSS grid auto-placement (see AppGrid.tsx);
+// SPEC-app-grid (Amendment A1) — pure layout helpers. The flex-wrap page pack and
+// the fixed-190px auto-fill tools track are pure CSS (see AppGrid.tsx / index.css);
 // these functions own the JS-side math the component and its tests rely on.
 
-export const MAX_WIDTH = 6;
+// Kare's finalized tokens (A1 D-1) — byte-identical to the v14 .category-panel.
+export const TILE_PX = 190;
+export const GAP_PX = 16;
+export const PADDING_PX = 16;
+export const MAX_WIDTH = 8; // A1: range widens 1–6 → 1–8 (Caleb confirmed).
 export const DEFAULT_WIDTH = 3;
-export const MOBILE_CAP = 2;
 
-// clampWidth constrains a configured box width to the valid 1–6 range (rounding
-// a stray float), so a bad stored value never breaks the grid template.
+// clampWidth constrains a configured box width to the valid 1–8 range (rounding
+// a stray float), so a bad stored value never breaks the layout.
 export function clampWidth(w: number): number {
   return Math.max(1, Math.min(MAX_WIDTH, Math.round(w)));
 }
 
-// effectiveWidth is the width actually used to render at the current viewport:
-// at ≤640px both the box's column span and its links-per-row cap at 2 (AC-022);
-// above 640px the full configured width is used (AC-023).
-export function effectiveWidth(w: number, isMobile: boolean): number {
+// boxWidthPx is the exact content-sized width of a box at width `w` (AC-002-A1):
+// w fixed 190px tiles + the (w-1) inner gaps + 2×16px padding. Identical to the
+// `.category-panel` calc() so App Grid and the v14 field share one box model.
+export function boxWidthPx(w: number): number {
   const c = clampWidth(w);
-  return isMobile ? Math.min(c, MOBILE_CAP) : c;
+  return c * TILE_PX + (c - 1) * GAP_PX + 2 * PADDING_PX;
+}
+
+// fitsViewport answers "does a box at width `w` fit `vw` px without overflowing?"
+// It drives the D-3 width-selector disable: a --w whose box would exceed the
+// admin's current viewport is offered disabled so they never set an off-screen
+// box on their own display. The structural max-width:100% + auto-fill wrap in CSS
+// is the real cross-viewport backstop; this is the set-time affordance.
+export function fitsViewport(w: number, vw: number): boolean {
+  return boxWidthPx(w) <= vw;
 }
 
 // A box is one App Grid container: a category plus the caller's own tools in it.
