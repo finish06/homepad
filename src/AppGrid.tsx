@@ -21,6 +21,7 @@ import {
   createCategory,
   saveCategoryWidth,
   setCategoryOrder,
+  setFavorite,
   services as fetchServices,
   type Category,
   type Service,
@@ -103,6 +104,36 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
 
   const svcs = ctx ? ctx.items : ownSvcs;
   const loading = !catsLoaded || svcs === null;
+
+  // Update the services the grid renders from. When a provider is present it owns
+  // the array (the SAME one the launcher's Favorites section filters — §3/A12), so
+  // a favorite flip written here shows up in the launcher live; without a provider
+  // (isolated render) AppGrid owns its own copy.
+  const updateSvcs = useCallback(
+    (updater: (list: Service[]) => Service[]) => {
+      if (ctx) ctx.setItems((cur) => (cur ? updater(cur) : cur));
+      else setOwnSvcs((cur) => (cur ? updater(cur) : cur));
+    },
+    [ctx],
+  );
+
+  // #240 — per-tile favorite toggle (restores the control the old Catalog ⋯ menu
+  // had). Optimistic pin/unpin with rollback on a failed POST/DELETE; `next` is
+  // captured up front so the persist can't send a stale value (the favorites bug
+  // fixed in Catalog). Mirrors into the shared services so the launcher stays live.
+  const onToggleFavorite = useCallback(
+    async (id: string) => {
+      const current = (svcs ?? []).find((s) => s.id === id);
+      if (!current) return;
+      const next = !current.favorite;
+      updateSvcs((list) => list.map((s) => (s.id === id ? { ...s, favorite: next } : s)));
+      const ok = await setFavorite(id, next);
+      if (!ok) {
+        updateSvcs((list) => list.map((s) => (s.id === id ? { ...s, favorite: !next } : s)));
+      }
+    },
+    [svcs, updateSvcs],
+  );
 
   // Optimistic width change: update local state immediately (AC-015 — no
   // reload), persist, and roll back on failure (§4A persist).
@@ -199,17 +230,17 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext items={sortableBoxes.map((b) => b.id)} strategy={rectSortingStrategy}>
                 {sortableBoxes.map((box) => (
-                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} isMobile={isMobile} onWidth={changeWidth} />
+                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} isMobile={isMobile} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} />
                 ))}
               </SortableContext>
             </DndContext>
             {uncatBox && (
-              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} isMobile={isMobile} onWidth={changeWidth} />
+              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} isMobile={isMobile} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} />
             )}
           </>
         ) : (
           boxes.map((box) => (
-            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} isMobile={isMobile} onWidth={changeWidth} />
+            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} isMobile={isMobile} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} />
           ))
         )}
         {addButton}
@@ -244,12 +275,14 @@ function BoxCard({
   isAdmin,
   isMobile,
   onWidth,
+  onToggleFavorite,
   sortable,
 }: {
   box: Box;
   isAdmin: boolean;
   isMobile: boolean;
   onWidth: (id: string, width: number) => void;
+  onToggleFavorite: (id: string) => void;
   sortable?: BoxSortable;
 }) {
   const theme = useResolvedTheme();
@@ -302,7 +335,7 @@ function BoxCard({
       ) : (
         <div className="app-grid-tools" data-testid="box-tools">
           {box.tools.map((s) => (
-            <ToolLink key={s.id} service={s} theme={theme} />
+            <ToolLink key={s.id} service={s} theme={theme} onToggleFavorite={onToggleFavorite} />
           ))}
         </div>
       )}
@@ -318,11 +351,13 @@ function SortableBox({
   isAdmin,
   isMobile,
   onWidth,
+  onToggleFavorite,
 }: {
   box: Box;
   isAdmin: boolean;
   isMobile: boolean;
   onWidth: (id: string, width: number) => void;
+  onToggleFavorite: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: box.id });
@@ -332,6 +367,7 @@ function SortableBox({
       isAdmin={isAdmin}
       isMobile={isMobile}
       onWidth={onWidth}
+      onToggleFavorite={onToggleFavorite}
       sortable={{ attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging }}
     />
   );
@@ -339,28 +375,57 @@ function SortableBox({
 
 // One tool link: icon plate + name, opens the tool in a new tab (AC-011, §6.4).
 // The visible name truncates; the accessible name (aria-label) + native title
-// carry the full string (§6.2.1).
-function ToolLink({ service, theme }: { service: Service; theme: 'light' | 'dark' }) {
+// carry the full string (§6.2.1). A favorite ★ toggle (#240) sits in the corner
+// as a SIBLING of the <a> (interactive content can't nest in an anchor) — its
+// own <button>, painted above the link, so a real center click hits the star,
+// not the navigation; the handler preventDefault/stopPropagation guard the rest.
+function ToolLink({
+  service,
+  theme,
+  onToggleFavorite,
+}: {
+  service: Service;
+  theme: 'light' | 'dark';
+  onToggleFavorite: (id: string) => void;
+}) {
+  const fav = service.favorite;
   return (
-    <a
-      className="app-grid-tool"
-      data-testid="tool-link"
-      href={service.url}
-      target="_blank"
-      rel="noreferrer noopener"
-      aria-label={service.name}
-      title={service.name}
-    >
-      <span className="app-grid-tool-icon">
-        <img
-          src={iconSrc(service, theme, 0)}
-          alt=""
-          data-fallback={initialBadge(service.name)}
-          onError={onIconError}
-        />
-      </span>
-      <span className="app-grid-tool-name">{service.name}</span>
-    </a>
+    <div className="app-grid-tool-wrap">
+      <a
+        className="app-grid-tool"
+        data-testid="tool-link"
+        href={service.url}
+        target="_blank"
+        rel="noreferrer noopener"
+        aria-label={service.name}
+        title={service.name}
+      >
+        <span className="app-grid-tool-icon">
+          <img
+            src={iconSrc(service, theme, 0)}
+            alt=""
+            data-fallback={initialBadge(service.name)}
+            onError={onIconError}
+          />
+        </span>
+        <span className="app-grid-tool-name">{service.name}</span>
+      </a>
+      <button
+        type="button"
+        className={`app-grid-tool-fav${fav ? ' is-favorite' : ''}`}
+        data-testid="tile-favorite"
+        aria-pressed={fav}
+        aria-label={fav ? `Unpin ${service.name} from favorites` : `Pin ${service.name} to favorites`}
+        title={fav ? 'Favorited' : 'Favorite'}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onToggleFavorite(service.id);
+        }}
+      >
+        {fav ? '★' : '☆'}
+      </button>
+    </div>
   );
 }
 

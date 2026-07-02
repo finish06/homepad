@@ -2077,13 +2077,21 @@
     grid-template-columns: repeat(var(--w), 1fr);
     gap: 12px;
   }
+  /* #240 — the grid cell now wraps the tool link + its favorite ★ sibling; the
+     link fills the cell, the star is corner-anchored above it. */
+  .app-grid-tool-wrap {
+    position: relative;
+    display: flex;
+    min-width: 0;
+  }
   .app-grid-tool {
+    flex: 1 1 auto;
     display: flex;
     align-items: center;
     gap: 12px;
     min-height: 56px;
     min-width: 0;
-    padding: 8px 12px;
+    padding: 8px 34px 8px 12px;
     border-radius: 16px;
     background: rgba(255, 255, 255, 0.55);
     border: 1px solid rgba(15, 23, 42, 0.06);
@@ -2144,6 +2152,60 @@
   }
   .dark .app-grid-tool-name {
     color: #f5f5f5;
+  }
+  /* #240 — favorite ★ toggle. Low-emphasis at rest; brighter on hover/focus;
+     an amber filled star (always visible) once pinned so the user can see what's
+     favorited. Corner-anchored above the link so a real center click hits it. */
+  .app-grid-tool-fav {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: color 120ms ease, background 120ms ease, opacity 120ms ease;
+  }
+  .app-grid-tool-wrap:hover .app-grid-tool-fav,
+  .app-grid-tool-fav:focus-visible {
+    opacity: 1;
+  }
+  .app-grid-tool-fav:hover {
+    background: rgba(15, 23, 42, 0.06);
+    color: #475569;
+  }
+  .app-grid-tool-fav:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #6366f1;
+  }
+  .app-grid-tool-fav.is-favorite {
+    color: #f59e0b;
+    opacity: 1;
+  }
+  .dark .app-grid-tool-fav {
+    color: #64748b;
+  }
+  .dark .app-grid-tool-fav:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+  }
+  .dark .app-grid-tool-fav.is-favorite {
+    color: #fbbf24;
+  }
+  /* Touch devices have no hover — keep the star reachable (always visible). */
+  @media (hover: none) {
+    .app-grid-tool-fav {
+      opacity: 1;
+    }
   }
   /* Width selector: 28px visual centered in a ≥44px hit area (§6.3), horizontally
      scrollable inside a narrow box so it never overflows the box or the page. */
