@@ -88,6 +88,28 @@ test.describe('A1 fixed-tile layout', () => {
     expect(overflow).toBeLessThanOrEqual(1);
   });
 
+  // Gate 5 — a width-N box actually packs N tiles across its top row (AC-004–008).
+  // Regression guard: a 1px box border shrank the content to 806px so auto-fill
+  // dropped a width-4 box to 3 columns (the 4th tile fell to row 2). The top row
+  // of a width-4 box with ≥4 tools must hold exactly 4 tiles.
+  test('a width-4 box packs 4 tiles across its top row (not 3)', async ({ page }) => {
+    const { services, categories } = makeBoxes([
+      { width: 4, tools: ['Plex', 'Jellyfin', 'Sonarr', 'Radarr', 'Tautulli'] },
+    ]);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await mockApi(page, services, categories, 'user');
+    await page.goto('/');
+
+    const tools = page.getByTestId('tool-link');
+    await expect(tools).toHaveCount(5);
+    const tops = await tools.evaluateAll((els) =>
+      els.map((e) => Math.round(e.getBoundingClientRect().top)),
+    );
+    const topRow = Math.min(...tops);
+    const inTopRow = tops.filter((t) => Math.abs(t - topRow) <= 2).length;
+    expect(inTopRow).toBe(4);
+  });
+
   // Gate 4 — a 1-line-name tile and a 2-line-name tile are the SAME height (D-2:
   // name block reserves 2 lines on every tile, fixed min-height:120px), so tiles
   // never jump. "ArchiveTeam Warrior1" wraps to two lines; "Plex" stays one.
