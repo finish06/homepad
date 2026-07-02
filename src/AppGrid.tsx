@@ -594,6 +594,33 @@ function useStatusPulse(status: ServiceStatus): boolean {
   return pulsing;
 }
 
+// SPEC uptime-windows — the long rolling windows shown per tile, in display order.
+// Mirrors the backend's gatus.UptimeWindows.
+const UPTIME_WINDOW_ORDER = ['24h', '7d', '30d'];
+
+// fmtUptime renders a fraction (0..1) as a glanceable percentage (AC-U07): exactly
+// 100% drops the decimal; everything else shows one decimal, rounded nearest.
+function fmtUptime(v: number): string {
+  const rounded = (v * 100).toFixed(1);
+  // Round first, then check the boundary: a value like 0.9995 rounds to "100.0",
+  // which should read "100%" (no decimal) — not "100.0%".
+  return parseFloat(rounded) >= 100 ? '100%' : `${rounded}%`;
+}
+
+// UptimeWindowsLine renders Gatus's computed 24h/7d/30d availability under the tile
+// name — monitored services only. Returns null when there is no data so an
+// unmonitored tile renders nothing extra and its height is unchanged (AC-U06).
+function UptimeWindowsLine({ windows }: { windows?: Record<string, number> }) {
+  if (!windows) return null;
+  const parts = UPTIME_WINDOW_ORDER.filter((w) => typeof windows[w] === 'number');
+  if (parts.length === 0) return null;
+  return (
+    <span className="app-grid-tool-uptime" data-testid="tile-uptime">
+      {parts.map((w) => `${w} ${fmtUptime(windows[w])}`).join('  ·  ')}
+    </span>
+  );
+}
+
 // One tool link: icon plate + name, opens the tool in a new tab (AC-011, §6.4).
 // The visible name truncates; the accessible name (aria-label) + native title
 // carry the full string (§6.2.1). A favorite ★ toggle (#240) sits in the corner
@@ -647,6 +674,7 @@ function ToolLink({
           />
         </span>
         <span className="app-grid-tool-name">{service.name}</span>
+        <UptimeWindowsLine windows={service.uptimeWindows} />
       </a>
       <button
         type="button"

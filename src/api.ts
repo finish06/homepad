@@ -42,6 +42,10 @@ export type Service = {
   // The recent Gatus check history (≤20, oldest-first) backing the tile uptime
   // sparkline. Optional/absent → no monitoring; the tile shows no sparkline.
   uptimeChecks?: UptimeCheck[];
+  // Gatus's own computed availability per long window ("24h"/"7d"/"30d"),
+  // fraction 0..1. Optional/absent/empty → no monitoring or no data; the tile
+  // shows no long-window uptime line. Additive.
+  uptimeWindows?: Record<string, number>;
 };
 
 // A v4 category: admin-managed shared-catalog metadata. `sortIndex` is the
