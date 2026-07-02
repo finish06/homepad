@@ -19,6 +19,11 @@ const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
 const catalog = read('src/Catalog.tsx');
 const app = read('src/App.tsx');
 const appHeader = read('src/AppHeader.tsx');
+const indexCss = read('src/index.css');
+
+// The base `.app-grid { ... }` rule (page grid), not `.app-grid-box` etc. The
+// selector `.app-grid` must be immediately followed by whitespace + `{`.
+const appGridRule = indexCss.match(/\.app-grid\s*\{([^}]*)\}/)?.[1] ?? '';
 
 // The one shared content-width token. AC-009 forbids divergent max-width
 // declarations, so all three layers must consume this exact class string.
@@ -41,6 +46,29 @@ describe('shared content width (#196, AC-009)', () => {
   });
 });
 
+// #194 — the App Grid page grid must fill the SAME 1536px content width as the
+// header/status bar, not stop 144px short at the v14-carryover 1392px. When it
+// caps early, a 2560px monitor's tiles (~216px) match a 1440px monitor's rather
+// than growing into the wider canvas — "more screen, same content", the tail of
+// the inversion #194 flagged. #194 first matched an inner `.app-grid` cap to
+// 1536px; #196 then removed that inner cap entirely so the grid inherits the
+// outer `${CONTENT_WIDTH}` section (max-w-[1536px], already asserted above) —
+// one source of truth, same fill. Either way the guard is: the grid never
+// re-caps narrower than the shared frame. jsdom can't measure the pixels.
+describe('app grid caps tiles short of the shared content width (#194, AC-001)', () => {
+  it('never re-caps the page grid at the v14 1392px, so tiles grow into the wide canvas', () => {
+    expect(appGridRule).not.toMatch(/max-width:\s*1392px/);
+  });
+
+  it('carries no divergent inner cap — it inherits the shared CONTENT_WIDTH (max-w-[1536px]) frame', () => {
+    // CONTENT_WIDTH is `max-w-[1536px]`; the grid fills that outer frame rather
+    // than declaring its own (now-removed, #196) inner max-width.
+    const token = CONTENT_WIDTH.match(/max-w-\[(\d+)px\]/)?.[1];
+    expect(token).toBe('1536');
+    expect(appGridRule).not.toMatch(/max-width/);
+  });
+});
+
 // v14 supersedes #194/#201: the auto-fill stretch grid (which bloated tiles to
 // ~218px at 1440px) is replaced by the floating-panel field — fixed 190px tile
 // slots inside `.panel-tiles`, panels packed in a `.tile-field`. The real
@@ -55,6 +83,20 @@ describe('floating-panel field replaces the auto-fill grid (v14, A-006)', () => 
   it('uses the fixed-190px-slot panel-tiles grid inside the tile-field', () => {
     expect(catalog).toContain('tile-field');
     expect(catalog).toContain('panel-tiles');
+  });
+});
+
+// The App Grid lives inside App.tsx's `${CONTENT_WIDTH} py-6` section, which
+// already caps + centers content at max-w-[1536px] px-4. A SECOND max-width +
+// margin:auto on `.app-grid` itself re-centers the grid independently inside
+// that section, insetting its left edge past the header/status content edges at
+// wide viewports — the #196 "grid floats untethered at 2560" symptom. The grid
+// must simply fill the shared frame. jsdom can't measure the inset, so this is a
+// CSS source-guard on the base `.app-grid` rule.
+describe('App Grid shares the content frame (#196, AC-008)', () => {
+  it('does not re-cap its own width inside the CONTENT_WIDTH section (else it floats inset from header/status)', () => {
+    expect(appGridRule, 'expected a base .app-grid rule').not.toBe('');
+    expect(appGridRule).not.toMatch(/max-width/);
   });
 });
 

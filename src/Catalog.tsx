@@ -690,7 +690,7 @@ export default function Catalog({
         <div data-testid="edit-mode-banner" className="edit-mode-banner" role="status">
           <span className="edit-mode-banner-label">
             <PencilIcon />
-            Editing your personal dashboard
+            Editing the shared catalog — changes affect all users
           </span>
           {onExitEdit && (
             <button

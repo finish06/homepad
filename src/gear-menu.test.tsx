@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import AppHeader from './AppHeader';
@@ -8,10 +8,10 @@ import type { User } from './api';
 
 expect.extend(toHaveNoViolations);
 
-// v18 — the Gear becomes a unified edit-dashboard dropdown menu. A single click
-// on the gear surfaces every edit-dashboard action, role-appropriately, instead
-// of the old single Arrange toggle (aria-pressed). These cover SPEC v18
-// A1–A9/A13.
+// The Gear is a unified dropdown menu. SPEC-app-grid §2/§7 retired the Catalog
+// layout that owned tile Arrange + Edit-tiles modes, so those two items are gone;
+// the Gear now carries the service-management actions that outlive the layout
+// swap: "Add apps" (Library, all users) and "Add custom app" (admin).
 
 const ADMIN: User = { id: 'a1', email: 'caleb@ohana.io', role: 'admin', themePref: 'system' };
 const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'user', themePref: 'system' };
@@ -24,10 +24,6 @@ function renderHeader(
     <LauncherProvider>
       <AppHeader
         user={user}
-        arrange={false}
-        editMode={false}
-        onToggleArrange={() => {}}
-        onToggleEditMode={() => {}}
         onOpenLibrary={() => {}}
         onOpenCustomAppForm={() => {}}
         onOpenAdminSettings={() => {}}
@@ -50,7 +46,7 @@ afterEach(() => {
   document.documentElement.classList.remove('dark');
 });
 
-describe('v18 A1 — Gear is a menu trigger, not a toggle', () => {
+describe('A1 — Gear is a menu trigger, not a toggle', () => {
   it('the gear advertises a menu popup (aria-haspopup), not aria-pressed', () => {
     renderHeader(ADMIN);
     const gear = screen.getByTestId('settings-gear');
@@ -67,33 +63,39 @@ describe('v18 A1 — Gear is a menu trigger, not a toggle', () => {
   });
 });
 
-describe('v18 A2 — personal items for all users', () => {
-  it('admin sees Arrange tiles + Add apps', async () => {
+describe('A2 — personal items for all users', () => {
+  it('admin sees Add apps', async () => {
     const user = userEvent.setup();
     renderHeader(ADMIN);
     await openGear(user);
-    expect(screen.getByTestId('gear-arrange')).toHaveTextContent(/arrange tiles/i);
     expect(screen.getByTestId('gear-add-apps')).toHaveTextContent(/add apps/i);
   });
 
-  it('non-admin also sees Arrange tiles + Add apps', async () => {
+  it('non-admin also sees Add apps', async () => {
     const user = userEvent.setup();
     renderHeader(USER);
     await openGear(user);
-    expect(screen.getByTestId('gear-arrange')).toBeInTheDocument();
     expect(screen.getByTestId('gear-add-apps')).toBeInTheDocument();
+  });
+
+  // The retired Catalog Arrange/Edit-tiles items must not resurface (#223 / §7).
+  it('no longer offers Arrange tiles or Edit tiles', async () => {
+    const user = userEvent.setup();
+    renderHeader(ADMIN);
+    await openGear(user);
+    expect(screen.queryByTestId('gear-arrange')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('gear-edit-tiles')).not.toBeInTheDocument();
   });
 });
 
-describe('v18 A3 — admin-only editing section', () => {
-  it('admin sees the Admin editing section + Edit tiles + Add custom app', async () => {
+describe('A3 — admin-only editing section', () => {
+  it('admin sees the Admin editing section + Add custom app', async () => {
     const user = userEvent.setup();
     renderHeader(ADMIN);
     await openGear(user);
     const adminLabel = screen.getByTestId('gear-menu-section-admin');
     expect(adminLabel).toHaveTextContent(/admin editing/i);
     expect(adminLabel).toHaveClass('menu-administration-section');
-    expect(screen.getByTestId('gear-edit-tiles')).toHaveTextContent(/edit tiles/i);
     expect(screen.getByTestId('gear-add-custom-app')).toHaveTextContent(/add custom app/i);
   });
 
@@ -102,38 +104,50 @@ describe('v18 A3 — admin-only editing section', () => {
     renderHeader(USER);
     await openGear(user);
     expect(screen.queryByTestId('gear-menu-section-admin')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('gear-edit-tiles')).not.toBeInTheDocument();
     expect(screen.queryByTestId('gear-add-custom-app')).not.toBeInTheDocument();
   });
 });
 
-describe('v18 A4 — Arrange tiles toggle', () => {
-  it('clicking fires onToggleArrange and closes the menu', async () => {
+// AG-EDIT-1 — the Gear restores the Edit Dashboard toggle (admin-only), retired
+// when the App Grid replaced Catalog. Toggling it drives the App Grid's
+// client-ephemeral, admin-only rearrange mode. It is a checkbox menu item so its
+// on/off state is announced; clicking fires onToggleEdit and closes the menu.
+describe('AG-EDIT-1 — Edit Dashboard toggle (admin)', () => {
+  it('admin sees an Edit dashboard toggle in the admin section', async () => {
     const user = userEvent.setup();
-    const onToggleArrange = vi.fn();
-    renderHeader(ADMIN, { onToggleArrange });
+    renderHeader(ADMIN);
     await openGear(user);
-    await user.click(screen.getByTestId('gear-arrange'));
-    expect(onToggleArrange).toHaveBeenCalledTimes(1);
+    const item = screen.getByTestId('gear-edit-dashboard');
+    expect(item).toHaveTextContent(/edit dashboard/i);
+    expect(item).toHaveAttribute('role', 'menuitemcheckbox');
+  });
+
+  it('non-admin never sees the Edit dashboard toggle', async () => {
+    const user = userEvent.setup();
+    renderHeader(USER);
+    await openGear(user);
+    expect(screen.queryByTestId('gear-edit-dashboard')).not.toBeInTheDocument();
+  });
+
+  it('reflects the current edit-mode state via aria-checked', async () => {
+    const user = userEvent.setup();
+    renderHeader(ADMIN, { editMode: true });
+    await openGear(user);
+    expect(screen.getByTestId('gear-edit-dashboard')).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('clicking fires onToggleEdit and closes the menu', async () => {
+    const user = userEvent.setup();
+    const onToggleEdit = vi.fn();
+    renderHeader(ADMIN, { onToggleEdit });
+    await openGear(user);
+    await user.click(screen.getByTestId('gear-edit-dashboard'));
+    expect(onToggleEdit).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId('gear-menu')).not.toBeInTheDocument();
-  });
-
-  it('shows a checkmark when arrange=true', async () => {
-    const user = userEvent.setup();
-    renderHeader(ADMIN, { arrange: true });
-    await openGear(user);
-    expect(within(screen.getByTestId('gear-arrange')).queryByTestId('gear-arrange-check')).toBeInTheDocument();
-  });
-
-  it('shows no checkmark when arrange=false', async () => {
-    const user = userEvent.setup();
-    renderHeader(ADMIN, { arrange: false });
-    await openGear(user);
-    expect(within(screen.getByTestId('gear-arrange')).queryByTestId('gear-arrange-check')).not.toBeInTheDocument();
   });
 });
 
-describe('v18 A5 — Add apps action', () => {
+describe('A5 — Add apps action', () => {
   it('clicking fires onOpenLibrary and closes the menu', async () => {
     const user = userEvent.setup();
     const onOpenLibrary = vi.fn();
@@ -145,26 +159,7 @@ describe('v18 A5 — Add apps action', () => {
   });
 });
 
-describe('v18 A6 — Edit tiles toggle (admin)', () => {
-  it('clicking fires onToggleEditMode and closes the menu', async () => {
-    const user = userEvent.setup();
-    const onToggleEditMode = vi.fn();
-    renderHeader(ADMIN, { onToggleEditMode });
-    await openGear(user);
-    await user.click(screen.getByTestId('gear-edit-tiles'));
-    expect(onToggleEditMode).toHaveBeenCalledTimes(1);
-    expect(screen.queryByTestId('gear-menu')).not.toBeInTheDocument();
-  });
-
-  it('shows a checkmark when editMode=true', async () => {
-    const user = userEvent.setup();
-    renderHeader(ADMIN, { editMode: true });
-    await openGear(user);
-    expect(within(screen.getByTestId('gear-edit-tiles')).queryByTestId('gear-edit-tiles-check')).toBeInTheDocument();
-  });
-});
-
-describe('v18 A7 — Add custom app action (admin)', () => {
+describe('A7 — Add custom app action (admin)', () => {
   it('clicking fires onOpenCustomAppForm and closes the menu', async () => {
     const user = userEvent.setup();
     const onOpenCustomAppForm = vi.fn();
@@ -176,24 +171,7 @@ describe('v18 A7 — Add custom app action (admin)', () => {
   });
 });
 
-describe('v18 A8 — Gear icon highlights when any mode is active', () => {
-  it('carries the active indigo class when arrange=true', () => {
-    renderHeader(USER, { arrange: true });
-    expect(screen.getByTestId('settings-gear').className).toContain('text-indigo-600');
-  });
-
-  it('carries the active class when editMode=true', () => {
-    renderHeader(ADMIN, { editMode: true });
-    expect(screen.getByTestId('settings-gear').className).toContain('text-indigo-600');
-  });
-
-  it('is neutral when neither is active', () => {
-    renderHeader(ADMIN, { arrange: false, editMode: false });
-    expect(screen.getByTestId('settings-gear').className).not.toContain('text-indigo-600');
-  });
-});
-
-describe('v18 A9 — menu closes on outside click and Escape', () => {
+describe('A9 — menu closes on outside click and Escape', () => {
   it('Escape closes the menu and restores focus to the gear', async () => {
     const user = userEvent.setup();
     renderHeader(ADMIN);
@@ -215,10 +193,10 @@ describe('v18 A9 — menu closes on outside click and Escape', () => {
   });
 });
 
-describe('v18 A13 — accessibility', () => {
-  it('the open admin gear menu (arrange + editMode on) has no axe violations', async () => {
+describe('A13 — accessibility', () => {
+  it('the open admin gear menu has no axe violations', async () => {
     const user = userEvent.setup();
-    const { container } = renderHeader(ADMIN, { arrange: true, editMode: true });
+    const { container } = renderHeader(ADMIN);
     await openGear(user);
     const results = await axe(container, {
       rules: { 'aria-required-children': { enabled: false } },

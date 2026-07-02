@@ -1,84 +1,88 @@
-import { test, expect } from '@playwright/test';
-import { mockApi, makeCategorized, toggleArrange } from './mockApi';
+import { test, expect } from './fixtures';
+import { mockApi, makeBoxes } from './mockApi';
 
-// #57 REGRESSION GATE — real-browser only (issue #59).
+// #57 REGRESSION GATE (retargeted for SPEC-app-grid §2) — real-browser only.
 //
-// #57: the open UserMenu dropdown was painted UNDER the tiles' drag-grips, so a
-// grip swallowed clicks meant for the dropdown. The fix lifts AppHeader to z-20
-// (PR #58) so its whole subtree — including the absolutely-positioned dropdown —
-// stacks above the grips' z-10. Revert the header to z-10 and the grip (later in
-// DOM) repaints over the dropdown again.
+// #57: an open header dropdown was painted UNDER interactive dashboard content,
+// so the content swallowed clicks meant for the menu. The fix lifts AppHeader to
+// z-20 (PR #58) and the dropdown to z-50 so its whole subtree stacks above the
+// page content. This is INVISIBLE to jsdom (no z-index, no paint, no hit-testing;
+// `document.elementFromPoint` is meaningless there) — only a real Chromium
+// resolves "which element actually occupies this pixel".
 //
-// This is INVISIBLE to jsdom exactly like #35: jsdom has no z-index, no paint,
-// and no hit-testing — `document.elementFromPoint` there is meaningless. Only a
-// real Chromium resolves "which element actually occupies this pixel". The teeth:
-// flip AppHeader z-20 → z-10 and rebuild → this spec goes red (elementFromPoint
-// at the overlap returns the drag-grip, not the dropdown); restore → green.
-// (Proof recorded in the PR: revert z-20 → red; restore → green.)
+// §2 REPLACE: App Grid replaced the Catalog tile/grip surface this gate used to
+// probe (drag-grips at z-10). The retained real assertion is layout-independent —
+// the open UserMenu dropdown must own every pixel it overlaps — so it now probes
+// the App Grid's own interactive content (glass boxes carry a `backdrop-filter`,
+// which creates a stacking context; their tool links + width buttons are the
+// elements that would contest the dropdown's pixels under a z regression).
 //
-// v14.1 capped the floating-panel field at 4 columns (was 6). A single flat
-// (no-category) catalog therefore left-aligns 4×190px tiles and NO LONGER reaches
-// the right-anchored dropdown — the old 8-flat-tile fixture yielded zero overlaps
-// and the gate went vacuously un-runnable. So we seed FOUR categories of two apps
-// each: each renders as a glass panel that packs left→right across the field, and
-// the rightmost panel's bottom-right grip lands directly beneath the dropdown at
-// the 4-col ceiling — the only place the two can overlap. (Verified in real
-// Chromium: a tile grip sits at x≈1320 inside the menu box x∈[1163,1407].)
-//
-// #166: the per-tile reorder grip is now revealed by per-user Arrange mode (the
-// header settings gear) rather than always-on, so we enter Arrange first. The
-// z-stacking this gate guards (header z-20 over grip z-10) is unchanged.
+// Teeth: under A1 boxes are CONTENT-SIZED (they no longer stretch to fill the
+// row), so a default width-3 box (634px) would leave a gap at the right edge and
+// the dropdown would float over empty space — no overlap, vacuous pass. To keep
+// the teeth we hand the fixture one WIDE box (width 8) that max-width:100%-clamps
+// to fill the top row: its header (width selector) + auto-filled tool links then
+// land directly beneath the right-anchored dropdown. Drop AppHeader/dropdown below
+// the content's stacking and a tool link / width button wins the contested centre.
+
+async function enterEditMode(page: import('@playwright/test').Page) {
+  await page.getByTestId('settings-gear').click();
+  await page.getByTestId('gear-edit-dashboard').click();
+}
 
 test.beforeEach(async ({ page }) => {
-  const { services, categories } = makeCategorized(4, 2);
-  await mockApi(page, services, categories);
+  // Admin + Edit Dashboard mode so the per-box width selector renders (an extra
+  // interactive element in the contested top row — it now only appears in edit
+  // mode, alongside box rename/delete). One wide box (width 8) clamps to the full
+  // content frame so its header + tool links reach the top-right under the dropdown.
+  const { services, categories } = makeBoxes([
+    { width: 8, tools: ['Plex', 'Sonarr', 'Radarr', 'Grafana', 'Prometheus', 'Loki', 'Jellyfin', 'Tautulli'] },
+  ]);
+  await mockApi(page, services, categories, 'admin');
   await page.goto('/');
   await expect(page.getByTestId('user-menu-trigger')).toBeVisible();
-  await expect(page.getByTestId('service-tile').first()).toBeVisible();
-  // Reveal the per-tile reorder grips (Arrange mode, now entered via the v18 gear
-  // menu) so they can contest the dropdown's pixels.
-  await toggleArrange(page);
-  await expect(page.getByTestId('drag-handle').first()).toBeVisible();
+  await expect(page.getByTestId('app-grid-box').first()).toBeVisible();
+  await expect(page.getByTestId('tool-link').first()).toBeVisible();
+  await enterEditMode(page);
+  await expect(page.getByTestId('width-selector').first()).toBeVisible();
 });
 
-test('mouse: the open UserMenu dropdown sits above tile drag-grips', async ({ page }) => {
-  // Open the dropdown (issue #59 step 1).
+test('mouse: the open UserMenu dropdown sits above App Grid content', async ({ page }) => {
+  // Open the dropdown.
   await page.getByTestId('user-menu-trigger').click();
   await expect(page.getByRole('menu')).toBeVisible();
 
-  // Step 2/3: find every drag-grip that overlaps the dropdown box and, at the
-  // CENTRE of each overlap, ask the browser which element owns that pixel. With
-  // the header at z-20 the dropdown wins every contested pixel; at z-10 a grip
-  // does. We assert in real Chromium, where elementFromPoint is honest.
+  // Find every interactive App Grid element (tool link or width button) that
+  // overlaps the dropdown box and, at the CENTRE of each overlap, ask the browser
+  // which element owns that pixel. With the header/dropdown stacked above content
+  // the dropdown wins every contested pixel; under the regression a tool link or
+  // width button does. We assert in real Chromium, where elementFromPoint is
+  // honest.
   const probe = await page.evaluate(() => {
-    // Ignore sub-pixel near-misses (issue #63): the grid can place a row-2 tile's
-    // grip-top exactly at the dropdown's bottom edge (e.g. grip.top=334.00 vs
-    // menu.bottom=334.17), yielding a ~0.17px sliver of "overlap". Probing the
-    // centre of so thin a band is Chromium-version-sensitive — elementFromPoint
-    // can round to the grip and flake the gate without any real regression.
-    // Require at least MIN_OVERLAP_PX of overlap on BOTH axes so only genuine,
-    // interior overlaps (like the rightmost panel's full 36px grip band, well
-    // inside the dropdown) are tested. Test-robustness
-    // only; the z-20 regression teeth are unchanged.
+    // Ignore sub-pixel near-misses (issue #63): require ≥MIN_OVERLAP_PX overlap on
+    // BOTH axes so only genuine interior overlaps are tested (a thin boundary
+    // touch is Chromium-version-sensitive and would flake without a real
+    // regression). Test-robustness only; the z regression teeth are unchanged.
     const MIN_OVERLAP_PX = 2;
     const menu = document.querySelector('[data-testid="user-menu"]') as HTMLElement;
     const mb = menu.getBoundingClientRect();
-    const results: { sid: string | null; x: number; y: number; hitInMenu: boolean; hitTestid: string | null }[] = [];
-    for (const g of Array.from(document.querySelectorAll('[data-testid="drag-handle"]'))) {
+    const results: { id: string | null; x: number; y: number; hitInMenu: boolean; hitTestid: string | null }[] = [];
+    const contenders = document.querySelectorAll(
+      '[data-testid="tool-link"], [data-testid^="width-btn-"]',
+    );
+    for (const g of Array.from(contenders)) {
       const r = g.getBoundingClientRect();
       const ox = Math.max(r.left, mb.left);
       const oX = Math.min(r.right, mb.right);
       const oy = Math.max(r.top, mb.top);
       const oY = Math.min(r.bottom, mb.bottom);
-      // Skip when the contested region is empty OR thinner than MIN_OVERLAP_PX
-      // on either axis (a sub-pixel boundary touch, not a real stacking overlap).
       if (oX - ox < MIN_OVERLAP_PX || oY - oy < MIN_OVERLAP_PX) continue;
       const x = (ox + oX) / 2;
       const y = (oy + oY) / 2;
       const hit = document.elementFromPoint(x, y);
       const owner = hit?.closest('[data-testid]') ?? null;
       results.push({
-        sid: g.getAttribute('data-service-id'),
+        id: g.getAttribute('data-testid'),
         x,
         y,
         hitInMenu: !!hit && menu.contains(hit),
@@ -88,20 +92,20 @@ test('mouse: the open UserMenu dropdown sits above tile drag-grips', async ({ pa
     return results;
   });
 
-  // The gate only has teeth if a grip actually underlaps the dropdown — guard the
-  // fixture so a future layout change that removes the overlap fails loudly here
-  // instead of passing vacuously.
+  // The gate only has teeth if an App Grid element actually underlaps the
+  // dropdown — guard the fixture so a future layout change that removes the
+  // overlap fails loudly here instead of passing vacuously.
   expect(
     probe.length,
-    'expected at least one drag-grip to overlap the open dropdown (gate fixture must keep a tile in the grid right column)',
+    'expected at least one App Grid tool link / width button to overlap the open dropdown (gate fixture must keep a box in the top-right column)',
   ).toBeGreaterThan(0);
 
-  // Every contested pixel must belong to the dropdown, never a grip. Under the
-  // #57 regression (header z-10) hitTestid is "drag-handle" and hitInMenu false.
+  // Every contested pixel must belong to the dropdown, never a tool link/button.
+  // Under the regression hitTestid is "tool-link"/"width-btn-N" and hitInMenu false.
   for (const p of probe) {
     expect(
       p.hitInMenu,
-      `grip ${p.sid} intercepts the dropdown at (${p.x},${p.y}); owner=${p.hitTestid}`,
+      `App Grid element ${p.id} intercepts the dropdown at (${p.x},${p.y}); owner=${p.hitTestid}`,
     ).toBe(true);
   }
 });

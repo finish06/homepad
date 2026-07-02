@@ -7,6 +7,155 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [13.1.0] — 2026-07-02 — Per-tile status dot on the App Grid (SPEC-242)
+
+Restores the live per-service health indicator on every App Grid tool tile (it
+was present on the outgoing v14 floating-panel layout but absent from the App Grid
+tile). Frontend only — the status comes from `service.status` on the existing
+`GET /api/services` via `ServicesContext`; no new endpoint, no backend change.
+
+### Added
+
+- **Per-tile status dot.** Each tool tile now shows a 9px status pip in its
+  **top-left** corner (deliberately mirroring the favorite ★ at top-right so the
+  two never collide). Five states, each with an accessible label (`role="img"` +
+  `aria-label="status: …"` + hover `title`):
+  - **UP** green, **DOWN** red, **DEGRADED** amber — each with a state-coloured glow.
+  - **UNKNOWN** neutral grey, ring only, **no** alarm glow (it's monitoring-infra
+    noise, not a service failure).
+  - **NOT_MONITORED** a dashed hollow ring, no glow — the one non-solid shape, so a
+    colour-blind user can still tell it apart (absence of monitoring, not an error).
+- A mandatory 1px definition ring on the solid dots so the emerald/amber/neutral
+  fills meet the WCAG-AA 3:1 non-text-contrast floor against the near-white tile.
+- A single-shot pulse when a tile's status changes on a live poll; it plays only
+  on the tile that changed and is skipped entirely under `prefers-reduced-motion`.
+
+The indicator is absolutely positioned with `pointer-events: none`, so it adds
+**zero** layout impact — the fixed 120px tile height is unchanged and a tap on the
+tile always hits the app link.
+
+## [13.0.0] — 2026-07-02 — App Grid fixed-width tile layout (SPEC-app-grid Amendment A1)
+
+Opens the v13 major line (panel customization). Corrects the App Grid's 1fr layout
+regression so a tool tile is the **same fixed width in every box**.
+
+### Changed
+
+- **App Grid is now a fixed-width tile layout (Amendment A1).** Previously each box
+  was a span of a `repeat(6, 1fr)` page grid and its tools were `repeat(--w, 1fr)`,
+  so a tile's rendered width was `box_width ÷ --w` — a tile in a width-1 box and a
+  tile in a width-4 box were **different sizes**. Now:
+  - Boxes are **content-sized** and pack left→right with `flex-wrap`; a box at width
+    N is exactly `N×190 + (N-1)×16 + 32` px wide (byte-identical to the v14 panel).
+  - Tool tiles are a **fixed 190px** `auto-fill` track — the same width in every box
+    (AC-001-A1) — and **wrap** (never resize) when a box is clamped narrower than its
+    natural width (no horizontal page scroll).
+  - Tiles use the vertical tile grammar (icon plate over a full-width, 2-line-clamped
+    name) at a **fixed 120px height**, so a 1-line and a 2-line name render identical
+    height — tiles no longer jump.
+- **Box width range widens from 1–6 to 1–8.** A width whose box would be wider than
+  your current screen is offered **disabled** ("Wider than this screen") so an admin
+  can't set an off-screen box on their own display.
+- **Two width-3 boxes sit two-up at ≥1440px**; below that they wrap gracefully.
+- **Mobile (≤640px):** each box goes full-width and its tiles cap at 2 columns,
+  shrinking below 190px only as needed to avoid any horizontal scroll.
+
+## [12.9.1] — 2026-07-02 — Gate the App Grid width selector to Edit Dashboard mode
+
+### Fixed
+
+- **Box width selector now only appears in Edit Dashboard mode (#240/#241 follow-up).**
+  The per-box width control (the `width` label + six 1–6 buttons) rendered for any
+  admin at all times, cluttering the normal browsing view. It now shares the same
+  gate as box rename/delete — `editing && box.id !== ''` — so it appears only for an
+  admin who has turned on **Edit Dashboard** from the header gear, and never on the
+  synthetic Uncategorized box. Non-admins still never see it. Width picking and
+  persistence inside edit mode are unchanged.
+
+## [12.9.0] — 2026-07-02 — Restore favorites toggle + box rename/delete in the App Grid
+
+### Added
+
+- **Per-tile favorite toggle is back (#240).** The App Grid's tool tiles had
+  dropped the favorite control the old Catalog ⋯ menu carried — `setFavorite` and
+  the launcher **Favorites** section still existed, but there was no UI to pin or
+  unpin. Each tile now shows a ★ toggle (a real `<button>` layered over the tool
+  link, corner-anchored above it so a real center click lands on the star, not the
+  navigation). Activating it pins/unpins via `POST`/`DELETE /api/favorites/{id}`
+  (optimistic, with rollback on failure) and mirrors into the shared services
+  context so the ⌘K launcher's Favorites section updates live. Available to every
+  logged-in user in the normal view (favoriting is personal, not admin edit).
+- **Box (category) rename + delete are back (#241).** `SPEC-app-grid §7` had
+  deferred these to the old Catalog CategoryManager, which the App Grid replace
+  retired — so admins could create boxes but not rename or delete them. In **Edit
+  Dashboard** mode each real category box header now exposes **Rename** (inline
+  editor → `PATCH /api/categories/{id}`, optimistic, reconciled to the server's
+  canonical name, inline error + rollback on a 409 duplicate) and **Delete**
+  (in-place confirm → `DELETE /api/categories/{id}`). Because the FK is
+  `ON DELETE SET NULL`, a deleted box's apps fall back to **Uncategorized** — the
+  client re-homes them live (clears `categoryId` in the shared services) so they
+  don't vanish until reload, and rolls both back if the delete fails. The synthetic
+  Uncategorized box and non-admins never get the controls.
+
+### Fixed
+
+- **App Grid drag-reorder browser-gate mock (#239).** The `#35` reorder gate mocked
+  `PUT /api/categories/order` as HTTP 200, but the real API returns **204** and the
+  client only treats 204 as success — so the keyboard drag-reorder rolled straight
+  back under test. The gate mock now returns 204, matching the backend.
+
+### Notes
+
+- Per-tile **status dots (#242)** remain deferred (Caleb's call) — untouched here.
+- Edit Dashboard mode + drag-to-rearrange (12.8.0), box width (1–6) + the width
+  selector + `grid_width` persistence, the ≤640px 2-column layout, and the a11y
+  contract are all unchanged by this restoration.
+
+## [12.8.0] — 2026-07-02 — Restore Edit Dashboard + rearrange categories in the App Grid
+
+### Added
+
+- **Edit Dashboard mode + drag-to-rearrange categories are back.** The App Grid
+  that replaced the old Catalog layout had dropped two features Caleb uses daily —
+  a **regression**. The admin header gear now carries an **"Edit dashboard"**
+  toggle (client-ephemeral, admin-only — a reload returns to view mode). While
+  it's on, each real category box shows a drag grip; dragging reorders the boxes
+  in the 6-column greedy-pack grid and **persists** the new shared order via
+  `PUT /api/categories/order` (optimistic, with rollback if the save fails). The
+  grip is a real keyboard-operable button (pointer + touch + keyboard sensors, an
+  aria-live reorder announcement), so the a11y path is intact. The synthetic
+  Uncategorized box stays pinned last and is not draggable. Box width (1–6), the
+  width selector + `grid_width` persistence, and the ≤640px 2-column layout are
+  unchanged. `SPEC-app-grid.md §7` updated to move these from "out of v1" to IN
+  scope.
+
+## [12.7.2] — 2026-07-01 — App Grid tile name keeps its distinguishing suffix (#195)
+
+### Fixed
+
+- **Sibling tiles with a shared prefix no longer become indistinguishable when a
+  tile is narrow.** `ArchiveTeam Warrior1` and `ArchiveTeam Warrior2` previously
+  both single-line end-ellipsized to `ArchiveTeam …` (at ≤173px tiles — the 6-col
+  layout on a 2560px monitor, see #194), dropping the only identifying token and
+  violating design-system principle #4. The `.app-grid-tool-name` rule now wraps
+  to a second line (`-webkit-line-clamp: 2`, `overflow-wrap: anywhere`) instead of
+  clipping to one, so the distinguishing trailing word stays on screen; names too
+  long for two lines still ellipsize the last line, and the full string remains
+  reachable via the existing `title` tooltip. CSS-only; CDP-verified at 173/235px.
+  (This is the defensive half of #195 — #194 separately raises wide-monitor tiles
+  back to ≥200px where names wrap cleanly at the space.)
+
+## [12.7.1] — 2026-07-01 — App Grid fills the wide-monitor canvas (#194)
+
+### Fixed
+- The App Grid dashboard now fills the shared **1536px** content width instead
+  of stopping short at **1392px** (a leftover from the v14 floating-panel
+  layout). On a wide monitor the app tiles used to stay the same size as on a
+  1440px screen — "more screen, same content", the tail of the #194 inversion.
+  They now grow with the canvas (browser-measured tile width: 216px → 235px at
+  2560px), stay ≥200px on desktop, and the grid right-aligns with the header and
+  status bar. iPad and phone layouts are unchanged.
+
 ## [12.7.0] — 2026-07-01 — v14.1 floating-panel 4-column ceiling
 
 ### Changed
