@@ -98,11 +98,11 @@ describe('AppGrid rendering', () => {
 });
 
 describe('width selector (AC-013/014/015)', () => {
-  it('renders 6 buttons and highlights the current width (AC-013)', async () => {
+  it('renders 8 buttons and highlights the current width (AC-013-A1)', async () => {
     await renderGridEdit(true, true);
     const media = screen.getAllByTestId('app-grid-box')[0];
     const sel = within(media).getByTestId('width-selector');
-    expect(within(sel).getAllByRole('button')).toHaveLength(6);
+    expect(within(sel).getAllByRole('button')).toHaveLength(8);
     expect(within(sel).getByTestId('width-btn-4')).toHaveAttribute('aria-pressed', 'true');
     expect(within(sel).getByTestId('width-btn-2')).toHaveAttribute('aria-pressed', 'false');
   });
