@@ -1,163 +1,298 @@
-# Design Direction: Category-Pane Horizontal Fill & Tile Reflow (wide viewports)
+# Spec: App-Grid Box Horizontal Fill & Tile Reflow (wide viewports) — Phase 1
 
 **Trigger:** Caleb — direct layout feedback on the authed dashboard at wide viewports
-(3 screenshots), 2026-07-02. "Still not in love."
-**Task:** `homepad-pane-fill-reflow-20260702-140338`
-**Author:** Kare (design/UX) — **design input for Walt to formalize into product spec**
-**Status:** DESIGN DIRECTION — recommended, needs Walt (product) + Joe (delegated homepad
-authority) sign-off. **Not yet a build contract.**
-**Scope:** `src/Catalog.tsx`, `src/index.css` — **frontend only, no backend.** Wide viewports
-(≥1024px focus; 1280–2560 are the failing band). Phone/tablet (<640) and standard desktop
-guardrails unchanged (same guardrail as `large-monitor-grid.md`).
-**Repo:** `Code/homepad`.
+(3 screenshots), 2026-07-02. "Still not in love." Wide monitors leave dead space.
+**Version:** 1.0 (formalized from design direction by Walt, 2026-07-02)
+**Status:** ✅ APPROVED BUILD CONTRACT — Walt (product) ✓ · Kare (design) ✓
+**Authors:** Kare (design/UX) + Walt (product)
+**Audience:** Stitch (implementer) · Gracie (tech-QA)
+**Repo:** `Code/homepad` — **frontend only. No backend changes. No migration.**
+**Scope:** Authed dashboard at wide viewports (≥1024px focus; 1280–2560 are the failing
+band). Phone/tablet (<640px) and standard desktop (≤1024px) layouts are solid —
+**no changes to those breakpoints.**
+**Phase:** Phase 1 of 2. Phase 2 (manual admin drag/row/width% model,
+`SPEC-category-pane-width-layout.md`) stays HELD — do not build until separately
+dispatched.
 
-> ⚠️ **Coordination flag (read first — for Joe/Walt).** This overlaps an already-APPROVED,
-> already-dispatched spec: `SPEC-category-pane-width-layout.md` (Walt product-go 2026-07-01,
-> sent to Stitch). That spec solves the *same* dead-space with a **manual admin model**
-> (assign rows + width% + drag handles + a DB migration) and explicitly puts **auto-layout
-> "out of scope."** Caleb's new feedback asks for the **opposite**: *intelligent, automatic*
-> pane distribution — no per-category configuration. **These two directions conflict at the
-> philosophy level (manual vs. automatic).** My recommendation reconciles them (make AUTO the
-> default; keep admin width% as an optional override on top of the auto-packer), but it
-> **changes the approved spec's scope**, so it is a Walt+Joe call, not mine. **Do not let
-> Stitch build the manual-only model while the dashboard owner is asking for automatic.**
-> See §6.
-
----
-
-## 1. The problem, reproduced and measured
-
-The live authed dashboard (v14 §2A "floating panel field", `index.css:1892`) lays each
-category out as a **fixed-width glass pane** — width = `panelCols × 190 + gaps + 32`, where
-`panelCols = min(appCount, 4)` — inside a `.tile-field` that is `flex-wrap` + left-justified
-and **capped at `max-width: 1392px`**. Fixed panes packing left and wrapping is exactly the
-dead-space Caleb sees.
-
-I reproduced Caleb's scenario (Develop 6 apps · External 1 · Friends 3 · Media 5 · Kube 2) in
-a **byte-faithful harness** (the shipped `index.css` tokens + the exact DOM `Catalog.tsx`
-emits — staging currently has zero categories and my review account isn't admin, so a live
-seed wasn't possible; the layout is pure CSS so the harness is faithful). Measured, live DOM:
-
-| Viewport | Field right edge | Dead space **beyond** field (→ viewport) | Worst **intra**-field dead row |
-|---:|---:|---:|---|
-| 1440 | x=1440 (capped) | 0 | **Friends alone in a row → 758px empty to its right** |
-| 1920 | x=1440 (capped) | **480px** | same 314 / 758 / 108px ragged right edges |
-| 2560 | x=1440 (capped) | **1120px** | same |
-
-So at 1920 the entire lower-right quadrant is dead; at 2560 nearly half the screen. A 1-app
-pane ("External") renders a 222px box hugging the left. **This confirms every point of
-Caleb's report.** (Before: `pane-live-1920.png`, `pane-live-2560.png`.)
+> ### Re-anchor note (for Stitch — read first)
+> The **first draft of this spec (PR #270) described a dead layout model** — the v14
+> "floating panel field" (`.tile-field` / `.panel-tiles` / `panelCols`, capped at
+> `max-width: 1392px`). That model was **reverted off `main`** (#279). The live dashboard
+> is the **App Grid** (`SPEC-app-grid` Amendment A1, restored on `main` at commit `4c7dce2`):
+> glass **boxes** = categories, each sized by an admin **WidthSelector** that writes `--w`
+> (`grid_width` column, migration 0009, range 1–8), packed left→right by `flex-wrap`, with
+> a fixed-190px `auto-fill` tile track inside. **All class names below are the live App Grid
+> selectors.** Do not reference `.tile-field` or `.panel-tiles` — those are gone.
 
 ---
 
-## 2. What "intelligent" must mean (the design rules)
+## 1. The problem
 
-Four rules, each validated in-browser across 1440/1920/2560:
+The live App Grid lays each category out as a **content-sized glass box**:
 
-**R1 — The field fills the content frame.** Remove `.tile-field { max-width: 1392px;
-margin-left: 48px }`; the field spans the shared content frame with responsive horizontal
-padding that **caps at 64px** (identical to D1 of the sibling spec — one padding rule for both
-features). *Result: the beyond-field dead space (480px@1920, 1120px@2560) → 0.*
+```css
+.app-grid       { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
+.app-grid-box   { width: calc(var(--w) * 190px + (var(--w) - 1) * 16px + 32px);
+                  max-width:100%; }     /* FIXED to --w — the cause of the dead space */
+.app-grid-tools { grid-template-columns: repeat(auto-fill, 190px); }  /* shipped, R2 below */
+```
 
-**R2 — Tiles reflow by pane width, but stay a uniform 190px.** Change `.panel-tiles` from
-`repeat(var(--panel-cols), 190px)` (a hard column cap) to **`repeat(auto-fill, 190px)`**. A
-wider pane then shows **more** 190px tiles per row — Caleb's new ask — while the tile stays
-**exactly 190px in every pane**, which is Caleb's *standing* invariant from the App-Grid A1
-work (AC-001-A1). The per-pane column preference (`fieldCols`) stops being a hard cap and
-becomes the pane's **target / flex-basis** (Joe's direction #4; my task's requirement:
-"target/min, NOT a hard cap"). *Verified: tile width = 190px at all viewports in the fix.*
+`.app-grid` already spans the shared `CONTENT_WIDTH` frame (`mx-auto max-w-[1536px] px-4`,
+`src/layout.ts`). But every box is pinned to **exactly** its configured `--w` width and the
+row **left-packs and wraps**, so when a row's boxes don't sum to the frame width, the
+remainder is dead space.
 
-**R3 — Panes grow to consume the row, weighted by app count, capped at their own content.**
-Panes `flex-grow` so a row reaches both edges (kills the intra-field dead space). Grow is
-**weighted by app count** so populous panes widen *first* — they can actually *use* the width
-(more real tile columns), whereas a 1-app pane barely moves. And each pane is **capped at its
-content-max** (`appCount` tiles in one row) so it **never balloons into empty glass.**
+Measured (Caleb's scenario: Develop 6 · External 1 · Friends 3 · Media 5 · Kube 2):
 
-> This cap is the non-obvious lesson from the prototype. The naive "just `flex:1`" cure
-> (`pane-fixC-2560.png`) removes the *outer* dead space but **relocates it inside the glass**:
-> Media balloons from its 1046px content to 1660px with its 5 tiles stranded left and a ~600px
-> void inside the pane. That reads *more* broken than the original. The content-max cap
-> prevents it (`pane-fixD-1920.png` — External stays a tidy 222px box instead of a 1-tile pane
-> stretched across 340px).
+| Viewport | Dead space at right of packed row | Worst single-row intra-dead space |
+|---:|---:|---|
+| 1440 | small | External (1 app) → ~1100px empty to its right in its row |
+| 1920 | ~384px beyond last box | same ragged right edges |
+| 2560 | ~1024px beyond last box | same |
 
-**R4 — A pane alone in its row fills 100%** (matching `SPEC-category-pane-width-layout.md`
-AC3), tiles left-packed. A single full-width pane is honest single-pane breathing room, not
-the multi-pane bug.
-
-**Guardrails (unchanged):** `<640px` stacks full-width (existing `@media (max-width:767px)`
-rules); standard desktop `≤1024` unchanged. **All new rules are scoped `≥1024`.**
+Visual record: `assets/pane-fill-reflow/pane-live-1440.png`, `pane-live-1920.png`,
+`pane-live-2560.png`.
 
 ---
 
-## 3. Residual space at extreme width (the honest edge)
+## 2. Build contract — R1 through R4
 
-When every pane in a row is already at its content-max and space still remains (few apps + a
-very wide monitor, e.g. 17 apps on 2560), something must absorb the slack. Prototyped options:
+These four rules are the complete Phase 1 contract. R1 and R2 are shipped/verified; **R3 and
+R4 are the build.**
 
-- ❌ **left-pack** → back to the original right-edge dead space.
-- ❌ **`justify-content: space-between`** → blows inter-pane gaps to ~300px caverns and
-  *starves* panes of useful growth (`pane-fixD-2560.png`: Develop never reaches its 6-in-a-row
-  width because the space went to gaps).
-- ✅ **grow-then-center:** panes grow (weighted, capped) to consume space *usefully first*;
-  any space left after all panes hit content-max distributes as a **bounded** gap increase,
-  and at the extreme, the packed cluster **centers**. A centered, well-packed cluster reads as
-  "this is how much content there is, centered on a big screen" — a deliberate choice, not a
-  bug. This case shrinks fast with real homelab density (30–50 apps fills 2560 with little
-  residual); the sparse-17-app case is a genuine edge.
+### R1 — Field fills the content frame (verify-and-hold, not new build)
 
-**Design call I'd make differently from the starting direction:** Joe suggested tiles use
-`auto-fit` + `minmax(min,1fr)` (tiles *stretch* to fill). I prototyped it — tiles ran
-190→**305px** and a lone stretched tile looks off, and it breaks the uniform-190 invariant
-Caleb asked for earlier. I recommend **`auto-fill` + fixed 190 + pane-level grow** instead:
-same "reflow to fill" outcome, but tiles stay uniform. Flagging this as a deliberate refinement.
+`.app-grid` already spans the shared `CONTENT_WIDTH` frame after the App Grid restore (#279).
+The dead v14 `1392px` cap is gone. **R1 requires no new code** — Stitch must confirm no
+re-introduced inner cap and that horizontal padding matches the header frame. If a cap is
+found, remove it; otherwise close the verify task.
+
+### R2 — Tiles stay a uniform 190px (shipped, verify)
+
+`.app-grid-tools` is already `grid-template-columns: repeat(auto-fill, 190px)` (Amendment A1,
+AC-001-A1). Tiles are **exactly 190px** in every box at every viewport. This is Caleb's
+standing invariant — **do not break it.** When a box grows wider under R3, its `auto-fill`
+tile track reveals **more columns of 190px tiles** rather than stretching existing tiles. R2
+requires no new code.
+
+### R3 — Boxes grow above their `--w` floor, weighted, capped (build)
+
+Today `.app-grid-box` has a **fixed** `width: calc(--w …)`. Phase 1 changes it so `--w` is
+the box's **floor / target** and the box grows above it:
+
+- **Floor = `--w`.** A box never renders narrower than its configured `grid_width` (i.e.
+  `boxWidthPx(box.width)` from `src/appGrid.ts`). The admin WidthSelector and the
+  `grid_width` column are **kept exactly as-is — not replaced, not hidden.** Caleb's
+  decision (a): WidthSelector `--w` stays. It is the minimum, not the sole size.
+- **Grow weighted by app count.** Boxes `flex-grow` to fill the row's remaining width; the
+  grow factor is **proportional to `box.tools.length`** so a box with more apps claims more
+  of the available space. A box with 0 apps has grow = 0 (stays at floor). The intent: a box
+  that can *use* the width (more 190px columns) earns more of it.
+- **Cap at content-max.** Each box is capped at the width it needs to show all its apps in a
+  single row: `boxWidthPx(box.tools.length)` = `tools.length × 190 + (tools.length − 1) × 16
+  + 32`. A box **never grows into empty glass** past its own content.
+
+> The cap is the non-obvious constraint. The naïve "just `flex:1`" cure removes the outer
+> dead space but **relocates it inside the glass**: a 5-app Media box balloons to ~1660px
+> with 5 tiles stranded left and ~600px void inside. That reads more broken than the
+> original. The content-max cap prevents it (see `pane-fixC-2560.png` rejected vs.
+> `pane-fixD-1920.png` recommended).
+
+**Residual space (few apps + very wide monitor):** when every box in a row is already at its
+content-max and space still remains, the **packed cluster centers** — bounded gap increase
+then centering. This reads as a deliberate layout choice ("this is how much content there is")
+not a bug. Real homelab density (30–50 apps) leaves little residual at 2560.
+
+### R4 — Lone box fills 100% (build)
+
+A box that is alone in its row renders at **100% of the frame width**, tiles left-packed.
+The `--w` floor still applies as the minimum; alone in the row it grows to 100%.
+
+**Guardrails (unchanged — do not touch):**
+- `<640px`: boxes stack full-width, 2-column tile shrink — existing pure-CSS rules (A1 D-4).
+- `≤1024px`: box sizing is unchanged from shipped A1.
+- WidthSelector control in Edit Dashboard mode: remains visible and functional. Changes to
+  `grid_width` persist. Control is not hidden or removed.
+- D-3 behavior (`fitsViewport` in `src/appGrid.ts` disabling the selector for values that
+  would overflow the viewport): unchanged.
 
 ---
 
-## 4. Before / After (visual set attached to the tracking issue)
+## 3. Acceptance Criteria
 
-| | 1920 | 2560 |
-|---|---|---|
-| **Before (live)** | `pane-live-1920.png` — dead lower-right quadrant | `pane-live-2560.png` — ~½ screen dead |
-| Naive cure (rejected) | — | `pane-fixC-2560.png` — dead space moves *inside* the glass |
-| **Recommended** | `pane-fixD-1920.png` — panes share rows, no internal voids, External stays tidy | (see §3 for the residual edge) |
+### Field / frame (R1)
+
+| ID | Criterion | Priority |
+|----|-----------|----------|
+| AC-R1-1 | At 1920px and 2560px viewports, the `.app-grid` element has no inner width cap. There is no dead space between the right edge of the rightmost box (in a full row) and the frame's right padding edge. | Must |
+| AC-R1-2 | The left edge of the first box in `.app-grid` aligns with the header wordmark left edge and the StatusBar content left edge at all viewports ≥640px (AC-009 preserved). | Must |
+
+### Tiles (R2)
+
+| ID | Criterion | Priority |
+|----|-----------|----------|
+| AC-R2-1 | Every tool tile in every box renders at exactly 190px wide, at all viewports and all box widths (1–8 configured, or wider from R3 grow). No tile stretches or compresses from 190px. | Must |
+| AC-R2-2 | When a box is grown wider by R3, additional 190px tiles flow into the row rather than existing tiles stretching. | Must |
+
+### Box grow (R3)
+
+| ID | Criterion | Priority |
+|----|-----------|----------|
+| AC-R3-1 | At viewports ≥1024px, boxes in the same flex-wrap row grow to fill the row's available frame width. No horizontal dead-space gap between the rightmost box and the right frame edge on any row containing two or more boxes. | Must |
+| AC-R3-2 | When two boxes share a row and one has more apps than the other, the more-populated box claims a proportionally larger share of the available growth. | Must |
+| AC-R3-3 | No box grows beyond its content-max: the width to display all its apps in one row (`tools.length × 190 + (tools.length − 1) × 16 + 32`). A box with 1 app does not stretch beyond ~222px of content. | Must |
+| AC-R3-4 | No box shrinks below its configured `--w` floor. An admin-set width-4 box renders at ≥812px at all times. | Must |
+| AC-R3-5 | An empty box (0 apps) stays at its `--w` floor width; it does not grow to consume row space. | Should |
+
+### Lone box (R4)
+
+| ID | Criterion | Priority |
+|----|-----------|----------|
+| AC-R4-1 | A box that is the only box in its visual row renders at 100% of the frame width, tiles left-packed. | Must |
+| AC-R4-2 | The `--w` floor still applies as the minimum on a lone box; it grows from there to 100%. | Must |
+
+### Guardrails (preserved)
+
+| ID | Criterion | Priority |
+|----|-----------|----------|
+| AC-G1 | At viewports <640px, boxes stack full-width and tile 2-column shrink behavior is unchanged from the shipped A1 model. | Must |
+| AC-G2 | At viewports ≤1024px, box sizing is unchanged from shipped A1. | Must |
+| AC-G3 | The WidthSelector control in Edit Dashboard mode is visible, interactive, and persists changes to `grid_width`. It is not hidden, removed, or disabled. | Must |
+| AC-G4 | The `fitsViewport` disable behavior (D-3, `src/appGrid.ts`) is unchanged: the WidthSelector grays out values that would overflow the viewport. | Must |
 
 ---
 
-## 5. Implementation note for Stitch (how, not just what)
+## 4. Implementation guide for Stitch
 
-R1 and R2 are pure CSS (field cap removal + `auto-fill`). **R3–R4 cannot be expressed by CSS
-`flex-wrap` alone** — it can't detect "alone in a visual row" or "cap-then-distribute." Two
-paths:
+**R1 — verify first, no new code expected.** Check `.app-grid` in `src/index.css` has no
+inner `max-width` or `width` cap. If clean, mark done. If a cap exists, remove it.
 
-- **(A)** a lightweight JS **row-packer**: bin-pack panes into rows by content width at the
-  current field width, set each pane's flex-basis/max, mark lone panes 100%. ~a `useLayout`
-  hook over the existing `displayCats`.
-- **(B) — preferred:** reuse the **row infrastructure already being built** for
-  `SPEC-category-pane-width-layout.md` (`layoutRow` / `layoutColOrder` grouping + the flex-row
-  render), but populate it from the **auto-packer** instead of (or before) admin width%. This
-  makes Caleb's "automatic" the default and turns the admin width% into an *override*, reusing
-  the in-flight work rather than duplicating it.
+**R2 — no new code.** `.app-grid-tools { grid-template-columns: repeat(auto-fill, 190px) }`
+is shipped. Confirm it's intact on `main`.
 
-Path B is the reconciliation and the reason §6 is a Walt+Joe decision.
+**R3 — the box grow logic.** Mechanism: per-box JS-computed CSS variables exposed as inline
+styles, `index.css` owns the `flex` and `max-width` declarations. Pattern mirrors the
+existing `--w` binding (`AppGrid.tsx:351`):
+
+- In `AppGrid.tsx` `BoxCard` (or the box render site), compute and expose:
+  - `--floor`: `boxWidthPx(box.width)` — the configured floor in px (already available from
+    `src/appGrid.ts`).
+  - `--grow`: `box.tools.length` (or `0` if empty) — the grow weight.
+  - `--cap`: `boxWidthPx(box.tools.length)` — content-max in px.
+- In `index.css`, change `.app-grid-box` from `width: calc(--w …)` to:
+  ```css
+  .app-grid-box {
+    flex: var(--grow) 1 var(--floor);  /* grow weighted, shrink allowed, floor basis */
+    max-width: var(--cap);             /* content-max cap — never balloon past content */
+    width: auto;                       /* override the fixed width */
+  }
+  ```
+
+**R4 — lone box detect.** A `useLayout`-style hook over the `boxes` array, recomputed on
+`viewportWidth` and `boxes` changes (both already tracked for D-3). Bin-pack boxes into visual
+rows by their `--floor` at the current `.app-grid` content width. A row of one marks that box
+`--grow: 1; --cap: 100%` (overriding the content-max so the lone box fills the frame). The
+bin-pack does not need to be perfect — it only needs to correctly identify rows of one vs.
+rows of multiple, which the floor-sum approach handles reliably.
+
+**No new API, no schema change.** `grid_width` column and migration 0009 are already the floor
+source. No backend changes.
 
 ---
 
-## 6. Decision needed (Walt + Joe)
+## 5. Affected files
 
-1. **Auto vs. manual as the default.** Caleb (dashboard owner) asked for automatic. I
-   recommend auto-by-default (the R1–R4 packer), admin width% as optional override.
-2. **Fate of `SPEC-category-pane-width-layout.md` as dispatched.** If we adopt auto-default,
-   that spec's manual model becomes the *override layer*, not the primary — Stitch should
-   build the auto-packer first. Someone needs to tell Stitch before the manual-only model ships.
-3. Confirm the 190px tile invariant holds (R2/§3) vs. Joe's stretch suggestion.
+| File | Change |
+|------|--------|
+| `src/index.css` | `.app-grid-box`: replace fixed `width: calc(--w …)` with `flex: var(--grow) 1 var(--floor); max-width: var(--cap); width: auto` |
+| `src/AppGrid.tsx` | `BoxCard` (or box render site): compute and expose `--floor`, `--grow`, `--cap` as inline CSS vars; add `useLayout` hook for lone-box R4 detect |
+| `src/appGrid.ts` | Add `contentMaxPx(n)` helper if not already present (same formula as `boxWidthPx(n)`) |
+
+No API changes. No test fixtures change. No backend changes. No migration.
 
 ---
 
-## 7. Sign-offs
+## 6. Out of scope (Phase 1)
+
+- Manual admin drag, row assignment, or width% — `SPEC-category-pane-width-layout.md` is Phase
+  2, stays HELD. Do not build.
+- Tile size changes (tiles stay 190px — any stretch/scale is a regression).
+- Any changes at viewports <640px or ≤1024px.
+- Any change to the WidthSelector control UI or its persistence.
+- Ultra-wide (5K / 8K) viewports beyond 2560px.
+
+---
+
+## 7. Test cases (for Gracie's QA)
+
+### TC-001: No dead space in a two-box row (R3)
+
+**Setup:** A dashboard with two categories in the same visual row (e.g. Develop 6 apps and
+Friends 3 apps, both width-3 configured).
+**Viewport:** 1920px.
+**Expected:** The two boxes grow to fill the row. No gap between the right edge of the
+second box and the right frame edge. Develop box is wider than Friends box (more apps).
+
+### TC-002: Content-max cap — no empty glass (R3)
+
+**Setup:** A dashboard with External (1 app, width-1) in a row with space for growth.
+**Viewport:** 2560px.
+**Expected:** External box is no wider than ~222px (its 1-tile content-max). No empty glass
+extends beyond its single tile. The excess space goes to the gap / center behavior, not into
+the External glass.
+
+### TC-003: Floor preserved — admin width honoured (R3)
+
+**Setup:** Admin sets a category to width-6 (`grid_width = 6`, `boxWidthPx(6)` = 1172px).
+**Viewport:** 1440px.
+**Expected:** That box renders at ≥1172px, even if there is no row dead-space to absorb. The
+WidthSelector control reads width-6. Persists on reload.
+
+### TC-004: Lone box fills 100% (R4)
+
+**Setup:** Any category that is the only box in its visual row.
+**Viewport:** 1920px.
+**Expected:** The box spans the full frame width, tiles left-packed, no gap at either side.
+
+### TC-005: Tile uniformity (R2)
+
+**Setup:** A box that has grown wider under R3 (more space than its `--w` floor).
+**Viewport:** any ≥1024px.
+**Expected:** All tiles are exactly 190px wide. Inspect tile elements — no tile stretches
+beyond 190px. Additional tiles may have appeared (auto-fill), but each is 190px.
+
+### TC-006: Mobile / small-desktop unchanged (guardrails)
+
+**Viewports:** 400px, 640px, 1024px.
+**Expected:** Layout at these viewports is visually identical to the pre-Phase-1 staging
+baseline. No regressions.
+
+### TC-007: WidthSelector preserved in Edit Dashboard
+
+**Setup:** Admin enters Edit Dashboard mode.
+**Expected:** WidthSelector is visible and interactive on each box. Changing width updates the
+box display and persists to `grid_width`. `fitsViewport` D-3 disable still grays out
+overflow-causing values.
+
+---
+
+## 8. Sign-offs
 
 | Role | Person | Status |
 |------|--------|--------|
-| Design / UX | Kare | ✅ direction recommended 2026-07-02 |
-| Product | Walt | ⏳ needs formalization + go |
-| Homepad product authority | Joe → Caleb | ⏳ needs the §6 auto-vs-manual call |
-| Implementation | Stitch | — (do not build until §6 resolved) |
+| Product | Walt | ✅ PRODUCT GO — Phase 1 (R1–R4), 2026-07-02 |
+| Design / UX | Kare | ✅ design-go for Phase 1 (R1–R4), 2026-07-02 |
+| Homepad authority | Joe → Caleb | ✅ decision (a) made — `--w` stays as floor; Phase 2 held |
+| Implementation | Stitch | ⏳ cleared to build Phase 1 |
+
+**This spec is the build contract for Stitch.** Phase 2 (manual drag/row model) is held and
+will be dispatched separately.
+
+---
+
+## 9. Revision history
+
+| Date | Version | Author | Changes |
+|------|---------|--------|---------|
+| 2026-07-02 | 0.1 | Kare | Design direction — re-anchored onto live App Grid (#281) |
+| 2026-07-02 | 1.0 | Walt | Formalized into product spec with ACs, build contract, test cases; product go given |
