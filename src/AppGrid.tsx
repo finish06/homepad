@@ -19,8 +19,11 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   categories as fetchCategories,
   createCategory,
+  deleteCategory,
+  renameCategory,
   saveCategoryWidth,
   setCategoryOrder,
+  setFavorite,
   services as fetchServices,
   type Category,
   type Service,
@@ -104,6 +107,36 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
   const svcs = ctx ? ctx.items : ownSvcs;
   const loading = !catsLoaded || svcs === null;
 
+  // Update the services the grid renders from. When a provider is present it owns
+  // the array (the SAME one the launcher's Favorites section filters — §3/A12), so
+  // a favorite flip written here shows up in the launcher live; without a provider
+  // (isolated render) AppGrid owns its own copy.
+  const updateSvcs = useCallback(
+    (updater: (list: Service[]) => Service[]) => {
+      if (ctx) ctx.setItems((cur) => (cur ? updater(cur) : cur));
+      else setOwnSvcs((cur) => (cur ? updater(cur) : cur));
+    },
+    [ctx],
+  );
+
+  // #240 — per-tile favorite toggle (restores the control the old Catalog ⋯ menu
+  // had). Optimistic pin/unpin with rollback on a failed POST/DELETE; `next` is
+  // captured up front so the persist can't send a stale value (the favorites bug
+  // fixed in Catalog). Mirrors into the shared services so the launcher stays live.
+  const onToggleFavorite = useCallback(
+    async (id: string) => {
+      const current = (svcs ?? []).find((s) => s.id === id);
+      if (!current) return;
+      const next = !current.favorite;
+      updateSvcs((list) => list.map((s) => (s.id === id ? { ...s, favorite: next } : s)));
+      const ok = await setFavorite(id, next);
+      if (!ok) {
+        updateSvcs((list) => list.map((s) => (s.id === id ? { ...s, favorite: !next } : s)));
+      }
+    },
+    [svcs, updateSvcs],
+  );
+
   // Optimistic width change: update local state immediately (AC-015 — no
   // reload), persist, and roll back on failure (§4A persist).
   const changeWidth = useCallback(
@@ -148,6 +181,47 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
       }
     },
     [cats],
+  );
+
+  // #241 — box (category) rename. Optimistic name swap, then reconcile to the
+  // server's canonical name; roll back + surface the error inline on a rejection
+  // (409 duplicate etc.). Returns true or the error string for the row to show.
+  const onRenameBox = useCallback(
+    async (id: string, name: string): Promise<true | string> => {
+      const prev = cats;
+      setCats((cs) => cs.map((c) => (c.id === id ? { ...c, name } : c)));
+      const r = await renameCategory(id, name);
+      if (!r.ok) {
+        setCats(prev);
+        return r.error ?? 'Could not rename box';
+      }
+      if (r.category) {
+        setCats((cs) => cs.map((c) => (c.id === id ? { ...c, name: r.category!.name } : c)));
+      }
+      return true;
+    },
+    [cats],
+  );
+
+  // #241 — box delete. The FK is ON DELETE SET NULL server-side, so the box's
+  // apps fall back to Uncategorized — none are deleted. Optimistically drop the
+  // box AND re-home its apps in the shared services (clear categoryId) so they
+  // render under Uncategorized live instead of vanishing until a reload; roll
+  // both back if the DELETE fails.
+  const onDeleteBox = useCallback(
+    async (id: string): Promise<boolean> => {
+      const prevCats = cats;
+      const prevSvcs = svcs;
+      setCats((cs) => cs.filter((c) => c.id !== id));
+      updateSvcs((list) => list.map((s) => (s.categoryId === id ? { ...s, categoryId: null } : s)));
+      const ok = await deleteCategory(id);
+      if (!ok) {
+        setCats(prevCats);
+        if (prevSvcs) updateSvcs(() => prevSvcs);
+      }
+      return ok;
+    },
+    [cats, svcs, updateSvcs],
   );
 
   const onCreate = useCallback(async (title: string) => {
@@ -199,17 +273,17 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext items={sortableBoxes.map((b) => b.id)} strategy={rectSortingStrategy}>
                 {sortableBoxes.map((box) => (
-                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} isMobile={isMobile} onWidth={changeWidth} />
+                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} isMobile={isMobile} editing={editing} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
                 ))}
               </SortableContext>
             </DndContext>
             {uncatBox && (
-              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} isMobile={isMobile} onWidth={changeWidth} />
+              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} isMobile={isMobile} editing={editing} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
             )}
           </>
         ) : (
           boxes.map((box) => (
-            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} isMobile={isMobile} onWidth={changeWidth} />
+            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} isMobile={isMobile} editing={editing} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
           ))
         )}
         {addButton}
@@ -243,23 +317,55 @@ function BoxCard({
   box,
   isAdmin,
   isMobile,
+  editing,
   onWidth,
+  onToggleFavorite,
+  onRename,
+  onDelete,
   sortable,
 }: {
   box: Box;
   isAdmin: boolean;
   isMobile: boolean;
+  editing: boolean;
   onWidth: (id: string, width: number) => void;
+  onToggleFavorite: (id: string) => void;
+  onRename: (id: string, name: string) => Promise<true | string>;
+  onDelete: (id: string) => Promise<boolean>;
   sortable?: BoxSortable;
 }) {
   const theme = useResolvedTheme();
   // A synthetic Uncategorized box (empty id) has no real category → no selector.
   const showSelector = isAdmin && box.id !== '';
+  // #241 — rename/delete manage only REAL category boxes, and only in Edit
+  // Dashboard mode. The synthetic Uncategorized box never gets them.
+  const canManage = editing && box.id !== '';
+  const [renaming, setRenaming] = useState(false);
+  const [name, setName] = useState(box.title);
+  const [renameError, setRenameError] = useState('');
+  const [renamingBusy, setRenamingBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const style: React.CSSProperties = { ['--w' as string]: effectiveWidth(box.width, isMobile) };
   if (sortable) {
     style.transform = CSS.Transform.toString(sortable.transform);
     style.transition = sortable.transition;
   }
+
+  const startRename = () => {
+    setName(box.title);
+    setRenameError('');
+    setRenaming(true);
+  };
+  const saveRename = async () => {
+    const n = name.trim();
+    if (!n || renamingBusy) return;
+    setRenamingBusy(true);
+    const r = await onRename(box.id, n);
+    setRenamingBusy(false);
+    if (r === true) setRenaming(false);
+    else setRenameError(r);
+  };
+
   return (
     <section
       ref={sortable?.setNodeRef}
@@ -291,10 +397,108 @@ function BoxCard({
         <h2 className="app-grid-box-title" data-testid="box-title" title={box.title}>
           {box.title}
         </h2>
+        {canManage && (
+          <div className="app-grid-box-actions">
+            <button
+              type="button"
+              className="app-grid-box-action"
+              data-testid="box-rename"
+              aria-label={`Rename ${box.title}`}
+              onClick={startRename}
+            >
+              Rename
+            </button>
+            <button
+              type="button"
+              className="app-grid-box-action is-danger"
+              data-testid="box-delete"
+              aria-label={`Delete ${box.title}`}
+              onClick={() => setConfirming(true)}
+            >
+              Delete
+            </button>
+          </div>
+        )}
         {showSelector && (
           <WidthSelector width={box.width} onPick={(w) => onWidth(box.id, w)} />
         )}
       </header>
+      {canManage && renaming && (
+        // Rename editor (kept below the header so the h2 box-title stays present).
+        <div className="app-grid-box-rename">
+          <input
+            className="settings-input"
+            data-testid="box-rename-input"
+            aria-label={`New name for ${box.title}`}
+            value={name}
+            autoFocus
+            onChange={(e) => {
+              setName(e.target.value);
+              setRenameError('');
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveRename();
+              if (e.key === 'Escape') setRenaming(false);
+            }}
+          />
+          <button
+            type="button"
+            className="app-grid-box-action"
+            data-testid="box-rename-save"
+            disabled={!name.trim() || renamingBusy}
+            onClick={saveRename}
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            className="app-grid-box-action"
+            data-testid="box-rename-cancel"
+            onClick={() => setRenaming(false)}
+          >
+            Cancel
+          </button>
+          {renameError && (
+            <p className="app-grid-add-error" role="alert" data-testid="box-rename-error">
+              {renameError}
+            </p>
+          )}
+        </div>
+      )}
+      {canManage && confirming && (
+        // In-place delete confirm (apps fall back to Uncategorized, none deleted).
+        <div
+          className="app-grid-box-confirm"
+          role="alertdialog"
+          aria-label={`Delete ${box.title}`}
+          data-testid="box-delete-confirm"
+        >
+          <p className="app-grid-box-confirm-text">
+            Delete <strong>{box.title}</strong>? Its apps move to Uncategorized.
+          </p>
+          <div className="app-grid-box-confirm-actions">
+            <button
+              type="button"
+              className="app-grid-box-action is-danger"
+              data-testid="box-delete-yes"
+              onClick={() => {
+                setConfirming(false);
+                void onDelete(box.id);
+              }}
+            >
+              Delete box
+            </button>
+            <button
+              type="button"
+              className="app-grid-box-action"
+              data-testid="box-delete-no"
+              onClick={() => setConfirming(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
       {box.tools.length === 0 ? (
         <p className="app-grid-empty" data-testid="box-empty">
           {isAdmin ? 'No apps yet — add from the Library.' : 'No apps in this box.'}
@@ -302,7 +506,7 @@ function BoxCard({
       ) : (
         <div className="app-grid-tools" data-testid="box-tools">
           {box.tools.map((s) => (
-            <ToolLink key={s.id} service={s} theme={theme} />
+            <ToolLink key={s.id} service={s} theme={theme} onToggleFavorite={onToggleFavorite} />
           ))}
         </div>
       )}
@@ -317,12 +521,20 @@ function SortableBox({
   box,
   isAdmin,
   isMobile,
+  editing,
   onWidth,
+  onToggleFavorite,
+  onRename,
+  onDelete,
 }: {
   box: Box;
   isAdmin: boolean;
   isMobile: boolean;
+  editing: boolean;
   onWidth: (id: string, width: number) => void;
+  onToggleFavorite: (id: string) => void;
+  onRename: (id: string, name: string) => Promise<true | string>;
+  onDelete: (id: string) => Promise<boolean>;
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: box.id });
@@ -331,7 +543,11 @@ function SortableBox({
       box={box}
       isAdmin={isAdmin}
       isMobile={isMobile}
+      editing={editing}
       onWidth={onWidth}
+      onToggleFavorite={onToggleFavorite}
+      onRename={onRename}
+      onDelete={onDelete}
       sortable={{ attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging }}
     />
   );
@@ -339,28 +555,57 @@ function SortableBox({
 
 // One tool link: icon plate + name, opens the tool in a new tab (AC-011, §6.4).
 // The visible name truncates; the accessible name (aria-label) + native title
-// carry the full string (§6.2.1).
-function ToolLink({ service, theme }: { service: Service; theme: 'light' | 'dark' }) {
+// carry the full string (§6.2.1). A favorite ★ toggle (#240) sits in the corner
+// as a SIBLING of the <a> (interactive content can't nest in an anchor) — its
+// own <button>, painted above the link, so a real center click hits the star,
+// not the navigation; the handler preventDefault/stopPropagation guard the rest.
+function ToolLink({
+  service,
+  theme,
+  onToggleFavorite,
+}: {
+  service: Service;
+  theme: 'light' | 'dark';
+  onToggleFavorite: (id: string) => void;
+}) {
+  const fav = service.favorite;
   return (
-    <a
-      className="app-grid-tool"
-      data-testid="tool-link"
-      href={service.url}
-      target="_blank"
-      rel="noreferrer noopener"
-      aria-label={service.name}
-      title={service.name}
-    >
-      <span className="app-grid-tool-icon">
-        <img
-          src={iconSrc(service, theme, 0)}
-          alt=""
-          data-fallback={initialBadge(service.name)}
-          onError={onIconError}
-        />
-      </span>
-      <span className="app-grid-tool-name">{service.name}</span>
-    </a>
+    <div className="app-grid-tool-wrap">
+      <a
+        className="app-grid-tool"
+        data-testid="tool-link"
+        href={service.url}
+        target="_blank"
+        rel="noreferrer noopener"
+        aria-label={service.name}
+        title={service.name}
+      >
+        <span className="app-grid-tool-icon">
+          <img
+            src={iconSrc(service, theme, 0)}
+            alt=""
+            data-fallback={initialBadge(service.name)}
+            onError={onIconError}
+          />
+        </span>
+        <span className="app-grid-tool-name">{service.name}</span>
+      </a>
+      <button
+        type="button"
+        className={`app-grid-tool-fav${fav ? ' is-favorite' : ''}`}
+        data-testid="tile-favorite"
+        aria-pressed={fav}
+        aria-label={fav ? `Unpin ${service.name} from favorites` : `Pin ${service.name} to favorites`}
+        title={fav ? 'Favorited' : 'Favorite'}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onToggleFavorite(service.id);
+        }}
+      >
+        {fav ? '★' : '☆'}
+      </button>
+    </div>
   );
 }
 

@@ -365,6 +365,28 @@ now IN scope and shipped:
 - Box width (1–6), the width selector + `grid_width` persistence, the ≤640px
   2-column cap, and the a11y contract are unchanged by this restoration.
 
+### IN scope — favorites toggle + box rename/delete (restored 2026-07-02, Gracie audit)
+
+Gracie's post-restore audit found the App Grid replace dropped more of the old
+Catalog surface. These parity gaps are now IN scope and shipped:
+
+- **Per-tile favorite toggle (#240)** — each tool tile carries a favorite ★ toggle
+  (a `<button>` layered over the tool `<a>`, corner-anchored above it so a real
+  center click hits the star, not the link). Activating it pins/unpins via the
+  existing `setFavorite` API (`POST`/`DELETE /api/favorites/{id}`), optimistic with
+  rollback on failure. The flip mirrors into the shared services context, so the
+  CommandLauncher **Favorites** section updates live. Available to every logged-in
+  user in the normal view (favoriting is a personal action, not admin edit).
+- **Box (category) rename + delete (#241)** — in Edit Dashboard mode each real
+  category box header exposes **Rename** (inline editor → `PATCH /api/categories/{id}`,
+  optimistic, reconciled to the server's canonical name, inline error + rollback on
+  409) and **Delete** (in-place confirm → `DELETE /api/categories/{id}`). Delete is
+  `ON DELETE SET NULL` server-side, so the box's apps fall back to Uncategorized —
+  the client re-homes them live (clears `categoryId` in the shared services) so they
+  don't vanish until reload; both cats + services roll back if the DELETE fails. The
+  synthetic Uncategorized box and non-admins never get these controls.
+- Per-tile **status dots (#242)** remain deferred — Caleb's call (out of scope here).
+
 ### OUT of scope (v1)
 
 These items remain excluded from this spec. They may be revisited in future specs.
@@ -374,7 +396,7 @@ These items remain excluded from this spec. They may be revisited in future spec
 - ~~**Per-user box order preferences**~~ — box order is admin-set (shared) and now **reorderable in Edit Dashboard mode** (see IN scope); *per-user* box order remains out of scope (order follows the shared `category.sortIndex`).
 - **Drag-to-resize boxes** — width is set via the 1–6 button selector, not drag.
 - **Inline tool editing** — clicking a tool navigates to its URL; no in-place edit affordance.
-- **Box deletion UI** — admin-managed via existing category management (not in the App Grid surface in v1).
+- ~~**Box deletion UI**~~ — now IN scope: box rename + delete live in Edit Dashboard mode (#241, see IN scope above).
 - **Library integration** — the existing Library browse surface manages service availability; App Grid renders what's already on the user's dashboard.
 
 ---

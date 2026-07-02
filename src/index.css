@@ -2064,6 +2064,88 @@
     opacity: 0.9;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.1);
   }
+  /* #241 — box rename/delete controls (Edit Dashboard, real category boxes). */
+  .app-grid-box-actions {
+    display: inline-flex;
+    gap: 4px;
+    flex: 0 0 auto;
+  }
+  .app-grid-box-action {
+    min-height: 32px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: rgba(255, 255, 255, 0.6);
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  }
+  .app-grid-box-action:hover {
+    background: rgba(15, 23, 42, 0.06);
+  }
+  .app-grid-box-action:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #6366f1;
+  }
+  .app-grid-box-action:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .app-grid-box-action.is-danger {
+    color: #dc2626;
+    border-color: rgba(220, 38, 38, 0.3);
+  }
+  .app-grid-box-action.is-danger:hover {
+    background: rgba(220, 38, 38, 0.08);
+  }
+  .dark .app-grid-box-action {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #cbd5e1;
+  }
+  .dark .app-grid-box-action:hover {
+    background: rgba(255, 255, 255, 0.09);
+  }
+  .dark .app-grid-box-action.is-danger {
+    color: #f87171;
+    border-color: rgba(248, 113, 113, 0.35);
+  }
+  .app-grid-box-rename {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0 2px;
+  }
+  .app-grid-box-rename .settings-input {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+  .app-grid-box-confirm {
+    margin: 4px 0 2px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(220, 38, 38, 0.06);
+    border: 1px solid rgba(220, 38, 38, 0.2);
+  }
+  .dark .app-grid-box-confirm {
+    background: rgba(248, 113, 113, 0.08);
+    border-color: rgba(248, 113, 113, 0.28);
+  }
+  .app-grid-box-confirm-text {
+    font-size: 13px;
+    color: #7f1d1d;
+    margin: 0 0 8px;
+  }
+  .dark .app-grid-box-confirm-text {
+    color: #fca5a5;
+  }
+  .app-grid-box-confirm-actions {
+    display: flex;
+    gap: 6px;
+  }
   .app-grid-empty {
     font-size: 13px;
     color: #737373;
@@ -2077,13 +2159,21 @@
     grid-template-columns: repeat(var(--w), 1fr);
     gap: 12px;
   }
+  /* #240 — the grid cell now wraps the tool link + its favorite ★ sibling; the
+     link fills the cell, the star is corner-anchored above it. */
+  .app-grid-tool-wrap {
+    position: relative;
+    display: flex;
+    min-width: 0;
+  }
   .app-grid-tool {
+    flex: 1 1 auto;
     display: flex;
     align-items: center;
     gap: 12px;
     min-height: 56px;
     min-width: 0;
-    padding: 8px 12px;
+    padding: 8px 34px 8px 12px;
     border-radius: 16px;
     background: rgba(255, 255, 255, 0.55);
     border: 1px solid rgba(15, 23, 42, 0.06);
@@ -2144,6 +2234,60 @@
   }
   .dark .app-grid-tool-name {
     color: #f5f5f5;
+  }
+  /* #240 — favorite ★ toggle. Low-emphasis at rest; brighter on hover/focus;
+     an amber filled star (always visible) once pinned so the user can see what's
+     favorited. Corner-anchored above the link so a real center click hits it. */
+  .app-grid-tool-fav {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: color 120ms ease, background 120ms ease, opacity 120ms ease;
+  }
+  .app-grid-tool-wrap:hover .app-grid-tool-fav,
+  .app-grid-tool-fav:focus-visible {
+    opacity: 1;
+  }
+  .app-grid-tool-fav:hover {
+    background: rgba(15, 23, 42, 0.06);
+    color: #475569;
+  }
+  .app-grid-tool-fav:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #6366f1;
+  }
+  .app-grid-tool-fav.is-favorite {
+    color: #f59e0b;
+    opacity: 1;
+  }
+  .dark .app-grid-tool-fav {
+    color: #64748b;
+  }
+  .dark .app-grid-tool-fav:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+  }
+  .dark .app-grid-tool-fav.is-favorite {
+    color: #fbbf24;
+  }
+  /* Touch devices have no hover — keep the star reachable (always visible). */
+  @media (hover: none) {
+    .app-grid-tool-fav {
+      opacity: 1;
+    }
   }
   /* Width selector: 28px visual centered in a ≥44px hit area (§6.3), horizontally
      scrollable inside a narrow box so it never overflows the box or the page. */
