@@ -7,6 +7,32 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [13.0.0] — 2026-07-02 — App Grid fixed-width tile layout (SPEC-app-grid Amendment A1)
+
+Opens the v13 major line (panel customization). Corrects the App Grid's 1fr layout
+regression so a tool tile is the **same fixed width in every box**.
+
+### Changed
+
+- **App Grid is now a fixed-width tile layout (Amendment A1).** Previously each box
+  was a span of a `repeat(6, 1fr)` page grid and its tools were `repeat(--w, 1fr)`,
+  so a tile's rendered width was `box_width ÷ --w` — a tile in a width-1 box and a
+  tile in a width-4 box were **different sizes**. Now:
+  - Boxes are **content-sized** and pack left→right with `flex-wrap`; a box at width
+    N is exactly `N×190 + (N-1)×16 + 32` px wide (byte-identical to the v14 panel).
+  - Tool tiles are a **fixed 190px** `auto-fill` track — the same width in every box
+    (AC-001-A1) — and **wrap** (never resize) when a box is clamped narrower than its
+    natural width (no horizontal page scroll).
+  - Tiles use the vertical tile grammar (icon plate over a full-width, 2-line-clamped
+    name) at a **fixed 120px height**, so a 1-line and a 2-line name render identical
+    height — tiles no longer jump.
+- **Box width range widens from 1–6 to 1–8.** A width whose box would be wider than
+  your current screen is offered **disabled** ("Wider than this screen") so an admin
+  can't set an off-screen box on their own display.
+- **Two width-3 boxes sit two-up at ≥1440px**; below that they wrap gracefully.
+- **Mobile (≤640px):** each box goes full-width and its tiles cap at 2 columns,
+  shrinking below 190px only as needed to avoid any horizontal scroll.
+
 ## [12.9.1] — 2026-07-02 — Gate the App Grid width selector to Edit Dashboard mode
 
 ### Fixed

@@ -2,6 +2,14 @@
   "pending": [],
   "versions": [
     {
+      "version": "13.0.0",
+      "date": "2026-07-02",
+      "changes": [
+        { "type": "enhancement", "text": "App tiles are now a consistent size everywhere. Before, a tile in a narrow box and a tile in a wide box came out different widths (the box width was split into equal fractions). Now every app tile is the same fixed size no matter which box it's in — boxes hug their content and wrap to the next row when they don't fit, instead of stretching. Tiles show the icon above the name, and a one-line name and a two-line name take the same height so the grid never jumps." },
+        { "type": "enhancement", "text": "Box width now goes up to 8 (was 6). If a width would be wider than your screen, that button is shown disabled (“Wider than this screen”) so you can't accidentally set a box off the edge. On phones each box fills the width and shows 2 tiles per row." }
+      ]
+    },
+    {
       "version": "12.9.1",
       "date": "2026-07-02",
       "changes": [
