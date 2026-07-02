@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import AppGrid from './AppGrid';
 import type { Category, Service } from './api';
 import * as api from './api';
+import * as services from './services';
 
 // SPEC-app-grid — AppGrid component. jsdom has no layout, so the CSS grid pack
 // (AC-001..008) is browser-gate territory; these cover the DOM contract: box +
@@ -17,6 +18,9 @@ vi.mock('./api', () => ({
   saveCategoryWidth: vi.fn(),
   setCategoryOrder: vi.fn(),
   createCategory: vi.fn(),
+  setFavorite: vi.fn(),
+  renameCategory: vi.fn(),
+  deleteCategory: vi.fn(),
 }));
 
 const cat = (id: string, name: string, sortIndex: number, gridWidth: number): Category => ({
@@ -33,6 +37,9 @@ beforeEach(() => {
   vi.mocked(api.services).mockResolvedValue([svc('s1', 'Plex', 'c1'), svc('s2', 'Grafana', 'c2')]);
   vi.mocked(api.saveCategoryWidth).mockResolvedValue(true);
   vi.mocked(api.createCategory).mockResolvedValue({ ok: true, status: 201, category: cat('c3', 'New', 2, 3) });
+  vi.mocked(api.setFavorite).mockResolvedValue(true);
+  vi.mocked(api.renameCategory).mockResolvedValue({ ok: true, status: 200, category: cat('c1', 'Movies', 0, 4) });
+  vi.mocked(api.deleteCategory).mockResolvedValue(true);
 });
 
 afterEach(() => vi.clearAllMocks());
@@ -208,5 +215,90 @@ describe('AppGrid Edit Dashboard mode (AG-EDIT-1/2)', () => {
     const media = screen.getAllByTestId('app-grid-box')[0];
     await user.click(within(media).getByTestId('width-btn-5'));
     await waitFor(() => expect(api.saveCategoryWidth).toHaveBeenCalledWith('c1', 5));
+  });
+});
+
+// #240 — the App Grid's ToolLink dropped the per-tile favorite toggle when it
+// replaced Catalog (the setFavorite API + the launcher Favorites section still
+// exist, but there was no UI to pin/unpin). Restore a per-tile toggle (⋯/star)
+// that calls setFavorite and pins/unpins live. Available to every user in the
+// normal view (favoriting is a personal action, not admin edit).
+describe('AppGrid favorite toggle (#240)', () => {
+  it('renders a favorite toggle on every tool reflecting its favorite state', async () => {
+    vi.mocked(api.services).mockResolvedValue([
+      { ...svc('s1', 'Plex', 'c1'), favorite: true },
+      svc('s2', 'Grafana', 'c2'),
+    ]);
+    await renderGrid(false); // any user, view mode
+    const media = screen.getAllByTestId('app-grid-box')[0];
+    const infra = screen.getAllByTestId('app-grid-box')[1];
+    expect(within(media).getByTestId('tile-favorite')).toHaveAttribute('aria-pressed', 'true');
+    expect(within(infra).getByTestId('tile-favorite')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('pins an app via the toggle (setFavorite true) and reflects it optimistically', async () => {
+    const user = userEvent.setup();
+    await renderGrid(false);
+    const media = screen.getAllByTestId('app-grid-box')[0];
+    await user.click(within(media).getByTestId('tile-favorite'));
+    expect(api.setFavorite).toHaveBeenCalledWith('s1', true);
+    await waitFor(() =>
+      expect(within(media).getByTestId('tile-favorite')).toHaveAttribute('aria-pressed', 'true'),
+    );
+  });
+
+  it('unpins an already-favorited app (setFavorite false)', async () => {
+    vi.mocked(api.services).mockResolvedValue([{ ...svc('s1', 'Plex', 'c1'), favorite: true }]);
+    const user = userEvent.setup();
+    await renderGrid(false);
+    const fav = screen.getByTestId('tile-favorite');
+    await user.click(fav);
+    expect(api.setFavorite).toHaveBeenCalledWith('s1', false);
+    await waitFor(() => expect(screen.getByTestId('tile-favorite')).toHaveAttribute('aria-pressed', 'false'));
+  });
+
+  it('rolls the favorite back when the save fails', async () => {
+    vi.mocked(api.setFavorite).mockResolvedValue(false);
+    const user = userEvent.setup();
+    await renderGrid(false);
+    const media = screen.getAllByTestId('app-grid-box')[0];
+    await user.click(within(media).getByTestId('tile-favorite'));
+    await waitFor(() => expect(api.setFavorite).toHaveBeenCalledWith('s1', true));
+    await waitFor(() =>
+      expect(within(media).getByTestId('tile-favorite')).toHaveAttribute('aria-pressed', 'false'),
+    );
+  });
+
+  it('does not navigate the tool link when the favorite toggle is activated', async () => {
+    const user = userEvent.setup();
+    await renderGrid(false);
+    const media = screen.getAllByTestId('app-grid-box')[0];
+    const link = within(media).getByTestId('tool-link');
+    const onClick = vi.fn((e: Event) => e.preventDefault());
+    link.addEventListener('click', onClick);
+    await user.click(within(media).getByTestId('tile-favorite'));
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('mirrors the pin into the shared services context so the launcher stays in sync', async () => {
+    const setItems = vi.fn();
+    const ctx: services.ServicesContextValue = {
+      items: [svc('s1', 'Plex', 'c1'), svc('s2', 'Grafana', 'c2')],
+      setItems,
+      lastUpdatedAt: null,
+      recentChanges: [],
+      clearRecentChanges: () => {},
+    };
+    const spy = vi.spyOn(services, 'useServicesContext').mockReturnValue(ctx);
+    try {
+      const user = userEvent.setup();
+      await renderGrid(false);
+      const media = screen.getAllByTestId('app-grid-box')[0];
+      await user.click(within(media).getByTestId('tile-favorite'));
+      expect(setItems).toHaveBeenCalled();
+      expect(api.setFavorite).toHaveBeenCalledWith('s1', true);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
