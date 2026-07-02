@@ -24,6 +24,7 @@ import {
   setFavorite,
   setLayout,
   setLibraryOrder,
+  saveCategoryWidth,
   setThemePref,
   updateLibraryApp,
   updateService,
@@ -322,13 +323,21 @@ describe('categories (v4)', () => {
       { id: 'c2', name: 'Infra', sortIndex: 1 },
     ];
     const fn = mockFetch(JSON.stringify({ categories: list }), 200);
-    // categories() now backfills the SPEC layout fields (row=sortIndex, col=0,
-    // width=100) so a pre-migration server still renders the pre-feature stack.
+    // categories() backfills the SPEC layout fields (row=sortIndex, col=0,
+    // width=100) and the App Grid box width (gridWidth=3, SPEC-app-grid §3B) so a
+    // pre-migration server still renders sensibly.
     await expect(categories()).resolves.toEqual([
-      { id: 'c1', name: 'Media', sortIndex: 0, layoutRow: 0, layoutColOrder: 0, layoutWidthPct: 100 },
-      { id: 'c2', name: 'Infra', sortIndex: 1, layoutRow: 1, layoutColOrder: 0, layoutWidthPct: 100 },
+      { id: 'c1', name: 'Media', sortIndex: 0, gridWidth: 3, layoutRow: 0, layoutColOrder: 0, layoutWidthPct: 100 },
+      { id: 'c2', name: 'Infra', sortIndex: 1, gridWidth: 3, layoutRow: 1, layoutColOrder: 0, layoutWidthPct: 100 },
     ]);
     expect(fn).toHaveBeenCalledWith('/api/categories', { credentials: 'include' });
+  });
+
+  it('passes through a server-provided gridWidth (SPEC-app-grid §3B)', async () => {
+    const list = [{ id: 'c1', name: 'Media', sortIndex: 0, gridWidth: 6 }];
+    mockFetch(JSON.stringify({ categories: list }), 200);
+    const got = await categories();
+    expect(got[0].gridWidth).toBe(6);
   });
 
   it('returns [] on a non-200 (falls back to flat render)', async () => {
@@ -398,6 +407,22 @@ describe('renameCategory (v4)', () => {
     const r = await renameCategory('c1', 'Media');
     expect(r.ok).toBe(false);
     expect(r.status).toBe(409);
+  });
+});
+
+describe('saveCategoryWidth (SPEC-app-grid §3B)', () => {
+  it('PATCHes only { gridWidth } to the category and returns true on 200', async () => {
+    const fn = mockFetch(JSON.stringify({ id: 'c1', name: 'Media', sortIndex: 0, gridWidth: 5 }), 200);
+    await expect(saveCategoryWidth('c1', 5)).resolves.toBe(true);
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/categories/c1');
+    expect(opts).toMatchObject({ method: 'PATCH', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ gridWidth: 5 });
+  });
+
+  it('returns false on a non-200 (e.g. 403 non-admin / 400 out of range)', async () => {
+    mockFetch('gridWidth must be between 1 and 6', 400);
+    await expect(saveCategoryWidth('c1', 9)).resolves.toBe(false);
   });
 });
 

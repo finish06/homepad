@@ -1,24 +1,10 @@
-import { expect, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
 
-// v18 — the header gear is no longer a direct Arrange toggle; it now opens a
-// dropdown edit-dashboard menu. Entering (or leaving) Arrange mode is a two-step
-// gesture: click the gear to open its menu, then click the "Arrange tiles" item
-// (available to every user). The grips' reveal/tuck and the z-stacking these
-// gates guard are unchanged — only the entry path moved behind the menu. Helper
-// so each gate drives the real flow once, in one place.
-export async function toggleArrange(page: Page): Promise<void> {
-  await page.getByTestId('settings-gear').click();
-  await expect(page.getByTestId('gear-menu')).toBeVisible();
-  await page.getByTestId('gear-arrange').click();
-}
-
-// A real-browser fixture for the #35-class tile/menu/dnd gate. We deliberately
-// do NOT stand up the Go API + DB in CI — the bug this gate catches (z-index
-// hit-testing + synthetic-event ordering) lives entirely in the browser's
-// layout/paint/event pipeline, so a built app served by `vite preview` with the
-// /api/* layer mocked via route interception exercises it faithfully. One
-// regular user, one catalog tile, no categories — the minimum that renders a
-// tile with its "⋯" TileMenu.
+// A real-browser fixture for the App Grid stacking gate (SPEC-app-grid §2). We
+// deliberately do NOT stand up the Go API + DB in CI — the bug this gate catches
+// (z-index hit-testing) lives entirely in the browser's layout/paint/event
+// pipeline, so a built app served by `vite preview` with the /api/* layer mocked
+// via route interception exercises it faithfully.
 const USER = { id: 'u1', email: 'kid@ohana.test', role: 'user', themePref: 'system' };
 
 const SERVICE = {
@@ -35,29 +21,55 @@ const SERVICE = {
   categoryId: null as string | null, // Uncategorized by default; makeCategorized sets it.
 };
 
-// header-zindex.spec needs SEVERAL tiles so the grid fills its right column and a
-// drag-grip lands under the right-anchored UserMenu dropdown (the #57 overlap).
-// Clones of SERVICE with distinct ids/slugs/names; the visual is identical.
-export function makeServices(n: number): (typeof SERVICE)[] {
-  return Array.from({ length: n }, (_, i) => ({
+// A minimal Category literal for the fixture (camelCase, as api.categories()
+// consumes it; gridWidth defaults to 3 via the client backfill when omitted).
+type FixtureCategory = { id: string; name: string; sortIndex: number; gridWidth?: number };
+
+// makeBoxes builds the exact A1 layout fixture: one box per spec, at the given
+// `width` (--w), each filled with `tools` named verbatim (so a spec can hand a box
+// a short 1-line name AND a long 2-line name to compare tile heights). Drives the
+// A1 fixed-tile browser gate — tile-width uniformity, two-up wrap, name-height.
+export function makeBoxes(
+  specs: { width: number; tools: string[] }[],
+): { services: (typeof SERVICE)[]; categories: FixtureCategory[] } {
+  const categories: FixtureCategory[] = [];
+  const services: (typeof SERVICE)[] = [];
+  let sid = 0;
+  specs.forEach((spec, c) => {
+    const cid = `cat-${c + 1}`;
+    categories.push({ id: cid, name: `Group ${c + 1}`, sortIndex: c, gridWidth: spec.width });
+    for (const name of spec.tools) {
+      sid += 1;
+      services.push({ ...SERVICE, id: `svc-${sid}`, slug: `svc-${sid}`, name, categoryId: cid });
+    }
+  });
+  return { services, categories };
+}
+
+// SPEC-242 fixture: one width-8 box holding one tile per given status, so the
+// per-tile status-dot gate can measure the pip's colour/position for every state
+// on a single page. Names encode the status ("App UP") for easy locating.
+export function makeStatusTiles(
+  statuses: string[],
+): { services: (typeof SERVICE)[]; categories: FixtureCategory[] } {
+  const categories: FixtureCategory[] = [
+    { id: 'cat-1', name: 'Status', sortIndex: 0, gridWidth: 8 },
+  ];
+  const services = statuses.map((status, i) => ({
     ...SERVICE,
     id: `svc-${i + 1}`,
     slug: `svc-${i + 1}`,
-    name: `Service ${i + 1}`,
+    name: `App ${status}`,
+    status,
+    categoryId: 'cat-1',
   }));
+  return { services, categories };
 }
 
-// A minimal Category literal for the fixture (camelCase, as api.categories()
-// consumes it; layout fields default server-side and are omitted here).
-type FixtureCategory = { id: string; name: string; sortIndex: number };
-
-// header-zindex.spec fixture: `nCats` categories of `appsPer` apps each. v14.1
-// capped the field at 4 columns, so a single flat catalog left-aligns and never
-// reaches the right-anchored dropdown. Grouping the apps into categories makes
-// each render as its own glass panel that PACKS left→right across the field, so
-// the rightmost panel's tile grip lands under the dropdown again (the #57 overlap)
-// at the 4-col ceiling. 4×2 fills the 1440px gate row with a grip well inside the
-// dropdown box (verified in real Chromium: svc grip at x≈1320, menu x∈[1163,1407]).
+// header-zindex.spec fixture: `nCats` categories of `appsPer` apps each. In the
+// App Grid, each category renders as a glass box that packs left→right across the
+// 6-column page grid, so the rightmost top-row box (its width selector + tool
+// links) lands under the right-anchored UserMenu dropdown (the #57 overlap).
 export function makeCategorized(
   nCats: number,
   appsPer: number,
@@ -84,19 +96,17 @@ export function makeCategorized(
 
 export async function mockApi(
   page: Page,
-  // Defaults to the single-tile fixture (tile-menu.spec). Pass a wider set for
-  // gates that need tiles in the grid's right column (header-zindex.spec).
   services: (typeof SERVICE)[] = [SERVICE],
-  // Optional categories. Empty (default) → the flat v1 render (one grid, no
-  // panels). Non-empty → the grouped v14 render where each category is a glass
-  // panel that packs left→right (header-zindex needs this to reach the dropdown).
   categories: FixtureCategory[] = [],
+  // The App Grid width selector is admin-only; pass 'admin' when a gate needs it
+  // in the contested row.
+  role: 'user' | 'admin' = 'user',
 ): Promise<void> {
   // Catch-all registered FIRST so the specific handlers below (LIFO order) take
   // precedence — anything unmocked resolves empty instead of hanging the page.
   await page.route('**/api/**', (route) => route.fulfill({ status: 200, json: {} }));
 
-  await page.route('**/api/me', (route) => route.fulfill({ json: USER }));
+  await page.route('**/api/me', (route) => route.fulfill({ json: { ...USER, role } }));
   await page.route('**/api/auth/config', (route) => route.fulfill({ json: { oidcEnabled: false } }));
   await page.route('**/api/services', (route) => route.fulfill({ json: { services } }));
   await page.route('**/api/categories', (route) => route.fulfill({ json: { categories } }));

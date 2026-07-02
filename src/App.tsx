@@ -1,7 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { authConfig, login, logout, me, register, type User } from './api';
+import {
+  authConfig,
+  categories as fetchCategories,
+  login,
+  logout,
+  me,
+  register,
+  type Category,
+  type Service,
+  type User,
+} from './api';
 import AppHeader from './AppHeader';
-import Catalog from './Catalog';
+import AppGrid from './AppGrid';
+import LibraryBrowse from './LibraryBrowse';
+import ServiceForm from './ServiceForm';
 import StatusBar from './StatusBar';
 import CommandLauncher from './CommandLauncher';
 import { LauncherProvider, useLauncher } from './launcher';
@@ -68,15 +80,15 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // mutating endpoint is independently admin-gated server-side, so this toggle
   // is a convenience surface, not the security boundary.
   const isAdmin = user.role === 'admin';
+  // SPEC-app-grid §7 — Edit Dashboard mode: admin-only + client-ephemeral (a
+  // reload returns to view mode). When on, AppGrid's boxes become drag-to-reorder
+  // sortables; the header Gear toggles it. Every mutating endpoint is
+  // independently admin-gated server-side, so this toggle is a convenience
+  // surface, not the security boundary.
   const [editMode, setEditMode] = useState(false);
-  // #166 — per-user Arrange mode (v1 A5.1). Client-ephemeral (a reload returns
-  // to the decluttered launcher view); toggled by the header settings gear,
-  // available to every logged-in user. Reveals the per-tile reorder grips.
-  const [arrange, setArrange] = useState(false);
-  // v18 — LibraryBrowse + add-custom-app ServiceForm open-state, lifted here so
-  // the header Gear menu can trigger them (Catalog still owns the edit-existing
-  // -tile flow). `customFormOpen` opens ServiceForm in add mode directly, with no
-  // editMode required (D6).
+  // Library browse + add-custom-app remain (service management, not layout),
+  // lifted here so the header Gear can trigger them and their result flows into
+  // the shared services context that AppGrid renders from.
   const [browseOpen, setBrowseOpen] = useState(false);
   const [customFormOpen, setCustomFormOpen] = useState(false);
   // v9.3 §7.3 — the admin Settings modal (App Library management + read-only
@@ -93,10 +105,37 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   const alerts = useAlertHistory();
   const services = useServicesContext();
   const { open: launcherOpen, closeLauncher } = useLauncher();
+  // Categories feed the add-custom-app form's category picker (parity with the
+  // list Catalog used to pass). AppGrid owns box widths independently; this is a
+  // read-only list for the form dropdown.
+  const [cats, setCats] = useState<Category[]>([]);
 
   useEffect(() => {
     authConfig().then((c) => setOidcEnabled(c.oidcEnabled));
+    fetchCategories().then(setCats);
   }, []);
+
+  // Reflect a service added via the Library, or created/edited via the custom-app
+  // form, into the shared services list — the SAME array AppGrid + the launcher
+  // read — so the new tool appears without a refetch (mirrors the old Catalog
+  // handlers). An edit keeps the existing favorite/icon flags, which the
+  // create/update response serializes as zero values.
+  function onAddedFromLibrary(added: Service) {
+    services?.setItems((cur) => [...(cur ?? []), added]);
+  }
+  function onSavedCustom(saved: Service, mode: 'add' | 'edit') {
+    services?.setItems((cur) => {
+      if (mode === 'add') return [...(cur ?? []), saved];
+      return (
+        cur?.map((s) =>
+          s.id === saved.id
+            ? { ...saved, favorite: s.favorite, iconLight: s.iconLight, iconDark: s.iconDark }
+            : s,
+        ) ?? cur
+      );
+    });
+    setCustomFormOpen(false);
+  }
 
   // AC-014 — one overlay at a time: opening the ⌘K launcher closes the alert panel.
   useEffect(() => {
@@ -134,10 +173,8 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
       <main className="app-surface min-h-screen font-sans">
         <AppHeader
           user={user}
-          arrange={arrange}
           editMode={editMode}
-          onToggleArrange={() => setArrange((on) => !on)}
-          onToggleEditMode={isAdmin ? () => setEditMode((on) => !on) : () => {}}
+          onToggleEdit={() => setEditMode((e) => !e)}
           onOpenLibrary={() => setBrowseOpen(true)}
           onOpenCustomAppForm={() => setCustomFormOpen(true)}
           onOpenAdminSettings={() => setSettingsOpen(true)}
@@ -151,17 +188,32 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
         <StatusBar />
 
         <section className={`${CONTENT_WIDTH} py-6`}>
-          <Catalog
-            isAdmin={isAdmin}
-            editMode={editMode}
-            arrange={arrange}
-            onExitEdit={() => setEditMode(false)}
-            browseOpen={browseOpen}
-            onBrowseClose={() => setBrowseOpen(false)}
-            customFormOpen={customFormOpen}
-            onCustomFormClose={() => setCustomFormOpen(false)}
-          />
+          <AppGrid isAdmin={isAdmin} editMode={editMode} />
         </section>
+
+        {/* SPEC-app-grid §7 — service management stays on the existing surfaces.
+            The header Gear's "Add apps" opens the Library; "Add custom app"
+            (admin) opens the add-mode form. Both lifted to App level now that
+            AppGrid (unlike Catalog) doesn't host them; their result lands in the
+            shared services context AppGrid renders from. */}
+        {browseOpen && (
+          <LibraryBrowse
+            isAdmin={isAdmin}
+            onClose={() => setBrowseOpen(false)}
+            onAdded={onAddedFromLibrary}
+            onCustomAdd={() => {
+              setBrowseOpen(false);
+              setCustomFormOpen(true);
+            }}
+          />
+        )}
+        {customFormOpen && (
+          <ServiceForm
+            categories={cats}
+            onClose={() => setCustomFormOpen(false)}
+            onSaved={onSavedCustom}
+          />
+        )}
 
         {/* Feeds the launcher the shared catalog array; while still loading it
             simply has nothing to match (an empty list), never its own fetch. */}

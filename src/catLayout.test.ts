@@ -208,6 +208,42 @@ describe('resolveMergeSplit + mergeCategories (D4 auto 50/50)', () => {
     expect(b.layoutColOrder).toBe(0);
     expect(a.layoutColOrder).toBe(1);
   });
+
+  // #217 — the widths in a merged row MUST sum to exactly 100% for any pane
+  // count. Round(100/n) undershoots for n=3 (33×3=99) and n=7 (14×7=98).
+  const rowWidthSum = (cats: CatLayout[]): number => {
+    const row = cats[0].layoutRow; // all merged panes share the target's row
+    return cats
+      .filter((c) => c.layoutRow === row)
+      .reduce((sum, c) => sum + c.layoutWidthPct, 0);
+  };
+
+  // Build a single row of `n` panes by merging panes 1..n-1 onto pane 0's right.
+  const mergeNIntoOneRow = (n: number): CatLayout[] => {
+    let cats: CatLayout[] = Array.from({ length: n }, (_, i) =>
+      cat({ id: `c${i}`, layoutRow: i, layoutColOrder: 0, layoutWidthPct: 100 }),
+    );
+    for (let i = 1; i < n; i++) {
+      cats = mergeCategories(cats, `c${i}`, 'c0', 'right');
+    }
+    return cats;
+  };
+
+  it('#217 n=2 pane widths sum to exactly 100', () => {
+    expect(rowWidthSum(mergeNIntoOneRow(2))).toBe(100);
+  });
+
+  it('#217 n=3 pane widths sum to exactly 100 (not 99)', () => {
+    expect(rowWidthSum(mergeNIntoOneRow(3))).toBe(100);
+  });
+
+  it('#217 n=4 pane widths sum to exactly 100', () => {
+    expect(rowWidthSum(mergeNIntoOneRow(4))).toBe(100);
+  });
+
+  it('#217 n=7 pane widths sum to exactly 100 (not 98)', () => {
+    expect(rowWidthSum(mergeNIntoOneRow(7))).toBe(100);
+  });
 });
 
 describe('moveToNewRow (D4 new-row drop)', () => {
