@@ -23,7 +23,28 @@ const SERVICE = {
 
 // A minimal Category literal for the fixture (camelCase, as api.categories()
 // consumes it; gridWidth defaults to 3 via the client backfill when omitted).
-type FixtureCategory = { id: string; name: string; sortIndex: number };
+type FixtureCategory = { id: string; name: string; sortIndex: number; gridWidth?: number };
+
+// makeBoxes builds the exact A1 layout fixture: one box per spec, at the given
+// `width` (--w), each filled with `tools` named verbatim (so a spec can hand a box
+// a short 1-line name AND a long 2-line name to compare tile heights). Drives the
+// A1 fixed-tile browser gate — tile-width uniformity, two-up wrap, name-height.
+export function makeBoxes(
+  specs: { width: number; tools: string[] }[],
+): { services: (typeof SERVICE)[]; categories: FixtureCategory[] } {
+  const categories: FixtureCategory[] = [];
+  const services: (typeof SERVICE)[] = [];
+  let sid = 0;
+  specs.forEach((spec, c) => {
+    const cid = `cat-${c + 1}`;
+    categories.push({ id: cid, name: `Group ${c + 1}`, sortIndex: c, gridWidth: spec.width });
+    for (const name of spec.tools) {
+      sid += 1;
+      services.push({ ...SERVICE, id: `svc-${sid}`, slug: `svc-${sid}`, name, categoryId: cid });
+    }
+  });
+  return { services, categories };
+}
 
 // header-zindex.spec fixture: `nCats` categories of `appsPer` apps each. In the
 // App Grid, each category renders as a glass box that packs left→right across the
