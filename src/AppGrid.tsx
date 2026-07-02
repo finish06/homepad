@@ -601,8 +601,10 @@ const UPTIME_WINDOW_ORDER = ['24h', '7d', '30d'];
 // fmtUptime renders a fraction (0..1) as a glanceable percentage (AC-U07): exactly
 // 100% drops the decimal; everything else shows one decimal, rounded nearest.
 function fmtUptime(v: number): string {
-  const pct = v * 100;
-  return pct >= 100 ? '100%' : `${pct.toFixed(1)}%`;
+  const rounded = (v * 100).toFixed(1);
+  // Round first, then check the boundary: a value like 0.9995 rounds to "100.0",
+  // which should read "100%" (no decimal) — not "100.0%".
+  return parseFloat(rounded) >= 100 ? '100%' : `${rounded}%`;
 }
 
 // UptimeWindowsLine renders Gatus's computed 24h/7d/30d availability under the tile
