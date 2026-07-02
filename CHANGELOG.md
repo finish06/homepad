@@ -7,6 +7,33 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [13.1.0] — 2026-07-02 — Per-tile status dot on the App Grid (SPEC-242)
+
+Restores the live per-service health indicator on every App Grid tool tile (it
+was present on the outgoing v14 floating-panel layout but absent from the App Grid
+tile). Frontend only — the status comes from `service.status` on the existing
+`GET /api/services` via `ServicesContext`; no new endpoint, no backend change.
+
+### Added
+
+- **Per-tile status dot.** Each tool tile now shows a 9px status pip in its
+  **top-left** corner (deliberately mirroring the favorite ★ at top-right so the
+  two never collide). Five states, each with an accessible label (`role="img"` +
+  `aria-label="status: …"` + hover `title`):
+  - **UP** green, **DOWN** red, **DEGRADED** amber — each with a state-coloured glow.
+  - **UNKNOWN** neutral grey, ring only, **no** alarm glow (it's monitoring-infra
+    noise, not a service failure).
+  - **NOT_MONITORED** a dashed hollow ring, no glow — the one non-solid shape, so a
+    colour-blind user can still tell it apart (absence of monitoring, not an error).
+- A mandatory 1px definition ring on the solid dots so the emerald/amber/neutral
+  fills meet the WCAG-AA 3:1 non-text-contrast floor against the near-white tile.
+- A single-shot pulse when a tile's status changes on a live poll; it plays only
+  on the tile that changed and is skipped entirely under `prefers-reduced-motion`.
+
+The indicator is absolutely positioned with `pointer-events: none`, so it adds
+**zero** layout impact — the fixed 120px tile height is unchanged and a tap on the
+tile always hits the app link.
+
 ## [13.0.0] — 2026-07-02 — App Grid fixed-width tile layout (SPEC-app-grid Amendment A1)
 
 Opens the v13 major line (panel customization). Corrects the App Grid's 1fr layout
