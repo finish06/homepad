@@ -1982,11 +1982,18 @@
        viewport (#196). */
   }
   .app-grid-box {
-    /* Content-sized (AC-002-A1): --w fixed 190px tiles + inner gaps + 2×16 pad.
-       max-width:100% is the D-3 backstop — a box whose natural --w×190 exceeds
-       the frame never overflows the page; its tiles auto-fill-wrap instead. */
-    width: calc(var(--w) * 190px + (var(--w) - 1) * 16px + 32px);
-    max-width: 100%;
+    /* SPEC-pane-fill-reflow (Phase 1, R3/R4) — the box GROWS to fill row slack.
+       --w is a FLOOR, not the fixed size (Caleb decision (a)): the box's flex
+       basis is --floor (= boxWidthPx(--w)), it grows weighted by --grow (its app
+       count, 0 for an empty box → no growth), and is capped at --cap (its
+       content-max, or 100% when it is alone in its row — R4). flex-shrink:1 is
+       the D-3 backstop that replaces the old max-width:100%: a single box whose
+       floor exceeds the frame shrinks to fit rather than overflowing the page.
+       Because the tile track is a fixed-190px auto-fill (R2), a grown box reveals
+       MORE 190px columns — tiles never stretch (Caleb's invariant, AC-R2-1). */
+    flex: var(--grow, 0) 1 var(--floor, auto);
+    max-width: var(--cap, 100%);
+    width: auto;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -2550,8 +2557,12 @@
      outranks pixel-perfect width. Breakpoint is 640px, not v14's 767 — the desktop
      auto-fill track already wraps 190px tiles natively at 768 (§6.7). */
   @media (max-width: 640px) {
+    /* Guardrail AC-G1 (unchanged behavior) — below 640px boxes stack full-width.
+       The Phase-1 grow model sets an explicit flex-basis (--floor), which wins over
+       `width`, so the basis itself is reset to 100% here (not just `width`) to force
+       the full-width stack; the 2-column tile shrink is untouched. */
     .app-grid-box {
-      width: 100%;
+      flex: 1 1 100%;
       max-width: 100%;
     }
     .app-grid-tools {

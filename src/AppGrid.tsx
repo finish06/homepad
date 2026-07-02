@@ -29,7 +29,7 @@ import {
   type Service,
   type ServiceStatus,
 } from './api';
-import { boxesFromData, fitsViewport, MAX_WIDTH, moveCategory, type Box } from './appGrid';
+import { boxesFromData, boxWidthPx, contentMaxPx, fitsViewport, MAX_WIDTH, moveCategory, rowFillCounts, type Box } from './appGrid';
 import { iconSrc, initialBadge } from './icons';
 import { useServicesContext } from './services';
 import { useResolvedTheme } from './theme';
@@ -44,6 +44,13 @@ import { useResolvedTheme } from './theme';
 // floating-panel Catalog layout (§2).
 
 const WIDTHS = Array.from({ length: MAX_WIDTH }, (_, i) => i + 1); // [1..8]
+
+// SPEC-pane-fill-reflow (Phase 1, R4) — the shared CONTENT_WIDTH frame is
+// `max-w-[1536px] px-4` (layout.ts): a 1536px cap with 16px padding each side. The
+// `.app-grid` content box the boxes flex-wrap into is therefore min(vw, 1536) − 32.
+// Lone-box detection bin-packs the boxes into that width by their --w floors.
+const FRAME_MAX_PX = 1536;
+const FRAME_PAD_PX = 32;
 
 // useViewportWidth tracks window.innerWidth so the width selector can offer a
 // --w that would render off-screen as DISABLED (A1 D-3). The ≤640px mobile
@@ -242,6 +249,13 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
   }
 
   const boxes = boxesFromData(cats, svcs ?? []);
+  // R4 — mark boxes alone in their visual row so BoxCard lifts their cap to 100%.
+  // Bin-pack the boxes' --w floors into the current .app-grid content width; a row
+  // of one is a lone box. Recomputes on viewportWidth + boxes changes (both already
+  // drive re-render), so it tracks resizes and width-selector edits live.
+  const contentWidth = Math.min(viewportWidth, FRAME_MAX_PX) - FRAME_PAD_PX;
+  const rowCounts = rowFillCounts(boxes.map((b) => boxWidthPx(b.width)), contentWidth);
+  const loneById = new Map(boxes.map((b, i) => [b.id, rowCounts[i] === 1]));
   // Edit Dashboard is admin-only + client-ephemeral (a reload returns to view
   // mode). Only REAL category boxes rearrange; the synthetic Uncategorized box
   // (empty id) stays pinned last, outside the sortable context.
@@ -272,17 +286,17 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext items={sortableBoxes.map((b) => b.id)} strategy={rectSortingStrategy}>
                 {sortableBoxes.map((box) => (
-                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
+                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
                 ))}
               </SortableContext>
             </DndContext>
             {uncatBox && (
-              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
+              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(uncatBox.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
             )}
           </>
         ) : (
           boxes.map((box) => (
-            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
+            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
           ))
         )}
         {addButton}
@@ -317,6 +331,7 @@ function BoxCard({
   isAdmin,
   viewportWidth,
   editing,
+  lone,
   onWidth,
   onToggleFavorite,
   onRename,
@@ -327,6 +342,7 @@ function BoxCard({
   isAdmin: boolean;
   viewportWidth: number;
   editing: boolean;
+  lone: boolean;
   onWidth: (id: string, width: number) => void;
   onToggleFavorite: (id: string) => void;
   onRename: (id: string, name: string) => Promise<true | string>;
@@ -344,11 +360,26 @@ function BoxCard({
   const [renameError, setRenameError] = useState('');
   const [renamingBusy, setRenamingBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  // --w is the RAW configured width (A1): it feeds only the box's content-width
-  // calc(). The ≤640px mobile behavior (full-width box, 2-col shrink) is pure CSS
-  // (D-4), and the tools track auto-fill-wraps when the box is clamped — so no JS
-  // mobile cap is needed here anymore.
-  const style: React.CSSProperties = { ['--w' as string]: box.width };
+  // --w stays the RAW configured width (drives the width-selector state + the
+  // legacy content calc the tests assert). SPEC-pane-fill-reflow (Phase 1) adds the
+  // grow model as three more vars that index.css turns into `flex` + `max-width`:
+  //   --floor : boxWidthPx(--w) — the box's minimum (the admin width is a FLOOR).
+  //   --grow  : app count (0 if empty) — grow weight, so a box that can USE the
+  //             extra width (more 190px columns) claims proportionally more of it.
+  //   --cap   : content-max — the width to show every app in one row, but never
+  //             below the floor (so max-width can't shrink the box under its --w).
+  //             A LONE box (alone in its row, R4) lifts this to 100% to fill the
+  //             frame; an EMPTY box keeps grow 0 + floor cap so it never balloons.
+  // The ≤640px mobile behavior (full-width box, 2-col shrink) is pure CSS (D-4).
+  const floorPx = boxWidthPx(box.width);
+  const hasApps = box.tools.length > 0;
+  const capPx = Math.max(floorPx, contentMaxPx(box.tools.length));
+  const style: React.CSSProperties = {
+    ['--w' as string]: box.width,
+    ['--floor' as string]: `${floorPx}px`,
+    ['--grow' as string]: hasApps ? box.tools.length : 0,
+    ['--cap' as string]: lone && hasApps ? '100%' : `${capPx}px`,
+  };
   if (sortable) {
     style.transform = CSS.Transform.toString(sortable.transform);
     style.transition = sortable.transition;
@@ -529,6 +560,7 @@ function SortableBox({
   isAdmin,
   viewportWidth,
   editing,
+  lone,
   onWidth,
   onToggleFavorite,
   onRename,
@@ -538,6 +570,7 @@ function SortableBox({
   isAdmin: boolean;
   viewportWidth: number;
   editing: boolean;
+  lone: boolean;
   onWidth: (id: string, width: number) => void;
   onToggleFavorite: (id: string) => void;
   onRename: (id: string, name: string) => Promise<true | string>;
@@ -551,6 +584,7 @@ function SortableBox({
       isAdmin={isAdmin}
       viewportWidth={viewportWidth}
       editing={editing}
+      lone={lone}
       onWidth={onWidth}
       onToggleFavorite={onToggleFavorite}
       onRename={onRename}

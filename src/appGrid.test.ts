@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Category, Service } from './api';
-import { boxesFromData, boxWidthPx, clampWidth, fitsViewport, MAX_WIDTH, moveCategory } from './appGrid';
+import { boxesFromData, boxWidthPx, clampWidth, contentMaxPx, fitsViewport, MAX_WIDTH, moveCategory, rowFillCounts } from './appGrid';
 
 // SPEC-app-grid (Amendment A1) — pure layout helpers. The flex-wrap page pack +
 // the fixed-190px auto-fill tools track are pure CSS (browser-gate territory);
@@ -51,6 +51,59 @@ describe('fitsViewport (D-3 — width selector disable)', () => {
     expect(fitsViewport(8, 1440)).toBe(false); // 1664 > 1440
     expect(fitsViewport(8, 1920)).toBe(true); // 1664 ≤ 1920
     expect(fitsViewport(1, 320)).toBe(true); // 222 ≤ 320
+  });
+});
+
+// SPEC-pane-fill-reflow (Phase 1, R3) — contentMaxPx is the box's content-max
+// GROW CAP: the width to show all n apps in ONE row. Same slot formula as
+// boxWidthPx BUT deliberately UNCLAMPED — boxWidthPx clamps --w to 1–8 (the
+// admin range), whereas a box can hold MORE than 8 apps and its true single-row
+// content width must be reported so the box can grow to reveal every column.
+describe('contentMaxPx (R3 content-max grow cap)', () => {
+  it('computes the single-row content width for n apps (n × 190 + (n−1) × 16 + 32)', () => {
+    expect(contentMaxPx(1)).toBe(222);
+    expect(contentMaxPx(3)).toBe(634);
+    expect(contentMaxPx(5)).toBe(1046);
+  });
+
+  it('is 0 for an empty box (0 apps) — the box stays at its --w floor, never grows (AC-R3-5)', () => {
+    expect(contentMaxPx(0)).toBe(0);
+  });
+
+  it('does NOT clamp at 8 (unlike boxWidthPx): a >8-app box reports its true content-max', () => {
+    // boxWidthPx clamps to width 8 (1664); a 10-app box's real content-max is wider.
+    expect(contentMaxPx(10)).toBe(2076); // 10×190 + 9×16 + 32
+    expect(contentMaxPx(10)).toBeGreaterThan(boxWidthPx(10));
+  });
+});
+
+// SPEC-pane-fill-reflow (Phase 1, R4) — rowFillCounts bins the boxes into the
+// visual flex-wrap rows the browser would form (greedy fill by each box's --w
+// FLOOR width until the next won't fit, then wrap) and returns, per box, how many
+// boxes share its row. A count of 1 marks a LONE box, which R4 grows to 100% of
+// the frame instead of stopping at its content-max cap.
+describe('rowFillCounts (R4 lone-box detection)', () => {
+  it('marks both boxes as sharing a row when they fit the content width', () => {
+    // 812 + 16 + 396 = 1224 ≤ 1504 → one row of two.
+    expect(rowFillCounts([812, 396], 1504)).toEqual([2, 2]);
+  });
+
+  it('marks each box lone when the second wraps to its own row', () => {
+    // 634 + 16 + 634 = 1284 > 1248 → the second box wraps → two rows of one.
+    expect(rowFillCounts([634, 634], 1248)).toEqual([1, 1]);
+  });
+
+  it('handles a mixed pack: a lone first row then a shared second row', () => {
+    // 812 alone (812 + 16 + 812 = 1640 > 1504), then 812 + 16 + 300 = 1128 fits.
+    expect(rowFillCounts([812, 812, 300], 1504)).toEqual([1, 2, 2]);
+  });
+
+  it('marks a single box as lone (count 1)', () => {
+    expect(rowFillCounts([500], 1504)).toEqual([1]);
+  });
+
+  it('returns [] for no boxes', () => {
+    expect(rowFillCounts([], 1504)).toEqual([]);
   });
 });
 

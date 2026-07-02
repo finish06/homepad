@@ -88,11 +88,14 @@ test.describe('A1 fixed-tile layout', () => {
     expect(overflow).toBeLessThanOrEqual(1);
   });
 
-  // Gate 5 — a width-N box actually packs N tiles across its top row (AC-004–008).
-  // Regression guard: a 1px box border shrank the content to 806px so auto-fill
-  // dropped a width-4 box to 3 columns (the 4th tile fell to row 2). The top row
-  // of a width-4 box with ≥4 tools must hold exactly 4 tiles.
-  test('a width-4 box packs 4 tiles across its top row (not 3)', async ({ page }) => {
+  // Gate 5 — a width-N box's FLOOR actually packs at least N tiles across its top
+  // row (AC-004–008). Regression guard: a 1px box border shrank the content to 806px
+  // so auto-fill dropped a width-4 box to 3 columns (the 4th tile fell to row 2). The
+  // top row of a width-4 box with ≥4 tools must hold ≥4 tiles.
+  // SPEC-pane-fill-reflow (Phase 1): this box is alone in its row, so R4 grows it to
+  // 100% and it may reveal MORE than 4 columns (tiles stay 190px — R2). The guard is
+  // therefore ≥4 (floor honoured), not ==4 (the pre-Phase-1 fixed-width invariant).
+  test('a width-4 box packs at least 4 tiles across its top row (not 3)', async ({ page }) => {
     const { services, categories } = makeBoxes([
       { width: 4, tools: ['Plex', 'Jellyfin', 'Sonarr', 'Radarr', 'Tautulli'] },
     ]);
@@ -107,7 +110,7 @@ test.describe('A1 fixed-tile layout', () => {
     );
     const topRow = Math.min(...tops);
     const inTopRow = tops.filter((t) => Math.abs(t - topRow) <= 2).length;
-    expect(inTopRow).toBe(4);
+    expect(inTopRow).toBeGreaterThanOrEqual(4);
   });
 
   // Gate 4 — a 1-line-name tile and a 2-line-name tile are the SAME height (D-2:
