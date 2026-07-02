@@ -1,0 +1,122 @@
+<!doctype html><html><head><meta charset="utf8"><style>
+/* ==== VERBATIM from Code/homepad/src/index.css (the shipped tokens) ==== */
+* { box-sizing: border-box; }
+body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.app-surface {
+  min-height:100vh;
+  background:
+    radial-gradient(1100px 560px at 12% -12%, rgba(99,102,241,.12), transparent 60%),
+    radial-gradient(900px 520px at 102% -6%, rgba(168,85,247,.1), transparent 55%),
+    linear-gradient(180deg,#f6f8fd 0%,#eceffa 100%);
+  padding: 24px 0;
+}
+.tile {
+  border-radius:18px; border:1px solid rgba(15,23,42,.06); padding:15px 15px 13px;
+  background:linear-gradient(180deg,#fff,#fbfcff);
+  box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 20px -10px rgba(16,24,40,.12);
+}
+.tile-icon{ width:46px;height:46px;padding:7px;border-radius:13px;object-fit:contain;
+  background:linear-gradient(135deg,#f2f4fc,#e9edf9);box-shadow:inset 0 0 0 1px rgba(15,23,42,.05);
+  display:block; }
+.tile-label{ margin-top:10px; font-size:13px; font-weight:600; color:#334155;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.status-dot{width:9px;height:9px;border-radius:9999px;background:#10b981;
+  box-shadow:0 0 0 3px rgba(16,185,129,.16),0 0 9px rgba(16,185,129,.55);
+  position:absolute;top:12px;right:12px;}
+.cat-head{ font-size:.82rem;letter-spacing:.13em;color:#475069;display:flex;align-items:center;
+  gap:.6rem;padding-bottom:.7rem;margin-bottom:1rem;border-bottom:1px solid rgba(15,23,42,.07);
+  text-transform:uppercase;font-weight:600; }
+.cat-head::before{content:'';flex:none;width:15px;height:15px;border-radius:5px;
+  background:linear-gradient(135deg,#6366f1,#a855f7);box-shadow:0 3px 8px rgba(99,102,241,.45);}
+.cat-count{display:inline-block;min-width:1.1rem;padding:1px 6px;font-size:.68rem;font-weight:700;
+  letter-spacing:normal;text-align:center;border-radius:999px;color:#64748b;
+  background:rgba(15,23,42,.06);font-variant-numeric:tabular-nums;margin-left:auto;}
+
+/* ==== v14 §2A shipped layout (index.css:1892) — THE CURRENT LIVE BEHAVIOR ==== */
+.tile-field{ display:flex; flex-wrap:wrap; align-items:flex-start; gap:16px;
+  margin-left:48px; max-width:1392px; }
+.category-panel{
+  width:calc(var(--panel-cols,1)*190px + (var(--panel-cols,1) - 1)*16px + 32px);
+  box-sizing:border-box; background:rgba(255,255,255,.72);
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.6); border-radius:22px;
+  box-shadow:0 2px 8px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.04); padding:16px; }
+.panel-tiles{ display:grid; grid-template-columns:repeat(var(--panel-cols,1),190px); gap:16px; }
+.tile{ position:relative; }
+
+/* ==== PROTOTYPE OVERRIDES (toggled by body class) ==================== */
+
+/* Shared: field fills the content frame instead of capping at 1392 (D1: no
+   content cap, padding ceiling 64px). We emulate the 2xl 64px padding. */
+body.fix .tile-field{ margin-left:0; max-width:none; padding:0 64px; }
+
+/* Variant A "equal-grow": every panel grows equally to fill the row; tiles
+   auto-fill+1fr so they reflow to the grown width. */
+body.fixA .category-panel{
+  width:auto;
+  flex:1 1 calc(var(--panel-cols,1)*190px + (var(--panel-cols,1) - 1)*16px + 32px);
+}
+body.fixA .panel-tiles{ grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); }
+
+/* Variant B "weighted-grow": grow weight = app count, so panels with more apps
+   absorb more leftover (a 1-app pane grows least); tiles auto-fill+1fr reflow. */
+body.fixB .category-panel{
+  width:auto;
+  flex:var(--apps,1) 1 calc(var(--panel-cols,1)*190px + (var(--panel-cols,1) - 1)*16px + 32px);
+}
+body.fixB .panel-tiles{ grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); }
+
+/* Variant C "weighted-grow, tiles pack (no stretch)": tiles stay a fixed 190
+   auto-fill (more COLUMNS, never wider than 190) — extra pane slack centered. */
+body.fixC .category-panel{
+  width:auto;
+  flex:var(--apps,1) 1 calc(var(--panel-cols,1)*190px + (var(--panel-cols,1) - 1)*16px + 32px);
+}
+body.fixC .panel-tiles{ grid-template-columns:repeat(auto-fill,190px); justify-content:center; }
+
+/* Variant D "content-honest": panes grow weighted BUT never wider than their own
+   content (all their tiles in one row). Tiles fixed 190, pack left (no internal
+   dead space possible). Row residual absorbed by distributing gaps. This is the
+   "no emptiness inside glass" model. --appmax = appCount tiles in one row. */
+body.fixD .category-panel{
+  width:auto;
+  flex:var(--apps,1) 1 calc(var(--panel-cols,1)*190px + (var(--panel-cols,1) - 1)*16px + 32px);
+  max-width:calc(var(--apps,1)*190px + (var(--apps,1) - 1)*16px + 32px);
+}
+body.fixD .panel-tiles{ grid-template-columns:repeat(auto-fill,190px); }
+body.fixD .tile-field{ justify-content:space-between; }
+</style></head>
+<body class="app-surface">
+<div class="tile-field" id="field"></div>
+<script>
+// Caleb's reported scenario: 5 categories of varying app counts.
+// panelColsFor(appCount, 4) = min(appCount,4)  (fieldCols=4 at >=1024)
+const CATS = [
+  {name:"Develop",  apps:6},
+  {name:"External", apps:1},
+  {name:"Friends",  apps:3},
+  {name:"Media",    apps:5},
+  {name:"Kube",     apps:2},
+];
+const field = document.getElementById("field");
+for (const c of CATS){
+  const cols = Math.min(c.apps, 4);
+  const sec = document.createElement("section");
+  sec.className = "category-panel";
+  sec.style.setProperty("--panel-cols", cols);
+  sec.style.setProperty("--apps", c.apps);
+  const h = document.createElement("h2");
+  h.className="cat-head";
+  h.innerHTML = `<span>${c.name}</span><span class="cat-count">${c.apps}</span>`;
+  const grid = document.createElement("div");
+  grid.className="panel-tiles";
+  grid.style.setProperty("--panel-cols", cols);
+  for(let i=0;i<c.apps;i++){
+    const t=document.createElement("div"); t.className="tile";
+    t.innerHTML=`<span class="status-dot"></span><span class="tile-icon"></span><div class="tile-label">${c.name} ${i+1}</div>`;
+    grid.appendChild(t);
+  }
+  sec.appendChild(h); sec.appendChild(grid); field.appendChild(sec);
+}
+</script>
+</body></html>
