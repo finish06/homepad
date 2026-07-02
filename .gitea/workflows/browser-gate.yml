@@ -21,14 +21,6 @@ jobs:
   browser-gate:
     name: Browser gate (#35 tile/menu/dnd)
     runs-on: ubuntu-latest
-    # Run inside the Playwright-published image whose tag matches the EXACT
-    # @playwright/test version resolved in package-lock.json (1.60.0). It ships
-    # the matching Chromium (and all OS deps) preinstalled at ~/.cache/ms-playwright,
-    # so we never download ~150MB from cdn.playwright.dev at runtime — that download
-    # was timing out (5×30s → "Failed to install browsers") and wedging this gate.
-    # A version mismatch here would re-trigger a download, so keep it pinned to the
-    # lockfile version. The image bundles git + node, so checkout/setup work.
-    container: mcr.microsoft.com/playwright:v1.60.0-noble
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,10 +30,8 @@ jobs:
         id: filter
         run: |
           # On push (e.g. main) always run. On a PR, run only when the changed
-          # files touch the tile/menu/dnd surface, this gate's own harness, or the
-          # gate's own workflow/config — so a change to the gate itself is validated
-          # by a REAL browser run rather than silently no-op-passing.
-          PATTERN='^src/App(Grid|Header)?\.tsx$|^tests/browser-gate/|^playwright\.gate\.config\.ts$|^\.gitea/workflows/browser-gate\.yml$|^src/.*([Tt]ile|[Mm]enu|[Dd]nd|[Dd]rag|[Ss]ortable)|^package(-lock)?\.json$'
+          # files touch the tile/menu/dnd surface or this gate's own harness.
+          PATTERN='^src/Catalog\.tsx$|^tests/browser-gate/|^playwright\.gate\.config\.ts$|^src/.*([Tt]ile|[Mm]enu|[Dd]nd|[Dd]rag|[Ss]ortable)|^package(-lock)?\.json$'
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
             echo "push event — running browser gate"
@@ -63,15 +53,9 @@ jobs:
         if: steps.filter.outputs.run == 'true'
         run: npm ci
 
-      - name: Verify preinstalled Chromium (no download)
+      - name: Install Chromium (+ OS deps)
         if: steps.filter.outputs.run == 'true'
-        # No-op inside the pinned Playwright image: Chromium + OS deps are already
-        # baked in, so this just validates the browser is present. --with-deps is
-        # dropped so no apt/network work runs. The timeout is a guard: if a version
-        # drift ever re-triggers a runtime download, fail fast (well under 3 min)
-        # instead of hanging ~8 min like the old --with-deps step did.
-        timeout-minutes: 2
-        run: npx playwright install chromium
+        run: npx playwright install --with-deps chromium
 
       - name: Build app
         if: steps.filter.outputs.run == 'true'

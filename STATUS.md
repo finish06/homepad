@@ -2,36 +2,6 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
-## 2026-07-02 — App Grid parity restore #240/#241/#239 → v12.9.0 (do NOT self-merge)
-
-Branch `feat/app-grid-edit-rearrange` (extends #238). Gracie's audit found the App
-Grid replace dropped more of the old Catalog surface; added all remaining parity to
-the SAME branch so it ships together.
-
-- **#240 favorites toggle** — restored a per-tile ★ toggle on `ToolLink` (a
-  `<button>` layered over the tool `<a>`; corner-anchored above it so a real center
-  click hits the star). Optimistic pin/unpin via `setFavorite` with rollback;
-  `next` captured up front (no stale-value persist). Mirrors into the shared
-  services ctx (`updateSvcs → ctx.setItems`) so the ⌘K launcher Favorites section
-  updates live. Available to all users in view mode.
-- **#241 box rename + delete** — Edit Dashboard mode gives each real category box
-  header a **Rename** (inline editor, `renameCategory` PATCH, reconcile to canonical
-  name, rollback + inline error on 409) and **Delete** (in-place confirm,
-  `deleteCategory`). Delete re-homes the box's apps to Uncategorized live (clears
-  `categoryId` in shared svcs) so nothing vanishes pre-reload; both cats+svcs roll
-  back on failure. Uncategorized box + non-admins never get the controls. Kept the
-  `box-title` h2 present (gate reads it) — rename editor sits below the header.
-- **#239 gate mock 204** — already shipped in 12.8.0's gate commit (d2e413e); the
-  browser-gate `PUT /api/categories/order` mock returns 204. Verified, nothing to do.
-- **#242 status dots** — deferred (Caleb's call), untouched.
-
-TDD RED→GREEN commits per feature. New browser-gate specs `app-grid-favorite`
-(the #35 ★ hit-test) + `app-grid-box-manage` (rename/delete). **685 vitest green**,
-tsc clean, build clean, **all 6 browser-gate specs green on the CDP sidecar**.
-SPEC-app-grid §7 updated (both features moved to IN scope); v12.9.0 with matching
-CHANGELOG.md + changelog.json. **Do NOT self-merge** — rides CI + browser-gate +
-Gracie QA (staging) + Walt PAT (prod).
-
 ## 2026-06-26 — v15 + v17 hand-off live — first hand-off (v15) sent to Joe for Stitch dispatch
 
 Specs confirmed complete (committed `b1c0f2c`). Rollout plan active. Joe is dispatching Stitch

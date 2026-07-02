@@ -1,192 +1,180 @@
 # SPEC: Category Pane Width Layout — Horizontal Screen Utilization
 
-**Issue:** TBD (to be filed)
-**Status:** APPROVED for implementation (Walt product go, 2026-07-01) — dispatched to Stitch
+**Issue:** #269 (pane fill & reflow), #268 (TBD — original pane-width layout)
+**Status:** ⚠️ SCOPE REVISED 2026-07-02 (AUTO-FIRST model; prior approval 2026-07-01 held
+pending this change) — awaiting Joe sign-off on §6 auto-vs-manual call
 **Author:** Walt (product)
-**Co-author:** Kare (design — see Design section, required before implementation)
-**Scope:** `src/Catalog.tsx`, `src/App.tsx`, `src/api.ts`, `homepad-api` (DB migration + API), `src/index.css`
-**Effort estimate:** M–L (data model + render logic + edit-mode drag UX)
+**Co-author:** Kare (design — Design section below, split by phase)
+**Scope:** `src/Catalog.tsx`, `src/index.css` (Phase 1 — frontend only, no backend)
+         + `src/api.ts`, `homepad-api` (Phase 2 — admin override layer)
+**Effort estimate:** Phase 1: S–M (pure CSS + lightweight JS row-packer). Phase 2: M–L (data model + edit-mode drag UX, as originally scoped)
+
+---
+
+> ### ⚠️ SCOPE REVISION — READ BEFORE BUILDING
+>
+> The 2026-07-01 approval dispatched a **manual admin model** (assign rows + width% + drag
+> handles + DB migration) as the primary behavior. Caleb (dashboard owner) reviewed the dashboard
+> at wide viewports on 2026-07-02 and asked for the opposite: intelligent **automatic** pane
+> distribution, no per-category configuration required. Kare reproduced and measured the dead
+> space (#269, PR #270, `SPEC-pane-fill-reflow.md`).
+>
+> **Product call (Walt, 2026-07-02):** **AUTO-FIRST.** The R1–R4 auto-packer is the primary
+> behavior and ships as Phase 1. Admin width% (drag handles, DB migration, row assignment) is
+> deprioritized to Phase 2 as an optional override on top of the auto-packer. The original spec's
+> manual-only model — which put auto-layout explicitly out of scope — is rescinded as the default.
+> The row infra from the original spec is still built, but the auto-packer populates it, not
+> admin drag.
+>
+> **Stitch: HOLD on the admin drag UI and DB migration (Phase 2).** Build Phase 1 first.
+> Phase 2 starts only after Phase 1 ships and Caleb signs off.
+>
+> Kare's full design input: `specs/SPEC-pane-fill-reflow.md` (PR #270).
 
 ---
 
 ## Problem statement
 
-On screens wider than 1152 px, Homepad wastes nearly all horizontal space. Every category
-glass pane stacks vertically at full width, capped by `max-w-6xl` (1152 px). A user on a
-1920 px desktop has 768 px of grey margin. A user on a 2560 px ultrawide has 1408 px of
-grey margin. The only way to see more content without scrolling is to have a narrower window.
+On screens wider than 1024 px, Homepad category panes pack left and waste horizontal space.
+The `.tile-field` is capped at `max-width: 1392px` with a hard left margin, and each category
+renders as a **fixed-width glass pane** (`panelCols × 190px + gaps + 32`). Fixed widths + left
+justify + a cap = ragged right edges and a hard dead band at wider viewports.
 
-This is backwards. Wider screens should **reduce scroll**, not sit idle.
+Measured (byte-faithful CSS harness, Develop 6 · External 1 · Friends 3 · Media 5 · Kube 2):
 
-Two compounding issues:
+| Viewport | Field right edge | Dead space beyond field | Worst intra-field dead row |
+|---:|---:|---:|---|
+| 1440 | x=1440 (capped) | 0 | Friends alone → **758px empty to its right** |
+| 1920 | x=1440 (capped) | **480px** | 314 / 758 / 108px ragged edges |
+| 2560 | x=1440 (capped) | **1120px** | same |
 
-1. **The `max-w-6xl` container cap** constrains all content to 1152 px regardless of screen
-   width. No amount of responsive tile-count tuning helps while this cap stands.
+Before-after visuals: `specs/assets/pane-fill-reflow/` (PR #270).
 
-2. **No per-category width control.** All categories consume 100% of the container width,
-   forcing them to stack vertically even when multiple categories could share a row and the
-   user would rather browse them side by side.
+Two compounding problems:
 
----
+1. **The `.tile-field` max-width cap** — hard 1392px ceiling blocks all content from filling
+   the viewport regardless of screen width.
 
-## Solution: category pane width percentages + screen-filling layout
-
-Each category can be assigned a **width percentage** (how much of the full screen width
-its glass pane occupies). Categories with widths that add up to ≤ 100% in a **row group**
-display side by side. Categories in different row groups stack vertically as before.
-
-On a 1920 px screen, Friends 50% + Development 50% renders as two glass panes, each
-960 px wide, sitting side by side — with no empty space and no scroll needed to see both.
-On a 640 px mobile screen, the same two categories collapse to full-width stacking (row
-assignment ignored below the mobile breakpoint).
-
-This is a **screen-level redesign**: the container constraint is removed so the layout
-fills the viewport, and the category grid adapts to the actual pane width rather than a
-global fixed breakpoint.
+2. **Fixed pane widths** — each pane is a hard column count, not a fill target. A 1-app pane
+   ("External") stays 222px while 300px of row space sits beside it.
 
 ---
 
-## Screen redesign — what changes at the top level
+## Solution: two-phase layout
 
-### Container: remove `max-w-6xl`
+### Phase 1 — Auto-packer (ships first, no backend)
 
-`App.tsx` Home component currently wraps everything in `max-w-6xl mx-auto px-4`. This cap
-is removed. The page content fills the viewport width (minus a consistent horizontal
-padding — Kare to specify the exact value in the Design section, expected `px-4` to
-`px-8` scaling with screen width).
+Four rules (R1–R4), browser-validated by Kare across 1440/1920/2560:
 
-### Layout model: rows of category panes
+**R1 — Field fills the content frame.**
+Remove `.tile-field { max-width: 1392px; margin-left: 48px }`. The field spans the full
+content frame with responsive horizontal padding capping at 64px (D1). Beyond-field dead
+space → 0.
 
-The Catalog replaces its single vertical stack with a **row-based model**:
+**R2 — Tiles reflow by pane width, stay uniform 190px.**
+Change `.panel-tiles` from `repeat(var(--panel-cols), 190px)` to `repeat(auto-fill, 190px)`.
+A wider pane shows more tiles per row; tile width stays exactly 190px in every pane. This is
+Caleb's standing invariant from App Grid A1 (AC-001-A1) — `auto-fit` with stretch is
+explicitly rejected (tiles ran to 305px in prototypes; confirmed wrong).
 
-```
-Screen (full viewport width)
-├── Row 0: [Friends — 50%] [Development — 50%]
-├── Row 1: [Media — 100%]
-└── Row 2: [Work — 33%] [Home — 33%] [Tools — 34%]
-```
+**R3 — Panes grow to fill the row, weighted by app count, capped at their content-max.**
+Panes `flex-grow` weighted by app count so they fill the row together. Each pane is capped at
+its own content-max (`appCount` tiles in one row) so it never balloons into empty glass.
+Naive `flex:1` is rejected — it moves dead space inside the glass (Media stretched 1046→1660px
+with 5 tiles stranded left; confirmed broken in `pane-fixC-2560.png`).
 
-- A **row** is a set of categories that share the same `layoutRow` value.
-- Categories within a row are ordered by `layoutColOrder`.
-- A lone category in a row **always stretches to 100%** of screen width regardless of its
-  stored `layoutWidthPct`. (No wasted space from an accidental partial row.)
-- Widths within a row must sum to exactly 100%. The system enforces this — if a resize
-  would push the sum over 100%, the adjacent category is auto-shrunk to compensate.
-- The Favorites bucket and Uncategorized bucket remain full-width at the top and bottom
-  respectively (no width control needed for these).
+**R4 — A pane alone in its visual row renders at 100% field width.**
+Single-pane rows always fill to the right edge. Tiles left-pack. This matches the original
+spec's AC3 intent without requiring admin configuration.
 
-### Tile count: dynamic per pane
+**Guardrails:** `<640px` stacks full-width (existing `@media (max-width:767px)` unchanged);
+standard desktop `≤1024` unchanged. All new rules scoped `≥1024`.
 
-Currently, all sections use the global grid `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6`.
-This is replaced with a **per-pane calculation** at runtime:
-
-```
-tiles_per_row = floor((pane_pixel_width + tile_gap) / (tile_size + tile_gap))
-```
-
-Tile size and tile gap are fixed constants (unchanged per product intent — no icon size
-changes). The pane pixel width = `(viewport_width - total_padding) × (layoutWidthPct / 100)`.
-This means a 50% pane on a 1920 px screen fits more tiles than on a 1024 px screen — and
-that is correct behavior.
-
-Minimum: 1 tile per row (no category pane can be so narrow it clips tiles).
+**Implementation path for Stitch (Phase 1):**
+R1 and R2 are pure CSS changes. R3–R4 require a lightweight JS **row-packer** (a `useLayout`
+hook over `displayCats`) — CSS `flex-wrap` alone cannot detect "alone in a visual row" or
+apply a content-max cap. A bin-pack pass over current categories sets each pane's
+`flex-basis`/`max-width` and marks lone panes 100%.
 
 ---
 
-## Data model additions
+### Phase 2 — Admin override layer (hold until Phase 1 ships)
 
-### Frontend — `Category` type (`api.ts:49`)
+When Phase 1 is live and Caleb confirms, Phase 2 adds optional per-category width control.
+The Phase 1 auto-packer becomes the **default**; admin width% is an **override**. When an
+admin has set an explicit width% for a category, that overrides the auto-packer's computed
+basis for that category. Unset categories continue to auto-pack.
+
+This is the row infrastructure from the original 2026-07-01 spec, re-scoped as an override:
+
+#### Phase 2 data model additions
+
+**Frontend — `Category` type (`api.ts:49`)**
 
 ```typescript
 export type Category = {
   id: string;
   name: string;
   sortIndex: number;
-  // NEW:
-  layoutRow: number;       // row group (0-indexed); categories in same row are side-by-side
-  layoutColOrder: number;  // order within the row (0-indexed)
-  layoutWidthPct: number;  // 10–100 (integer); percentage of screen width
+  // Phase 2 additions:
+  layoutRow: number | null;       // null = auto-packer places it
+  layoutColOrder: number | null;  // order within the row; null = auto
+  layoutWidthPct: number | null;  // 10–100 (integer) admin override; null = auto-packed
 };
 ```
 
-**Defaults for existing categories:** on migration, all existing categories get
-`layoutRow` = their current sort index (so they each get their own row, preserving the
-existing full-width stacked appearance), `layoutColOrder = 0`, `layoutWidthPct = 100`.
-No visible change to users after migration — the layout looks identical until an admin
-reconfigures it.
+**Defaults on migration:** `layoutRow = null`, `layoutColOrder = null`, `layoutWidthPct = null`
+for all existing categories. No visible change — auto-packer runs by default. Admin can then
+set explicit values per-category to override.
 
-### API additions (`homepad-api`)
+**API additions (`homepad-api`)**
+- `PATCH /categories/:id` — must accept and persist the three new nullable fields.
+- `PUT /categories/layout` — bulk endpoint for atomic multi-category layout saves.
+- DB migration: add `layout_row INTEGER`, `layout_col_order INTEGER`, `layout_width_pct INTEGER`
+  (nullable) to categories table.
 
-- `PATCH /categories/:id` — already exists; must accept and persist the three new fields.
-- `PUT /categories/layout` — new bulk endpoint; accepts an array of
-  `{ id, layoutRow, layoutColOrder, layoutWidthPct }` objects for atomic multi-category
-  layout saves (needed when a drag operation moves multiple categories simultaneously).
-- DB migration: add `layout_row INTEGER NOT NULL DEFAULT 0`,
-  `layout_col_order INTEGER NOT NULL DEFAULT 0`,
-  `layout_width_pct INTEGER NOT NULL DEFAULT 100` to the categories table; backfill
-  `layout_row` from `sort_index`.
+#### Phase 2 component behavior
 
----
+**View mode:** same as Phase 1 auto-packer, but categories with explicit `layoutWidthPct` set
+use that value as their `flex-basis` and are excluded from the auto-packer's redistribute pass.
+Mixed auto+manual rows are valid: manual-pinned panes hold their width, remaining space
+distributes to auto panes in the same row.
 
-## Component behavior
+**Edit mode (admin only):** Phase 1 has no edit-mode changes. Phase 2 adds:
+- Resize handle between side-by-side categories (D3)
+- Drag categories into rows or between rows (D4)
+- Width indicator pill in the pane header (D6)
+- Edit-mode info line when a row collapses at the current viewport (D7)
 
-### View mode
-
-- Categories are grouped by `layoutRow`, sorted by `layoutColOrder` within each group.
-- Each row renders as a flex container (`display: flex; align-items: flex-start`).
-- Each category pane gets `flex: 0 0 calc(layoutWidthPct% - gap_adjustment)`.
-- Pane height is self-determined (however many tile rows the category needs). Categories
-  in the same row are **not** height-equalized — each pane is as tall as its content.
-  This avoids artificial empty space at the bottom of shorter panes.
-- The gap between side-by-side panes is the same as the current category section gap
-  (`space-y-8` translates to a horizontal equivalent — Kare to define exact token).
-- Below 640 px (`sm` breakpoint): `layoutWidthPct` and `layoutRow` are ignored; all
-  categories render full-width in `layoutRow` + `layoutColOrder` order (i.e., the
-  reading order of the 2D grid collapses to a natural linear sequence).
-
-### Edit mode (admin only)
-
-Edit mode gains two new interactions:
-
-**1. Resize handle between side-by-side categories.**
-A drag handle appears in the gutter between horizontally-adjacent categories. Dragging
-it left/right redistributes `layoutWidthPct` between the two panes. The combined total
-stays fixed at 100% (or the row total). Minimum per-pane: 25%. Snap points: every 25%
-(1 tile width on a 4-tile screen). — *Exact handle appearance, snap behavior, and
-touch interaction: Kare's Design section.*
-
-**2. Drag categories into rows or between rows.**
-In edit mode, categories become draggable. Drop zones communicate two distinct outcomes:
-- Drop **next to** a category → merge into the same row (side-by-side).
-- Drop **above or below** a category → new row is created at that position.
-
-— *How these drop zones are visually distinguished, and the full drag interaction
-model: Kare's Design section. This is the hardest UX problem in this spec.*
-
-**Width is auto-distributed on row merge.** When admin drags category A (currently 100%)
-next to category B (currently 100%), both are set to 50% automatically. The system picks
-the even split; admin can then drag the resize handle to adjust.
-
-**Edit mode is still admin-only and client-ephemeral** (localStorage) — no change to
-that behavior. Layout saves happen via API immediately on drag completion (not on
-"save" button).
+Details: Kare's design section §D3, D4, D6, D7 below (carried from the original spec, now
+Phase 2-scoped).
 
 ---
 
 ## Acceptance criteria
 
+### Phase 1
+
 | # | Criterion | How to verify |
 |---|-----------|---------------|
-| AC1 | On a viewport ≥ 1024 px, categories with the same `layoutRow` value display side by side, with no horizontal gap between pane right-edge and next pane left-edge that is not the designated gutter. | Visual inspection at 1024 px, 1440 px, 1920 px. |
-| AC2 | Tiles within a category pane fill its width without clipping. No tile is partially visible at the right edge of a pane. | Resize viewport from 1920 → 1024; no tile clips at any intermediate size. |
-| AC3 | A category alone in a row always occupies 100% of screen width regardless of its stored `layoutWidthPct`. | Set one category to 50%; move all others to different rows; verify it fills the full width. |
-| AC4 | On a viewport < 640 px, all categories stack full-width in reading order, regardless of `layoutRow` and `layoutWidthPct` settings. | Resize below 640 px; confirm single-column layout. |
-| AC5 | No `max-w-6xl` content cap is applied. On a 1920 px viewport the tiles extend to the viewport edge (minus page padding). | DevTools computed width of the main content container equals viewport width minus padding. |
-| AC6 | In edit mode, a resize handle appears between horizontally-adjacent categories. Dragging it adjusts each pane's width proportionally, snapping at defined intervals, with each pane maintaining ≥ 25% width. | Admin enters edit mode on a row with two 50% categories; drag handle to verify snapping and floor. |
-| AC7 | In edit mode, dragging a category pane into a different row position correctly updates `layoutRow` and `layoutColOrder`, persists to server, and survives a page reload. | Drag category from row 0 into row 1; reload; confirm layout unchanged. |
-| AC8 | In edit mode, dragging two full-width categories into the same row auto-sets each to 50%. The resize handle then adjusts from that starting point. | Drag category B next to category A; verify both show at 50%; resize handle present. |
-| AC9 | On migration / first load with no layout fields set, the app renders identically to pre-feature (all categories full-width, vertically stacked). | Deploy to fresh staging environment; verify no visual regression. |
-| AC10 | `PUT /categories/layout` accepts a batch array of layout updates and applies them atomically (all succeed or all fail). | Use API directly; verify no partial updates on DB error. |
+| AC-P1-1 | On a viewport ≥ 1024px, no content is capped at 1392px. The field extends to the viewport edge minus D1 padding. | DevTools: computed width of `.tile-field` equals viewport width minus D1 padding at 1440, 1920, 2560. |
+| AC-P1-2 | Tiles always render at exactly 190px in every pane at every viewport ≥ 1024px. No tile stretches or clips. | DevTools: computed width of `.tile-inner` = 190px; resize viewport 1024→2560. |
+| AC-P1-3 | A wider pane shows more tiles per row (not just wider tiles). At 1920px a 6-app category shows more tiles per row than it did pre-feature. | Count visible tile columns at 1920 vs. pre-feature. |
+| AC-P1-4 | No pane's rendered width exceeds its content-max (app count × 190px + gaps). No empty glass inside a pane. | Inspect `.category-panel` at 2560 for a 1-app category; width ≈ 222px, not 340px+. |
+| AC-P1-5 | A category alone in its visual row renders at 100% field width. Tiles left-pack. | Move all other categories to a single row in auto-packer; lone category fills to right edge. |
+| AC-P1-6 | On viewport < 640px, all categories stack full-width in their natural order. No regression. | Resize below 640; confirm single-column layout. |
+| AC-P1-7 | On standard desktop (≤ 1024px), layout behavior is visually unchanged from pre-feature. | Side-by-side screenshots at 1024px before and after. |
+
+### Phase 2 (additional, after Phase 1 ships)
+
+| # | Criterion | How to verify |
+|---|-----------|---------------|
+| AC-P2-1 | Categories with `layoutWidthPct = null` are auto-packed. Categories with an explicit value use that width as flex-basis. | Set one category to 40%; verify it holds at 40% while auto categories fill the rest. |
+| AC-P2-2 | In edit mode, a resize handle appears between horizontally-adjacent categories with explicit widths. Dragging adjusts each proportionally, snapping at D3 intervals, each ≥ 25%. | Admin enters edit mode; drag handle on a 50/50 row. |
+| AC-P2-3 | Dragging two full-width categories into the same row auto-sets each to 50%. | Drag B next to A; both show 50%. |
+| AC-P2-4 | Layout changes persist to the server and survive page reload. | Rearrange; reload; confirm layout unchanged. |
+| AC-P2-5 | `PUT /categories/layout` accepts a batch array and applies atomically. | Direct API call; verify no partial updates on DB error. |
+| AC-P2-6 | On migration with null layout fields, the auto-packer handles all categories identically to Phase 1 behavior. | Deploy to fresh staging; no visual diff from Phase 1. |
 
 ---
 
@@ -194,48 +182,38 @@ that behavior. Layout saves happen via API immediately on drag completion (not o
 
 - Per-user layout customization (admin sets layout; all users see the same layout).
 - Changing tile icon sizes or tile internal dimensions.
-- Category panes narrower than 25% of screen width.
+- Category panes narrower than 25% of screen width (Phase 2 floor; Phase 1 auto-packer will not create these).
 - Horizontal scrolling within a row.
-- Sub-pane nesting (a category inside another category).
-- Favorites and Uncategorized buckets gaining width control (they are always full-width).
-- Auto-layout that guesses an optimal arrangement — all layout is admin-configured.
+- Sub-pane nesting.
+- Favorites and Uncategorized buckets gaining width control (always full-width).
+- `auto-fit` + `minmax` / stretching tile width — tiles must stay uniform 190px (Caleb standing invariant AC-001-A1). Auto-fill only.
 
 ---
 
-## Design section — Kare (REQUIRED before implementation)
+## Design section — Kare
 
-**Status: APPROVED — Kare, 2026-07-01.** Filled below. All values are grounded in the
-homelab design system (`Code/design-system/DESIGN-SYSTEM.md`) and the current Homepad
-tokens in `src/index.css`. Where a number is derived rather than measured off a live
-render, it is flagged as a **build note** for Stitch to confirm — none block the design go.
+**Phase 1 items (required for Phase 1 ship):** D1, D2, D5, D8.
+**Phase 2 items (required for Phase 2 ship):** D3, D4, D6, D7.
 
-> **Terminology note (read first).** The spec calls each category a "glass pane." In the
-> shipped Homepad a category is **not** a glass card — it is a `.cat-head` header (with a
-> hairline bottom divider) above a tile grid, on the shared `.app-surface`. This feature
-> does **not** introduce a new glass card wrapper (that would be a separate visual
-> redesign and out of scope). "Pane" here means **the category column** = its header +
-> its tile grid. Separation between side-by-side panes is carried by the row gutter (D2)
-> and each pane's own header divider (D5), not by a new card chrome. The tile glass/shadow
-> language in `.tile` is unchanged.
+Design section authored by Kare; sourced from original approval (2026-07-01) and the
+`SPEC-pane-fill-reflow.md` direction (PR #270, 2026-07-02).
+
+> **Terminology note (read first).** "Pane" means the category column = its header + its tile
+> grid. The existing `.cat-head` header + tile grid structure is unchanged; no new glass card
+> wrapper is introduced. Tile glass/shadow language in `.tile` is unchanged.
 >
-> **Tile constant (build note).** The per-pane tile-count formula in this spec needs a
-> fixed tile cell size. Derived from `src/index.css` (`.tile-icon` 46px plate, `.tile`
-> padding 15px, grid `gap-4` = 16px) and the current desktop grid, the design tile target
-> is **`TILE_MIN = 168px`** content width with **`TILE_GAP = 16px`** (the existing
-> `gap-4`, on the 8pt grid). So `tiles_per_row = floor((pane_px + 16) / (168 + 16))`.
-> Stitch: confirm 168px against a live tile render; if the real comfortable tile is wider,
-> bump `TILE_MIN` and the D8 floor together (keep floor = `TILE_MIN + 8`).
+> **Tile constant:** `TILE_MIN = 168px` content width, `TILE_GAP = 16px` (existing `gap-4`).
+> `tiles_per_row = floor((pane_px + 16) / (168 + 16))`. Stitch: confirm 168px against a live
+> tile render — if the real comfortable tile width differs, bump `TILE_MIN` and D8's floor.
+>
+> **Auto-fill note (Phase 1):** with `repeat(auto-fill, 190px)`, the browser's auto-fill
+> column count replaces `tiles_per_row` as the column control for Phase 1. The formula above
+> applies for Phase 2's per-pane tile-count calculation when manual widths are involved.
 
-### Items requiring Kare's design — DECISIONS
+### D1 — Viewport padding (Phase 1)
 
-**D1 — Viewport padding at scale. DECISION: responsive horizontal padding that steps up
-by breakpoint and caps at 64px. No new content max-width.**
-
-Replace `max-w-6xl mx-auto px-4` with `mx-auto` (centering only, no width cap) + a
-responsive `px` that grows to a **64px ceiling** and then holds. The cap on the *padding*
-(not the content) is what stops ultrawide edge-glue without reintroducing a content cap —
-at 2560px, 64px each side leaves a 2432px content band that fills the screen and still
-breathes.
+Replace `.tile-field` left margin + `max-width: 1392px` with responsive horizontal padding
+capping at 64px. No new content max-width.
 
 | Viewport | Padding each side | Tailwind | On 8pt grid |
 |---------:|------------------:|----------|:-----------:|
@@ -244,189 +222,93 @@ breathes.
 | 1024 (lg) | 32px | `lg:px-8` | ✅ |
 | 1440 (xl) | 48px | `xl:px-12` | ✅ |
 | 1920 (2xl) | 64px | `2xl:px-16` | ✅ |
-| 2560+ | 64px (held — no further growth) | `2xl:px-16` | ✅ |
+| 2560+ | 64px (held) | `2xl:px-16` | ✅ |
 
-Vertical page padding (`py-6` = 24px) is unchanged.
+Vertical page padding (`py-6` = 24px) unchanged.
 
-**D2 — Row gutter between side-by-side panes. DECISION: 32px (`gap-8`), matching the
-inter-row vertical rhythm exactly.**
+### D2 — Row gutter between side-by-side panes (Phase 1)
 
-The current vertical gap between categories is `sm:space-y-8` = **32px**. To keep the grid
-feeling square (equal horizontal and vertical rhythm), the row gutter is the same token:
-each row is `display:flex; align-items:flex-start; gap: 2rem` (**32px**, `gap-8`). The
-vertical gap **between** rows stays 32px (`sm:space-y-8`, unchanged). One rhythm, both
-axes. The resize handle (D3) lives centered inside this 32px gutter.
+Inter-pane horizontal gap: **32px (`gap-8`)**, matching the existing inter-row vertical rhythm
+(`sm:space-y-8`). One rhythm, both axes. Vertical gap between rows stays 32px unchanged.
+Phase 2's resize handle (D3) lives centered in this 32px gutter.
 
-**D3 — Resize handle in edit mode. DECISION: a centered vertical grip pill in the gutter,
-44px invisible hit area, snaps to 25% increments with ghost guides.**
+### D3 — Resize handle in edit mode (Phase 2)
 
-- **Appearance (rest, edit mode only):** a **6px-wide × 48px-tall** rounded pill
-  (`radius-full`), vertically centered in the shared height of the two panes, sitting in
-  the middle of the 32px gutter. Fill `rgba(15,23,42,0.12)` light / `rgba(255,255,255,0.14)`
-  dark. No icon — the pill *is* the affordance. `cursor: col-resize`.
-- **Hit target:** the pill is visually 6px, but the interactive zone is an invisible band
-  **44px wide × full pane height**, centered on the gutter — clears the 44×44 minimum
-  (WCAG 2.5.5) even though the visible grip is thin. This is the design-system
-  "transparent hit-area expansion" pattern (§1.3).
-- **Hover:** pill widens to **8px**, fill → `#6366f1` (indigo-500), 160ms `ease-out`.
-- **Active / dragging:** pill → solid `#4F46E5` (primary). A **1px indigo dashed ghost
-  line** spans the full pane height at each valid snap position (25 / 50 / 75%); the line
-  nearest the cursor brightens to solid `#4F46E5`, the others sit at `#6366f1` @ 0.4. A
-  floating **percentage label** (D6 style, indigo fill) follows the handle showing the
-  live split, e.g. `60% · 40%`.
-- **Snap:** because both panes must sum to 100% and each has a **25% floor** (spec), the
-  only valid two-pane splits are **25/75, 50/50, 75/25** — three positions. The handle is
-  magnetic: free 1% drag, but snaps when within 3% of a snap point; it **hard-stops at the
-  25% floor** (the pill cannot be dragged past it — the label freezes at `25%`).
-- **Touch (admin mobile edit):** honor the existing tile-drag pattern — **200ms
-  press-hold to grab** (see `src/Catalog.tsx:167`) so it doesn't fight page scroll. Under
-  `@media (pointer:coarse)` the visible pill is **12px** wide (still inside the 32px
-  gutter) and the ghost label is shown persistently while dragging (no hover on touch).
-- **Reduced motion:** pill width/color changes are instant; no ghost-line fade.
+- **Appearance (edit mode only):** 6px-wide × 48px-tall rounded pill (`radius-full`),
+  vertically centered in the 32px gutter. Fill `rgba(15,23,42,0.12)` light /
+  `rgba(255,255,255,0.14)` dark. `cursor: col-resize`.
+- **Hit target:** 44px-wide invisible band × full pane height (WCAG 2.5.5).
+- **Hover:** pill widens to 8px, fill → `#6366f1` (indigo-500), 160ms `ease-out`.
+- **Active / dragging:** pill → solid `#4F46E5`. 1px indigo dashed ghost lines at each valid
+  snap position; floating percentage label tracks the handle (e.g. `60% · 40%`).
+- **Snap:** valid two-pane splits are 25/75, 50/50, 75/25. Magnetic within 3%; hard-stops at
+  25% floor.
+- **Touch:** 200ms press-hold to grab; 12px visible pill under `pointer:coarse`.
+- **Reduced motion:** instant pill state changes; no ghost-line fade.
 
-**D4 — Row drop zones in edit mode. DECISION: orientation is the disambiguator — a
-VERTICAL indigo bar means "merge as a column," a HORIZONTAL indigo bar means "new row" —
-each reinforced by a placeholder opening in the matching axis and an explicit text label.**
+### D4 — Row drop zones in edit mode (Phase 2)
 
-This is the core interaction; it is designed to be legible on the *first* drag.
+Two zone types, axis is the disambiguator:
 
-*The single rule the admin learns in one gesture:* **the indicator points the way the
-layout will grow.** A tall vertical bar → the row gains a column. A wide horizontal bar →
-the stack gains a row. Same indigo, different axis.
+1. **Merge zone (→ side-by-side):** left/right halves of each pane. Indicator: 4px-wide
+   vertical indigo bar growing center-out (140ms). Placeholder: dashed indigo column opens
+   inline, sibling panes slide (160ms).
+2. **New-row zone (→ stacked):** inter-row gutters + bands above first / below last row.
+   Indicator: 4px-tall horizontal bar spanning full content width, grows left-to-right (140ms).
+   Placeholder: full-width dashed row, panes below slide down (160ms). Hit area: 44px.
 
-**Two zone types and their geometry** (active only while a pane is grabbed):
+Floating text label tracks cursor: **"Merge into row"** or **"New row"** (12/600, white on
+`#4F46E5`, `radius-full`). Always shown while dragging on touch.
 
-1. **Merge zone (→ side-by-side).** Each pane in a row exposes a **left half** and a
-   **right half** as merge targets (split at the pane's horizontal center; full pane
-   height). Hovering the left half inserts the dragged pane as a column immediately to
-   that pane's **left**; right half → to its **right**.
-   - **Indicator:** a **4px-wide vertical bar**, `radius-full`, `#6366f1`, full pane
-     height, that grows **center-out** (140ms `ease-out`) at the insertion seam.
-   - **Placeholder:** a **dashed indigo column** (1px dashed `#6366f1` @ 0.6) opens
-     inline at the even-split target width; the sibling panes slide to make room
-     (160ms `ease-out`) so the admin literally sees the row make space.
-2. **New-row zone (→ stacked).** The **inter-row gutters** (the 32px vertical gaps), plus
-   a band above the first row and below the last row, are new-row targets. At rest during
-   a drag they show a **faint 1px dashed horizontal hairline** across the full content
-   width so the admin can see where rows can be inserted. Active hit height is expanded to
-   **44px** (invisible) so it is easy to land on both mouse and touch.
-   - **Indicator:** a **4px-tall horizontal bar**, `radius-full`, `#6366f1`, spanning the
-     **full content width**, that grows **left-to-right** (140ms `ease-out`).
-   - **Placeholder:** a **full-width dashed row** opens vertically (panes below slide down,
-     160ms `ease-out`).
+Drop animation: placeholder collapses as pane snaps in (180ms `ease-out`); pane scales
+1.02→1.0. On merge: both panes animate to even split (200ms). Widths persist immediately via
+`PUT /categories/layout`.
 
-**Precedence (never ambiguous):** exactly **one** zone is active — the one nearest the
-pointer. Pointer over a pane body → merge (vertical bar). Pointer in an inter-row gutter or
-the top/bottom band → new row (horizontal bar). The pane bodies are large and the gutters
-are a distinct 32px strip, so the two never fight for the same pixels.
+Reduced motion: bars appear/disappear instantly; placeholders open at final size; no scale.
 
-**Text label (kills first-run ambiguity):** a small floating pill tracks the cursor
-reading **"Merge into row"** or **"New row"** (12/600, white text on `#4F46E5`,
-`radius-full`, `shadow` per `.user-menu` elevation). On touch it is **always shown** while
-dragging (no hover to rely on).
+### D5 — Row separator in view mode (Phase 1)
 
-**Drop animation:** the dashed placeholder collapses as the real pane snaps into it
-(180ms `ease-out`); the pane scales 1.02 → 1.0 and its shadow settles. On a **merge**,
-both panes animate their width to the even split over **200ms** (`ease-out`) so the sibling
-visibly yields space. On a **new row**, the pane lands at 100% width. Widths persist
-immediately via `PUT /categories/layout` (spec) — no save button.
+No rule, no explicit "row" concept exposed to users. Rows are invisible infrastructure.
+Separation is the 32px horizontal gutter (D2) + each pane's `.cat-head` bottom divider.
 
-**Dragged-pane state:** reuse the existing grabbed treatment (opacity ~0.9, lifted shadow,
-`scale(1.02)`) already used for tile/section drags, for consistency (design-system
-principle #8).
+Panes are `align-items: flex-start` — shorter panes simply end; the next row begins 32px
+below the tallest pane in the row. No height equalization. Each row is its own flex block;
+row blocks stack with `space-y-8`.
 
-**Touch specifics:** 200ms press-hold to grab; merge halves and new-row bands both meet
-the 44px active-size floor under `pointer:coarse`; auto-scroll when the drag nears the
-viewport top/bottom edge.
+### D6 — Width indicator pill in edit mode (Phase 2)
 
-**Reduced motion:** bars appear/disappear instantly, placeholders open without the slide
-(they just occupy their final size), pane snaps without scale. The color/position
-information is preserved; only the easing is dropped.
+In `.cat-head`, right-aligned after `.cat-count` pill. **Visible only in edit mode.**
+- **Rest:** padding `2px 8px`, 12px/700, `font-variant-numeric: tabular-nums`, `radius-full`.
+  Text `#475569` (slate-600) on `rgba(15,23,42,0.06)` light / `#9aa3b8` on
+  `rgba(255,255,255,0.08)` dark (6.9:1 contrast, clears AA).
+- **While resizing:** solid `#4F46E5` fill, white text (6.29:1), updates live.
+- Shows `auto` for auto-packed panes; explicit `50%` for admin-set ones.
+- A lone pane (renders 100%) shows `100%`.
 
-**D5 — Row separator in view mode. DECISION: no rule, no explicit "row" concept — rows are
-invisible infrastructure. Separation is the 32px gutter + each pane's own header divider.**
+### D7 — Mobile collapse in edit mode (Phase 2)
 
-Users do not own the layout (admin-only) and should never have to think in "rows." In view
-mode the page just reads as a considered multi-column arrangement. There is **no horizontal
-rule** between rows. What delineates the columns:
+When an admin is in edit mode on a viewport too narrow for a row to go side-by-side, show a
+non-blocking info line under that row: *"Row layout collapses at this width — widths apply on
+wider screens."* (13/500, `text-secondary` `#737373`, 4.74:1). No view-mode badge.
 
-- The **32px row gutter** (D2) between side-by-side panes and the **32px vertical gap**
-  between rows — one consistent rhythm, so grouping reads without a drawn line.
-- Each pane's **`.cat-head` bottom divider** spans only that pane's own width, so from the
-  first pixel of each column the header + its hairline mark "this is a distinct category."
+Collapse is a CSS media-query switch per row — instant, not animated. Satisfies
+`prefers-reduced-motion` by construction.
 
-**Different heights (top-aligned):** panes are `align-items: flex-start` (spec) — a shorter
-pane simply ends; the next row begins 32px below the **tallest** pane in the current row.
-To guarantee rows never interleave, **each row is its own flex block**, and the row blocks
-are stacked with `space-y-8` (the parent owns the 32px vertical gap; the flex row owns the
-32px horizontal gap). The ragged bottom edge of a mismatched pair is expected and fine —
-categories are independent; nothing needs to visually "connect" them. This is preferable to
-height-equalizing (which the spec forbids) because empty tile-less space at the bottom of a
-short pane would read as a bug, not a design.
+### D8 — Minimum pane state (Phase 1)
 
-**D6 — Width indicator in edit mode. DECISION: a small `%` pill in the pane header, shown
-whenever edit mode is on; emphasized (indigo) while that pane is being resized.**
-
-- **Where:** in the `.cat-head`, right-aligned, immediately after the existing `.cat-count`
-  pill. Reuse the count-pill shape but on the grid: **padding `2px 8px`** (not the
-  design-system-flagged `1px 6px`), **12px / 700**, `font-variant-numeric: tabular-nums`
-  (so the width doesn't jitter as the value changes), `radius-full`. Text `#475569`
-  (slate-600) on `rgba(15,23,42,0.06)` light / `#9aa3b8` on `rgba(255,255,255,0.08)` dark —
-  measured **6.9:1** on the light pill, clears AA body (the design-system count pill's
-  lighter `#64748b` sits at ~4.3:1, so this uses the slightly darker header ink to be safe).
-  Label reads e.g. **`50%`**.
-- **When:** **always visible in edit mode** (so the admin can read the current config at a
-  glance without dragging), **hidden in view mode**. While that pane is actively being
-  resized, the pill switches to **solid `#4F46E5` fill with white text** (6.29:1) for
-  emphasis and updates live; the floating handle label (D3) carries the paired split.
-- A lone pane in a row (renders 100% per spec) shows **`100%`** — honest about the stored
-  vs. rendered width being reconciled to full.
-
-**D7 — Mobile collapse visual. DECISION: instant at the breakpoint (no layout animation);
-no view-mode "hidden columns" badge; an edit-mode-only info line explains the collapse.**
-
-- **Transition:** the collapse is a **CSS media-query switch** at the row-active threshold
-  (see D8 — it is per-row, not a single global 640px cut). Crossing it is **instant** — we
-  do **not** animate a full layout reflow (it janks, and on real devices you don't
-  live-resize across it). This also satisfies `prefers-reduced-motion` by construction.
-- **View mode:** **no** persistent "a wider layout exists" badge. Users don't control
-  layout; surfacing a collapsed-feature hint would be noise. The single column simply looks
-  correct.
-- **Edit mode (where it matters):** if an admin is in edit mode on a viewport too narrow
-  for a given row to go side-by-side, show a **non-blocking info line** under that row:
-  *"Row layout collapses at this width — widths apply on wider screens."* (13/500,
-  `text-secondary` `#737373`, 4.74:1). This tells the admin *why* their columns aren't
-  showing, scoped to the one context where the question arises.
-
-**D8 — Minimum pane state. DECISION: a 176px per-pane floor; rows whose panes can't all
-clear it collapse to single-column at that viewport (per-row responsive); 1-tile panes are
-allowed but headers ellipsize; a non-blocking amber advisory warns the admin.**
-
-- **Floor:** a pane never renders narrower than **`PANE_MIN = 176px`** (= `TILE_MIN 168` +
-  8px slack, on-grid). This guarantees at least one full tile with no clipping (AC2).
-- **Per-row responsive collapse (this replaces a single global 640px cut):** for each row,
-  if the current viewport can't give **every** pane in that row ≥176px at its assigned
-  percentage, **that row** collapses to single-column stacking at this viewport (its panes
-  render full-width in `layoutColOrder`). Wider rows on the same page can stay side-by-side.
-  Worked example: at 640px with 24px padding → 592px usable; a 25% pane = 148px < 176 → that
-  row collapses; a 50/50 row = 296px each ≥ 176 → stays side-by-side. So the "640px
-  collapse" in the spec is the *common* case, but the real trigger is the 176px floor.
-- **Is a 1-tile pane acceptable?** Yes, as a deliberate admin choice on a wide-enough
-  screen — it renders as header + a single column of tiles. It only appears when the pane
-  clears 176px but is under two tile cells (352px); below 176px the row collapses instead,
-  so a *clipped* tile never happens.
-- **Header in a narrow pane:** the `.cat-head` **label** gets `overflow:hidden;
-  text-overflow:ellipsis; white-space:nowrap` with the accent chip, count pill, and width
-  pill held `flex:none`. A long category name **ellipsizes** ("Home Automation" →
-  "Home Auto…"); it never wraps or pushes the pills off the row.
-- **Admin warning (non-blocking):** when a resize or width assignment would make a pane
-  render ≤ 1 tile wide at 1440px (the common desktop), show a small inline advisory next to
-  the width pill — an amber **⚠ "Narrow — 1 tile"** (12/600, `#B45309` amber-700 on
-  `#FEF3C7` amber-100, ≥4.5:1). It **does not block** the save (per spec, narrow panes are
-  a permitted config) — it just makes the consequence visible before the admin leaves the
-  row. This warning color is a **new token** introduced by this feature; I'm folding
-  `warning` = `#B45309` on `#FEF3C7` into the design system in the same breath (it fills
-  the gap the system flagged: no amber/warning token existed for Homepad).
+- **Floor:** `PANE_MIN = 176px` (= `TILE_MIN 168` + 8px slack). No pane renders narrower.
+- **Per-row collapse:** for each visual row in the auto-packer, if the current viewport cannot
+  give every pane ≥ 176px at its packed width, that row collapses to single-column stacking.
+  Wide rows on the same page can remain side-by-side.
+- **1-tile panes:** permitted as a deliberate auto-packer result. A pane clears 176px but
+  falls under two tiles (352px) renders as header + one tile column. Clipped tiles never
+  happen — if the pane would go below 176px, the row collapses instead.
+- **Header in narrow pane:** `.cat-head` label gets `overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap`; accent chip, count pill held `flex:none`.
+- **Phase 2 admin warning:** when a manual resize would make a pane ≤ 1 tile at 1440px, show
+  amber advisory next to the width pill: ⚠ **"Narrow — 1 tile"** (12/600, `#B45309` amber-700
+  on `#FEF3C7` amber-100, ≥4.5:1). Non-blocking. Introduces new token `warning = #B45309 /
+  #FEF3C7` to the design system.
 
 ---
 
@@ -434,7 +316,8 @@ allowed but headers ellipsize; a non-blocking amber advisory warns the admin.**
 
 | Role | Person | Status |
 |------|--------|--------|
-| Product | Walt | **APPROVED** — 2026-07-01 |
-| Design | Kare | **APPROVED** — 2026-07-01 (Design section D1–D8 filled; see build notes on the tile constant) |
-| Implementation | Stitch | — |
+| Product | Walt | **APPROVED Phase 1** — 2026-07-02 (AUTO-FIRST revision; Phase 2 contingent on Phase 1 ship + Caleb sign-off) |
+| Design | Kare | ✅ direction recommended 2026-07-02 (Phase 1 D1/D2/D5/D8 from `SPEC-pane-fill-reflow.md` + `SPEC-category-pane-width-layout.md`); Phase 2 D3/D4/D6/D7 carried from 2026-07-01 |
+| Homepad authority | Joe → Caleb | ⏳ §6 auto-vs-manual call needed; flagged |
+| Implementation | Stitch | **HOLD — do not build Phase 2 (admin drag UI + DB migration) until Phase 1 ships** |
 | Tech QA | Gracie | — |
