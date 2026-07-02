@@ -99,7 +99,7 @@ describe('AppGrid rendering', () => {
 
 describe('width selector (AC-013/014/015)', () => {
   it('renders 6 buttons and highlights the current width (AC-013)', async () => {
-    await renderGrid(true);
+    await renderGridEdit(true, true);
     const media = screen.getAllByTestId('app-grid-box')[0];
     const sel = within(media).getByTestId('width-selector');
     expect(within(sel).getAllByRole('button')).toHaveLength(6);
@@ -112,9 +112,19 @@ describe('width selector (AC-013/014/015)', () => {
     expect(screen.queryByTestId('width-selector')).not.toBeInTheDocument();
   });
 
+  it('is hidden for an admin outside Edit Dashboard mode (AC-014, edit-mode gate)', async () => {
+    await renderGridEdit(true, false);
+    expect(screen.queryByTestId('width-selector')).not.toBeInTheDocument();
+  });
+
+  it('appears on each real box for an admin in Edit Dashboard mode (AC-013)', async () => {
+    await renderGridEdit(true, true);
+    expect(screen.getAllByTestId('width-selector')).toHaveLength(2);
+  });
+
   it('clicking a width re-renders the box and persists (AC-015)', async () => {
     const user = userEvent.setup();
-    await renderGrid(true);
+    await renderGridEdit(true, true);
     const media = screen.getAllByTestId('app-grid-box')[0];
     await user.click(within(media).getByTestId('width-btn-6'));
     expect(media.style.getPropertyValue('--w')).toBe('6');
@@ -125,7 +135,7 @@ describe('width selector (AC-013/014/015)', () => {
   it('rolls the width back when the save fails', async () => {
     vi.mocked(api.saveCategoryWidth).mockResolvedValue(false);
     const user = userEvent.setup();
-    await renderGrid(true);
+    await renderGridEdit(true, true);
     const media = screen.getAllByTestId('app-grid-box')[0];
     await user.click(within(media).getByTestId('width-btn-1'));
     await waitFor(() => expect(media.style.getPropertyValue('--w')).toBe('4'));

@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "12.9.1",
+      "date": "2026-07-02",
+      "changes": [
+        { "type": "bug-fix", "text": "The box width buttons now only appear in “Edit dashboard” mode. Before, admins saw the 1–6 width selector on every box during normal browsing; it now stays hidden until you turn on Edit dashboard from the header gear — matching the Rename and Delete controls — so the everyday view stays clean. Changing width still works exactly the same inside edit mode." }
+      ]
+    },
+    {
       "version": "12.9.0",
       "date": "2026-07-02",
       "changes": [

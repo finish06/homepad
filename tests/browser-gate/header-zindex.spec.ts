@@ -22,16 +22,24 @@ import { mockApi, makeCategorized } from './mockApi';
 // anchored dropdown. Drop AppHeader/dropdown below the content's stacking and a
 // tool link / width button wins the contested centre — this spec goes red.
 
+async function enterEditMode(page: import('@playwright/test').Page) {
+  await page.getByTestId('settings-gear').click();
+  await page.getByTestId('gear-edit-dashboard').click();
+}
+
 test.beforeEach(async ({ page }) => {
-  // Admin so the per-box width selector renders (an extra interactive element in
-  // the contested top row); four categories of two apps pack the row so the
-  // rightmost box sits under the dropdown.
+  // Admin + Edit Dashboard mode so the per-box width selector renders (an extra
+  // interactive element in the contested top row — it now only appears in edit
+  // mode, alongside box rename/delete); four categories of two apps pack the row
+  // so the rightmost box sits under the dropdown.
   const { services, categories } = makeCategorized(4, 2);
   await mockApi(page, services, categories, 'admin');
   await page.goto('/');
   await expect(page.getByTestId('user-menu-trigger')).toBeVisible();
   await expect(page.getByTestId('app-grid-box').first()).toBeVisible();
   await expect(page.getByTestId('tool-link').first()).toBeVisible();
+  await enterEditMode(page);
+  await expect(page.getByTestId('width-selector').first()).toBeVisible();
 });
 
 test('mouse: the open UserMenu dropdown sits above App Grid content', async ({ page }) => {

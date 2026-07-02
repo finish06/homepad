@@ -127,11 +127,11 @@ ACs are written from the user's perspective and are testable against the live st
 
 **AC-012** — A box with no tools (empty category) renders the box title and an empty interior — no crash, no hidden box, no missing row in the layout.
 
-### Width selector (admin only)
+### Width selector (admin, Edit Dashboard mode only)
 
-**AC-013** — Each box shows a width selector with exactly 6 buttons labeled 1, 2, 3, 4, 5, 6. The button matching the box's current width is visually distinguished (highlighted/selected state).
+**AC-013** — In **Edit Dashboard mode**, each real category box shows a width selector with exactly 6 buttons labeled 1, 2, 3, 4, 5, 6. The button matching the box's current width is visually distinguished (highlighted/selected state).
 
-**AC-014** — The width selector is interactive (buttons are clickable) only when the authenticated user has the `admin` role. Non-admins see no width selector.
+**AC-014** — The width selector renders only when the authenticated user has the `admin` role **and the dashboard is in Edit Dashboard mode** (the same gate as box rename/delete). Outside edit mode, and for non-admins, no width selector appears in the DOM.
 
 **AC-015** — Clicking a width button immediately re-renders the box at the new column span and re-renders the links grid at the new links-per-row density — no page reload required.
 

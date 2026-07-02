@@ -335,11 +335,11 @@ function BoxCard({
   sortable?: BoxSortable;
 }) {
   const theme = useResolvedTheme();
-  // A synthetic Uncategorized box (empty id) has no real category → no selector.
-  const showSelector = isAdmin && box.id !== '';
-  // #241 — rename/delete manage only REAL category boxes, and only in Edit
-  // Dashboard mode. The synthetic Uncategorized box never gets them.
+  // The width selector, like rename/delete, is an Edit Dashboard affordance:
+  // it only appears for an admin in edit mode, and never on the synthetic
+  // Uncategorized box (empty id, no real category).
   const canManage = editing && box.id !== '';
+  const showSelector = canManage;
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(box.title);
   const [renameError, setRenameError] = useState('');

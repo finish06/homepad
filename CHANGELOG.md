@@ -7,6 +7,18 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [12.9.1] — 2026-07-02 — Gate the App Grid width selector to Edit Dashboard mode
+
+### Fixed
+
+- **Box width selector now only appears in Edit Dashboard mode (#240/#241 follow-up).**
+  The per-box width control (the `width` label + six 1–6 buttons) rendered for any
+  admin at all times, cluttering the normal browsing view. It now shares the same
+  gate as box rename/delete — `editing && box.id !== ''` — so it appears only for an
+  admin who has turned on **Edit Dashboard** from the header gear, and never on the
+  synthetic Uncategorized box. Non-admins still never see it. Width picking and
+  persistence inside edit mode are unchanged.
+
 ## [12.9.0] — 2026-07-02 — Restore favorites toggle + box rename/delete in the App Grid
 
 ### Added
