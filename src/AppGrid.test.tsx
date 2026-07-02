@@ -302,3 +302,124 @@ describe('AppGrid favorite toggle (#240)', () => {
     }
   });
 });
+
+// #241 — §7 deferred box (category) rename + delete to Catalog's CategoryManager,
+// which was retired with the App Grid replace, so admins could create boxes but
+// not rename/delete them. Restore both in Edit Dashboard mode, per-box in the
+// header (the App Grid-native home for the CategoryManager behavior): rename ↔
+// PATCH /api/categories/{id}, delete ↔ DELETE /api/categories/{id}. Only real
+// category boxes get the controls; the synthetic Uncategorized box never does.
+describe('AppGrid box rename + delete (#241)', () => {
+  it('shows no rename/delete controls in view mode', async () => {
+    await renderGridEdit(true, false);
+    expect(screen.queryByTestId('box-rename')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('box-delete')).not.toBeInTheDocument();
+  });
+
+  it('shows rename + delete on each real category box in edit mode (admin)', async () => {
+    await renderGridEdit(true, true);
+    expect(screen.getAllByTestId('box-rename')).toHaveLength(2);
+    expect(screen.getAllByTestId('box-delete')).toHaveLength(2);
+  });
+
+  it('never shows them to a non-admin, even with editMode set', async () => {
+    await renderGridEdit(false, true);
+    expect(screen.queryByTestId('box-rename')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('box-delete')).not.toBeInTheDocument();
+  });
+
+  it('does not show them on the synthetic Uncategorized box', async () => {
+    vi.mocked(api.services).mockResolvedValue([
+      svc('s1', 'Plex', 'c1'),
+      svc('s2', 'Grafana', 'c2'),
+      svc('s3', 'Loose', null),
+    ]);
+    await renderGridEdit(true, true);
+    expect(screen.getAllByTestId('app-grid-box')).toHaveLength(3);
+    expect(screen.getAllByTestId('box-rename')).toHaveLength(2); // only the 2 real boxes
+  });
+
+  it('renames a box: seeds the input, calls renameCategory, updates the title', async () => {
+    const user = userEvent.setup();
+    await renderGridEdit(true, true);
+    const media = screen.getAllByTestId('app-grid-box')[0];
+    await user.click(within(media).getByTestId('box-rename'));
+    const input = within(media).getByTestId('box-rename-input') as HTMLInputElement;
+    expect(input.value).toBe('Media');
+    await user.clear(input);
+    await user.type(input, 'Movies');
+    await user.click(within(media).getByTestId('box-rename-save'));
+    expect(api.renameCategory).toHaveBeenCalledWith('c1', 'Movies');
+    await waitFor(() => expect(within(media).getByTestId('box-title')).toHaveTextContent('Movies'));
+    expect(within(media).queryByTestId('box-rename-input')).not.toBeInTheDocument();
+  });
+
+  it('rolls the rename back and surfaces an error when it fails', async () => {
+    vi.mocked(api.renameCategory).mockResolvedValue({ ok: false, status: 409, error: 'Name taken' });
+    const user = userEvent.setup();
+    await renderGridEdit(true, true);
+    const media = screen.getAllByTestId('app-grid-box')[0];
+    await user.click(within(media).getByTestId('box-rename'));
+    const input = within(media).getByTestId('box-rename-input');
+    await user.clear(input);
+    await user.type(input, 'Dup');
+    await user.click(within(media).getByTestId('box-rename-save'));
+    await waitFor(() => expect(within(media).getByTestId('box-rename-error')).toHaveTextContent('Name taken'));
+    expect(within(media).getByTestId('box-title')).toHaveTextContent('Media');
+  });
+
+  it('cancelling rename leaves the title unchanged and makes no call', async () => {
+    const user = userEvent.setup();
+    await renderGridEdit(true, true);
+    const media = screen.getAllByTestId('app-grid-box')[0];
+    await user.click(within(media).getByTestId('box-rename'));
+    await user.click(within(media).getByTestId('box-rename-cancel'));
+    expect(within(media).queryByTestId('box-rename-input')).not.toBeInTheDocument();
+    expect(within(media).getByTestId('box-title')).toHaveTextContent('Media');
+    expect(api.renameCategory).not.toHaveBeenCalled();
+  });
+
+  it('deletes a box after confirm: calls deleteCategory and removes it', async () => {
+    const user = userEvent.setup();
+    await renderGridEdit(true, true);
+    const media = screen.getAllByTestId('app-grid-box')[0];
+    await user.click(within(media).getByTestId('box-delete'));
+    await user.click(within(media).getByTestId('box-delete-yes'));
+    expect(api.deleteCategory).toHaveBeenCalledWith('c1');
+    await waitFor(() =>
+      expect(screen.getAllByTestId('box-title').map((n) => n.textContent)).not.toContain('Media'),
+    );
+  });
+
+  it('re-homes the deleted box apps into Uncategorized so they do not vanish', async () => {
+    const user = userEvent.setup();
+    await renderGridEdit(true, true);
+    await user.click(within(screen.getAllByTestId('app-grid-box')[0]).getByTestId('box-delete'));
+    await user.click(within(screen.getAllByTestId('app-grid-box')[0]).getByTestId('box-delete-yes'));
+    await waitFor(() => expect(screen.getByText('Uncategorized')).toBeInTheDocument());
+    expect(screen.getByText('Plex')).toBeInTheDocument(); // Media's app survives
+  });
+
+  it('keeps the box when the delete fails (rollback)', async () => {
+    vi.mocked(api.deleteCategory).mockResolvedValue(false);
+    const user = userEvent.setup();
+    await renderGridEdit(true, true);
+    const media = screen.getAllByTestId('app-grid-box')[0];
+    await user.click(within(media).getByTestId('box-delete'));
+    await user.click(within(media).getByTestId('box-delete-yes'));
+    await waitFor(() => expect(api.deleteCategory).toHaveBeenCalledWith('c1'));
+    await waitFor(() =>
+      expect(screen.getAllByTestId('box-title').map((n) => n.textContent)).toContain('Media'),
+    );
+  });
+
+  it('cancelling the delete confirm keeps the box and makes no call', async () => {
+    const user = userEvent.setup();
+    await renderGridEdit(true, true);
+    const media = screen.getAllByTestId('app-grid-box')[0];
+    await user.click(within(media).getByTestId('box-delete'));
+    await user.click(within(media).getByTestId('box-delete-no'));
+    expect(within(media).queryByTestId('box-delete-confirm')).not.toBeInTheDocument();
+    expect(api.deleteCategory).not.toHaveBeenCalled();
+  });
+});
