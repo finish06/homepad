@@ -7,6 +7,30 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [13.2.0] — 2026-07-03 — Pane-fill Phase 1: category boxes fill row dead-space (SPEC-pane-fill-reflow)
+
+Wide-viewport polish for the App Grid: category boxes now **flex-grow above their
+`--w` / `grid_width` floor** to consume the leftover slack in a row, so a partly
+filled row no longer leaves a band of dead space to the right. The configured
+width becomes a **minimum** (floor), not a fixed size — boxes never shrink below
+it, they only grow to share the remaining row width. **Frontend only**, and
+**additive on top of the App Grid** (v13.0.0) — no layout regression, no API or
+backend change, no data migration.
+
+Live in prod and Caleb-approved (2026-07-03). This release carries **only** the
+pane-fill layout; the long-window uptime line (24h/7d/30d) is **not** part of this
+prod release — its backend was never verified and it ships separately once
+confirmed.
+
+### Changed
+
+- **Category boxes grow to fill the row.** `.app-grid-box` changed from a fixed
+  `width` to `flex-grow: 1` with the configured width kept as the `min-width`
+  floor and a `max-width` cap, so boxes expand to absorb row dead-space instead
+  of leaving a gap on the right at wide viewports (1440 / 1920 / 2560). Tiles and
+  the App Grid tile sizing are unchanged; a lone box on its own row fills to the
+  full content width.
+
 ## [13.1.0] — 2026-07-02 — Per-tile status dot on the App Grid (SPEC-242)
 
 Restores the live per-service health indicator on every App Grid tool tile (it

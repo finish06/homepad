@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "13.2.0",
+      "date": "2026-07-03",
+      "changes": [
+        { "type": "enhancement", "text": "On wide screens, category boxes now stretch to fill the row instead of leaving empty space on the right. The width you pick for a box is now a minimum — boxes never get narrower than that, they just grow to share whatever room is left in the row, so a half-full row no longer has a dead gap beside it. App tiles themselves stay the same size, and a box that's alone on its row fills the full width." }
+      ]
+    },
+    {
       "version": "13.1.0",
       "date": "2026-07-02",
       "changes": [
