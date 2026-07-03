@@ -2,11 +2,13 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
-## 2026-07-02 — Glass v2 + ROYGBIV accent preference → v13.3.0 (do NOT self-merge)
+## 2026-07-03 — Glass v2 + ROYGBIV accent preference → v13.4.0 (do NOT self-merge)
 
-Branch `feat/glass-v2-accent`, STACKED on `feat/ultrawide-fluid-frame` (#284 —
-merge that first). Caleb dispatched directly (same Claude session): improve the
-glass effect + give users a ROY-G-BIV accent color choice.
+Branch `feat/glass-v2-accent`, rebased directly onto `main` (#284 ultra-wide is
+now MERGED, so this PR is glass-only, +684/−13). Re-versioned 13.3.0→13.4.0 to
+sit above main's ultrawide 13.3.0. All 4 CI checks green + mergeable. Caleb
+dispatched directly (same Claude session): improve the glass effect + give users
+a ROY-G-BIV accent color choice.
 
 Root cause of the flat glass: `.app-surface` put both ambient blobs at the top
 page corners, so below the first screenful the backdrop-filter had nothing to
@@ -27,7 +29,7 @@ blur. The pass (spec `SPEC-glass-v2-accent`, frontend-only):
 22 new vitest green (accent module 10, control 5, glass CSS guards 7); UserMenu
 suite green with the control mounted; all 21 browser-gate specs green on the
 built app. Visual pass at 2560 (Playwriter): indigo/red/green accents, dark +
-light, instant re-hue + reload persistence. v13.3.0 + CHANGELOG + changelog.json.
+light, instant re-hue + reload persistence. v13.4.0 + CHANGELOG + changelog.json.
 
 NOTE (local env): the machine's jsdom localStorage is partial (`clear` missing) —
 that's the root of the pre-existing theme.test local failures; the new accent
