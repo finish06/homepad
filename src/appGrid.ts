@@ -66,6 +66,20 @@ export function rowFillCounts(floors: number[], contentWidth: number, gap: numbe
   return counts;
 }
 
+// SPEC-ultrawide-fluid-frame (Phase 1b) — the JS mirror of the CONTENT_WIDTH
+// frame (src/layout.ts: `max-w-[max(1536px,92vw)] px-4`). The frame caps at
+// 1536px on standard desktops and grows fluidly as 92vw beyond ~1670px, so big
+// monitors (2560/3840) use their width instead of a fixed centered island.
+// frameContentPx returns the INNER width the `.app-grid` flex rows pack into
+// (frame minus the px-4 padding) — the R4 lone-box bin-pack reads it. Keep in
+// lock-step with the CSS token; ultrawide-frame.test.ts guards the pairing.
+export const FRAME_MAX_PX = 1536;
+export const FRAME_FLUID_VW = 0.92;
+export const FRAME_PAD_PX = 32;
+export function frameContentPx(vw: number): number {
+  return Math.min(vw, Math.max(FRAME_MAX_PX, vw * FRAME_FLUID_VW)) - FRAME_PAD_PX;
+}
+
 // fitsViewport answers "does a box at width `w` fit `vw` px without overflowing?"
 // It drives the D-3 width-selector disable: a --w whose box would exceed the
 // admin's current viewport is offered disabled so they never set an off-screen

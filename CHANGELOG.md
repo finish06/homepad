@@ -7,6 +7,37 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [13.3.0] — 2026-07-03 — Ultra-wide fluid content frame (SPEC-ultrawide-fluid-frame, pane-fill Phase 1b)
+
+The dashboard now uses big monitors instead of floating as a fixed 1536px island.
+Frontend only — one token + its JS mirror + one media-scoped rule.
+
+### Changed
+
+- **`CONTENT_WIDTH` is fluid above ~1670px viewports:** `max-w-[1536px]` →
+  `max-w-[max(1536px,92vw)]` (`src/layout.ts`). The shipped 1536px cap holds as a
+  floor through standard desktops (everything ≤1670px is byte-identical), then
+  the frame grows as 92vw — a 4vw margin per side. 1920 → ~1766px frame,
+  2560 → ~2355px, 3840 (4K) → ~3533px instead of 1536px with ~60% dead margin.
+  Header, StatusBar, and grid all ride the one token, so the layers stay
+  edge-aligned (#196 AC-009). The pane-fill grow model (Phase 1 R3/R4) fills the
+  wider rows; tiles stay exactly 190px (R2, Caleb's invariant).
+- **R4 lone-box bin-pack reads the fluid frame:** new `frameContentPx(vw)` in
+  `src/appGrid.ts` mirrors the CSS token (was a hardcoded 1536 in AppGrid.tsx);
+  `ultrawide-frame.test.ts` locks the CSS/JS pairing, seam continuity at the
+  ~1670px crossover, and monotonicity (no #194-style inversion anywhere).
+- **R3's residual rule implemented (fluid band only):** when every box in a row
+  is already at its content-max and row space remains (few apps on a very wide
+  monitor), the packed cluster now CENTERS — `justify-content: center` on
+  `.app-grid` inside `@media (min-width: 1671px)`. Below the crossover the base
+  rule is untouched.
+
+### QA
+
+- Browser gate extended: the pane-fill dead-space spec now gates 1920/2560/3840
+  and asserts the frame itself is fluid; new cluster-centering spec at 3840.
+  All 21 gate specs green on the built app in real Chromium.
+
 ## [13.2.0] — 2026-07-03 — Pane-fill Phase 1: category boxes fill row dead-space (SPEC-pane-fill-reflow)
 
 Wide-viewport polish for the App Grid: category boxes now **flex-grow above their

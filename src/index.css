@@ -1977,9 +1977,22 @@
     align-items: flex-start;
     gap: 16px;
     /* No inner width cap: the flex row fills the outer CONTENT_WIDTH section
-       (the shared max-w-[1536px] px-4 mx-auto frame from App.tsx), so its left
-       and right edges align with the header and status-strip content at every
-       viewport (#196). */
+       (the shared max-w-[max(1536px,92vw)] px-4 mx-auto frame from App.tsx —
+       fluid above 1536px, SPEC-ultrawide-fluid-frame), so its left and right
+       edges align with the header and status-strip content at every viewport
+       (#196). */
+  }
+  /* R3 residual rule (SPEC-pane-fill-reflow §R3), active only in the fluid
+     band (92vw > 1536px, i.e. ≥1671px viewports — below that the frame and
+     layout are byte-identical to shipped Phase 1): when every box in a row is
+     already at its content-max and row space still remains (few apps + very
+     wide monitor), the packed cluster CENTERS — a deliberate "this is how much
+     content there is" read, not a ragged left-pack. Rows that can still grow
+     are filled by flex-grow before justify-content ever shows. */
+  @media (min-width: 1671px) {
+    .app-grid {
+      justify-content: center;
+    }
   }
   .app-grid-box {
     /* SPEC-pane-fill-reflow (Phase 1, R3/R4) — the box GROWS to fill row slack.
