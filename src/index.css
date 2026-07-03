@@ -2,22 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Glass v2 (SPEC-glass-v2-accent) — the user-selectable ACCENT pair the
+   .app-surface blobs paint from. Space-separated RGB triplets consumed as
+   `rgb(var(--accent-1) / <alpha>)`. Defaults are the brand indigo/purple pair
+   (byte-identical to the pre-v2 hardcoded blob colors); accent.ts overrides
+   them inline on <html> when the user picks a different ROYGBIV accent. Only
+   AMBIENT color rides these vars — never a text/icon/ring token, so accent
+   choice can not move any WCAG-measured contrast. */
+:root {
+  --accent-1: 99 102 241;
+  --accent-2: 168 85 247;
+}
+
 /* v7 ux-redesign (specs/v7-ux-redesign.md §2–5). The gradients, soft shadows,
    status glow and accent chip are expressed as @layer component classes so the
    JSX keeps a single readable hook each (.tile, .tile-icon, .status-dot,
    .cat-head, .app-surface). Values are copied verbatim from the spec tokens. */
 @layer components {
-  /* §3 Global surface — radial indigo/violet accents over a light base. */
+  /* §3 Global surface, glass v2 — accent-hued ambient blobs over the base.
+     v1 anchored both blobs at the top corners, so everything below the first
+     screenful sat on a flat gradient and the boxes' backdrop-filter had nothing
+     to blur — the "glass reads as a solid slab" defect. v2 (a) drives the hues
+     from the user accent vars, (b) distributes two more blobs down the page so
+     scrolled rows still have atmosphere behind the glass, and (c) lays a tiled
+     SVG grain (feTurbulence, ~3% white) on top to stop the soft gradients
+     banding on large monitors. Blob alphas stay ≤0.12 over the same base
+     gradients, so text contrast floors are unchanged. */
   .app-surface {
     background:
-      radial-gradient(1100px 560px at 12% -12%, rgba(99, 102, 241, 0.12), transparent 60%),
-      radial-gradient(900px 520px at 102% -6%, rgba(168, 85, 247, 0.1), transparent 55%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E")
+        repeat,
+      radial-gradient(1100px 560px at 12% -12%, rgb(var(--accent-1) / 0.12), transparent 60%),
+      radial-gradient(900px 520px at 102% -6%, rgb(var(--accent-2) / 0.1), transparent 55%),
+      radial-gradient(1000px 600px at 55% 42%, rgb(var(--accent-1) / 0.07), transparent 60%),
+      radial-gradient(900px 560px at 8% 96%, rgb(var(--accent-2) / 0.08), transparent 60%),
       linear-gradient(180deg, #f6f8fd 0%, #eceffa 100%);
   }
   .dark .app-surface {
     background:
-      radial-gradient(1100px 560px at 12% -12%, rgba(99, 102, 241, 0.1), transparent 60%),
-      radial-gradient(900px 520px at 102% -6%, rgba(168, 85, 247, 0.1), transparent 55%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")
+        repeat,
+      radial-gradient(1100px 560px at 12% -12%, rgb(var(--accent-1) / 0.14), transparent 60%),
+      radial-gradient(900px 520px at 102% -6%, rgb(var(--accent-2) / 0.12), transparent 55%),
+      radial-gradient(1000px 600px at 55% 42%, rgb(var(--accent-1) / 0.09), transparent 60%),
+      radial-gradient(900px 560px at 8% 96%, rgb(var(--accent-2) / 0.1), transparent 60%),
       linear-gradient(180deg, #0b0d12 0%, #0e1117 100%);
   }
 
@@ -2014,22 +2042,46 @@
     min-height: 120px;
     padding: 16px;
     border-radius: 22px;
-    background: rgba(255, 255, 255, 0.72);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
+    /* Glass v2 (SPEC-glass-v2-accent): alpha drops 0.72→0.65 (0.68→0.60 dark)
+       so the accent blobs actually show through, and saturate(1.5) joins the
+       blur so the color that comes through reads RICHER, not grayer — the
+       material effect. Worst-case composited text contrast stays above the
+       shipped floors (blobs are ≤0.14 alpha over near-extreme bases; titles
+       measure ≥12:1 both modes — spec §4). */
+    background: rgba(255, 255, 255, 0.65);
+    -webkit-backdrop-filter: blur(14px) saturate(1.5);
+    backdrop-filter: blur(14px) saturate(1.5);
     /* The glass edge is an INSET box-shadow ring, not a `border`: a 1px border
        (2px total) would shrink the content box to 806px, and auto-fill needs the
        full 808px (4×190 + 3×16) to pack a width-4 box's 4th column — the border
        silently dropped the last tile to a second row. The inset ring reads the
        same but leaves the content width exactly N-tiles wide, so auto-fill packs
-       exactly --w columns (AC-004–008). */
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), 0 2px 8px rgba(0, 0, 0, 0.06),
+       exactly --w columns (AC-004–008).
+       Glass v2 adds a second inset — a 1px TOP-EDGE bevel highlight (light
+       catches the top of real glass; a uniform ring reads flat). Still a
+       shadow, so the 808px content-box math above is untouched. */
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 8px rgba(0, 0, 0, 0.06),
       0 8px 24px rgba(0, 0, 0, 0.04);
   }
   .dark .app-grid-box {
-    background: rgba(30, 30, 40, 0.68);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 2px 8px rgba(0, 0, 0, 0.32),
+    background: rgba(30, 30, 40, 0.6);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 2px 8px rgba(0, 0, 0, 0.32),
       0 8px 24px rgba(0, 0, 0, 0.24);
+  }
+  /* Glass v2 a11y fallback — users who ask the OS to reduce transparency get
+     near-solid boxes and no backdrop-filter (the reduced-motion pattern applied
+     to the glass). The bevel/ring/elevation shadows stay. */
+  @media (prefers-reduced-transparency: reduce) {
+    .app-grid-box {
+      background: rgba(255, 255, 255, 0.96);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+    .dark .app-grid-box {
+      background: rgba(30, 30, 40, 0.97);
+    }
   }
   .app-grid-box-header {
     display: flex;

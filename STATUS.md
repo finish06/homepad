@@ -2,6 +2,39 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-07-02 — Glass v2 + ROYGBIV accent preference → v13.3.0 (do NOT self-merge)
+
+Branch `feat/glass-v2-accent`, STACKED on `feat/ultrawide-fluid-frame` (#284 —
+merge that first). Caleb dispatched directly (same Claude session): improve the
+glass effect + give users a ROY-G-BIV accent color choice.
+
+Root cause of the flat glass: `.app-surface` put both ambient blobs at the top
+page corners, so below the first screenful the backdrop-filter had nothing to
+blur. The pass (spec `SPEC-glass-v2-accent`, frontend-only):
+
+- **Backdrop**: two more blobs mid/low page + feTurbulence grain (~3%, kills
+  banding); all blob alphas ≤0.14. Blobs now paint from `--accent-1/2` vars.
+- **Material**: `blur(14px) saturate(1.5)`, glass alpha 0.65/0.60, 1px top-edge
+  bevel as a second inset shadow (structural ring + 808px content-box math
+  untouched). Worst-case composited titles ~16:1, dark descriptions ~6.6:1.
+- **Accent preference**: `AccentControl` in the user-menu Appearance section —
+  7 ROYGBIV swatches (44px targets, aria-pressed + ring + checkmark, §6.3),
+  indigo default = brand pair byte-identical. Client-only (`homepad.accent`
+  localStorage, boot-applied in main.tsx); ambient color only, never a
+  contrast-bearing token.
+- **A11y**: `prefers-reduced-transparency: reduce` → near-solid boxes, no blur.
+
+22 new vitest green (accent module 10, control 5, glass CSS guards 7); UserMenu
+suite green with the control mounted; all 21 browser-gate specs green on the
+built app. Visual pass at 2560 (Playwriter): indigo/red/green accents, dark +
+light, instant re-hue + reload persistence. v13.3.0 + CHANGELOG + changelog.json.
+
+NOTE (local env): the machine's jsdom localStorage is partial (`clear` missing) —
+that's the root of the pre-existing theme.test local failures; the new accent
+tests bring their own in-memory Storage so they run green locally AND in CI.
+
+**Do NOT self-merge** — rides CI + browser-gate + Gracie QA (staging) + Walt PAT (prod).
+
 ## 2026-07-02 — Ultra-wide fluid frame (pane-fill Phase 1b) → v13.2.0 (do NOT self-merge)
 
 Branch `feat/ultrawide-fluid-frame`. Caleb dispatched directly (Claude session):

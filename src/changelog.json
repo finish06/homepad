@@ -2,6 +2,14 @@
   "pending": [],
   "versions": [
     {
+      "version": "13.4.0",
+      "date": "2026-07-03",
+      "changes": [
+        { "type": "enhancement", "text": "Pick your dashboard's accent color. In the account menu's Appearance section there's now a row of seven color dots — red, orange, yellow, green, blue, indigo, violet. Tap one and the soft color glow behind your app boxes changes to match, instantly. Your choice is remembered on this device; indigo is the classic homepad look. The colors only tint the background atmosphere — text and buttons stay exactly as readable as before." },
+        { "type": "enhancement", "text": "The frosted-glass look got real. The background now carries its color glow all the way down the page (not just at the very top), so the boxes genuinely blur what's behind them; the glass picks up color more vividly, catches a thin line of light along its top edge, and a whisper of grain stops color bands from showing on big monitors. If your device is set to reduce transparency, boxes switch to a solid look automatically." }
+      ]
+    },
+    {
       "version": "13.3.0",
       "date": "2026-07-03",
       "changes": [

@@ -7,6 +7,39 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [13.4.0] — 2026-07-03 — Glass v2 + ROYGBIV accent preference (SPEC-glass-v2-accent)
+
+The glass finally has something to blur, and users pick the hue. Frontend only.
+
+### Added
+
+- **Accent color preference (ROYGBIV).** A new picker in the user menu's
+  Appearance section (under the theme control): Red / Orange / Yellow / Green /
+  Blue / Indigo / Violet, each re-huing the dashboard's ambient backdrop blobs
+  via `--accent-1`/`--accent-2` CSS vars. Indigo is the default and is
+  byte-identical to the brand indigo/purple atmosphere. Client-only
+  (localStorage `homepad.accent`, applied at boot from `main.tsx`); the accent
+  drives AMBIENT color only — never a text/icon/ring token, so it cannot move
+  any WCAG contrast. Swatches are ≥44px hit areas; selection is announced
+  (aria-pressed) and drawn (ring + checkmark), never color alone.
+
+### Changed
+
+- **Backdrop atmosphere (`.app-surface`).** v1 anchored both color blobs at the
+  page's top corners, so everything below the first screenful sat on a flat
+  gradient and the boxes' backdrop-filter had nothing to blur — glass read as a
+  solid slab. v2 distributes two more accent blobs down the page and lays a
+  tiled SVG feTurbulence grain (~3%) on top to stop gradient banding on large
+  monitors. All blob alphas ≤0.14 — contrast floors unchanged.
+- **Glass material (`.app-grid-box`).** `blur(10px)` → `blur(14px)
+  saturate(1.5)` (color through the glass reads richer, not grayer); glass
+  alpha 0.72→0.65 light / 0.68→0.60 dark; plus a 1px top-edge bevel highlight
+  as a second inset shadow. The structural 1px ring and the content-box width
+  math (AC-004–008) are untouched. Worst-case composited titles still measure
+  ~16:1.
+- **Reduced transparency respected.** Under `prefers-reduced-transparency:
+  reduce`, boxes go near-solid with no backdrop-filter.
+
 ## [13.3.0] — 2026-07-03 — Ultra-wide fluid content frame (SPEC-ultrawide-fluid-frame, pane-fill Phase 1b)
 
 The dashboard now uses big monitors instead of floating as a fixed 1536px island.
