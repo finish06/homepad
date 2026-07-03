@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "13.3.0",
+      "date": "2026-07-03",
+      "changes": [
+        { "type": "enhancement", "text": "The dashboard now makes real use of big monitors. Before, no matter how wide your screen was, everything sat in a fixed-width column in the middle — on a 4K monitor more than half the screen was empty black margin. Now the layout grows with your screen (keeping a slim breathing margin at each side), so your category boxes spread out and show more app tiles per row. Tiles themselves stay the same size everywhere — you just see more of them at once. Phones, tablets, and regular desktops look exactly the same as before; and if you have only a few apps on a very wide screen, they sit neatly centered instead of bunched into the left corner." }
+      ]
+    },
+    {
       "version": "13.2.0",
       "date": "2026-07-03",
       "changes": [

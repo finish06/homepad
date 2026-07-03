@@ -2,6 +2,39 @@
 
 _Newest on top. `NEEDS JOE:` marks a blocker or decision for Joe._
 
+## 2026-07-02 — Ultra-wide fluid frame (pane-fill Phase 1b) → v13.2.0 (do NOT self-merge)
+
+Branch `feat/ultrawide-fluid-frame`. Caleb dispatched directly (Claude session):
+"update UI on homepad… modern, efficient, dynamic for mobile phones up to 4k
+monitors." Audit of prod at 3840×2160 (Playwriter): the dashboard is a fixed
+1536px island — ~60% of a 4K screen is dead margin. That band was explicitly out
+of scope for pane-fill Phase 1 (#282), so this is the follow-on:
+
+- **CONTENT_WIDTH fluid above ~1670px** — `max-w-[1536px]` → `max-w-[max(1536px,92vw)]`
+  (one token, all three layers stay edge-aligned per #196). Continuous at the
+  seam, byte-identical everywhere ≤1670px. New `frameContentPx(vw)` in
+  `src/appGrid.ts` is the JS mirror the R4 lone-box bin-pack reads (replaces the
+  hardcoded 1536 in AppGrid.tsx).
+- **R3 residual centering implemented**, scoped `@media (min-width: 1671px)` —
+  all-capped rows center as a cluster instead of left-packing against a void.
+- Tiles stay 190px (R2), floors/caps/lone-box unchanged, WidthSelector + D-3
+  untouched, no backend, no migration.
+
+Spec: `specs/SPEC-ultrawide-fluid-frame.md`. New `src/ultrawide-frame.test.ts`
+(9 vitest, RED on main → GREEN here). Browser gate extended — pane-fill
+dead-space now gates 1920/2560/**3840** + asserts the frame is fluid; new
+3840 cluster-centering spec. **All 21 gate specs green** on the built app (real
+Chromium). Visual pass on the built app at 390/1440/2560/3840 (dark, 45-app
+fixture): phone/desktop unchanged; 2560 = Kube lone 11-col row; 3840 = all five
+boxes one full-width row. v13.2.0 + CHANGELOG.md + changelog.json.
+
+Known local-env notes (pre-existing on `main`, NOT from this branch): on macOS
+(case-insensitive FS) `vite build`/`tsc` mis-resolve `./AppGrid` → `appGrid.ts`
+(CI/Linux unaffected), and 12 vitest files fail locally (theme/matchMedia,
+pwa-icons, retired Catalog suites) — identical set on main; CI is the arbiter.
+
+**Do NOT self-merge** — rides CI + browser-gate + Gracie QA (staging) + Walt PAT (prod).
+
 ## 2026-07-02 — App Grid parity restore #240/#241/#239 → v12.9.0 (do NOT self-merge)
 
 Branch `feat/app-grid-edit-rearrange` (extends #238). Gracie's audit found the App

@@ -29,7 +29,7 @@ import {
   type Service,
   type ServiceStatus,
 } from './api';
-import { boxesFromData, boxWidthPx, contentMaxPx, fitsViewport, MAX_WIDTH, moveCategory, rowFillCounts, type Box } from './appGrid';
+import { boxesFromData, boxWidthPx, contentMaxPx, fitsViewport, frameContentPx, MAX_WIDTH, moveCategory, rowFillCounts, type Box } from './appGrid';
 import { iconSrc, initialBadge } from './icons';
 import { useServicesContext } from './services';
 import { useResolvedTheme } from './theme';
@@ -45,12 +45,11 @@ import { useResolvedTheme } from './theme';
 
 const WIDTHS = Array.from({ length: MAX_WIDTH }, (_, i) => i + 1); // [1..8]
 
-// SPEC-pane-fill-reflow (Phase 1, R4) — the shared CONTENT_WIDTH frame is
-// `max-w-[1536px] px-4` (layout.ts): a 1536px cap with 16px padding each side. The
-// `.app-grid` content box the boxes flex-wrap into is therefore min(vw, 1536) − 32.
-// Lone-box detection bin-packs the boxes into that width by their --w floors.
-const FRAME_MAX_PX = 1536;
-const FRAME_PAD_PX = 32;
+// SPEC-pane-fill-reflow (Phase 1, R4) / SPEC-ultrawide-fluid-frame (Phase 1b) —
+// the shared CONTENT_WIDTH frame is `max-w-[max(1536px,92vw)] px-4` (layout.ts):
+// capped at 1536px on standard desktops, fluid 92vw on wider monitors. Lone-box
+// detection bin-packs the boxes' --w floors into that width via frameContentPx
+// (src/appGrid.ts), the JS mirror of the CSS token.
 
 // useViewportWidth tracks window.innerWidth so the width selector can offer a
 // --w that would render off-screen as DISABLED (A1 D-3). The ≤640px mobile
@@ -253,7 +252,7 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
   // Bin-pack the boxes' --w floors into the current .app-grid content width; a row
   // of one is a lone box. Recomputes on viewportWidth + boxes changes (both already
   // drive re-render), so it tracks resizes and width-selector edits live.
-  const contentWidth = Math.min(viewportWidth, FRAME_MAX_PX) - FRAME_PAD_PX;
+  const contentWidth = frameContentPx(viewportWidth);
   const rowCounts = rowFillCounts(boxes.map((b) => boxWidthPx(b.width)), contentWidth);
   const loneById = new Map(boxes.map((b, i) => [b.id, rowCounts[i] === 1]));
   // Edit Dashboard is admin-only + client-ephemeral (a reload returns to view
