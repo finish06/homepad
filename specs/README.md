@@ -11,7 +11,7 @@ Historical specs for shipped versions are in [`specs/archive/`](./archive/).
 
 | File | What it covers | Status |
 |------|---------------|--------|
-| [`cap6-uptime-display-toggle.md`](./cap6-uptime-display-toggle.md) | Boolean admin System setting to show/hide the per-tile uptime sparkline display globally. Default ON. Adds `system_settings` DB table, `GET /api/system/config` + `PATCH /api/admin/settings` endpoints. | **Draft — Kare design signed off (§9); pending Walt product sign-off** |
+| [`cap6-uptime-display-toggle.md`](./cap6-uptime-display-toggle.md) | Boolean admin System setting to show/hide the per-tile uptime sparkline display globally. Default ON. Adds `system_settings` DB table, `GET /api/system/config` + `PATCH /api/admin/settings` endpoints. | **Spec approved — Walt + Kare co-signed 2026-07-04. Ready for Stitch.** |
 | [`v18-gear-edit-menu.md`](./v18-gear-edit-menu.md) | Gear becomes a dropdown menu with all edit-dashboard actions: Arrange tiles + Add apps (all users); Edit tiles + Add custom app (admins). Removes "Edit dashboard" from UserMenu. | **Ready for implementation** |
 | [`v15-version-changelog.md`](./v15-version-changelog.md) | Footer version badge (`homepad vN (sha)`) + changelog overlay dialog. Mirrors fleet-feed's Option B+ design adapted to homepad's Tailwind language. | **Ready for implementation** |
 | [`v16-status-bar-quick-peek.md`](./v16-status-bar-quick-peek.md) | Status bar chips become clickable — clicking "2 DOWN" opens a popover listing the down services with links to their URLs. Zero backend changes. | **Ready for implementation** |
