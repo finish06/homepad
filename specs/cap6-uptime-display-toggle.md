@@ -213,37 +213,235 @@ Non-admins: no change to their view.
 
 ---
 
-## 9. Design (Kare — pending)
+## 9. Design (Kare)
 
-*This spec has UI surface: one new interactive toggle row in the System settings panel
-(admin-only). This section must be completed by Kare before the spec is finalized and
-dispatched to Stitch.*
+This section is the design contract for the one new interactive surface: a writable
+boolean toggle row added to the admin-only System settings section, which is read-only
+today. It answers Walt's four questions, specifies the control's five visual states,
+gives the updated note copy, and provides CSS-class guidance that respects (and minimally
+extends) the existing `.settings-kv` / `.settings-env-badge` patterns.
 
-**Surface in scope for Kare:**
-- The toggle row: label ("Show uptime display"), control type (pill toggle vs. checkbox),
-  placement within the `settings-kv` list (above or below the read-only rows?), and
-  save/feedback pattern (auto-save on toggle, or explicit Save button?).
-- Updated section note copy (D6): the current "Read-only — set via environment variables
-  and redeploy" no longer applies globally — the new note must distinguish the writable
-  row from the env-driven rows while keeping the `[env]` badges on OIDC and
-  self-registration.
-- Visual treatment when the toggle is OFF — does the "Show uptime display" label grey out,
-  or stay full-strength? What does the saved-success state look like?
+All values are grounded in the homelab design system (`Code/design-system/DESIGN-SYSTEM.md`):
+8pt spacing grid, indigo primary `#4F46E5` (measured 6.29:1 non-text on white), radius ramp
+`8/12/16/20/full`, motion `120–200ms ease-out`, `prefers-reduced-motion` honored, and the
+**≥44×44px touch-target rule** (this is an iPad-first homelab; the panel is used on an iPad).
 
-**Questions for Kare:**
-1. Toggle control type: pill/switch (feels most natural for a boolean display preference)
-   or a select? The `settings-kv` rows currently have no interactive controls — this is
-   the first writable row in the section.
-2. Auto-save on toggle vs. explicit Save button? Auto-save is simpler (no button state to
-   manage); explicit Save feels more deliberate for an admin-level change. Recommend:
-   auto-save with a brief inline confirmation ("Saved"), consistent with how OIDC
-   settings behave elsewhere in the homelab fleet.
-3. Placement: above or below the read-only OIDC/registration rows? Recommend: above, so
-   the writable control is encountered first and the read-only rows are clearly a separate
-   env-driven block.
-4. Updated note copy for D6.
+### 9.0 Answers to Walt's questions (decisions)
 
-*Kare's design section and co-sign will be added here before the spec advances to Stitch.*
+| Q | Walt's recommendation | Kare's decision |
+|---|-----------------------|-----------------|
+| **1. Control type** | Pill/switch | **Confirmed — pill switch** (`<button role="switch">`). A switch is the correct signifier for a boolean that takes effect immediately; a checkbox reads as "part of a form you submit," and a select is overkill for two states. See D-CTRL below. |
+| **2. Save model** | Auto-save + inline "Saved" | **Confirmed — auto-save on toggle**, with a `saving → saved` inline confirmation and an error-revert path. No Save button (nothing else in the section is form-like). See §9.2 states. |
+| **3. Placement** | Above the read-only rows | **Confirmed — above.** The one writable, badge-less row sits first; a hairline divider separates it from the `[env]` read-only block below, so "you can change this / these are env-driven" is a visible grouping, not a guess. |
+| **4. Note copy** | (deferred to Kare) | See §9.3. The paragraph stops claiming the whole section is read-only; the per-row `[env]` badges carry the read-only signal (this is exactly the v12 §4.2/D5 intent — the badge, not the note, marks read-only). |
+| **5. OFF / saved visuals** | (deferred to Kare) | Label stays **full-strength** in both states (see §9.4); only the track/thumb reflect on/off. Saved-success is a brief inline `Saved ✓` pill in the value cell (see §9.2). |
+
+### 9.1 The toggle row — control spec (D-CTRL)
+
+Rendered inside the existing `<dl className="settings-kv">`, as the **first** row, using the
+same `dt` (label, left) / `dd` (control, right) rhythm as the env rows so it aligns with them.
+
+```tsx
+<div className="settings-kv-row settings-kv-row--control">
+  <dt id="uptime-toggle-label">Show uptime display</dt>
+  <dd>
+    <span
+      className="settings-save-flag"
+      role="status"
+      aria-live="polite"
+      data-state={saveState}      /* 'idle' | 'saving' | 'saved' | 'error' */
+    >
+      {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved ✓' : ''}
+    </span>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={showUptimeDisplay}
+      aria-labelledby="uptime-toggle-label"
+      aria-busy={saveState === 'saving'}
+      disabled={saveState === 'saving'}
+      className="settings-switch"
+      data-testid="settings-switch-uptime"
+      onClick={() => onSaveSettings({ showUptimeDisplay: !showUptimeDisplay })}
+    >
+      <span className="settings-switch-thumb" aria-hidden="true" />
+    </button>
+  </dd>
+</div>
+```
+
+**Geometry (measured targets Stitch must hit — I verify these on the built PR):**
+
+| Element | Spec | Rule it satisfies |
+|---------|------|-------------------|
+| Hit area (`.settings-switch` box) | **≥44×44px** (visible track centered inside via vertical padding) | Touch target ≥44×44 |
+| Visible track | **44 × 24px**, `border-radius: 999px` (radius-full) | on-grid (24), full radius |
+| Thumb | **20px** circle, **2px** inset top/bottom, travel **20px** (off: `left:2px` → on: `left:22px`) | on-grid |
+| Track ↔ label gap | 16px (row's existing `gap`) | 8pt grid |
+
+**Color / contrast (all ≥3:1 as meaningful UI graphics — measured off the token set):**
+
+| State | Track fill | Track border | Thumb | Contrast basis |
+|-------|-----------|--------------|-------|----------------|
+| ON (light) | indigo `#4F46E5` | none | `#fff` + `0 1px 2px rgba(0,0,0,.35)` | indigo on white **6.29:1** ✅; white thumb on indigo **6.29:1** ✅ |
+| OFF (light) | `#E4E7EE` | **1.5px `#767676`** | `#fff` + shadow | off-track boundary `#767676` on white **≈4.5:1** ✅ (>3:1); the border, not the pale fill, carries the boundary so OFF is never a sub-3:1 ghost |
+| ON (dark) | indigo `#6366F1` | none | `#e6e9f2` | indigo-500 on dark canvas ≥3:1 ✅; matches `.dark` accent usage |
+| OFF (dark) | `rgba(255,255,255,0.10)` | **1.5px `rgba(255,255,255,0.45)`** | `#e6e9f2` | border ≥3:1 on the dark panel ✅ |
+
+> The OFF state deliberately uses a **bordered** track. A flat pale fill (e.g. `#E4E7EE` on
+> white ≈1.4:1) would fail the 3:1 UI-component rule — the same class of miss as the #163/#164
+> dark-contrast bugs. The 1.5px `#767676` border is the state's boundary and clears 3:1.
+
+### 9.2 States (all five designed — principle #5)
+
+| State | Trigger | Visual | A11y |
+|-------|---------|--------|------|
+| **default / ON** | persisted `true` | Track indigo, thumb right. Label full-strength. | `aria-checked="true"` |
+| **default / OFF** | persisted `false` | Track bordered-grey, thumb left. Label full-strength. | `aria-checked="false"` |
+| **saving** | click, PATCH in flight | Switch `disabled` + `aria-busy`; thumb animates to the new side immediately (optimistic); value cell shows muted `Saving…`. | `aria-busy="true"`; button non-interactive so no double-fire |
+| **saved** | PATCH 200 | `Saving…` swaps to `Saved ✓` (indigo-tinted flag) for **~1.6s**, then fades out (150ms). Switch re-enabled in the new state. | `role="status" aria-live="polite"` announces "Saved" once |
+| **error** | PATCH non-2xx / network | Switch **reverts** to the prior persisted state (optimistic thumb snaps back); value cell shows `.settings-error` copy: *"Couldn't save — try again."* | `role="status"` (polite); revert keeps `aria-checked` truthful to actual persisted state |
+
+Motion: thumb slide + fill = **150ms ease-out** (in the doc's 120–200ms band). Under
+`prefers-reduced-motion: reduce`, the thumb **jumps** (no slide) and the `Saved ✓` flag
+appears/disappears without the fade — state change stays instant and legible.
+
+### 9.3 Updated section note copy (D6)
+
+The current note — *"Read-only — set via environment variables and redeploy. These settings
+apply globally to all accounts."* — is false the moment a writable row exists. Replace with:
+
+> **These settings apply globally to all accounts. Rows marked `[env]` are read-only — set
+> via environment variables and redeploy.**
+
+This keeps the global-scope framing, moves the read-only claim onto the `[env]`-badged rows
+only (matching the badge's purpose), and leaves the new toggle row correctly reading as
+writable (it carries no badge).
+
+### 9.4 OFF-state & label treatment (answers Q5)
+
+- **The label does not grey out.** "Show uptime display" names the *setting*, not its value;
+  dimming it would signal a **disabled control**, which is the opposite of the truth (the
+  control is fully interactive whether the feature is on or off). The label stays `dt`
+  full-strength (`#475069` light / `#aab2c5` dark) in all states. Only the track/thumb encode
+  on vs off.
+- **Saved-success** is the transient `Saved ✓` flag described in §9.2 — small, indigo-tinted,
+  right-aligned in the value cell just left of the switch, gone in ~1.6s. It is confirmation,
+  not chrome; it never persists and never shifts layout (reserve its space so the switch
+  doesn't jump when the flag appears/clears).
+
+### 9.5 CSS-class guidance (respect + minimally extend `.settings-kv`)
+
+Reuse `.settings-kv`, `.settings-kv-row`, `dt`, `dd` unchanged. Add three scoped classes and
+one row modifier — no changes to existing selectors, so the env rows are untouched:
+
+```css
+/* First (writable) row: separate it from the [env] read-only block below with a hairline. */
+.settings-kv-row--control {
+  padding-bottom: 12px;                         /* 8pt grid */
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  align-items: center;                          /* switch vertically centers on the label */
+}
+.dark .settings-kv-row--control { border-bottom-color: rgba(255, 255, 255, 0.10); }
+
+/* dd holds [ save-flag ][ switch ] right-aligned, matching env-row value alignment. */
+.settings-kv-row--control dd {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Pill switch — 44×44 hit area, 44×24 visible track centered inside. */
+.settings-switch {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 44px;                                 /* touch target ≥44 */
+  padding: 10px 0;                              /* centers the 24px track */
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.settings-switch::before {                      /* the track */
+  content: "";
+  display: block;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: #E4E7EE;
+  border: 1.5px solid #767676;                  /* OFF boundary ≥3:1 */
+  transition: background 150ms ease-out, border-color 150ms ease-out;
+}
+.settings-switch-thumb {
+  position: absolute;
+  top: 12px; left: 2px;                         /* 2px inset within the centered track */
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  transition: left 150ms ease-out;
+}
+.settings-switch[aria-checked="true"]::before { background: #4F46E5; border-color: transparent; }
+.settings-switch[aria-checked="true"] .settings-switch-thumb { left: 22px; }
+.settings-switch:focus-visible {                /* keyboard ring — non-text 6.29:1 */
+  outline: 2px solid #4F46E5;
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+.settings-switch[aria-busy="true"] { opacity: 0.7; cursor: progress; }
+
+/* Transient "Saved ✓" / "Saving…" flag — reserve width so the switch never jumps. */
+.settings-save-flag {
+  min-width: 56px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4F46E5;
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+.settings-save-flag[data-state="saving"] { color: #9aa3b8; opacity: 1; }
+.settings-save-flag[data-state="saved"]  { opacity: 1; }
+
+.dark .settings-switch::before { background: rgba(255, 255, 255, 0.10); border-color: rgba(255, 255, 255, 0.45); }
+.dark .settings-switch[aria-checked="true"]::before { background: #6366F1; border-color: transparent; }
+.dark .settings-switch-thumb { background: #e6e9f2; }
+.dark .settings-save-flag { color: #a5b4fc; }
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-switch::before,
+  .settings-switch-thumb,
+  .settings-save-flag { transition: none; }
+}
+```
+
+(Implementation may fold the thumb into the markup shown in §9.1 rather than the `::before`
+track — either is fine as long as the measured geometry and contrast above hold.)
+
+### 9.6 A11y notes
+
+- **Role/name/state:** `role="switch"` + `aria-checked` (true/false) + `aria-labelledby`
+  pointing at the `dt` — a screen reader announces *"Show uptime display, switch, on/off."*
+- **Keyboard:** natively focusable `<button>`; `Space`/`Enter` toggle; visible
+  `:focus-visible` ring (2px indigo, 2px offset, ≥3:1). Tab order: this row is first, before
+  the env rows.
+- **Busy / no double-fire:** `aria-busy` + `disabled` during the PATCH; re-enabled on
+  settle. The optimistic thumb move keeps the control feeling responsive without lying —
+  `aria-checked` is corrected to the real persisted value on error (revert).
+- **Live confirmation:** the `Saved ✓` / error copy lives in a `role="status"`
+  `aria-live="polite"` region so the outcome is announced without stealing focus.
+- **Admin-gating (AC-007):** the whole row renders only in the admin `SystemSettings`
+  branch; non-admins never receive it in the DOM (not merely hidden).
+
+### 9.7 Verification plan (at PR-review time)
+
+This is a design co-sign at **spec** time — the control does not exist yet, so there is
+nothing to render or screenshot now. When Stitch's PR lands I verify on the live staging DOM,
+at phone / iPad-portrait / desktop, in light **and** dark: the 44×44 hit box
+(`getBoundingClientRect`), the ON/OFF track contrast (`getComputedStyle` → ratio vs 3:1),
+grid adherence, `axe-core` clean on the switch, keyboard focus ring, and the
+saving→saved→error path. Any miss there is filed as a Gitea issue against the PR per the
+standard flow.
 
 ---
 
@@ -252,7 +450,7 @@ dispatched to Stitch.*
 | Role | Person | Status |
 |------|--------|--------|
 | Product | Walt | Pending (UI design section incomplete) |
-| Design / UX | Kare | Pending |
+| Design / UX | Kare | Approved — 2026-07-04 |
 
 *This spec is not finalized until both sign-offs are recorded here. It does NOT go to
 Stitch until both are present.*
@@ -276,3 +474,4 @@ Stitch until both are present.*
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
 | 2026-07-04 | 1.0.0 | Walt | Initial draft — pending Kare design section (§9) |
+| 2026-07-04 | 1.1.0 | Kare | §9 Design section authored (control spec, 5 states, D6 note copy, CSS/a11y); design co-sign recorded in §10 |
