@@ -7,6 +7,7 @@ import {
   updateLibraryApp,
   type LibraryAppInput,
   type LibraryOffer,
+  type SystemConfig,
 } from './api';
 
 // v9.3 §7.3 — the admin Settings surface. A modal extending the v6/v7 settings
@@ -18,10 +19,14 @@ import {
 export default function SettingsPanel({
   isAdmin,
   oidcEnabled,
+  showUptimeDisplay,
+  onSaveSettings,
   onClose,
 }: {
   isAdmin: boolean;
   oidcEnabled: boolean;
+  showUptimeDisplay: boolean;
+  onSaveSettings: (patch: Partial<SystemConfig>) => Promise<void>;
   onClose: () => void;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -91,7 +96,11 @@ export default function SettingsPanel({
             </p>
           ) : (
             <>
-              <SystemSettings oidcEnabled={oidcEnabled} />
+              <SystemSettings
+                oidcEnabled={oidcEnabled}
+                showUptimeDisplay={showUptimeDisplay}
+                onSaveSettings={onSaveSettings}
+              />
               <LibraryManager />
             </>
           )}
@@ -101,20 +110,32 @@ export default function SettingsPanel({
   );
 }
 
-// Read-only system settings (D7). OIDC comes from the client-visible auth config;
-// self-registration is env-driven and not exposed to the client, so it is shown
-// as env-managed. Both carry the "set via environment / redeploy" note.
-function SystemSettings({ oidcEnabled }: { oidcEnabled: boolean }) {
+// System settings (cap6). The first row is the new WRITABLE "Show uptime display"
+// toggle (D6); OIDC + self-registration remain env-driven, read-only rows carrying
+// the [env] badge that now — not the note — marks read-only.
+function SystemSettings({
+  oidcEnabled,
+  showUptimeDisplay,
+  onSaveSettings,
+}: {
+  oidcEnabled: boolean;
+  showUptimeDisplay: boolean;
+  onSaveSettings: (patch: Partial<SystemConfig>) => Promise<void>;
+}) {
   return (
     <section data-testid="settings-system" aria-labelledby="settings-system-h" className="settings-section">
       <h3 id="settings-system-h" className="settings-section-title">
         System
       </h3>
+      {/* D6 — the note no longer claims the whole section is read-only; the [env]
+          badges carry that signal per-row, leaving the toggle correctly writable. */}
       <p className="settings-section-note">
-        Read-only — set via environment variables and redeploy. These settings
-        apply globally to all accounts.
+        These settings apply globally to all accounts. Rows marked{' '}
+        <span className="settings-env-badge">env</span> are read-only — set via
+        environment variables and redeploy.
       </p>
       <dl className="settings-kv">
+        <UptimeToggleRow value={showUptimeDisplay} onSave={onSaveSettings} />
         <div className="settings-kv-row">
           <dt>OIDC sign-in</dt>
           <dd>
@@ -131,6 +152,73 @@ function SystemSettings({ oidcEnabled }: { oidcEnabled: boolean }) {
         </div>
       </dl>
     </section>
+  );
+}
+
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+
+// UptimeToggleRow — the writable pill switch (§9.1). It moves the thumb
+// optimistically on click, PATCHes via onSave, then shows a transient "Saved ✓"
+// (~1.6s) or reverts to the persisted value on error (§9.2). role="switch" +
+// aria-checked keep the state truthful to what is actually persisted.
+function UptimeToggleRow({
+  value,
+  onSave,
+}: {
+  value: boolean;
+  onSave: (patch: Partial<SystemConfig>) => Promise<void>;
+}) {
+  const [optimistic, setOptimistic] = useState(value);
+  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep the control in sync with the persisted prop when it changes elsewhere.
+  useEffect(() => setOptimistic(value), [value]);
+  useEffect(() => () => { if (savedTimer.current) clearTimeout(savedTimer.current); }, []);
+
+  async function toggle() {
+    if (saveState === 'saving') return;
+    const next = !optimistic;
+    setOptimistic(next); // optimistic thumb move (§9.6)
+    setSaveState('saving');
+    try {
+      await onSave({ showUptimeDisplay: next });
+      setSaveState('saved');
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setSaveState('idle'), 1600);
+    } catch {
+      setOptimistic(value); // revert to the last persisted value
+      setSaveState('error');
+    }
+  }
+
+  const flag =
+    saveState === 'saving' ? 'Saving…' :
+    saveState === 'saved' ? 'Saved ✓' :
+    saveState === 'error' ? "Couldn't save — try again." : '';
+
+  return (
+    <div className="settings-kv-row settings-kv-row--control">
+      <dt id="uptime-toggle-label">Show uptime display</dt>
+      <dd>
+        <span className="settings-save-flag" role="status" aria-live="polite" data-state={saveState}>
+          {flag}
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={optimistic}
+          aria-labelledby="uptime-toggle-label"
+          aria-busy={saveState === 'saving'}
+          disabled={saveState === 'saving'}
+          className="settings-switch"
+          data-testid="settings-switch-uptime"
+          onClick={toggle}
+        >
+          <span className="settings-switch-thumb" aria-hidden="true" />
+        </button>
+      </dd>
+    </div>
   );
 }
 

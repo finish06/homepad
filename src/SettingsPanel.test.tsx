@@ -38,6 +38,8 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
     <SettingsPanel
       isAdmin={props.isAdmin ?? true}
       oidcEnabled={props.oidcEnabled ?? false}
+      showUptimeDisplay={props.showUptimeDisplay ?? true}
+      onSaveSettings={props.onSaveSettings ?? vi.fn().mockResolvedValue(undefined)}
       onClose={props.onClose ?? vi.fn()}
     />,
   );

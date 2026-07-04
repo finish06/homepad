@@ -7,6 +7,30 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [13.5.0] — 2026-07-04 — Uptime display toggle (cap6-uptime-display-toggle)
+
+A global admin System setting that hides the per-tile uptime figures across the
+app grid without touching Gatus monitoring. Default ON (opt-out): existing
+dashboards are unchanged until an admin turns it off. Frontend gates the render;
+the backend persists the choice so no redeploy is needed.
+
+### Added
+
+- **"Show uptime display" toggle (admin, System settings).** A writable pill
+  switch above the read-only OIDC / self-registration rows. Auto-saves on toggle
+  with an inline "Saved ✓" confirmation and an error-revert path; admin-only.
+- **`system_settings` store + endpoints.** Public `GET /api/system/config`
+  (defaults ON when no row exists) and admin-only `PATCH /api/admin/settings`
+  (singleton upsert, partial-patch merge). New migration `0010_system_settings`.
+
+### Changed
+
+- The app grid's per-tile 24h/7d/30d uptime line is now gated by the new setting.
+  When OFF the line is omitted with no layout gap; the status pip and the status
+  bar are unaffected. Render-gate only — the API still serves uptime data (D2).
+- The System settings note no longer declares the whole section read-only; the
+  per-row `[env]` badge now carries the read-only signal (D6).
+
 ## [13.4.0] — 2026-07-03 — Glass v2 + ROYGBIV accent preference (SPEC-glass-v2-accent)
 
 The glass finally has something to blur, and users pick the hue. Frontend only.

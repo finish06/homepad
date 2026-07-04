@@ -70,7 +70,9 @@ describe('System settings — uptime display toggle (cap6)', () => {
     renderPanel({ isAdmin: true });
     await screen.findByTestId('settings-switch-uptime');
     const note = screen.getByTestId('settings-system').querySelector('.settings-section-note');
-    expect(note?.textContent ?? '').not.toMatch(/Read-only — set via environment/);
-    expect(note?.textContent ?? '').toMatch(/\[env\]/);
+    // The old copy opened by declaring the WHOLE section read-only; D6 drops that.
+    expect(note?.textContent ?? '').not.toMatch(/^Read-only — set via environment/);
+    // The read-only signal now rides on the per-row [env] badge, referenced in the note.
+    expect(note?.querySelector('.settings-env-badge')).not.toBeNull();
   });
 });

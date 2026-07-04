@@ -32,6 +32,8 @@ vi.mock('./SettingsPanel', () => ({
 
 vi.mock('./api', () => ({
   authConfig: vi.fn(),
+  systemConfig: vi.fn(() => Promise.resolve({ showUptimeDisplay: true })),
+  saveSystemSettings: vi.fn(() => Promise.resolve({ showUptimeDisplay: true })),
   me: vi.fn(),
   login: vi.fn(),
   register: vi.fn(),
