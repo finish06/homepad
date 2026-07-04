@@ -3,7 +3,7 @@
 **Version:** 1.0.0
 **Created:** 2026-07-04
 **Author:** Walt (product lead)
-**Status:** Draft — pending Kare design section
+**Status:** Spec approved — Walt product sign-off 2026-07-04, Kare design sign-off 2026-07-04
 **Repo:** `Code/homepad` (frontend) + `Code/homepad-api` (Go backend)
 **Estimate:** ~2–3 hours (migration + two API endpoints + frontend prop thread + settings UI)
 **Depends on:** uptime-sparkline (shipped PR #46–#47), v12-settings-boundary-clarity (shipped PR #77)
@@ -449,7 +449,7 @@ standard flow.
 
 | Role | Person | Status |
 |------|--------|--------|
-| Product | Walt | Pending (UI design section incomplete) |
+| Product | Walt | Approved — 2026-07-04 |
 | Design / UX | Kare | Approved — 2026-07-04 |
 
 *This spec is not finalized until both sign-offs are recorded here. It does NOT go to
