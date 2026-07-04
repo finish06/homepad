@@ -6,8 +6,11 @@ import {
   logout,
   me,
   register,
+  saveSystemSettings,
+  systemConfig,
   type Category,
   type Service,
+  type SystemConfig,
   type User,
 } from './api';
 import AppHeader from './AppHeader';
@@ -96,6 +99,9 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // from the client-visible auth config — no API change.
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [oidcEnabled, setOidcEnabled] = useState(false);
+  // cap6 — the global uptime-display toggle. Seeded ON so the first paint (before
+  // the config resolves) matches today's behavior; systemConfig() then corrects it.
+  const [sysConfig, setSysConfig] = useState<SystemConfig>({ showUptimeDisplay: true });
   // v15 — version badge in the footer opens the changelog overlay.
   const [changelogOpen, setChangelogOpen] = useState(false);
   // v17 — alert-history panel open-state + the bell ref (focus returns here on
@@ -112,8 +118,17 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
 
   useEffect(() => {
     authConfig().then((c) => setOidcEnabled(c.oidcEnabled));
+    systemConfig().then(setSysConfig);
     fetchCategories().then(setCats);
   }, []);
+
+  // cap6 — persist a System settings change and reflect it locally so the app
+  // grid updates without a reload. Rejects on failure so the toggle can revert
+  // its optimistic state (§9.2 error path).
+  async function onSaveSettings(patch: Partial<SystemConfig>) {
+    const next = await saveSystemSettings(patch);
+    setSysConfig(next);
+  }
 
   // Reflect a service added via the Library, or created/edited via the custom-app
   // form, into the shared services list — the SAME array AppGrid + the launcher
@@ -188,7 +203,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
         <StatusBar />
 
         <section className={`${CONTENT_WIDTH} py-6`}>
-          <AppGrid isAdmin={isAdmin} editMode={editMode} />
+          <AppGrid isAdmin={isAdmin} editMode={editMode} showUptimeDisplay={sysConfig.showUptimeDisplay} />
         </section>
 
         {/* SPEC-app-grid §7 — service management stays on the existing surfaces.
@@ -229,6 +244,8 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
           <SettingsPanel
             isAdmin={isAdmin}
             oidcEnabled={oidcEnabled}
+            showUptimeDisplay={sysConfig.showUptimeDisplay}
+            onSaveSettings={onSaveSettings}
             onClose={() => setSettingsOpen(false)}
           />
         )}

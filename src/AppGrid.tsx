@@ -64,7 +64,17 @@ function useViewportWidth(): number {
   return vw;
 }
 
-export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolean; editMode?: boolean }) {
+export default function AppGrid({
+  isAdmin,
+  editMode = false,
+  showUptimeDisplay = true,
+}: {
+  isAdmin: boolean;
+  editMode?: boolean;
+  // cap6 — the global admin toggle for the per-tile uptime line. Defaults to ON
+  // (opt-out) so existing callers and the pre-fetch initial render are unchanged.
+  showUptimeDisplay?: boolean;
+}) {
   // Services come from the shared provider (the SAME array the launcher + live
   // poll use — §3/A12); AppGrid self-fetches only when rendered without a
   // provider (isolated tests). Categories (box list + widths) AppGrid owns.
@@ -285,17 +295,17 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext items={sortableBoxes.map((b) => b.id)} strategy={rectSortingStrategy}>
                 {sortableBoxes.map((box) => (
-                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
+                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
                 ))}
               </SortableContext>
             </DndContext>
             {uncatBox && (
-              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(uncatBox.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
+              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(uncatBox.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
             )}
           </>
         ) : (
           boxes.map((box) => (
-            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
+            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
           ))
         )}
         {addButton}
@@ -335,6 +345,7 @@ function BoxCard({
   onToggleFavorite,
   onRename,
   onDelete,
+  showUptimeDisplay,
   sortable,
 }: {
   box: Box;
@@ -346,6 +357,7 @@ function BoxCard({
   onToggleFavorite: (id: string) => void;
   onRename: (id: string, name: string) => Promise<true | string>;
   onDelete: (id: string) => Promise<boolean>;
+  showUptimeDisplay: boolean;
   sortable?: BoxSortable;
 }) {
   const theme = useResolvedTheme();
@@ -543,7 +555,7 @@ function BoxCard({
       ) : (
         <div className="app-grid-tools" data-testid="box-tools">
           {box.tools.map((s) => (
-            <ToolLink key={s.id} service={s} theme={theme} onToggleFavorite={onToggleFavorite} />
+            <ToolLink key={s.id} service={s} theme={theme} onToggleFavorite={onToggleFavorite} showUptimeDisplay={showUptimeDisplay} />
           ))}
         </div>
       )}
@@ -564,6 +576,7 @@ function SortableBox({
   onToggleFavorite,
   onRename,
   onDelete,
+  showUptimeDisplay,
 }: {
   box: Box;
   isAdmin: boolean;
@@ -574,6 +587,7 @@ function SortableBox({
   onToggleFavorite: (id: string) => void;
   onRename: (id: string, name: string) => Promise<true | string>;
   onDelete: (id: string) => Promise<boolean>;
+  showUptimeDisplay: boolean;
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: box.id });
@@ -588,6 +602,7 @@ function SortableBox({
       onToggleFavorite={onToggleFavorite}
       onRename={onRename}
       onDelete={onDelete}
+      showUptimeDisplay={showUptimeDisplay}
       sortable={{ attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging }}
     />
   );
@@ -664,10 +679,12 @@ function ToolLink({
   service,
   theme,
   onToggleFavorite,
+  showUptimeDisplay,
 }: {
   service: Service;
   theme: 'light' | 'dark';
   onToggleFavorite: (id: string) => void;
+  showUptimeDisplay: boolean;
 }) {
   const fav = service.favorite;
   // SPEC-242 D-4 — one-shot pulse when this tile's status changes on a live poll.
@@ -707,7 +724,10 @@ function ToolLink({
           />
         </span>
         <span className="app-grid-tool-name">{service.name}</span>
-        <UptimeWindowsLine windows={service.uptimeWindows} />
+        {/* cap6 — the global admin toggle gates the uptime line here (D2, render
+            gate not data suppression). When off, the tile renders as if it had
+            no uptime data (AC-002/003); the status pip above is untouched. */}
+        {showUptimeDisplay && <UptimeWindowsLine windows={service.uptimeWindows} />}
       </a>
       <button
         type="button"

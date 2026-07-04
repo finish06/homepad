@@ -2,6 +2,13 @@
   "pending": [],
   "versions": [
     {
+      "version": "13.5.0",
+      "date": "2026-07-04",
+      "changes": [
+        { "type": "enhancement", "text": "Admins can now hide the little uptime percentages under each app tile. There's a new 'Show uptime display' switch at the top of the Admin Panel's System section — flip it off and the 24h/7d/30d figures disappear from every tile across everyone's dashboard, leaving the tiles clean with no empty gap. It saves the moment you tap it (a quick 'Saved ✓' confirms), no reload needed. This only hides the numbers — health monitoring keeps running and the colored status dot on each tile is untouched. It's on by default, so nothing changes until an admin turns it off." }
+      ]
+    },
+    {
       "version": "13.4.0",
       "date": "2026-07-03",
       "changes": [

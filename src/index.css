@@ -1400,6 +1400,118 @@
   .dark .settings-env-badge {
     background: rgba(255, 255, 255, 0.07);
   }
+  /* cap6 §9.5 — the one writable System row: a hairline separates it from the
+     [env] read-only block below. */
+  .settings-kv-row--control {
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    align-items: center;
+  }
+  .dark .settings-kv-row--control {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+  /* dd holds [ save-flag ][ switch ] right-aligned, matching the env-row cells. */
+  .settings-kv-row--control dd {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  /* Pill switch — 44×44 hit area, 44×24 visible track centered inside (≥44 touch
+     target; OFF track carries a 1.5px #767676 boundary so it clears the 3:1
+     UI-component rule instead of ghosting on a pale fill). */
+  .settings-switch {
+    position: relative;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    padding: 10px 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+  .settings-switch::before {
+    content: '';
+    display: block;
+    width: 44px;
+    height: 24px;
+    border-radius: 999px;
+    background: #e4e7ee;
+    border: 1.5px solid #767676;
+    transition: background 150ms ease-out, border-color 150ms ease-out;
+  }
+  .settings-switch-thumb {
+    position: absolute;
+    top: 12px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    transition: left 150ms ease-out;
+  }
+  .settings-switch[aria-checked='true']::before {
+    background: #4f46e5;
+    border-color: transparent;
+  }
+  .settings-switch[aria-checked='true'] .settings-switch-thumb {
+    left: 22px;
+  }
+  .settings-switch:focus-visible {
+    outline: 2px solid #4f46e5;
+    outline-offset: 2px;
+    border-radius: 999px;
+  }
+  .settings-switch[aria-busy='true'] {
+    opacity: 0.7;
+    cursor: progress;
+  }
+  /* Transient "Saving…" / "Saved ✓" / error flag — reserve width so the switch
+     never jumps as the flag appears and clears. */
+  .settings-save-flag {
+    min-width: 56px;
+    text-align: right;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4f46e5;
+    opacity: 0;
+    transition: opacity 150ms ease-out;
+  }
+  .settings-save-flag[data-state='saving'] {
+    color: #9aa3b8;
+    opacity: 1;
+  }
+  .settings-save-flag[data-state='saved'] {
+    opacity: 1;
+  }
+  .settings-save-flag[data-state='error'] {
+    color: #b42318;
+    opacity: 1;
+  }
+  .dark .settings-switch::before {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.45);
+  }
+  .dark .settings-switch[aria-checked='true']::before {
+    background: #6366f1;
+    border-color: transparent;
+  }
+  .dark .settings-switch-thumb {
+    background: #e6e9f2;
+  }
+  .dark .settings-save-flag {
+    color: #a5b4fc;
+  }
+  .dark .settings-save-flag[data-state='error'] {
+    color: #fca5a5;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .settings-switch::before,
+    .settings-switch-thumb,
+    .settings-save-flag {
+      transition: none;
+    }
+  }
   .library-edit {
     margin-top: 10px;
     display: flex;

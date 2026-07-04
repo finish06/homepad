@@ -96,6 +96,11 @@ export type ServiceInput = {
 
 export type AuthConfig = { oidcEnabled: boolean };
 
+// cap6 — the global System settings the client reads (GET /api/system/config) and
+// an admin writes (PATCH /api/admin/settings). Today it carries the single
+// app-grid uptime-display toggle; new settings add fields here.
+export type SystemConfig = { showUptimeDisplay: boolean };
+
 // v9.2/v9.3: a library offer — admin-curated catalog metadata any user can browse
 // (`GET /api/library`) and copy onto their own dashboard. `added` is the per-user
 // hint (do I already hold a copy — D6, non-blocking). `suggestedCategory` is a
@@ -139,6 +144,36 @@ export async function authConfig(): Promise<AuthConfig> {
   } catch {
     return { oidcEnabled: false };
   }
+}
+
+// systemConfig reads the global System settings (cap6). Like authConfig, any
+// non-200 or failed request falls back to the safe default (ON) — the grid must
+// never hide uptime just because this fetch hiccuped (AC-008 default-ON). The
+// endpoint is public, so this is safe to call before login.
+export async function systemConfig(): Promise<SystemConfig> {
+  try {
+    const res = await fetch('/api/system/config', { credentials: 'include' });
+    if (res.status !== 200) return { showUptimeDisplay: true };
+    const data = (await res.json()) as { showUptimeDisplay?: boolean };
+    return { showUptimeDisplay: data.showUptimeDisplay !== false };
+  } catch {
+    return { showUptimeDisplay: true };
+  }
+}
+
+// saveSystemSettings PATCHes the admin System settings and returns the persisted
+// config. Unlike the reads, a non-200 THROWS so the caller (the settings toggle)
+// can revert its optimistic state and surface the error (§9.2 error path).
+export async function saveSystemSettings(patch: Partial<SystemConfig>): Promise<SystemConfig> {
+  const res = await fetch('/api/admin/settings', {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify(patch),
+  });
+  if (res.status !== 200) throw new Error(await errorText(res));
+  const data = (await res.json()) as { showUptimeDisplay?: boolean };
+  return { showUptimeDisplay: data.showUptimeDisplay !== false };
 }
 
 export async function me(): Promise<User | null> {
