@@ -7,6 +7,35 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [13.8.0] — 2026-07-05 — A11y & Touch-Target Hardening Pass (v19)
+
+An accessibility and touch-target hardening pass over the shared-catalog UI. No
+new features: it restores a banner that regressed in the Catalog→AppGrid
+migration, fixes a WCAG AA contrast failure and stale non-admin copy, and
+verifies-and-measures the existing 44px touch targets and text contrast across
+the UI at 768px (light and dark) with the browser gate — no regressions found.
+
+### Changed
+
+- **Non-admin UserMenu note now uses shared-catalog language.** The account
+  menu's note for non-admins dropped the stale "personal dashboard" copy in
+  favor of shared-catalog wording ("These tiles and categories are the shared
+  homelab catalog…"), matching the app's actual multi-user model (#265).
+
+### Fixed
+
+- **Restored the shared-catalog edit-mode banner.** The "Editing the shared
+  catalog — changes affect all users" banner had gone missing from the live app
+  after the Catalog→AppGrid migration; it is restored at the App level, above
+  the grid (#277).
+- **Dark-mode edit-banner label contrast raised to 9.03:1.** The banner label
+  measured only 2.86:1 in dark mode (indigo-600 on the near-black banner
+  ground), failing WCAG AA for its 11px bold text; lifted to indigo-300 for
+  9.03:1 (#163).
+- **AC-004 browser-gate race.** The a11y/touch gate now awaits the OIDC "or"
+  divider before measuring its contrast, fixing an intermittent measurement race
+  (#300).
+
 ## [13.5.0] — 2026-07-04 — Uptime display toggle (cap6-uptime-display-toggle)
 
 A global admin System setting that hides the per-tile uptime figures across the

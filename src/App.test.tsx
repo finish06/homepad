@@ -495,3 +495,32 @@ describe('v9.3 §7.3 — admin Settings modal wiring (A17)', () => {
     expect(screen.queryByTestId('settings-panel-stub')).not.toBeInTheDocument();
   });
 });
+
+// v19 §4.5 / #277 (AC-012) — the shared-catalog edit-mode banner. The Catalog→
+// AppGrid migration (#223/§2) dropped the old Catalog edit banner; the live app
+// (App renders AppGrid, not Catalog) shipped edit mode with NO warning that an
+// admin's rename/delete/width changes affect EVERY user's dashboard. The banner
+// must live in the shipped tree (App level, above the grid), gated on admin edit
+// mode, with the exact §4.5 copy.
+describe('v19 AC-012 — shared-catalog edit-mode banner (live app)', () => {
+  it('AC-012 — admin entering Edit dashboard sees the banner with the exact shared-catalog copy', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(ADMIN);
+    render(<App />);
+    await dropLoading();
+    // No banner at rest (view mode).
+    expect(screen.queryByTestId('edit-mode-banner')).not.toBeInTheDocument();
+    // Enter edit mode via the Gear.
+    await user.click(screen.getByTestId('settings-gear'));
+    await user.click(screen.getByTestId('gear-edit-dashboard'));
+    const banner = screen.getByTestId('edit-mode-banner');
+    expect(banner).toHaveTextContent('Editing the shared catalog — changes affect all users');
+  });
+
+  it('AC-012 — non-admin never sees the edit-mode banner', async () => {
+    mockedMe.mockResolvedValue(USER);
+    render(<App />);
+    await dropLoading();
+    expect(screen.queryByTestId('edit-mode-banner')).not.toBeInTheDocument();
+  });
+});

@@ -118,9 +118,41 @@ describe('v12 A4/A5/A6 — non-admin sees a labeled personal section', () => {
     await open();
     const label = screen.getByTestId('menu-my-dashboard-section');
     const note = screen.getByTestId('menu-dashboard-note');
-    expect(note).toHaveTextContent(/personal dashboard/i);
     // The note follows the My Dashboard label (not floating with no heading).
     expect(precedes(label, note)).toBe(true);
+  });
+});
+
+// v19 §9 Q3 / #265 (AC-013) — the non-admin note conflated the SHARED catalog
+// with a "personal dashboard". Under the shared-catalog model (Caleb 2026-07-02)
+// tiles/categories/icons are the admin-managed shared catalog; only the
+// favoriting/arrangement layer is personal. The note must say so and must NOT
+// call the catalog a "personal dashboard". Kare's exact replacement copy is
+// asserted verbatim. The "My Dashboard" section header and "personal" scope-tag
+// are correct navigation labels and MUST stay (Kare §9 Q3 design note).
+describe('v19 #265 / AC-013 — non-admin note reflects the shared-catalog model', () => {
+  it('AC-013 — the note does not contain the phrase "personal dashboard"', async () => {
+    renderMenu(USER);
+    await open();
+    const note = screen.getByTestId('menu-dashboard-note');
+    expect(note).not.toHaveTextContent(/personal dashboard/i);
+  });
+
+  it('#265 — the note carries Kare’s exact shared-catalog copy', async () => {
+    renderMenu(USER);
+    await open();
+    const note = screen.getByTestId('menu-dashboard-note');
+    expect(note).toHaveTextContent(
+      'These tiles and categories are the shared homelab catalog, managed by your admin. Favorite the ones you use most and arrange them on your home screen.',
+    );
+  });
+
+  it('#265 — the "My Dashboard" header and "personal" scope-tag are preserved (not over-corrected)', async () => {
+    renderMenu(USER);
+    await open();
+    // Navigation labels for the per-user favorites/arrangement layer stay.
+    expect(screen.getByTestId('menu-my-dashboard-section')).toHaveTextContent(/my dashboard/i);
+    expect(within(screen.getByTestId('menu-go-dashboard')).getByText(/personal/i)).toBeInTheDocument();
   });
 });
 

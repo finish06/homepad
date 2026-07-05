@@ -516,6 +516,10 @@
   .dark .edit-mode-banner {
     background: rgba(99, 102, 241, 0.12);
     border-color: rgba(99, 102, 241, 0.25);
+    /* #163 — the light-mode label (indigo-600 #4f46e5) measured only 2.86:1 on
+       the dark banner ground (fails AA for 11px bold text). Lift to indigo-300,
+       matching the exit button's dark treatment — ~9:1 on the near-black glass. */
+    color: #a5b4fc;
   }
 
   .edit-mode-banner-label {

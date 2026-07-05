@@ -203,6 +203,27 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
         <StatusBar />
 
         <section className={`${CONTENT_WIDTH} py-6`}>
+          {/* v19 §4.5 / #277 — the shared-catalog edit warning. editMode is
+              admin-only (the Gear's "Edit dashboard" only renders for admins), and
+              an admin's rename/delete/box-width changes persist to the shared
+              catalog every user sees. The Catalog→AppGrid migration dropped the
+              old point-of-use banner; restored here at the App level, above the
+              grid, so the warning ships with the live surface. */}
+          {isAdmin && editMode && (
+            <div data-testid="edit-mode-banner" className="edit-mode-banner" role="status">
+              <span className="edit-mode-banner-label">
+                Editing the shared catalog — changes affect all users
+              </span>
+              <button
+                type="button"
+                data-testid="exit-edit-mode"
+                onClick={() => setEditMode(false)}
+                className="edit-mode-banner-exit"
+              >
+                Done
+              </button>
+            </div>
+          )}
           <AppGrid isAdmin={isAdmin} editMode={editMode} showUptimeDisplay={sysConfig.showUptimeDisplay} />
         </section>
 
