@@ -2,6 +2,15 @@
   "pending": [],
   "versions": [
     {
+      "version": "13.10.0",
+      "date": "2026-07-05",
+      "changes": [
+        { "type": "feature", "text": "Admins can now edit a tile straight from the dashboard. Turn on Edit dashboard and each app tile shows a pencil in its bottom-right corner; tap it to open an Edit tile window where you can change the tile's title, link, category, description and icon — no more digging through the admin panel. Changes save to the shared catalog everyone sees." },
+        { "type": "feature", "text": "The Edit tile window gives the icon real options: upload a light (and optional dark) PNG, paste an icon URL, or tap 'Fetch from URL' to pull the site's favicon automatically — handy for the many tiles that never had an icon set and only showed initials. Uploads and fetches apply instantly with a live preview; Remove clears back to the initials badge." },
+        { "type": "enhancement", "text": "The Edit tile window is fully keyboard- and screen-reader accessible (a proper dialog with a focus trap, focus starting on Title and returning to the pencil on close), and every control clears the 44px touch-target and contrast bars in both light and dark. Discarding unsaved changes asks for confirmation right inside the window instead of a jarring browser popup." }
+      ]
+    },
+    {
       "version": "13.9.0",
       "date": "2026-07-05",
       "changes": [
