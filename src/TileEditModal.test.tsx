@@ -180,6 +180,41 @@ describe('v21 TileEditModal — dismiss & discard (AC-011)', () => {
     confirmSpy.mockRestore();
   });
 
+  // AC-011 / #322 — "Keep editing" must return you to the editor WITHOUT saving.
+  // Root cause (found in the real-browser gate, see tile-edit-discard-322.spec):
+  // React reconciled the two .tile-edit-actions branches by position, so the
+  // <button> clicked as "Keep editing" (type=button) was REUSED and morphed into
+  // the "Save" (type=submit) button when setConfirmDiscard(false) collapsed the
+  // strip — real Chromium then activated it as a form submit and silently saved.
+  // jsdom has no activation model, so it cannot see the save; but the SAME reuse
+  // starves the strip's autoFocus (it never fires on a recycled node), which IS
+  // observable here. Keying the two rows makes React remount instead of reuse,
+  // which fixes both: autoFocus fires on the fresh node AND Chrome has no morphed
+  // node to submit. This locks the jsdom-visible half (focus lands on the safe
+  // default; nothing saves); the real Chromium save is guarded by the gate spec.
+  it('Keep editing returns to the editor and never saves the dirty tile (#322)', async () => {
+    const u = userEvent.setup();
+    const { onClose, onPatch, onToast } = renderModal();
+    await u.type(screen.getByTestId('tile-field-title'), 'DIRTY_TITLE_TEST');
+    await u.keyboard('{Escape}');
+
+    // Strip is up and the safe default owns focus (the precondition that keeps
+    // Chrome from mis-activating Save when the strip collapses).
+    const keep = screen.getByTestId('tile-discard-keep');
+    expect(screen.getByTestId('tile-discard-confirm')).toBeInTheDocument();
+    expect(document.activeElement).toBe(keep);
+
+    await u.click(keep);
+
+    // Back in the editor: strip dismissed, dirty value retained, nothing saved.
+    expect(screen.queryByTestId('tile-discard-confirm')).not.toBeInTheDocument();
+    expect(screen.getByTestId('tile-field-title')).toHaveValue('GiteaDIRTY_TITLE_TEST');
+    expect(mUpdate).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onPatch).not.toHaveBeenCalled();
+    expect(onToast).not.toHaveBeenCalled();
+  });
+
   it('Discard confirms the close', async () => {
     const u = userEvent.setup();
     const { onClose } = renderModal();
