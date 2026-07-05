@@ -2536,6 +2536,75 @@
   .dark .app-grid-tool-fav.is-favorite {
     color: #fbbf24;
   }
+  /* v21 §8.1 — per-tile pencil edit affordance. Mirrors the ★ construction (34×34
+     painted glyph + a transparent centered 44×44 ::before, zero layout shift) but
+     anchored BOTTOM-right and painted in the accent (indigo, theme-aware: #4f46e5
+     light / #818cf8 dark — the same theme-aware accent the modal uses, §8.6). It
+     rests at opacity 0.85 (more present than the ★'s 0.5 — in edit mode the pencil
+     IS the primary per-tile action) and lifts to 1 on tile hover / focus. The ★
+     (top-right) and pencil (bottom-right) share the right rail but never a row, so
+     neither steals the other's tap (34px measured gap, §8.1). */
+  .app-grid-tool-edit {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: #4f46e5;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.85;
+    touch-action: manipulation;
+    transition: color 120ms ease, background 120ms ease, opacity 120ms ease;
+  }
+  .app-grid-tool-edit::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+  }
+  .app-grid-tool-wrap:hover .app-grid-tool-edit,
+  .app-grid-tool-edit:focus-visible {
+    opacity: 1;
+  }
+  .app-grid-tool-edit:hover {
+    background: rgba(79, 70, 229, 0.1);
+    color: #4338ca;
+  }
+  .app-grid-tool-edit:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #4f46e5;
+  }
+  .dark .app-grid-tool-edit {
+    color: #818cf8;
+  }
+  .dark .app-grid-tool-edit:hover {
+    background: rgba(129, 140, 248, 0.16);
+    color: #a5b4fc;
+  }
+  .dark .app-grid-tool-edit:focus-visible {
+    box-shadow: 0 0 0 2px #818cf8;
+  }
+  /* Edit-mode tile treatment (§8.1): a 2px INSET accent ring marks each editable
+     tile — enough to read "tap to edit" without a dim/scrim that would fight the
+     icon or label (Walt's constraint). Only while the wrap is in edit mode. */
+  .app-grid-tool-wrap.is-editing .app-grid-tool {
+    outline: 2px solid #4f46e5;
+    outline-offset: -2px;
+  }
+  .dark .app-grid-tool-wrap.is-editing .app-grid-tool {
+    outline-color: #818cf8;
+  }
   /* #242 — per-tile status pip on the App Grid tool tile (SPEC-242 §5, Kare).
      9px solid circle at top-LEFT (8/8) — mirrors the favorite ★ at top-right so
      the two corner affordances never collide (D-1). pointer-events:none + absolute

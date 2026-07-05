@@ -33,6 +33,7 @@ import { boxesFromData, boxWidthPx, contentMaxPx, fitsViewport, frameContentPx, 
 import { iconSrc, initialBadge } from './icons';
 import { useServicesContext } from './services';
 import { useResolvedTheme } from './theme';
+import TileEditModal from './TileEditModal';
 
 // AppGrid (SPEC-app-grid, Amendment A1) — the primary dashboard layout: glass
 // boxes (= categories) that pack left→right with flex-wrap. Each box's width
@@ -87,6 +88,19 @@ export default function AppGrid({
   // Catalog category reorder — §10/A7).
   const [announce, setAnnounce] = useState('');
   const viewportWidth = useViewportWidth();
+  const gridTheme = useResolvedTheme();
+  // v21 — the tile whose edit modal is open (with the pencil that opened it, for
+  // focus return, AC-013), plus a small imperative toast for Save success/error
+  // (AC-014/015). editMode is admin-only upstream, so the pencil never renders
+  // for a non-admin — the modal is unreachable without the affordance.
+  const [editTarget, setEditTarget] = useState<{ service: Service; opener: HTMLElement | null } | null>(null);
+  const [toast, setToast] = useState<{ msg: string; kind: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // Sensors for box drag-to-reorder (Edit Dashboard). Pointer with an 8px
   // activation so a click on a width button still registers; touch with a
@@ -132,6 +146,25 @@ export default function AppGrid({
       else setOwnSvcs((cur) => (cur ? updater(cur) : cur));
     },
     [ctx],
+  );
+
+  // v21 — open the edit modal for a tile, remembering the pencil that opened it.
+  const openEdit = useCallback(
+    (service: Service, opener: HTMLElement | null) => setEditTarget({ service, opener }),
+    [],
+  );
+  // Close and return focus to the opening pencil (AC-013), after the modal unmounts.
+  const closeEdit = useCallback(() => {
+    const opener = editTarget?.opener;
+    setEditTarget(null);
+    if (opener) requestAnimationFrame(() => opener.focus());
+  }, [editTarget]);
+  // Merge a saved/live change into the shared service so the tile updates inline
+  // without a reload (AC-004/007/009) — the same array the launcher reads (§3/A12).
+  const patchService = useCallback(
+    (id: string, partial: Partial<Service>) =>
+      updateSvcs((list) => list.map((s) => (s.id === id ? { ...s, ...partial } : s))),
+    [updateSvcs],
   );
 
   // #240 — per-tile favorite toggle (restores the control the old Catalog ⋯ menu
@@ -295,17 +328,17 @@ export default function AppGrid({
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext items={sortableBoxes.map((b) => b.id)} strategy={rectSortingStrategy}>
                 {sortableBoxes.map((box) => (
-                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
+                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
                 ))}
               </SortableContext>
             </DndContext>
             {uncatBox && (
-              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(uncatBox.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
+              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(uncatBox.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
             )}
           </>
         ) : (
           boxes.map((box) => (
-            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
+            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
           ))
         )}
         {addButton}
@@ -315,6 +348,32 @@ export default function AppGrid({
         {announce}
       </div>
       {addOpen && <AddBoxModal onCreate={onCreate} onClose={() => setAddOpen(false)} />}
+      {editTarget && (
+        <TileEditModal
+          service={editTarget.service}
+          categories={cats}
+          theme={gridTheme}
+          onClose={closeEdit}
+          onPatch={(partial) => patchService(editTarget.service.id, partial)}
+          onToast={(msg, kind) => setToast({ msg, kind })}
+        />
+      )}
+      {/* v21 — Save success / error toast (AC-014/015). Bottom-right, auto-dismiss;
+          same visual family as the cap5 status toasts. */}
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-[60] pointer-events-none">
+          <div
+            role="status"
+            aria-live={toast.kind === 'error' ? 'assertive' : 'polite'}
+            data-testid="tile-toast"
+            className={`toast-item pointer-events-auto min-w-56 max-w-xs rounded border-l-4 ${
+              toast.kind === 'error' ? 'border-red-500' : 'border-emerald-500'
+            } bg-white px-4 py-3 text-sm font-medium text-neutral-900 shadow-lg dark:bg-neutral-800 dark:text-neutral-100`}
+          >
+            {toast.msg}
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -343,6 +402,7 @@ function BoxCard({
   lone,
   onWidth,
   onToggleFavorite,
+  onEdit,
   onRename,
   onDelete,
   showUptimeDisplay,
@@ -355,6 +415,7 @@ function BoxCard({
   lone: boolean;
   onWidth: (id: string, width: number) => void;
   onToggleFavorite: (id: string) => void;
+  onEdit: (service: Service, opener: HTMLElement | null) => void;
   onRename: (id: string, name: string) => Promise<true | string>;
   onDelete: (id: string) => Promise<boolean>;
   showUptimeDisplay: boolean;
@@ -555,7 +616,7 @@ function BoxCard({
       ) : (
         <div className="app-grid-tools" data-testid="box-tools">
           {box.tools.map((s) => (
-            <ToolLink key={s.id} service={s} theme={theme} onToggleFavorite={onToggleFavorite} showUptimeDisplay={showUptimeDisplay} />
+            <ToolLink key={s.id} service={s} theme={theme} editing={editing} onToggleFavorite={onToggleFavorite} onEdit={onEdit} showUptimeDisplay={showUptimeDisplay} />
           ))}
         </div>
       )}
@@ -574,6 +635,7 @@ function SortableBox({
   lone,
   onWidth,
   onToggleFavorite,
+  onEdit,
   onRename,
   onDelete,
   showUptimeDisplay,
@@ -585,6 +647,7 @@ function SortableBox({
   lone: boolean;
   onWidth: (id: string, width: number) => void;
   onToggleFavorite: (id: string) => void;
+  onEdit: (service: Service, opener: HTMLElement | null) => void;
   onRename: (id: string, name: string) => Promise<true | string>;
   onDelete: (id: string) => Promise<boolean>;
   showUptimeDisplay: boolean;
@@ -600,6 +663,7 @@ function SortableBox({
       lone={lone}
       onWidth={onWidth}
       onToggleFavorite={onToggleFavorite}
+      onEdit={onEdit}
       onRename={onRename}
       onDelete={onDelete}
       showUptimeDisplay={showUptimeDisplay}
@@ -678,19 +742,25 @@ function UptimeWindowsLine({ windows }: { windows?: Record<string, number> }) {
 function ToolLink({
   service,
   theme,
+  editing,
   onToggleFavorite,
+  onEdit,
   showUptimeDisplay,
 }: {
   service: Service;
   theme: 'light' | 'dark';
+  // v21 — admin edit mode: render the pencil affordance + mark the tile editable.
+  editing: boolean;
   onToggleFavorite: (id: string) => void;
+  onEdit: (service: Service, opener: HTMLElement | null) => void;
   showUptimeDisplay: boolean;
 }) {
   const fav = service.favorite;
   // SPEC-242 D-4 — one-shot pulse when this tile's status changes on a live poll.
   const pulsing = useStatusPulse(service.status);
+  const editRef = useRef<HTMLButtonElement>(null);
   return (
-    <div className="app-grid-tool-wrap">
+    <div className={`app-grid-tool-wrap${editing ? ' is-editing' : ''}`}>
       {/* SPEC-242 §5 — per-tile status pip. A SIBLING of the <a> (not nested), so
           it stays out of the anchor's accessible name — its own aria-label carries
           the status independently (D-1 DOM). top-LEFT at 8/8 mirrors the favorite ★
@@ -744,6 +814,29 @@ function ToolLink({
       >
         {fav ? '★' : '☆'}
       </button>
+      {/* v21 §8.1 — per-tile pencil edit affordance. A SIBLING of the <a> (like
+          the ★ and status pip), painted BOTTOM-right so it pairs with the ★
+          (top-right) and never shares a row/tap with it. Rendered ONLY in admin
+          edit mode (editing) — absent from the DOM otherwise (AC-001), no
+          zero-opacity ghost. Opens the edit modal for this tile and hands its own
+          element up as the focus-return target (AC-013). */}
+      {editing && (
+        <button
+          type="button"
+          ref={editRef}
+          className="app-grid-tool-edit"
+          data-testid="tile-edit"
+          aria-label={`Edit ${service.name}`}
+          title="Edit tile"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onEdit(service, editRef.current);
+          }}
+        >
+          ✎
+        </button>
+      )}
     </div>
   );
 }
