@@ -3,7 +3,7 @@
 **Spec ID:** v20-fav-star-a11y
 **Created:** 2026-07-05
 **Author:** Walt (product lead)
-**Status:** Draft — awaiting Kare design §8. Stitch: do not build until §8 and both sign-offs are present.
+**Status:** Approved — both sign-offs present (Walt + Kare, 2026-07-05). Stitch: cleared to build.
 **Repo:** `Code/homepad` (frontend only — CSS + AppGrid.tsx only, no API changes)
 **Estimate:** ~1 hour Stitch
 **Target version:** v13.9.0 (minor — first available after v19 ships at v13.8.0)
@@ -166,9 +166,9 @@ The dark-mode rule (`.dark .app-grid-tool-fav { color: #64748b; }`) is untouched
 
 ## 7. Definition of Done
 
-- [ ] `specs/v20-fav-star-a11y.md` merged to `main`
-- [ ] Kare design §8 written and Kare sign-off present in this file
-- [ ] Walt sign-off present in this file (below)
+- [x] `specs/v20-fav-star-a11y.md` merged to `main`
+- [x] Kare design §8 written and Kare sign-off present in this file
+- [x] Walt sign-off present in this file (below)
 - [ ] `feat(v20)` PR merged — closes #255, `CHANGELOG.md` entry for v13.9.0
 - [ ] AC-001 through AC-005 verified green by QA pool
 - [ ] PAT passed (Walt) — prod vote cast

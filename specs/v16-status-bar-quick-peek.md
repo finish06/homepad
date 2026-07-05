@@ -3,7 +3,7 @@
 **Version:** 0.1.0
 **Created:** 2026-06-26
 **Author:** Walt (product lead)
-**Status:** Ready for implementation
+**Status:** Shipped — v12.0.0 (2026-06-26, PR #153)
 **Repo:** `Code/homepad` (frontend only — no backend changes)
 
 ---
