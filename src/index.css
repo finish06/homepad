@@ -2751,6 +2751,396 @@
      fixed-190 invariant is a >640px property; on phones killing horizontal scroll
      outranks pixel-perfect width. Breakpoint is 640px, not v14's 767 — the desktop
      auto-fill track already wraps 190px tiles natively at 768 (§6.7). */
+
+  /* ============================================================
+     v21 — Tile Edit Modal (spec §8.2–8.6, Kare; every value measured @ iPad 768
+     light+dark). Scrim + centered card, sticky header/footer with only the field
+     region scrolling so Save is always reachable. Every input/button ≥44px
+     (§8.6). Three forced dark-mode token decisions are baked in:
+       1. primary CTA stays indigo-600 #4f46e5 + white in BOTH themes (dark must
+          NOT lighten to indigo-500 — that drops white-on-fill to 4.47:1, a fail).
+       2. accent (ghost label / ✕ / focus ring / edit ring / pencil) is theme-
+          aware: #4f46e5 light, #818cf8 dark (indigo-600 is only 4.47:1 on the
+          dark surface).
+       3. control border is theme-aware #8c8c8c light / #808080 dark (never the
+          2.52:1 neutral-400 #a3a3a3).
+     ============================================================ */
+  .tile-edit-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.5); /* scrim token */
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .tile-edit-overlay {
+      animation: tile-edit-scrim 160ms ease-out;
+    }
+    .tile-edit-modal {
+      animation: tile-edit-rise 160ms ease-out;
+    }
+  }
+  @keyframes tile-edit-scrim {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes tile-edit-rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .tile-edit-modal {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    background: #ffffff;
+    color: #171717;
+    border-radius: 16px;
+    box-shadow: 0 24px 60px -12px rgba(16, 24, 40, 0.35), 0 0 0 1px rgba(16, 24, 40, 0.05);
+    overflow: hidden;
+  }
+  .dark .tile-edit-modal {
+    background: #1c1c1e;
+    color: #f5f5f5;
+    box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  }
+  /* Sticky header (title + scope subtitle + ✕) — never scrolls away. */
+  .tile-edit-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 20px 12px;
+    background: inherit;
+  }
+  .tile-edit-title-h {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: #171717;
+  }
+  .dark .tile-edit-title-h {
+    color: #f5f5f5;
+  }
+  .tile-edit-subtitle {
+    margin: 2px 0 0;
+    font-size: 14px;
+    line-height: 1.3;
+    color: #616161; /* secondary — 4.74:1 on white */
+  }
+  .dark .tile-edit-subtitle {
+    color: #b3b3b3; /* 6.75:1 on #1c1c1e */
+  }
+  .tile-edit-close {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #404040; /* label token — 10.37:1 */
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .dark .tile-edit-close {
+    color: #e5e5e5; /* 13.51:1 */
+  }
+  .tile-edit-close:hover {
+    background: rgba(15, 23, 42, 0.06);
+  }
+  .dark .tile-edit-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .tile-edit-close:focus-visible {
+    outline: 2px solid #4f46e5;
+    outline-offset: 2px;
+  }
+  .dark .tile-edit-close:focus-visible {
+    outline-color: #818cf8;
+  }
+  /* Only the field region scrolls (§8.2). */
+  .tile-edit-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 8px 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .tile-edit-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .tile-edit-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #404040; /* 10.37:1 */
+  }
+  .dark .tile-edit-label {
+    color: #e5e5e5; /* 13.51:1 */
+  }
+  .tile-edit-input {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 44px; /* §8.6 — fixes the DS §3.3 38px input miss */
+    padding: 10px 12px;
+    font-size: 15px;
+    color: #171717;
+    background: #ffffff;
+    border: 1px solid #8c8c8c; /* control-border light — 3.36:1 */
+    border-radius: 8px;
+  }
+  .dark .tile-edit-input {
+    color: #f5f5f5;
+    background: #141416;
+    border-color: #808080; /* control-border dark — 4.31:1 */
+  }
+  .tile-edit-input:focus-visible {
+    outline: 2px solid #4f46e5;
+    outline-offset: 1px;
+    border-color: #4f46e5;
+  }
+  .dark .tile-edit-input:focus-visible {
+    outline-color: #818cf8;
+    border-color: #818cf8;
+  }
+  .tile-edit-textarea {
+    min-height: 76px; /* §8.6 — the one multi-line field */
+    resize: vertical;
+    font-family: inherit;
+    line-height: 1.4;
+  }
+  .tile-edit-help {
+    margin: 2px 0 0;
+    font-size: 13px;
+    line-height: 1.35;
+    color: #525252; /* helper — 7.81:1 */
+  }
+  .dark .tile-edit-help {
+    color: #d4d4d4; /* 11.48:1 */
+  }
+  /* Icon compound panel (§8.3). */
+  .tile-icon-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 12px;
+  }
+  .dark .tile-icon-panel {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+  .tile-icon-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .tile-icon-preview {
+    position: relative;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px; /* exceeds the ≥48 floor (§8.3) */
+    height: 64px;
+    border-radius: 12px;
+    background: #f5f5f5; /* preview-bg light */
+    border: 1px solid #8c8c8c; /* definition ring — 3.08:1 */
+    overflow: hidden;
+  }
+  .dark .tile-icon-preview {
+    background: #2a2a2c; /* preview-bg dark */
+    border-color: #808080; /* 3.63:1 */
+  }
+  .tile-icon-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .tile-icon-preview.is-busy img {
+    opacity: 0.35;
+  }
+  .tile-icon-spinner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.35);
+    text-align: center;
+  }
+  .tile-icon-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 140px;
+  }
+  .tile-icon-url-field {
+    width: 100%;
+  }
+  .tile-icon-remove-confirm {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  /* Buttons — all ≥44 (§8.6, fixing the DS §3.2 36px miss). */
+  .tile-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .tile-edit-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .tile-edit-btn:focus-visible {
+    outline: 2px solid #4f46e5;
+    outline-offset: 2px;
+  }
+  .dark .tile-edit-btn:focus-visible {
+    outline-color: #818cf8;
+  }
+  .tile-edit-btn-primary {
+    background: #4f46e5; /* indigo-600 — white-on-fill 6.29:1 in BOTH themes */
+    color: #ffffff;
+  }
+  .dark .tile-edit-btn-primary {
+    background: #4f46e5; /* decision 1 — do NOT lighten in dark */
+    color: #ffffff;
+  }
+  .tile-edit-btn-primary:hover:not(:disabled) {
+    background: #4338ca;
+  }
+  .tile-edit-btn-secondary {
+    background: #f0f0f0;
+    color: #171717; /* 16.44:1 */
+  }
+  .dark .tile-edit-btn-secondary {
+    background: #2f2f31;
+    color: #f5f5f5; /* 13.14:1 */
+  }
+  .tile-edit-btn-ghost {
+    background: transparent;
+    color: #4f46e5; /* accent light — 6.29:1 */
+    border-color: #8c8c8c;
+  }
+  .dark .tile-edit-btn-ghost {
+    color: #818cf8; /* accent dark — 5.70:1 (decision 2) */
+    border-color: #808080;
+  }
+  .tile-edit-btn-danger-outline {
+    background: transparent;
+    color: #b42318; /* danger — 6.47:1 */
+    border-color: #b42318;
+  }
+  .dark .tile-edit-btn-danger-outline {
+    color: #f87171; /* 6.15:1 */
+    border-color: #f87171;
+  }
+  /* Low-emphasis text buttons (Remove / Keep). */
+  .tile-edit-btn-text {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 4px;
+    font-size: 14px;
+    font-weight: 600;
+    background: transparent;
+    border: none;
+    color: #525252;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .tile-edit-btn-text.is-danger {
+    color: #b42318; /* 6.47:1 */
+  }
+  .dark .tile-edit-btn-text {
+    color: #d4d4d4;
+  }
+  .dark .tile-edit-btn-text.is-danger {
+    color: #f87171; /* 6.15:1 */
+  }
+  .tile-edit-btn-text:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .tile-edit-icon-error,
+  .tile-edit-error {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: #b42318; /* danger — ≥4.5:1 both themes */
+  }
+  .dark .tile-edit-icon-error,
+  .dark .tile-edit-error {
+    color: #f87171;
+  }
+  /* Sticky action bar (§8.2) — always reachable; morphs into the discard strip. */
+  .tile-edit-actions {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 12px 20px 16px;
+    background: inherit;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+  }
+  .dark .tile-edit-actions {
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+  .tile-edit-discard {
+    justify-content: space-between;
+  }
+  .tile-edit-discard-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #171717;
+  }
+  .dark .tile-edit-discard-text {
+    color: #f5f5f5;
+  }
   @media (max-width: 640px) {
     /* Guardrail AC-G1 (unchanged behavior) — below 640px boxes stack full-width.
        The Phase-1 grow model sets an explicit flex-basis (--floor), which wins over
