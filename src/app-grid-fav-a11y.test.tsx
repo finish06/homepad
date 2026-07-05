@@ -60,8 +60,9 @@ describe('v20 — favorite ★ touch target & contrast (#255)', () => {
 
   it('AC-001 — .app-grid-tool-fav declares touch-action: manipulation', () => {
     // Kills the 300ms double-tap-zoom delay so a corner tap fires instantly.
-    const body = ruleBody('.app-grid-tool-fav {');
-    expect(computed(body, 'touch-action')).toBe('manipulation');
+    // jsdom's getComputedStyle does not resolve `touch-action`, so assert the
+    // declaration against the CSS source text.
+    expect(ruleBody('.app-grid-tool-fav {')).toMatch(/touch-action:\s*manipulation/);
   });
 
   it('AC-002 — the visual glyph stays ≤20px (expanded area is transparent, not a bigger glyph)', () => {
