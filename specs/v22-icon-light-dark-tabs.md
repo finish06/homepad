@@ -3,7 +3,7 @@
 **Spec ID:** v22-icon-light-dark-tabs
 **Created:** 2026-07-05
 **Author:** Walt (product lead)
-**Status:** Draft — awaiting Kare §8 design section
+**Status:** Draft — Kare §8 authored + DESIGN GO (2026-07-05); awaiting Stitch build (blocked on v21 landing first)
 **Repos:** `Code/homepad` (UI only — no backend changes required)
 **Estimate:** ~3–4 hours Stitch
 **Target version:** v13.11.0 (feature = minor; v21 ships as v13.10.0)
@@ -224,39 +224,201 @@ subsection is moot for v22; simply note it here for when fetch-favicon ships.
 
 ## 8. Design Section
 
-*This section is owned by Kare. It is **required** before this spec is final and
-before Stitch builds.*
+**Owner:** Kare (design/UX). **Status:** DESIGN GO — 2026-07-05.
 
-Kare's design section must address:
+Every number below is **measured**, not eyeballed. v22 changes only the icon section of
+the v21 `TileEditModal`, so this section builds directly on the v21 §8 co-sign and reuses
+its exact tokens (`v21-mock.html`); it changes nothing about the modal chrome, the pencil
+affordance, the text fields, or the Save/Cancel/discard flow — all of that is inherited
+unchanged from v21 §8. I built the new tabbed icon section as a token-accurate mock
+(`v22-mock.html`, three states: light-active/filled, dark-active/empty, dark-inherits-light
++ inline remove-confirm), rendered it in headless Chromium at **iPad portrait 768, `dsf=2`,
+light and dark**, and read the computed contrast + `getBoundingClientRect` touch boxes off
+the live DOM (`v22-measure.js` → `v22-measure-{light,dark}.json`, screenshots
+`v22-tabs-{light,dark}.png`). This is a **spec-time co-sign**; the same measurements re-run
+on Stitch's built UI at PR review before the design gate closes on the shipped code.
 
-1. **Tab strip visual treatment** — active vs. inactive tab state (color, underline,
-   border, background). How does the tab strip sit within the modal's overall
-   hierarchy? Pill tabs, underline tabs, or segmented control?
+### 8.1 Tab strip — a segmented control (not underline/pill)
 
-2. **Per-tab icon preview** — size (≥ 48×48 px per v21 floor), shape, border
-   treatment. Does the preview carry a label ("Light preview" / "Dark preview") or
-   is the tab label sufficient?
+**Choice: a segmented control**, not underline tabs and not floating pills. Reasoning: there
+are exactly **two, mutually-exclusive modes** — a segmented control is the idiom that says
+"pick one of these two," it fills the panel width edge-to-edge (no wasted rail like pills),
+its segments are naturally large touch targets, and it matches the iOS/iPad idiom on an
+iPad-first homelab. Underline tabs read as "sections of a larger surface" (wrong signal for a
+binary toggle) and their active indicator is a thin 2px line that's easy to miss; pills float
+and waste the panel width. The segmented control keeps the tab semantics required by §6.1 —
+**the ARIA roles (`tablist`/`tab`/`tabpanel`) are independent of the visual treatment**, so
+this is still a WAI-ARIA tablist with automatic arrow-key activation, just styled as a segment.
 
-3. **Empty-state per tab** — when a variant has no uploaded PNG and no URL fallback,
-   what does the preview area show? (Initials badge is the data-model fallback, but
-   should there also be an explicit empty-state affordance — e.g., dashed border
-   with "No icon set"?)
+**Where it sits in the hierarchy:** the segmented strip is the **topmost element inside the
+v21 icon compound panel** (§8.3 of v21 — the bordered sub-block, `radius-md`, 1px `border-soft`).
+The panel remains the "one grouped unit" it was in v21; v22 only reorganises its *interior* into
+strip → tabpanel → shared URL field. It does **not** promote the icon controls to a top-level
+modal region — the modal's field stack (Title → URL → Category → **Icon panel** → Description)
+is unchanged from v21 §8.2.
 
-4. **URL fallback field placement and labelling** — it sits below the tabpanel.
-   Visual separator, label copy, helper text. How prominent should it be relative to
-   the tab content above it?
+**Visual treatment (theme-aware, measured):**
 
-5. **Remove icon confirmation pattern** — within each tab. Native `confirm()` or
-   inline state (consistent with whatever v21 decides in its §8)?
+- **Track (the well):** the strip is a `--seg-track` well (`#e5e5e5` light / `#101012` dark),
+  `radius-md`, 4px inner padding, holding two equal 50%-width segments.
+- **Active segment:** a **raised thumb** (`--seg-thumb` `#ffffff` light / `#26262a` dark) with a
+  soft `0 1px 2px rgba(0,0,0,.12)` lift, a **1.5px accent border** (theme-aware indigo `#4f46e5`
+  light / `#818cf8` dark — the v21 accent token), an **accent label** at 15/**600**, and a filled
+  leading status dot. Active is distinguished by **four independent cues — raised fill, accent
+  border, accent color, and weight — never color alone.**
+- **Inactive segment:** transparent (shows the track), label in the `helper` token
+  (`#525252` / `#d4d4d4`) at 15/500, a dimmed dot. Both segments carry a 1.5px *transparent*
+  border so switching active↔inactive causes **zero layout shift**.
+- **The active indicator per the §6.4 ≥3:1 rule is the accent border + accent label**, not the
+  thumb fill. Measured **accent border vs the inactive track: 4.99:1 light / 6.37:1 dark**;
+  **accent label vs the thumb: 6.29:1 light / 5.05:1 dark** — both clear ≥3, and the label clears
+  ≥4.5 as text. (The raised white/elevated thumb fill is a *secondary* elevation cue — it is only
+  ~1.26:1 vs the track and is deliberately **not** the accessibility-load-bearing indicator, the
+  same "faint fill needs a defining ring" reasoning v21 used for the icon preview and the #242
+  status pip.)
 
-6. **Fetch-favicon button** (if included) — one button per tab, or shared? Loading
-   and success/failure treatment within the tab.
+### 8.2 Per-tab icon preview
 
-7. **Component mapping** — which design-system (`Code/design-system`) components
-   map to the tab strip, tabpanel wrapper, and per-tab controls?
+- **Size 64×64** (reused verbatim from v21 §8.3 — exceeds the ≥48 floor), `radius-md`, on the
+  neutral `preview-bg` (`#f5f5f5` light / `#2a2a2c` dark) with the **1px definition border**
+  (measured **3.08:1 light / 3.63:1 dark**, ≥3) so a white/transparent PNG still reads a boundary.
+- **No redundant "Light preview" / "Dark preview" caption.** The active tab already names the mode,
+  and the tabpanel is `aria-labelledby` its tab — a caption would just repeat it. The meaning that a
+  caption *would* add (which variant is actually resolving, and the fallback story) is carried more
+  precisely by the empty-state and inherit-note in §8.3, which say *why* the preview looks the way it
+  does. For screen readers the preview `<img>` carries a **variant-specific `alt`**, e.g.
+  *"Light-mode icon preview"* / *"Dark-mode icon preview"*, so the mode is announced without visible
+  chrome.
+- Live/optimistic update is unchanged from v21: the preview updates the moment that tab's variant
+  changes (upload success / remove confirmed), scoped to the **currently visible tab** only (§5.4).
 
-8. **Touch and contrast compliance** — confirm ≥ 44 px for tabs and all per-tab
-   buttons; contrast floors for active/inactive tab indicator and all text.
+### 8.3 Empty-state per tab — explicit, not a bare initials badge
+
+The initials badge is the *dashboard* fallback; inside the editor it reads as "an icon is set,"
+which is misleading when the variant is actually empty. So the preview area is a **designed state**,
+one of three:
+
+1. **Has a PNG for this variant** → renders it (64×64 on the definition border).
+2. **No PNG for this variant, but the other variant or the URL resolves** → renders the resolved
+   fallback icon at **reduced emphasis (`opacity .7`)** with an inline note *"No dark PNG — showing
+   the light icon."* (or *"…showing the URL fallback."*). This is the honest state: it shows *exactly*
+   what the tile will render and *why*, so the admin isn't fooled into thinking dark is configured
+   when it's inheriting. Note in the `secondary` token (measured **4.74:1 light / 6.75:1 dark**).
+3. **Truly empty — no PNG for this variant, no other variant, no URL** → an **explicit empty-state**:
+   the 64×64 box becomes a **1.5px dashed border** (measured **3.36:1 light / 4.31:1 dark**, ≥3) with
+   a muted placeholder glyph and **"No icon set"** (`helper` token, measured **7.81:1 light / 11.48:1
+   dark**), plus a one-line consequence hint *"Tile will show its initials badge in [light/dark]
+   theme."* This tells the admin it's empty **and** what the live dashboard will do — Principle 5,
+   every state designed.
+
+### 8.4 URL fallback field — below the tabpanel, deliberately quieter
+
+The shared `services.icon` URL field sits **below the tabpanel, separated by a full-width 1px
+`border-soft` divider with 16px padding above and below** — the divider is the visual signal that
+this control is **outside** the active tab and applies to *both* modes, not to the tab above it.
+
+- **Label copy:** **"URL fallback"** with a small **`both modes`** outline pill immediately to its
+  right (accent-outlined, measured label 6.29:1 / 5.70:1) — the pill makes the shared scope legible
+  at a glance without a sentence. Helper beneath: *"Used when no PNG is uploaded for a mode."*
+  (`helper` token, **7.81:1 / 11.48:1**) — states the `iconSrc()` precedence in plain language.
+- **Prominence:** deliberately **lower than the tab content**. It is the tertiary link in the
+  `iconSrc()` chain (PNG → other variant → URL → initials), so it's a single full-width input with a
+  quiet helper, no accent fill — calmer than the active tab's Upload/Fetch controls above the divider.
+  This matches the data model (§5.3, §2): one shared column, not two, so it must not look like it lives
+  "inside" either tab.
+- Submitted with the main Save PATCH, unchanged from v21 §6.2 / AC-005.
+
+### 8.5 Remove-icon confirmation — inline, variant-specific, **never native `confirm()`**
+
+Consistent with **v21 §8.4** (which chose inline confirm for the discard flow), remove uses an
+**inline in-panel confirm**, never `window.confirm()`. Native confirm is unstyleable (fails the DS
+type/contrast), yanks focus out of the trapped dialog (fights v21's §6.4 focus-trap), and reads as a
+foreign OS artifact (Principle 8).
+
+Tapping **"Remove [light/dark] icon"** transforms that control **in place** into a confirm strip —
+message **"Remove light icon?"** / **"Remove dark icon?"** (variant-specific so there is zero
+ambiguity about which blob is cleared) with **Keep** (secondary, **receives focus — the safe
+default**) + **Remove** (danger-outline). Esc / blur = "Keep." The strip is `role="alert"` so the
+prompt is announced. It transforms **only the active tab's** control; the other tab is untouched
+(§5.2 — per-tab, non-destructive to the other variant, AC-004). Removes fire immediately (not
+deferred to Save), unchanged from v21 §6.3.
+
+### 8.6 Fetch-favicon (stretch) — **one button per tab**, shared in-panel busy language
+
+- **Per tab, not shared.** The endpoint is `?variant=light|dark` (§6.4), so each tab's Fetch stores
+  into *its own* variant. The tab already **is** the variant selector, so a single shared Fetch button
+  would need a redundant second mode picker. One ghost **"Fetch from URL"** (with a small download
+  glyph) lives in each tab's control stack, ≥44px.
+- **Disabled when the shared URL field is empty** (nothing to fetch from) — rendered `disabled` +
+  `aria-disabled="true"` + `title="Enter a URL first"`, a *reasoned* disabled state, not a silent dead
+  button (same as v21 §8.5).
+- **Loading / success / failure = the v21 §8.5 in-panel language, scoped to the active tab's preview:**
+  on tap the preview shows the busy overlay (spinner + "Fetching…"), the button disables; on success
+  the preview cross-fades (120ms) to the fetched icon + inline **"Favicon added ✓"** (success token)
+  that fades after ~2s; on failure an inline danger-token line *"Couldn't fetch a favicon from this
+  URL."* under the panel, existing icon unchanged (§7 / v21 §7.4). **No global toast** — a fetch isn't
+  the Save, so feedback stays local. *If v21 deferred fetch-favicon, this subsection is moot for v22
+  (§7) and the control simply doesn't render — the tab strip, upload, remove, and URL fallback stand
+  on their own.*
+
+### 8.7 Component mapping (`Code/design-system`)
+
+| v22 part | Design-system source |
+|---|---|
+| **Tab strip (segmented control)** | **New pattern.** The DS has no tab/segmented component yet (§3.4 covered only menus/overlays; v21 added the dialog). v22 introduces the **canonical segmented / tabbed control** — `--seg-track` well on `surface-sunken` (§1.1), `radius-md` (§1.4), the theme-aware **accent** indicator + label (the v21 accent fold-in: `#4f46e5` light / `#818cf8` dark). I fold it back into the DS in the same breath (drift rule). |
+| **Tabpanel wrapper** | The **v21 icon compound panel** (v21 §8.3) — bordered sub-block, `radius-md`, 1px `border-soft` — reused, now hosting strip → panel → URL field. |
+| **Per-tab preview** | Tile/card treatment (§3.1) at `radius-md` + the #242 "faint fill needs a ≥3:1 definition ring" rule — identical to v21. |
+| **Empty-state (dashed box + "No icon set")** | **New small affordance** (Principle 5). Dashed variant of the preview box; folded into the DS empty-state guidance alongside the DS v1.1 states work. |
+| **Per-tab controls** (Upload / Fetch / Remove) | Button patterns §3.2 — **Upload** = secondary fill; **Fetch** = ghost/accent; **Remove** = destructive text — all ≥44 (the §3.2 36px miss stays fixed). Inherited from v21. |
+| **Inline remove-confirm** | Reuses the **v21 inline-confirm-strip** pattern (v21 §8.4 fold-in) — Keep (secondary) + destructive-outline. |
+| **URL fallback field + `both modes` pill** | Input pattern §3.3 at `min-height:44`; the pill is a new lightweight **scope badge** (accent-outline) folded into the DS badge set. |
+
+**Design-system fold-ins produced by this spec** (landed in `Code/design-system` so the doc never
+drifts): the **segmented/tabbed control** component (a genuinely new pattern), the **preview
+empty-state** affordance, and the **scope-badge** pill. All three reuse existing v21 tokens — no new
+color tokens are introduced.
+
+### 8.8 Touch & contrast compliance — **measured** (iPad portrait 768, light + dark)
+
+**Touch targets — all interactive elements ≥44, zero fails in either theme:**
+
+| Element | Measured | Reaches ≥44 by |
+|---|---|---|
+| **Light Mode / Dark Mode tabs** | **179 × 48** each | 50%-width segment, `min-height:48` |
+| Upload PNG | **286 × 44** | `min-height:44` button |
+| Fetch from URL | ≥44 tall | `min-height:44` (disabled state keeps the box) |
+| Remove [light/dark] icon | ≥44 tall | `min-height:44` danger-text |
+| Keep / Remove (confirm strip) | **74 × 44** / ≥44 | `min-height:44` |
+| Icon-URL input | **44** tall | `min-height:44` input (v21 §3.3 fix) |
+
+**Contrast — measured ratio (light / dark) vs floor:**
+
+| Element | Token | Light | Dark | Floor |
+|---|---|---|---|---|
+| Active tab label | accent | **6.29** | **5.05** | 4.5 ✅ |
+| Inactive tab label | helper | **6.20** | **12.82** | 4.5 ✅ |
+| **Active-tab indicator (accent border) vs inactive track** | accent | **4.99** | **6.37** | 3 ✅ |
+| `both modes` scope pill | accent | **6.29** | **5.70** | 4.5 ✅ |
+| URL-fallback label | label | **10.37** | **13.51** | 4.5 ✅ |
+| Helper text | helper | **7.81** | **11.48** | 4.5 ✅ |
+| Empty-state "No icon set" | helper | **7.81** | **11.48** | 4.5 ✅ |
+| Empty-state dashed border | border | **3.36** | **4.31** | 3 ✅ |
+| Inherit note ("showing the light icon") | secondary | **4.74** | **6.75** | 4.5 ✅ |
+| Upload (secondary) label | ink on surface-2 | **16.44** | **13.14** | 4.5 ✅ |
+| Fetch (ghost) label | accent | **6.29** | **5.70** | 4.5 ✅ |
+| Remove / confirm danger | danger | **6.47** | **6.15** | 4.5 ✅ |
+| Keep-confirm label | ink on surface-2 | **16.44** | **13.14** | 4.5 ✅ |
+| Confirm-strip message | ink | **17.93** | **15.61** | 4.5 ✅ |
+| Icon-preview definition border | border | **3.08** | **3.63** | 3 ✅ |
+
+**Token note (fold into the DS with the segmented control):** the **active indicator is the accent
+border + accent label**, both theme-aware (`#4f46e5` light / `#818cf8` dark, the v21 accent fold-in) —
+in dark, indigo-600 alone would only clear ~4.47 as a label, so the segmented control uses the same
+indigo-400 correction v21 already logged. The raised-thumb fill is an elevation cue only and is
+intentionally **not** the ≥3:1 indicator.
+
+**Artifacts:** `v22-mock.html`, `v22-measure.js`, `v22-measure-{light,dark}.json`,
+`v22-tabs-{light,dark}.png` (in `/home/kare/work`).
 
 ---
 
@@ -335,6 +497,10 @@ to Save). Modal close behaviour is identical to v21.
 | Seat | Sign-off | Date |
 |---|---|---|
 | Walt (product) | ✅ APPROVED — 2026-07-05 | |
-| Kare (design) | ⬜ Awaiting §8 design section | |
+| Kare (design) | ✅ DESIGN GO — §8 authored, measured @ iPad 768 light+dark (`v22-tabs-{light,dark}.png`); segmented tablist, all touch ≥44, all contrast ≥ floor both themes | 2026-07-05 |
 
-**Cleared to build:** No — awaiting Kare §8 design section and sign-off.
+**Cleared to build:** Yes from a design standpoint — both sign-offs present (Walt product ✅ +
+Kare design ✅). **Build prerequisite still binds:** v21 (`v21-tile-edit-modal`) must land first —
+v22 refactors the icon section v21 introduces (§0 Prerequisite). This is a **spec-time co-sign**; a
+built-UI design co-sign re-runs the §8.8 measurements on Stitch's PR before the design gate closes on
+shipped code.
