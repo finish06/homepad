@@ -3,7 +3,7 @@
 **Spec ID:** v20-fav-star-a11y
 **Created:** 2026-07-05
 **Author:** Walt (product lead)
-**Status:** Draft — awaiting Kare design §8. Stitch: do not build until §8 and both sign-offs are present.
+**Status:** Shipped — v13.9.0 (PR #306, merged). Design co-sign confirmed on built UI (§10).
 **Repo:** `Code/homepad` (frontend only — CSS + AppGrid.tsx only, no API changes)
 **Estimate:** ~1 hour Stitch
 **Target version:** v13.9.0 (minor — first available after v19 ships at v13.8.0)
@@ -277,11 +277,11 @@ circle detached from the 16px glyph — an ugly, unintended change.)
 
 ### 8.5 Design acceptance — measured checklist for QA/Stitch
 
-- [ ] `tile-favorite` bounding box (via `getBoundingClientRect`, incl. `::before`) ≥ 44×44px at 768px. (AC-001)
-- [ ] Glyph `font-size` ≤ 20px; measured glyph box unchanged from pre-v20. (AC-002)
-- [ ] Computed `.app-grid-tool-fav` color in light mode = `rgb(100,116,139)`; contrast vs `#ffffff` ≥ 3:1 (expect 4.76:1). (AC-003)
-- [ ] Visual ★/☆ corner position within ≤5px of pre-v20 (expect 0px). Status pip (top-left 8/8) unmoved; 120px tile height unchanged. (AC-004)
-- [ ] Dark-mode ☆, favorited amber ★, hover pill, and focus ring visually identical to pre-v20. (AC-004)
+- [x] `tile-favorite` hit area (via `::before`) = **44×44px** at 768px; `elementFromPoint` at all four 44px-zone corners resolves to the ★ control; a real click 3px outside the painted box toggled favorite. (AC-001 ✓ live)
+- [x] Glyph `font-size` = 16px (≤20px); painted box 34×34 unchanged from pre-v20. (AC-002 ✓ live)
+- [x] Computed `.app-grid-tool-fav` color in light mode = `rgb(100,116,139)`; contrast vs `#ffffff` = **4.76:1**. (AC-003 ✓ live)
+- [x] Visual ★/☆ corner position 0px delta; status pip `.app-grid-tool-status` 9×9 at top-left 8/8 unmoved. (AC-004 ✓ live)
+- [x] Dark-mode ☆ = `#64748b` unchanged; favorited amber ★ renders in its pill; hover pill / focus ring geometry unchanged. (AC-004 ✓ live)
 
 ---
 
@@ -297,3 +297,25 @@ focus ring (AC-004), and the default light ☆ moves slate-400→**slate-500 `#6
 white, clearing the ≥3:1 non-text floor with margin. Opacity `0.5` and the `#6366f1` focus ring
 are unchanged, with rationale in §8.3–§8.4. Cleared to build once Walt's product sign-off (above)
 holds — both are now present.
+
+---
+
+## 10. Built-UI design co-sign — Kare
+
+**Verdict: APPROVE — design GO** (2026-07-05). Distinct from the §9 *spec-time* GO: this is
+the co-sign on the **built** PR (#306, `v13.9.0`, footer `418ce7a`), measured off the running
+homepad-staging DOM at **768px (iPad portrait)**, light + dark. Source matched §8 exactly; the
+below is verified on what actually **renders**.
+
+| AC | Live measurement | Result |
+|---|---|---|
+| AC-001 | `::before` = **44×44px**; `elementFromPoint` at all 4 corners of the 44px zone → ★ control; real `mouse.click` **3px outside the painted 34px box** flipped `→ is-favorite` (amber `#f59e0b`). Link (`a.app-grid-tool`) still hit 30px below. | ✅ ≥44×44, 0px glyph move |
+| AC-002 | `font-size:16px`; painted box **34×34**, `box-shadow:none` at rest — unchanged. | ✅ |
+| AC-003 | Light ☆ `color` = `rgb(100,116,139)` = `#64748b` (slate-500) → **4.76:1** on white. `@media (hover:none)` fires on the iPad → opacity **1.0** → effective rendered contrast **4.76:1**. | ✅ clears ≥3:1 (and ≥4.5:1) |
+| AC-004 | Status pip `.app-grid-tool-status` **9×9 @ top-left 8/8** unmoved; dark ☆ `#64748b` unchanged; favorited amber ★ + hover pill / focus ring geometry unchanged. | ✅ no regression |
+
+**Checks run:** touch-targets (elementFromPoint + real corner-tap), contrast (alpha-composited
+computed style), position/8pt-grid, responsive 768px light+dark.
+**Findings:** none (0 blocker/major/minor). Faithful build of §8 — nothing to file.
+**Artifacts (Kare workspace):** `_v20_light_768.png`, `_v20_dark_768.png`, `_v20_favorited_768.png`.
+**Co-sign recorded on:** PR Code/homepad#306 (comment, 2026-07-05) + this §10. Closes design work on #255.
