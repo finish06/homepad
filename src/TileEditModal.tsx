@@ -62,12 +62,21 @@ export default function TileEditModal({
   const modalRef = useRef<HTMLFormElement>(null);
   const lightInputRef = useRef<HTMLInputElement>(null);
   const darkInputRef = useRef<HTMLInputElement>(null);
+  const keepRef = useRef<HTMLButtonElement>(null);
 
   // §8.2 note — open focus lands on Title (the field most often edited), not the
   // literal first focusable node (the ✕).
   useEffect(() => {
     titleRef.current?.focus();
   }, []);
+
+  // #321 (§8.4) — when the discard strip appears, its safe default ("Keep
+  // editing") must receive focus. Declarative autoFocus doesn't fire here:
+  // React reuses the Save button's DOM node for the Keep button across the
+  // conditional action-bar swap, so nothing remounts. Focus it imperatively.
+  useEffect(() => {
+    if (confirmDiscard) keepRef.current?.focus();
+  }, [confirmDiscard]);
 
   // Dirtiness = any text field / category / Icon URL differing from its prefill.
   // Immediate icon PNG upload / Remove are NOT part of dirty tracking (§8.4).
@@ -464,7 +473,7 @@ export default function TileEditModal({
               type="button"
               className="tile-edit-btn tile-edit-btn-secondary"
               data-testid="tile-discard-keep"
-              autoFocus
+              ref={keepRef}
               onClick={() => setConfirmDiscard(false)}
             >
               Keep editing
