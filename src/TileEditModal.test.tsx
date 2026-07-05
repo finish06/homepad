@@ -196,6 +196,20 @@ describe('v21 TileEditModal — dismiss & discard (AC-011)', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  // #321 (§8.4) — the discard strip's safe default ("Keep editing") must RECEIVE
+  // FOCUS when it appears, so a dirty Esc doesn't leave focus stranded on the
+  // edited field. Named for the observed symptom (focus stays on the field), not
+  // the cause (autoFocus not firing on the conditional action-bar swap).
+  it('#321 — focus moves to Keep editing when the dirty-discard strip appears', async () => {
+    const u = userEvent.setup();
+    renderModal();
+    const titleInput = screen.getByTestId('tile-field-title');
+    await u.type(titleInput, 'X');
+    expect(titleInput).toHaveFocus();
+    await u.keyboard('{Escape}');
+    await waitFor(() => expect(screen.getByTestId('tile-discard-keep')).toHaveFocus());
+  });
+
   it('backdrop click dismisses (clean → close)', async () => {
     const u = userEvent.setup();
     const { onClose } = renderModal();
