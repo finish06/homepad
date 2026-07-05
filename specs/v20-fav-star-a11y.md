@@ -175,25 +175,113 @@ The dark-mode rule (`.dark .app-grid-tool-fav { color: #64748b; }`) is untouched
 
 ---
 
-## 8. Design — Kare (placeholder)
+## 8. Design — Kare
 
-_Dispatched to Kare: `homepad-v20-kare-s001`. This section will be written by Kare and folded
-in before the spec goes to Stitch. The design brief:_
+Design owner: Kare. All values below are measured off the live `.app-grid-tool-fav` block
+(`src/index.css:2476`) and the sRGB WCAG contrast formula — not eyeballed. The whole fix is
+**two changed lines and one added rule in `src/index.css`; `AppGrid.tsx` is untouched** (no
+wrapper element is needed).
 
-- **Touch target**: specify exact CSS — which of the two implementation approaches (padding vs.
-  size+offset), exact pixel values, and the resulting `top`/`right` values so the visual ★ stays
-  in the corner within ≤5px of current.
-- **Default ☆ color (light mode)**: specify the exact color token or hex. Must clear ≥3:1 on
-  `#ffffff`. Must harmonize with the tile's hover ☆ color (#475569, slate-600) and the app's
-  existing slate/neutral token vocabulary. Does NOT need to match dark mode (which stays
-  #64748b).
-- **Opacity transition**: current default opacity is 0.5 (hidden until hover); confirm this
-  is unchanged or adjust with rationale.
-- **Focus-visible ring**: confirm the `box-shadow: 0 0 0 2px #6366f1` ring is unchanged; or
-  update if the size change makes the ring look off.
+### 8.1 Touch target — transparent hit-area extension via `::before` (NOT padding, NOT size+offset)
 
-_Do not proceed to implementation until this section is complete and both sign-offs below are
-present._
+Both approaches the brief names (padding; size+offset) reach ≥44×44, but both do it by
+**growing the button's painted box from 34→44px** — which enlarges the hover pill and pushes
+the focus-visible ring out to a 44px circle floating 5px off the 16px glyph. That's a visible
+change to the hover/focus affordance and fails **AC-004** ("all hover/focus-visible styles are
+visually unchanged"). So I reject both for a third, cleaner form of the same visual≠hit-area
+pattern the codebase already uses (width selector, §6.3):
+
+**Keep the painted button exactly as-is (34×34 at `top:4 right:4`) and extend only the
+invisible hit area with a centered, transparent `::before`.**
+
+```css
+/* src/index.css — .app-grid-tool-fav: change ONE property, add touch-action */
+.app-grid-tool-fav {
+  position: absolute;
+  top: 4px;                 /* UNCHANGED — glyph stays in its corner, 0px delta */
+  right: 4px;               /* UNCHANGED */
+  width: 34px;              /* UNCHANGED — painted pill / hover bg / focus ring stay 34px */
+  height: 34px;             /* UNCHANGED */
+  font-size: 16px;          /* UNCHANGED — glyph ≤20px (AC-002) */
+  color: #64748b;           /* CHANGED  — was #94a3b8 (see §8.2) */
+  opacity: 0.5;             /* UNCHANGED — see §8.3 */
+  touch-action: manipulation; /* ADD — kills the 300ms double-tap-zoom delay so the tap fires instantly */
+  /* …all other existing declarations unchanged… */
+}
+
+/* ADD — 44×44 transparent hit area, centered on the button. Part of the button box,
+   so a pointer event anywhere in it fires the button's onClick (AC-001). No paint. */
+.app-grid-tool-fav::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+}
+```
+
+**Geometry (measured):** the button's center sits at `4 + 34/2 = 21px` from the tile's top and
+right edges. The `::before` is 44×44 centered on that point, so it spans from `-1px` to `43px`
+in both axes — i.e. the hit area extends **1px past the tile's top and right edges** (into the
+inter-tile gap; `.app-grid-tool-wrap` is `position:relative` with no `overflow:hidden`, so it
+is not clipped) and reaches **43px down / 43px left** into the tile. Net hit area: **44×44px,
+AC-001 met.** The **visual ★/☆ glyph does not move at all — 0px delta**, comfortably inside the
+≤5px budget. Because the painted box is still 34×34, the hover pill and the focus ring are
+**geometrically identical to today** (AC-004), and the ring still hugs the glyph instead of
+floating off it. The `::before` deliberately overlaps the top-right ~44px of the underlying
+`<a>` — that IS the fix for AC-006 (a casual corner tap toggles the star instead of opening the
+link); the link stays clickable everywhere else.
+
+### 8.2 Default ☆ color (light mode) — `#64748b` (slate-500)
+
+| | Color | Contrast on `#ffffff` | vs floor |
+|---|---|---|---|
+| Was | `#94a3b8` (slate-400) | **2.56:1** | fails ≥3:1 |
+| **Spec** | **`#64748b` (slate-500)** | **4.76:1** | clears ≥3:1 **and ≥4.5:1** |
+
+Rationale — this is the design-system-correct token, not just "a darker gray":
+- **It clears the floor with margin (4.76:1).** It even passes the 4.5:1 *text* floor, so the
+  fix is robust whether the ☆ is graded as a graphic or as text.
+- **It tightens the hover progression.** Rest was slate-400 → hover slate-600 (`#475569`,
+  7.58:1) — a 2-step jump. slate-500 → slate-600 is a clean **one-step** darken on hover, which
+  reads as more intentional.
+- **It unifies the resting-star color across modes** (dark mode is already `#64748b`). The brief
+  allowed light≠dark; landing them on the same slate-500 token instead *simplifies* the palette
+  story to a single "resting star = slate-500" rule (Principle 8, consistency), with dark mode's
+  value unchanged as required.
+
+Untouched, confirmed: hover `#475569` (7.58:1), favorited `#f59e0b` (amber, decorative +
+label-paired), focus ring `#6366f1`, and the dark-mode block (`.dark .app-grid-tool-fav {
+color:#64748b }`).
+
+### 8.3 Opacity — keep `0.5`, unchanged
+
+Resting opacity stays **0.5**. On the **primary device (iPad, and any touch device)** the
+existing `@media (hover: none){ .app-grid-tool-fav{ opacity:1 } }` (`src/index.css:2606`) already
+forces full opacity, so the ☆ renders at the full `#64748b` = **4.76:1** exactly where the
+brief's §1 concern lives — "read it clearly in ambient light" on the iPad. On hover-capable
+(desktop) devices the 0.5 rest is deliberate progressive disclosure; the star reaches full
+opacity (and full 4.76:1) the moment it is actionable (tile-hover / `:focus-visible`). The 3:1
+non-text floor is evaluated in that perceivable/actionable state, which passes. Raising the rest
+opacity to clear 3:1 while dimmed would need ~0.8 (measured), which would visibly un-hide the
+star on desktop and break the "hidden until hover" behavior and AC-004 — so I keep 0.5.
+
+### 8.4 Focus-visible ring — unchanged
+
+`box-shadow: 0 0 0 2px #6366f1` is **unchanged**. Because §8.1 keeps the painted box at 34×34,
+the ring wraps the same 34px pill it does today, snug to the glyph. (This is the second reason
+to prefer the `::before` form: the size+offset approach would have stretched this ring to a 44px
+circle detached from the 16px glyph — an ugly, unintended change.)
+
+### 8.5 Design acceptance — measured checklist for QA/Stitch
+
+- [ ] `tile-favorite` bounding box (via `getBoundingClientRect`, incl. `::before`) ≥ 44×44px at 768px. (AC-001)
+- [ ] Glyph `font-size` ≤ 20px; measured glyph box unchanged from pre-v20. (AC-002)
+- [ ] Computed `.app-grid-tool-fav` color in light mode = `rgb(100,116,139)`; contrast vs `#ffffff` ≥ 3:1 (expect 4.76:1). (AC-003)
+- [ ] Visual ★/☆ corner position within ≤5px of pre-v20 (expect 0px). Status pip (top-left 8/8) unmoved; 120px tile height unchanged. (AC-004)
+- [ ] Dark-mode ☆, favorited amber ★, hover pill, and focus ring visually identical to pre-v20. (AC-004)
 
 ---
 
@@ -202,4 +290,10 @@ present._
 **Walt (product):** ✓ approved 2026-07-05 — product acceptance criteria are correct; this fixes
 the right gap without scope creep; ready for Kare design section.
 
-**Kare (design):** _pending §8_
+**Kare (design):** ✓ **DESIGN GO** 2026-07-05 — §8 authored and measured. Fix is two changed
+lines + one added rule in `src/index.css` (`AppGrid.tsx` untouched): a transparent `::before`
+lifts the ★ hit area to 44×44 with **0px** glyph movement and no change to the hover pill or
+focus ring (AC-004), and the default light ☆ moves slate-400→**slate-500 `#64748b` = 4.76:1** on
+white, clearing the ≥3:1 non-text floor with margin. Opacity `0.5` and the `#6366f1` focus ring
+are unchanged, with rationale in §8.3–§8.4. Cleared to build once Walt's product sign-off (above)
+holds — both are now present.
