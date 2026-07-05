@@ -458,7 +458,7 @@ export default function TileEditModal({
         </div>
 
         {confirmDiscard ? (
-          <div className="tile-edit-actions tile-edit-discard" data-testid="tile-discard-confirm" role="alert">
+          <div key="discard" className="tile-edit-actions tile-edit-discard" data-testid="tile-discard-confirm" role="alert">
             <span className="tile-edit-discard-text">Discard changes?</span>
             <button
               type="button"
@@ -479,7 +479,7 @@ export default function TileEditModal({
             </button>
           </div>
         ) : (
-          <div className="tile-edit-actions">
+          <div key="actions" className="tile-edit-actions">
             <button
               type="button"
               className="tile-edit-btn tile-edit-btn-secondary"
