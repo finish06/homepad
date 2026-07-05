@@ -2,6 +2,16 @@
   "pending": [],
   "versions": [
     {
+      "version": "13.11.0",
+      "date": "2026-07-05",
+      "changes": [
+        { "type": "feature", "text": "Setting a tile's icon now has two clear tabs — Light Mode and Dark Mode — so you can give each theme its own icon. Open a tile's Edit window and the icon area shows a Light Mode / Dark Mode switch; each tab has its own preview, Upload PNG, Fetch from URL and Remove, all working only on that mode. Upload a dark PNG under Dark Mode and the dashboard shows it when you're in dark theme, with the light icon left untouched." },
+        { "type": "enhancement", "text": "Each icon tab now honestly shows what a tile will actually display: a mode with no icon of its own shows the icon it falls back to (dimmed, with a note like 'No dark PNG — showing the light icon'), and a mode with nothing set shows an explicit 'No icon set' placeholder instead of a misleading badge." },
+        { "type": "enhancement", "text": "The icon URL box is now labelled 'URL fallback' with a 'both modes' tag and sits below the tabs, making it obvious that the single URL applies to both light and dark (uploading a PNG is the way to make a mode differ)." },
+        { "type": "enhancement", "text": "The new icon tabs are fully keyboard- and screen-reader accessible — a proper tab list you can move through with the left/right arrow keys — and every tab and button clears the 44px touch-target and contrast bars in both light and dark." }
+      ]
+    },
+    {
       "version": "13.10.0",
       "date": "2026-07-05",
       "changes": [

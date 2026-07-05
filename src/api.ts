@@ -311,12 +311,18 @@ export async function updateService(
 }
 
 // fetchIcon asks the backend to download the favicon from a service's own
-// registered url and store it as the light icon variant (v21 §7.4; admin-only —
-// 403 non-admin, 404 unknown id, 422 when no usable favicon is found). On 200 it
-// returns the stored icon url so the caller can bust the preview cache; on any
-// failure it surfaces the server's reason inline, like uploadIcon.
-export async function fetchIcon(id: string): Promise<Result & { iconUrl?: string }> {
-  const res = await fetch(`/api/services/${id}/fetch-icon`, {
+// registered url and store it under the given icon variant (v21 §7.4 + v22 §6.4;
+// admin-only — 403 non-admin, 404 unknown id, 422 when no usable favicon is
+// found). The `variant` query param is v22's per-tab addition; the server
+// defaults to 'light' when it is omitted or unrecognised, so this stays
+// backward-compatible with a pre-v22 backend. On 200 it returns the stored icon
+// url so the caller can bust the preview cache; on any failure it surfaces the
+// server's reason inline, like uploadIcon.
+export async function fetchIcon(
+  id: string,
+  variant: IconVariant = 'light',
+): Promise<Result & { iconUrl?: string }> {
+  const res = await fetch(`/api/services/${id}/fetch-icon?variant=${variant}`, {
     method: 'POST',
     credentials: 'include',
   });

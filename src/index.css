@@ -3024,6 +3024,148 @@
   .dark .tile-icon-panel {
     border-color: rgba(255, 255, 255, 0.12);
   }
+  /* v22 §8.1 — segmented control (a WAI-ARIA tablist styled as a segment). The
+     `--seg-track` well holds two equal 50% segments; the active one is a raised
+     thumb with an accent border + accent label (the ≥3:1 indicator per §6.4),
+     never color alone. Both segments carry a 1.5px transparent border so the
+     active↔inactive swap causes zero layout shift. */
+  .tile-icon-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: #e5e5e5; /* --seg-track light */
+    border-radius: 12px;
+  }
+  .dark .tile-icon-tabs {
+    background: #101012; /* --seg-track dark */
+  }
+  .tile-icon-tab {
+    flex: 1 1 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 48px; /* §8.8 — 179×48 each on the iPad-768 panel */
+    padding: 0 12px;
+    font-size: 15px;
+    font-weight: 500;
+    color: #525252; /* inactive: helper — 6.20:1 */
+    background: transparent;
+    border: 1.5px solid transparent; /* zero-shift placeholder */
+    border-radius: 9px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .dark .tile-icon-tab {
+    color: #d4d4d4; /* inactive: helper — 12.82:1 */
+  }
+  .tile-icon-tab.is-active {
+    background: #ffffff; /* raised thumb (elevation cue only) */
+    color: #4f46e5; /* accent label — 6.29:1, weight 600 */
+    font-weight: 600;
+    border-color: #4f46e5; /* accent indicator — 4.99:1 vs inactive track */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  }
+  .dark .tile-icon-tab.is-active {
+    background: #26262a;
+    color: #818cf8; /* accent label — 5.05:1 */
+    border-color: #818cf8; /* accent indicator — 6.37:1 vs inactive track */
+  }
+  .tile-icon-tab:focus-visible {
+    outline: 2px solid #4f46e5;
+    outline-offset: 2px;
+  }
+  .dark .tile-icon-tab:focus-visible {
+    outline-color: #818cf8;
+  }
+  /* Leading status dot — a filled secondary cue; dimmed when inactive. */
+  .tile-icon-tab-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.4;
+    flex: none;
+  }
+  .tile-icon-tab.is-active .tile-icon-tab-dot {
+    opacity: 1;
+  }
+  .tile-icon-tabpanel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  /* §8.3 state 2 — inheriting a fallback: render it at reduced emphasis. */
+  .tile-icon-preview.is-inherited img {
+    opacity: 0.7;
+  }
+  .tile-icon-inherit {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.35;
+    color: #666666; /* secondary — 5.74:1 (≥4.5) */
+  }
+  .dark .tile-icon-inherit {
+    color: #a3a3a3; /* secondary — 6.75:1 */
+  }
+  /* §8.3 state 3 — explicit empty state: a dashed box + "No icon set". */
+  .tile-icon-preview.is-empty {
+    flex-direction: column;
+    gap: 3px;
+    border-style: dashed;
+    border-width: 1.5px; /* dashed border — 3.36:1 light / 4.31:1 dark */
+    background: transparent;
+  }
+  .tile-icon-empty-glyph {
+    font-size: 20px;
+    line-height: 1;
+    color: #8c8c8c;
+  }
+  .dark .tile-icon-empty-glyph {
+    color: #808080;
+  }
+  .tile-icon-empty-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #525252; /* helper — 7.81:1 */
+  }
+  .dark .tile-icon-empty-label {
+    color: #d4d4d4; /* 11.48:1 */
+  }
+  .tile-icon-empty-hint {
+    margin: 0;
+  }
+  /* §8.4 — the shared URL fallback, set OUTSIDE the tabpanel by a full-width
+     divider so it visibly applies to both modes, not to the active tab. */
+  .tile-icon-url-field {
+    border-top: 1px solid rgba(15, 23, 42, 0.1);
+    padding-top: 16px;
+  }
+  .dark .tile-icon-url-field {
+    border-top-color: rgba(255, 255, 255, 0.12);
+  }
+  .tile-icon-url-labelrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  /* Scope badge — a lightweight accent-outline pill making the shared scope
+     legible at a glance (§8.4). */
+  .tile-icon-scope-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: #4f46e5; /* accent — 6.29:1 */
+    border: 1px solid #4f46e5;
+    border-radius: 999px;
+  }
+  .dark .tile-icon-scope-pill {
+    color: #818cf8; /* 5.70:1 */
+    border-color: #818cf8;
+  }
   .tile-icon-row {
     display: flex;
     align-items: flex-start;

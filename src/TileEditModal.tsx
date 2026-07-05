@@ -20,13 +20,14 @@ import { iconSrc, initialBadge, validateIconFile } from './icons';
 export default function TileEditModal({
   service,
   categories,
-  theme,
   onClose,
   onPatch,
   onToast,
 }: {
   service: Service;
   categories: Category[];
+  // v22 — the icon preview now resolves the ACTIVE TAB's variant, not the app
+  // theme, so `theme` is no longer read here; kept on the props for callers.
   theme: 'light' | 'dark';
   onClose: () => void;
   // Merge a partial into the grid's shared service so the tile reflects a live
@@ -50,6 +51,9 @@ export default function TileEditModal({
   const [error, setError] = useState('');
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  // v22 §5.1 — the active icon theme tab. ALWAYS opens on 'light' (AC-007),
+  // regardless of the app theme or which variant(s) exist.
+  const [activeTab, setActiveTab] = useState<IconVariant>('light');
 
   const headingId = useId();
   const titleId = useId();
@@ -57,12 +61,18 @@ export default function TileEditModal({
   const catId = useId();
   const iconUrlId = useId();
   const descId = useId();
+  const lightTabId = useId();
+  const darkTabId = useId();
+  const iconPanelId = useId();
 
   const titleRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLFormElement>(null);
-  const lightInputRef = useRef<HTMLInputElement>(null);
-  const darkInputRef = useRef<HTMLInputElement>(null);
+  // One hidden file input, retargeted to the active tab's variant (§5.2).
+  const iconInputRef = useRef<HTMLInputElement>(null);
+  const lightTabRef = useRef<HTMLButtonElement>(null);
+  const darkTabRef = useRef<HTMLButtonElement>(null);
   const keepEditingRef = useRef<HTMLButtonElement>(null);
+  const removeKeepRef = useRef<HTMLButtonElement>(null);
 
   // §8.2 note — open focus lands on Title (the field most often edited), not the
   // literal first focusable node (the ✕).
@@ -79,6 +89,12 @@ export default function TileEditModal({
     if (confirmDiscard) keepEditingRef.current?.focus();
   }, [confirmDiscard]);
 
+  // §8.5 — the remove confirm strip focuses its safe default ("Keep"), matching
+  // the discard-strip pattern above (imperative, not autoFocus — the #322 morph).
+  useEffect(() => {
+    if (confirmRemove) removeKeepRef.current?.focus();
+  }, [confirmRemove]);
+
   // Dirtiness = any text field / category / Icon URL differing from its prefill.
   // Immediate icon PNG upload / Remove are NOT part of dirty tracking (§8.4).
   const dirty =
@@ -89,7 +105,27 @@ export default function TileEditModal({
     categoryId !== (service.categoryId ?? '');
 
   const previewSvc: Service = { ...service, name: title, icon: iconUrl, iconLight, iconDark };
-  const previewSrc = iconSrc(previewSvc, theme, rev);
+  // v22 §5.4 — the preview resolves the ACTIVE TAB's variant, not the app theme;
+  // switching tabs shows that variant's icon (or its honest fallback).
+  const previewSrc = iconSrc(previewSvc, activeTab, rev);
+
+  // Per-tab icon state (§8.3) — which of the three designed states this tab is in.
+  const hasVariant = activeTab === 'light' ? iconLight : iconDark;
+  const otherVariant = activeTab === 'light' ? iconDark : iconLight;
+  const hasUrl = iconUrl.trim() !== '';
+  // State 3 (§8.3): truly empty — no PNG for this variant, no other variant, no
+  // URL. Shows the explicit "No icon set" affordance instead of an initials badge
+  // that would misleadingly read as "an icon is configured".
+  const iconEmpty = !hasVariant && !otherVariant && !hasUrl;
+  // State 2 (§8.3): this variant has no PNG but something else resolves — show the
+  // resolved fallback at reduced emphasis with an honest note about what renders.
+  const inheritNote = !hasVariant
+    ? otherVariant
+      ? `No ${activeTab} PNG — showing the ${activeTab === 'light' ? 'dark' : 'light'} icon.`
+      : hasUrl
+        ? 'No PNG for this mode — showing the URL fallback.'
+        : ''
+    : '';
 
   function attemptDismiss() {
     if (dirty) {
@@ -191,33 +227,58 @@ export default function TileEditModal({
     onPatch(variant === 'light' ? { iconLight: true } : { iconDark: true });
   }
 
-  async function doRemove() {
+  // v22 §5.2 / AC-004 — remove ONLY the active tab's variant. The other variant
+  // and the shared URL are left intact; iconSrc() naturally falls back to them.
+  async function doRemove(variant: IconVariant) {
     setConfirmRemove(false);
     setIconError('');
     setIconBusy('upload');
-    if (iconLight) await deleteIcon(service.id, 'light');
-    if (iconDark) await deleteIcon(service.id, 'dark');
+    await deleteIcon(service.id, variant);
     setIconBusy(null);
-    setIconLight(false);
-    setIconDark(false);
-    setIconUrl('');
+    if (variant === 'light') setIconLight(false);
+    else setIconDark(false);
     setRev((v) => v + 1);
-    onPatch({ iconLight: false, iconDark: false, icon: '' });
+    onPatch(variant === 'light' ? { iconLight: false } : { iconDark: false });
   }
 
-  async function doFetch() {
+  // v22 §6.4 / §8.6 — fetch the favicon into the ACTIVE tab's variant. The
+  // backend downloads from the service's own registered URL and stores under
+  // ?variant=. NOTE: the per-variant store depends on the backend honouring the
+  // variant param (companion homepad-api change); a pre-v22 backend defaults to
+  // 'light' (see api.fetchIcon).
+  async function doFetch(variant: IconVariant) {
     if (!url.trim() || iconBusy) return;
     setIconError('');
     setIconBusy('fetch');
-    const r = await fetchIcon(service.id);
+    const r = await fetchIcon(service.id, variant);
     setIconBusy(null);
     if (!r.ok) {
       setIconError(r.error ?? "Couldn't fetch a favicon from this URL.");
       return;
     }
-    setIconLight(true);
+    if (variant === 'light') setIconLight(true);
+    else setIconDark(true);
     setRev((v) => v + 1);
-    onPatch({ iconLight: true });
+    onPatch(variant === 'light' ? { iconLight: true } : { iconDark: true });
+  }
+
+  // Switching tabs is a pure UI state change (AC-006) — it fires no network and
+  // discards no pending edits. It resets the per-tab confirm/error so a strip
+  // opened on one variant never bleeds into the other (§5.4).
+  function selectTab(variant: IconVariant) {
+    setActiveTab(variant);
+    setConfirmRemove(false);
+    setIconError('');
+  }
+
+  // §6.2 — automatic-activation tabs: ← / → move focus AND activate. With two
+  // mutually-exclusive tabs both arrows just toggle to the other (wrap both ways).
+  function onTabKeyDown(e: React.KeyboardEvent) {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const next: IconVariant = activeTab === 'light' ? 'dark' : 'light';
+    selectTab(next);
+    (next === 'light' ? lightTabRef : darkTabRef).current?.focus();
   }
 
   return (
@@ -308,93 +369,196 @@ export default function TileEditModal({
             </select>
           </div>
 
-          {/* Icon compound panel (§8.3) — grouped so its internal complexity reads
-              as one unit, set apart from the loose fields above/below it. */}
+          {/* Icon compound panel (v22 §8). The flat v21 panel is reorganised into
+              a two-tab ARIA tablist (Light/Dark) → per-variant tabpanel → shared
+              URL fallback below a divider. Same variant-specific endpoints, no
+              schema change. Layout/44px/paint are re-verified in the CDP gate. */}
           <div className="tile-icon-panel" data-testid="tile-icon-panel">
-            <div className="tile-icon-row">
-              <span
-                className={`tile-icon-preview${iconBusy ? ' is-busy' : ''}`}
-                data-testid="tile-icon-preview-box"
+            {/* §8.1 — a segmented control that is still a WAI-ARIA tablist: the
+                roles are independent of the visual treatment (automatic-activation,
+                arrow-key nav). */}
+            <div
+              className="tile-icon-tabs"
+              role="tablist"
+              aria-label="Icon theme"
+              data-testid="tile-icon-tablist"
+              onKeyDown={onTabKeyDown}
+            >
+              <button
+                ref={lightTabRef}
+                type="button"
+                role="tab"
+                id={lightTabId}
+                aria-selected={activeTab === 'light'}
+                aria-controls={iconPanelId}
+                tabIndex={activeTab === 'light' ? 0 : -1}
+                className={`tile-icon-tab${activeTab === 'light' ? ' is-active' : ''}`}
+                data-testid="tile-icon-tab-light"
+                onClick={() => selectTab('light')}
               >
-                <img
-                  src={previewSrc}
-                  alt=""
-                  data-testid="tile-icon-preview"
-                  data-fallback={initialBadge(title)}
-                  onError={(e) => {
-                    const img = e.currentTarget;
-                    const fb = img.dataset.fallback;
-                    if (fb && img.src !== fb) img.src = fb;
-                  }}
-                />
-                {iconBusy && (
-                  <span className="tile-icon-spinner" role="status" aria-live="polite">
-                    {iconBusy === 'fetch' ? 'Fetching…' : 'Uploading…'}
-                  </span>
-                )}
-              </span>
-
-              <div className="tile-icon-controls">
-                <button
-                  type="button"
-                  className="tile-edit-btn tile-edit-btn-secondary"
-                  data-testid="tile-icon-upload"
-                  disabled={iconBusy !== null}
-                  onClick={() => lightInputRef.current?.click()}
-                >
-                  Upload icon
-                </button>
-                <button
-                  type="button"
-                  className="tile-edit-btn tile-edit-btn-ghost"
-                  data-testid="tile-icon-upload-dark"
-                  disabled={iconBusy !== null}
-                  onClick={() => darkInputRef.current?.click()}
-                >
-                  Dark variant
-                </button>
-                <button
-                  type="button"
-                  className="tile-edit-btn tile-edit-btn-ghost"
-                  data-testid="tile-icon-fetch"
-                  disabled={!url.trim() || iconBusy !== null}
-                  aria-disabled={!url.trim() || undefined}
-                  title={!url.trim() ? 'Enter a URL first' : undefined}
-                  onClick={doFetch}
-                >
-                  ⭳ Fetch from URL
-                </button>
-              </div>
-
-              {/* CSS-hidden file inputs; the visible buttons above forward the
-                  activation, so keyboard users are covered (§6.4). Out of the tab
-                  order (tabIndex -1) so Tab never lands on a hidden control. */}
-              <input
-                ref={lightInputRef}
-                data-testid="tile-icon-upload-input"
-                className="sr-only"
-                type="file"
-                accept="image/png"
-                tabIndex={-1}
-                aria-hidden="true"
-                onChange={(e) => onPickIcon('light', e)}
-              />
-              <input
-                ref={darkInputRef}
-                data-testid="tile-icon-upload-dark-input"
-                className="sr-only"
-                type="file"
-                accept="image/png"
-                tabIndex={-1}
-                aria-hidden="true"
-                onChange={(e) => onPickIcon('dark', e)}
-              />
+                <span className="tile-icon-tab-dot" aria-hidden="true" />
+                Light Mode
+              </button>
+              <button
+                ref={darkTabRef}
+                type="button"
+                role="tab"
+                id={darkTabId}
+                aria-selected={activeTab === 'dark'}
+                aria-controls={iconPanelId}
+                tabIndex={activeTab === 'dark' ? 0 : -1}
+                className={`tile-icon-tab${activeTab === 'dark' ? ' is-active' : ''}`}
+                data-testid="tile-icon-tab-dark"
+                onClick={() => selectTab('dark')}
+              >
+                <span className="tile-icon-tab-dot" aria-hidden="true" />
+                Dark Mode
+              </button>
             </div>
 
+            {/* §8.2–8.3 — one tabpanel that swaps to the active variant. */}
+            <div
+              className="tile-icon-tabpanel"
+              role="tabpanel"
+              id={iconPanelId}
+              aria-labelledby={activeTab === 'light' ? lightTabId : darkTabId}
+              data-testid="tile-icon-tabpanel"
+            >
+              <div className="tile-icon-row">
+                {iconEmpty ? (
+                  // §8.3 state 3 — explicit empty state, NOT a bare initials badge.
+                  <span className="tile-icon-preview is-empty" data-testid="tile-icon-empty">
+                    <span className="tile-icon-empty-glyph" aria-hidden="true">
+                      ▢
+                    </span>
+                    <span className="tile-icon-empty-label">No icon set</span>
+                  </span>
+                ) : (
+                  <span
+                    className={`tile-icon-preview${iconBusy ? ' is-busy' : ''}${inheritNote ? ' is-inherited' : ''}`}
+                    data-testid="tile-icon-preview-box"
+                  >
+                    <img
+                      src={previewSrc}
+                      alt={activeTab === 'light' ? 'Light-mode icon preview' : 'Dark-mode icon preview'}
+                      data-testid="tile-icon-preview"
+                      data-fallback={initialBadge(title)}
+                      onError={(e) => {
+                        const img = e.currentTarget;
+                        const fb = img.dataset.fallback;
+                        if (fb && img.src !== fb) img.src = fb;
+                      }}
+                    />
+                    {iconBusy && (
+                      <span className="tile-icon-spinner" role="status" aria-live="polite">
+                        {iconBusy === 'fetch' ? 'Fetching…' : 'Uploading…'}
+                      </span>
+                    )}
+                  </span>
+                )}
+
+                <div className="tile-icon-controls">
+                  <button
+                    type="button"
+                    className="tile-edit-btn tile-edit-btn-secondary"
+                    data-testid="tile-icon-upload"
+                    disabled={iconBusy !== null}
+                    onClick={() => iconInputRef.current?.click()}
+                  >
+                    Upload PNG
+                  </button>
+                  <button
+                    type="button"
+                    className="tile-edit-btn tile-edit-btn-ghost"
+                    data-testid="tile-icon-fetch"
+                    disabled={!url.trim() || iconBusy !== null}
+                    aria-disabled={!url.trim() || undefined}
+                    title={!url.trim() ? 'Enter a URL first' : undefined}
+                    onClick={() => doFetch(activeTab)}
+                  >
+                    ⭳ Fetch from URL
+                  </button>
+                  {confirmRemove ? (
+                    // §8.5 — inline, variant-specific confirm; Keep is the focused
+                    // safe default. Never native confirm().
+                    <div
+                      className="tile-icon-remove-confirm"
+                      role="alert"
+                      data-testid="tile-icon-remove-confirm"
+                    >
+                      <span className="tile-edit-help">Remove {activeTab} icon?</span>
+                      <button
+                        ref={removeKeepRef}
+                        type="button"
+                        className="tile-edit-btn-text"
+                        data-testid="tile-icon-remove-no"
+                        onClick={() => setConfirmRemove(false)}
+                      >
+                        Keep
+                      </button>
+                      <button
+                        type="button"
+                        className="tile-edit-btn-text is-danger"
+                        data-testid="tile-icon-remove-yes"
+                        onClick={() => doRemove(activeTab)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="tile-edit-btn-text is-danger"
+                      data-testid="tile-icon-remove"
+                      disabled={iconBusy !== null}
+                      onClick={() => setConfirmRemove(true)}
+                    >
+                      Remove {activeTab} icon
+                    </button>
+                  )}
+                </div>
+
+                {/* One CSS-hidden file input, retargeted to the active tab's
+                    variant; the visible Upload PNG button forwards activation so
+                    keyboard users are covered (§6.4). Out of the tab order. */}
+                <input
+                  ref={iconInputRef}
+                  data-testid="tile-icon-upload-input"
+                  className="sr-only"
+                  type="file"
+                  accept="image/png"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  onChange={(e) => onPickIcon(activeTab, e)}
+                />
+              </div>
+
+              {inheritNote && (
+                <p className="tile-icon-inherit" data-testid="tile-icon-inherit-note">
+                  {inheritNote}
+                </p>
+              )}
+              {iconEmpty && (
+                <p className="tile-edit-help tile-icon-empty-hint">
+                  Tile will show its initials badge in {activeTab} theme.
+                </p>
+              )}
+              {iconError && (
+                <p className="tile-edit-icon-error" role="alert" data-testid="tile-icon-error">
+                  {iconError}
+                </p>
+              )}
+            </div>
+
+            {/* §8.4 — the shared services.icon URL, OUTSIDE the tabpanel and below
+                a divider so it reads as applying to BOTH modes, not to the tab. */}
             <div className="tile-edit-field tile-icon-url-field">
-              <label className="tile-edit-label" htmlFor={iconUrlId}>
-                Icon URL
-              </label>
+              <div className="tile-icon-url-labelrow">
+                <label className="tile-edit-label" htmlFor={iconUrlId}>
+                  URL fallback
+                </label>
+                <span className="tile-icon-scope-pill">both modes</span>
+              </div>
               <input
                 id={iconUrlId}
                 data-testid="tile-field-icon-url"
@@ -404,46 +568,8 @@ export default function TileEditModal({
                 placeholder="https://cdn.example.com/icon.png"
                 onChange={(e) => setIconUrl(e.target.value)}
               />
-              <p className="tile-edit-help">Used as a fallback when no PNG is uploaded.</p>
+              <p className="tile-edit-help">Used when no PNG is uploaded for a mode.</p>
             </div>
-
-            {iconError && (
-              <p className="tile-edit-icon-error" role="alert" data-testid="tile-icon-error">
-                {iconError}
-              </p>
-            )}
-
-            {confirmRemove ? (
-              <div className="tile-icon-remove-confirm" data-testid="tile-icon-remove-confirm">
-                <span className="tile-edit-help">Remove this tile's icon?</span>
-                <button
-                  type="button"
-                  className="tile-edit-btn-text is-danger"
-                  data-testid="tile-icon-remove-yes"
-                  onClick={doRemove}
-                >
-                  Remove
-                </button>
-                <button
-                  type="button"
-                  className="tile-edit-btn-text"
-                  data-testid="tile-icon-remove-no"
-                  onClick={() => setConfirmRemove(false)}
-                >
-                  Keep
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="tile-edit-btn-text is-danger"
-                data-testid="tile-icon-remove"
-                disabled={iconBusy !== null}
-                onClick={() => setConfirmRemove(true)}
-              >
-                Remove icon
-              </button>
-            )}
           </div>
 
           <div className="tile-edit-field">

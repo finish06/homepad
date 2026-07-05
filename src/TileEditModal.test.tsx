@@ -260,28 +260,10 @@ describe('v21 TileEditModal — icon panel (AC-009, AC-010, §8.5)', () => {
     await waitFor(() => expect(screen.getByTestId('tile-icon-error')).toHaveTextContent(/too big|could not/i));
   });
 
-  it('AC-010 — Remove clears the uploaded icon after an inline confirm', async () => {
-    const u = userEvent.setup();
-    mDelete.mockResolvedValue(true);
-    const { onPatch } = renderModal({ service: svc({ iconLight: true, icon: 'https://x/i.png' }) });
-    await u.click(screen.getByTestId('tile-icon-remove'));
-    await u.click(screen.getByTestId('tile-icon-remove-yes'));
-    await waitFor(() => expect(mDelete).toHaveBeenCalledWith('S1', 'light'));
-    expect(screen.getByTestId('tile-field-icon-url')).toHaveValue('');
-    expect(onPatch).toHaveBeenCalledWith(expect.objectContaining({ iconLight: false, icon: '' }));
-  });
-
-  it('§8.5 — Fetch is disabled when the URL is empty and fetches when a URL is present', async () => {
-    const u = userEvent.setup();
-    mFetch.mockResolvedValue({ ok: true, status: 200, iconUrl: '/api/services/S1/icon/light' });
-    const { onPatch } = renderModal({ service: svc({ url: '' }) });
-    expect(screen.getByTestId('tile-icon-fetch')).toBeDisabled();
-    await u.type(screen.getByTestId('tile-field-url'), 'https://gitea.x');
-    expect(screen.getByTestId('tile-icon-fetch')).toBeEnabled();
-    await u.click(screen.getByTestId('tile-icon-fetch'));
-    await waitFor(() => expect(mFetch).toHaveBeenCalledWith('S1'));
-    expect(onPatch).toHaveBeenCalledWith(expect.objectContaining({ iconLight: true }));
-  });
+  // v21's flat-panel Remove (cleared BOTH variants + the URL in one shot) and its
+  // single-arg Fetch are intentionally superseded by v22: Remove is now per-tab
+  // and non-destructive to the other variant / URL (see AC-004 below) and Fetch
+  // carries the active variant (see AC-011 below). Those v22 tests own this ground.
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
