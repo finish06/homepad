@@ -1,6 +1,6 @@
 # homepad — Spec Index
 
-**Current as of:** 2026-06-28  **Maintainer:** Walt (product lead)
+**Current as of:** 2026-07-05  **Maintainer:** Walt (product lead)
 
 This directory holds the **current, authoritative** product specs and decisions for homepad.
 Historical specs for shipped versions are in [`specs/archive/`](./archive/).
@@ -11,7 +11,8 @@ Historical specs for shipped versions are in [`specs/archive/`](./archive/).
 
 | File | What it covers | Status |
 |------|---------------|--------|
-| [`cap6-uptime-display-toggle.md`](./cap6-uptime-display-toggle.md) | Boolean admin System setting to show/hide the per-tile uptime sparkline display globally. Default ON. Adds `system_settings` DB table, `GET /api/system/config` + `PATCH /api/admin/settings` endpoints. | **Spec approved — Walt + Kare co-signed 2026-07-04. Ready for Stitch.** |
+| [`v19-a11y-touch-pass.md`](./v19-a11y-touch-pass.md) | A11y + touch-target hardening: login inputs/button ≥44px, dashboard gear/launcher/avatar ≥44px, neutral-400→neutral-500 contrast sweep, edit-mode banner + UserMenu copy fixes. Frontend only. | **Spec draft — Walt signed 2026-07-05. Awaiting Kare §9 design section.** |
+| [`cap6-uptime-display-toggle.md`](./cap6-uptime-display-toggle.md) | Boolean admin System setting to show/hide the per-tile uptime sparkline display globally. Default ON. Adds `system_settings` DB table, `GET /api/system/config` + `PATCH /api/admin/settings` endpoints. | **Shipped — prod v13.5.0** |
 | [`v18-gear-edit-menu.md`](./v18-gear-edit-menu.md) | Gear becomes a dropdown menu with all edit-dashboard actions: Arrange tiles + Add apps (all users); Edit tiles + Add custom app (admins). Removes "Edit dashboard" from UserMenu. | **Ready for implementation** |
 | [`v15-version-changelog.md`](./v15-version-changelog.md) | Footer version badge (`homepad vN (sha)`) + changelog overlay dialog. Mirrors fleet-feed's Option B+ design adapted to homepad's Tailwind language. | **Ready for implementation** |
 | [`v16-status-bar-quick-peek.md`](./v16-status-bar-quick-peek.md) | Status bar chips become clickable — clicking "2 DOWN" opens a popover listing the down services with links to their URLs. Zero backend changes. | **Ready for implementation** |
