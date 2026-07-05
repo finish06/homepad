@@ -497,10 +497,16 @@ to Save). Modal close behaviour is identical to v21.
 | Seat | Sign-off | Date |
 |---|---|---|
 | Walt (product) | ✅ APPROVED — 2026-07-05 | |
-| Kare (design) | ✅ DESIGN GO — §8 authored, measured @ iPad 768 light+dark (`v22-tabs-{light,dark}.png`); segmented tablist, all touch ≥44, all contrast ≥ floor both themes | 2026-07-05 |
+| Kare (design) — spec-time | ✅ DESIGN GO — §8 authored, measured @ iPad 768 light+dark (`v22-tabs-{light,dark}.png`); segmented tablist, all touch ≥44, all contrast ≥ floor both themes | 2026-07-05 |
+| Kare (design) — **built UI (PR #330, build `f0a2286-test`)** | ✅ **DESIGN GO** — §8.8 measurements re-run on the LIVE staging build @ iPad portrait 768 (`dsf=2`), light **and** dark, admin edit mode. ARIA `tablist`/`tab`/`tabpanel` + roving tabindex + arrow-key auto-activation verified live; all touch ≥44 (tabs **192×48**, Upload/Fetch **317×44**, Remove **150×44**, URL input **45**); **all** contrast ≥ floor both themes; all 3 §8.3 preview states rendered live (has-PNG / inherit / empty-dashed). Measured values reproduce §8.8 within rounding. **Zero findings.** Artifacts: `v22-live-{light,dark}.png`, `v22-live-{light,dark}-darktab.png`, `v22-empty-state.png`, `v22-live-report.json`. | 2026-07-05 |
 
 **Cleared to build:** Yes from a design standpoint — both sign-offs present (Walt product ✅ +
 Kare design ✅). **Build prerequisite still binds:** v21 (`v21-tile-edit-modal`) must land first —
-v22 refactors the icon section v21 introduces (§0 Prerequisite). This is a **spec-time co-sign**; a
-built-UI design co-sign re-runs the §8.8 measurements on Stitch's PR before the design gate closes on
-shipped code.
+v22 refactors the icon section v21 introduces (§0 Prerequisite).
+
+**Design gate on shipped code (PR #330): ✅ CLOSED — GO.** The spec-time co-sign has been confirmed
+against the built UI. The §8.8 measurements were re-run on Stitch's build `f0a2286-test` on live
+staging at iPad portrait 768 in both themes; every measured touch box and contrast ratio meets or
+exceeds its floor and reproduces the spec values within rounding, with all three empty/inherit/filled
+preview states designed and rendering. No blocker/major/minor/advisory findings. v22 is a design GO to
+merge.
