@@ -265,6 +265,11 @@ test.describe('v19 login @768 — touch targets & contrast', () => {
     await page.route('**/api/auth/config', (route) => route.fulfill({ json: { oidcEnabled: true } }));
     await page.goto('/');
     await expect(page.locator('button[type="submit"]')).toBeVisible();
+    // AC-004 measures the OIDC "or" divider (div.my-4). oidcEnabled starts false
+    // and only flips true after /api/auth/config resolves async, so the divider
+    // may not be in the DOM yet when the submit button first paints. Wait for it
+    // to render before any measurement, else div.my-4 is ELEMENT NOT FOUND (#300).
+    await expect(page.locator('div.my-4')).toBeVisible();
   });
 
   test('AC-001 "Sign in" submit button ≥44px tall', async ({ page }) => {
