@@ -11,6 +11,7 @@ import {
   deleteIcon,
   deleteLibraryApp,
   deleteService,
+  fetchIcon,
   getCollapsedCategories,
   listLibrary,
   login,
@@ -239,6 +240,41 @@ describe('updateService', () => {
       ok: false,
       status: 409,
       error: 'a service with that slug already exists',
+    });
+  });
+
+  it('v21 — carries categoryId in the same PATCH so a tile edit is one request', async () => {
+    const updated = {
+      id: 's1', slug: 'plex', name: 'Plex', description: '', url: 'https://plex.x',
+      icon: '', status: 'UP', favorite: false, iconLight: false, iconDark: false,
+      categoryId: 'c2', categoryName: 'Tools',
+    };
+    const fn = mockFetch(JSON.stringify(updated), 200);
+    await updateService('s1', { name: 'Plex', categoryId: 'c2' });
+    const [, opts] = fn.mock.calls[0];
+    expect(JSON.parse(opts!.body as string)).toEqual({ name: 'Plex', categoryId: 'c2' });
+  });
+});
+
+describe('fetchIcon', () => {
+  it('POSTs fetch-icon and returns the stored icon url on 200 (v21 §7.4)', async () => {
+    const fn = mockFetch(JSON.stringify({ iconUrl: '/api/services/s1/icon/light' }), 200);
+    await expect(fetchIcon('s1')).resolves.toEqual({
+      ok: true,
+      status: 200,
+      iconUrl: '/api/services/s1/icon/light',
+    });
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/services/s1/fetch-icon');
+    expect(opts).toMatchObject({ method: 'POST', credentials: 'include' });
+  });
+
+  it('surfaces the server 422 reason inline when no favicon is found', async () => {
+    mockFetch('Could not fetch favicon: no favicon found', 422);
+    await expect(fetchIcon('s1')).resolves.toEqual({
+      ok: false,
+      status: 422,
+      error: 'Could not fetch favicon: no favicon found',
     });
   });
 });

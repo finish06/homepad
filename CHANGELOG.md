@@ -7,6 +7,49 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [13.10.0] — 2026-07-05 — Tile Edit Modal (v21)
+
+Per-tile editing from the dashboard (spec `specs/v21-tile-edit-modal.md`). An
+admin in edit mode gets a pencil affordance on every App Grid tile that opens a
+`TileEditModal` for that tile's **shared-catalog** entry (Option A — admin edits
+the shared catalog; visible to all users). Touches both `homepad` (this repo)
+and `homepad-api` (fetch-favicon endpoint) — both images rebuild.
+
+### Added
+
+- **Per-tile pencil edit affordance (§5, §8.1).** `AppGrid` `ToolLink` renders a
+  bottom-right pencil **only** for an admin in edit mode (absent from the DOM
+  otherwise — AC-001), a sibling of the tile `<a>` like the ★. 34×34 accent glyph
+  + a transparent centered `.app-grid-tool-edit::before` at 44×44 (the v20 ★
+  pattern — zero layout shift), theme-aware indigo, `aria-label="Edit <name>"`,
+  `touch-action: manipulation`. Editable tiles gain a 2px inset accent ring.
+- **`TileEditModal` (§6, §8.2–8.6).** Fields in Kare's order — Title, URL,
+  Category, a grouped **icon compound panel**, Description. The icon panel has a
+  64px live preview, Upload (light) + Dark-variant + URL-gated **Fetch from URL**,
+  an Icon URL field, and Remove — with a local upload/fetch busy state. Save is a
+  **single PATCH** (text fields + category) that updates the tile inline and
+  toasts "Tile updated."; errors keep the modal open with values intact
+  (AC-004…AC-015). Discard is an **inline in-modal confirm**, never
+  `window.confirm()` (which would break the focus trap). Full WAI-ARIA dialog:
+  `role="dialog"`, `aria-modal`, `aria-labelledby`, focus-on-Title, Tab focus
+  trap, Esc / backdrop close, focus return to the pencil.
+- **Backend `POST /api/services/{id}/fetch-icon` (homepad-api, §7.4).**
+  Admin-only; downloads the favicon from the service's registered URL (HTML
+  `<link rel="icon">` sniff → `{origin}/favicon.ico` fallback) and stores a valid
+  PNG as the light variant. Clean 422 on any failure, existing icon untouched.
+
+### Notes
+
+- All modal controls are ≥44×44 (inputs, textarea ≥76) and clear the 4.5:1 /
+  3:1 contrast floors in light **and** dark (§8.6, measured). Three forced
+  dark-mode token decisions are baked in: the primary CTA stays indigo-600 +
+  white in both themes, accent is theme-aware indigo-600/indigo-400, and the
+  control border is theme-aware `#8c8c8c`/`#808080`.
+- The **backend admin gate** the spec §7.3 calls a prerequisite (403 for
+  non-admin on `PATCH /api/services/{id}` and the icon endpoints — AC-016) was
+  **already shipped in #34** and is green on `main`; no gate change was needed.
+  fetch-icon reuses the same `requireAdmin` gate.
+
 ## [13.9.0] — 2026-07-05 — Favorite ★ Touch Target & Contrast Fix (v20)
 
 Fixes two pre-existing design-system floors on the per-tile ★ favorite toggle

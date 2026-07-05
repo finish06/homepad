@@ -295,7 +295,10 @@ export async function createService(input: ServiceInput): Promise<Result & { ser
 // reflect the change inline.
 export async function updateService(
   id: string,
-  patch: Partial<ServiceInput>,
+  // v21: categoryId rides in the SAME PATCH so a tile edit (text fields + a
+  // category move) is one request (§6.3). `null` clears to Uncategorized; the
+  // backend's optionalString leaves it unchanged when the key is absent.
+  patch: Partial<ServiceInput> & { categoryId?: string | null },
 ): Promise<Result & { service?: Service }> {
   const res = await fetch(`/api/services/${id}`, {
     method: 'PATCH',
@@ -304,6 +307,23 @@ export async function updateService(
     body: JSON.stringify(patch),
   });
   if (res.status === 200) return { ok: true, status: 200, service: (await res.json()) as Service };
+  return { ok: false, status: res.status, error: await errorText(res) };
+}
+
+// fetchIcon asks the backend to download the favicon from a service's own
+// registered url and store it as the light icon variant (v21 §7.4; admin-only —
+// 403 non-admin, 404 unknown id, 422 when no usable favicon is found). On 200 it
+// returns the stored icon url so the caller can bust the preview cache; on any
+// failure it surfaces the server's reason inline, like uploadIcon.
+export async function fetchIcon(id: string): Promise<Result & { iconUrl?: string }> {
+  const res = await fetch(`/api/services/${id}/fetch-icon`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (res.status === 200) {
+    const data = (await res.json()) as { iconUrl?: string };
+    return { ok: true, status: 200, iconUrl: data.iconUrl };
+  }
   return { ok: false, status: res.status, error: await errorText(res) };
 }
 
