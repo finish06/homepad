@@ -274,26 +274,199 @@ Endpoints requiring `requireAdmin` (per SPEC-245-224 §2):
 
 ## 8. Design Section
 
-*This section is owned by Kare. It is **required** before this spec is final and before Stitch builds.*
+**Owner:** Kare (design/UX). **Status:** DESIGN GO — 2026-07-05.
 
-Kare's design section must address:
+Every number below is **measured**, not eyeballed. The edit-mode tile geometry is read off the live
+`AppGrid` tile (`src/index.css` `.app-grid-tool-*`, the same block v20 touched). The modal — which does
+not exist yet — was built as a token-accurate mock (`v21-mock.html`), rendered in headless Chromium at
+iPad portrait (768×1024, `dsf=2`), light **and** dark, and its computed contrast + `getBoundingClientRect`
+touch boxes read off the live DOM (`v21-measure.js` → `v21-measure-{light,dark}.json`,
+screenshots `v21-modal-{light,dark}.png`). This is a **spec-time co-sign**; the same measurements are
+re-run on Stitch's built UI at PR review before the design gate closes on the shipped code.
 
-1. **Edit affordance placement and visual treatment** — where on the tile does the pencil appear in
-   edit mode? (corner overlay? action bar? other treatment?) How does it coexist spatially with the
-   ★ button? What edit-mode visual treatment does the tile itself receive (border, dim, badge)?
-2. **Modal layout and hierarchy** — header, field order, icon compound section, action button bar.
-   What is the visual weight and reading order?
-3. **Icon compound section layout** — preview size and placement, upload button(s), URL field,
-   remove and fetch-favicon controls. How does a live upload-in-progress state look within the modal
-   (not just a toast — local feedback)?
-4. **Dirty state / discard confirmation pattern** — native `window.confirm()` or an inline state
-   transition inside the modal?
-5. **Fetch favicon button** (if included) — shape, label, loading indicator, inline success/failure
-   treatment.
-6. **Touch and contrast compliance** — confirm all interactive elements ≥ 44px and all text/graphics
-   meet DESIGN-SYSTEM §1.1 floors (≥ 4.5:1 body, ≥ 3:1 graphic).
-7. **Component mapping** — which design system (`Code/design-system`) components map to the modal
-   chrome, form fields, icon section, and action bar?
+### 8.1 Edit affordance — placement & tile treatment
+
+**Placement: a third corner control at the tile's BOTTOM-RIGHT**, mirroring the v20 ★ (top-right) the
+way the #242 status pip (top-left) already mirrors it. The tile's corner-affordance system today is:
+top-left = system status pip (non-interactive, `pointer-events:none`), top-right = ★ favorite. The
+bottom edge is free. The pencil takes **bottom-right**, pairing the two *interactive user controls* on
+the right rail (★ top, ✎ bottom) and leaving the left edge to system status — a coherent, legible split.
+
+- **Visual treatment:** identical construction to the ★ — a 34×34 painted glyph button at
+  `bottom:4 right:4`, transparent background, **pencil glyph ✎ ≤20px**, resting `opacity ~0.85` (slightly
+  more present than the ★'s 0.5, because in edit mode the pencil *is* the primary per-tile action; it
+  lifts to `opacity 1` on hover/focus of the tile). Glyph color = the **accent** token (indigo), which is
+  theme-aware: `#4f46e5` on the light tile (**measured 6.29:1**), `#818cf8` on the dark tile (**measured
+  5.70:1**) — both clear the ≥3:1 graphic floor with margin, and the color reads as "edit/action," visually
+  distinct from the amber-once-pinned ★.
+- **Hit target = 44×44 via the v20 `::before` pattern, zero layout shift.** Keep the painted box 34×34
+  and extend only an invisible, centered `::before{width:44px;height:44px}` (DESIGN-SYSTEM §9.3; the same
+  visual≠hit-area technique v20 used for the ★, §8 of that spec). The glyph does not move; the hover/focus
+  ring stays hugging the 34px glyph.
+- **No collision with the ★ (proven geometrically, and measured).** The ★ hit area is centered at 21px
+  from the tile top, spanning y ≈ −1…43px. The pencil hit area is centered 21px from the tile bottom;
+  on the ≥120px-tall tile it spans y ≈ 77…121px. **Measured vertical gap between the two hit areas: 34px**
+  — no overlap. (Because both are corner-anchored, the guarantee holds for any tile ≥86px tall; homepad
+  tiles are ≥120, AC-007.) Horizontally the ★ and pencil share the right rail but never the same row, so
+  neither steals the other's tap. `aria-label="Edit [tile name]"`, standard `<button>`, `touch-action:
+  manipulation` (kills the 300 ms tap delay), in natural tab order after the ★.
+- **Tile edit-mode treatment:** a **2px inset indigo (`--accent`) ring** (`outline:2px solid;
+  outline-offset:-2px`) around each editable tile — enough to read "this tile is now editable / tap to
+  edit" without a heavy fill, dim, or badge that would fight the icon/label. No dim, no scrim at rest
+  (Walt's constraint: the pencil must not obscure the icon or primary label — a corner glyph + a thin ring
+  satisfy that; a full-tile overlay would not). The ring uses the same accent as the pencil so the mode
+  reads as one coherent state. It is **absent** entirely when `!editMode || !isAdmin` (element not in DOM,
+  AC-001) — no zero-opacity ghost.
+
+### 8.2 Modal — layout, hierarchy & reading order
+
+A centered dialog card, `max-width 480px`, `max-height 90vh`, `radius-lg (16px)`, on a `scrim
+rgba(0,0,0,.5)` backdrop. On phone (~390) it becomes a near-full-width sheet with 16px side gutters; the
+**header and action bar are sticky** and only the field region scrolls, so Save/Cancel are always reachable
+without scrolling past a long description. Enter 160 ms `ease-out` (scrim fade + card rise ~8px), exit
+140 ms `ease-in`; **both suppressed under `prefers-reduced-motion`** (DESIGN-SYSTEM §1.6).
+
+**Vertical order (top → bottom), which is also the visual-weight and reading order:**
+
+1. **Header** — `h2` "Edit tile" (20/600 ink, **17.93:1 light / 15.61:1 dark**) + a secondary subtitle
+   line naming the target tile and scope, e.g. *"Gitea · shared catalog"* (14/secondary, **4.74 / 6.75**)
+   so there is zero ambiguity about which tile — and that edits are shared, not personal (§2). `aria-
+   labelledby` points at the `h2`. A **✕ close** button sits top-right of the header (44×44 hit,
+   **10.37 / 13.51**).
+2. **Title** (text, required) — the identity field, first.
+3. **URL** (url, required).
+4. **Category** (`<select>`).
+5. **Icon** — the compound panel (§8.3), set apart as a bordered sub-block so its internal complexity
+   reads as one grouped unit rather than loose controls in the field stack.
+6. **Description** (`<textarea>`, optional) — last: it is the only multi-line field and the least critical,
+   so it anchors the bottom and never pushes the required Title/URL below the fold.
+7. **Action bar** (sticky footer) — **Cancel** (secondary) + **Save** (primary), right-aligned weight, one
+   clear primary per view (Principle 4). Save is the filled indigo CTA; Cancel is a quiet neutral fill.
+
+Field rhythm is deliberately light→heavy: three simple single-line fields, then the visually heavier icon
+panel, then the textarea. One primary action, one accent color, generous 16px inter-field gaps on the 8pt
+grid.
+
+> **Note to Walt (§6.4 refinement, in my remit):** focus-on-open should land on the **Title input**, not
+> literally the first focusable node (which is the ✕). "First editable field" in §6.4 = Title. This keeps
+> the opening focus on the field the admin most often edits and avoids dropping the caret into the middle
+> of the icon panel. DOM/tab order stays visual order (✕ → Title → URL → Category → icon controls →
+> Description → Cancel → Save); only the initial programmatic focus jumps to Title.
+
+### 8.3 Icon compound section
+
+A bordered panel (`radius-md 12px`, 1px `border-soft`) grouping everything icon-related:
+
+- **Preview — 64×64** (exceeds the ≥48 floor), top-left of the panel, `radius-md`, on a neutral
+  `preview-bg` (`#f5f5f5` light / `#2a2a2c` dark) with a **1px definition border** so a white/transparent
+  PNG still reads a boundary (**measured 3.08:1 light / 3.63:1 dark**, ≥3:1 — the same "faint fill needs a
+  ring" rule as the #242 status pip). It renders the live `iconSrc()` chain and **updates optimistically**
+  as inputs change, before Save.
+- **Controls stack** (right of the preview, each ≥44px tall): **Upload icon** (secondary fill — the common
+  action, given the most weight), **Dark variant** (ghost — optional, deliberately quieter), **Fetch from
+  URL** (ghost — §8.5).
+- **Icon URL** field spans full width below the preview row, with helper text *"Used as a fallback when no
+  PNG is uploaded."* (13px, `helper` token, **7.81 / 11.48**) — this states the `iconSrc()` precedence in
+  plain language so the admin understands why a URL may be overridden by an upload.
+- **Remove icon** — a destructive **text button** (danger token, **6.47 / 6.15**), bottom of the panel,
+  low-emphasis until needed.
+- **Upload-in-progress = local feedback, not just a toast.** On file-select the preview enters a **busy**
+  state: the current icon dims under a `rgba(0,0,0,.35)` overlay with a centered spinner + "Uploading…",
+  and the Upload button disables. On success the preview **cross-fades (120 ms)** to the new icon and a
+  brief inline "Updated ✓" (success token) fades after ~1.5 s. On failure, inline error text under the
+  panel in the danger token (**≥4.5:1 both themes**), the previous icon is restored, and the button
+  re-enables to retry — the text fields are untouched and still savable (AC-009).
+
+### 8.4 Dirty state / discard confirmation — **inline, not `window.confirm()`**
+
+Use an **inline in-modal confirm**, never native `window.confirm()`. Native confirm is unstyleable (fails
+the design-system type/contrast), yanks focus out of the trapped dialog (fighting §6.4's focus-trap), and
+reads as a foreign OS artifact (Principle 8). Instead: a dismiss attempt (Cancel / ✕ / backdrop / Esc)
+**while the form is dirty** transforms the sticky action bar *in place* into a confirm strip — message
+**"Discard changes?"** with **Keep editing** (secondary, receives focus — the safe default) and **Discard**
+(destructive, danger-outline). Esc while the strip is showing = "Keep editing." If the form is **not**
+dirty, dismissal closes immediately with no prompt (AC-011). Dirtiness = any field differing from its
+prefill; note that icon PNG upload / Remove fire immediately (§6.3) and are **not** part of dirty-tracking —
+only the text fields + Icon URL are.
+
+### 8.5 Fetch-favicon button (stretch)
+
+- **Shape/label:** a **ghost button** in the icon controls stack, label **"Fetch from URL"** with a small
+  download glyph (⭳). ≥44px. **Disabled when the URL field is empty** (nothing to fetch from) — with an
+  `aria-disabled` + helper reason, not a silent dead button.
+- **Loading:** on tap the glyph becomes a spinner, label → "Fetching…", button disabled, and the **preview
+  shows the same busy overlay** as an upload (shared state — one in-progress language for the whole panel),
+  120–200 ms.
+- **Success (inline):** preview cross-fades to the fetched icon + inline "Favicon added ✓" (success token)
+  that fades after ~2 s. No global toast — fetch isn't the Save; feedback stays local to the panel.
+- **Failure (inline):** button returns to rest; inline danger-token error under the panel — a short human
+  line *"Couldn't fetch a favicon from this URL."* (the backend's 422 reason is logged, not dumped at the
+  user). Existing icon unchanged (§7.4). Measured error contrast **6.47 / 6.15**, ≥4.5:1.
+
+### 8.6 Touch & contrast compliance — **measured**
+
+Rendered at iPad portrait (768), light + dark, off the live DOM.
+
+**Touch targets — all 14 interactive elements ≥44×44, zero fails in either theme:**
+
+| Element | How it reaches ≥44 |
+|---|---|
+| Tile pencil ✎, ★ | 34×34 painted glyph + transparent 44×44 `::before` (v20 pattern); **34px gap** between their hit areas |
+| ✕ close | 44×44 button box |
+| Upload / Dark / Fetch / Remove | `min-height:44` buttons |
+| Title / URL / Icon URL / Category `<select>` | `min-height:44` inputs (fixes the DESIGN-SYSTEM §3.3 38px input miss) |
+| Description `<textarea>` | `min-height:76` |
+| Cancel / Save | `min-height:44` |
+
+**Contrast — measured ratio (light / dark), against the stated floor:**
+
+| Element | Token | Light | Dark | Floor |
+|---|---|---|---|---|
+| Heading | ink | **17.93** | **15.61** | 4.5 ✅ |
+| Subtitle | secondary | **4.74** | **6.75** | 4.5 ✅ |
+| Field label | label `#404040`/`#e5e5e5` | **10.37** | **13.51** | 4.5 ✅ |
+| Input text | ink | **17.93** | **15.61** | 4.5 ✅ |
+| Helper / URL-fallback note | helper `#525252`/`#d4d4d4` | **7.81** | **11.48** | 4.5 ✅ |
+| Save label | white on indigo-600 | **6.29** | **6.29** | 4.5 ✅ |
+| Cancel label | ink on neutral fill | **16.44** | **13.14** | 4.5 ✅ |
+| ✕ close | label | **10.37** | **13.51** | 4.5 ✅ |
+| Ghost btn label (Dark/Fetch) | accent | **6.29** | **5.70** | 4.5 ✅ |
+| Inline error | danger | **6.47** | **6.15** | 4.5 ✅ |
+| Pencil glyph on tile | accent | **6.29** | **5.70** | 3 (graphic) ✅ |
+| Input / control border | border `#8c8c8c`/`#808080` | **3.36** | **4.31** | 3 (graphic) ✅ |
+| Icon-preview border | border | **3.08** | **3.63** | 3 (graphic) ✅ |
+
+**Three dark-mode token decisions the measurement forced (fold into the design system):**
+
+1. **Primary filled button stays indigo-600 `#4f46e5` + white in BOTH themes (6.29:1).** Do **not** lighten
+   the fill to indigo-500 `#6366f1` in dark — that drops white-on-fill to **4.47:1, a fail**. (First mock
+   pass caught this.)
+2. **Accent (glyph / ghost-label / focus-ring / edit-ring) is theme-aware:** `#4f46e5` light, `#818cf8`
+   dark. On the near-black dark surface, indigo-600 is only 4.47:1 — too low for a ghost *label*; indigo-400
+   restores 5.70:1.
+3. **Control-border token is theme-aware:** `#8c8c8c` light (3.36:1 on white), `#808080` dark (4.31:1 on
+   `#1c1c1e`). Never `#a3a3a3` (2.52:1) — that is the same neutral-400 miss the design system already flags
+   (§9.2). Helper/label use neutral-700/600, not the barely-passing 4.74 secondary, for headroom.
+
+### 8.7 Component mapping (`Code/design-system`)
+
+| Modal part | Design-system source |
+|---|---|
+| **Dialog chrome** (card, radius, elevation, backdrop) | `radius-lg 16px` (§1.4); a floating dialog needs elevation on the otherwise-flat homepad surface → `shadow-card`-class drop (§1.5) + a **new `scrim` token** `rgba(0,0,0,.5)`. **This modal establishes the dialog/overlay pattern the system did not have** (§3.4 "no modal/dialog overlay was reachable") — I fold it back into the doc as the canonical dialog component in the same breath (drift rule). |
+| **Header heading** | Type scale H1/title role, 20/600 (§1.2), `ink` token (§1.1). |
+| **Form fields** (Title/URL/Icon URL/Description/Category) | Inputs pattern (§3.3) — white/`surface`, 1px border, `radius-sm 8px`, label-above 14/600 — **upgraded to `min-height:44`** per the §9.3 touch rule (the §3.3 38px height was a logged miss). |
+| **Icon preview** | Tile/card treatment (§3.1) at `radius-md`, plus the #242 "faint fill needs a ≥3:1 definition ring" rule. |
+| **Buttons** | Primary solid indigo (§3.2) for **Save**; secondary neutral fill for **Cancel**/**Upload**; ghost/accent for **Dark variant**/**Fetch**; destructive text for **Remove**/**Discard** — all at ≥44 (fixing the §3.2 36px miss). |
+| **✕ close / corner pencil** | Icon-button pattern (§3.4) + the v20 visual≠hit-area `::before` touch technique (§9.3). |
+| **Toasts** ("Tile updated." / errors, §6.3) | Homepad's existing toast; the design system has **no toast spec yet** — logged as a fold-in for DS v1.1 (out of scope to define here, but flagged so it isn't silently invented). |
+
+**Design system fold-ins produced by this spec** (I will land these in `Code/design-system` so the doc
+never drifts from what ships): the **dialog/overlay component** (§3.4 gap closed), the **`scrim` token**,
+the three **theme-aware token corrections** (button fill, accent, control border) in §8.6, and the
+**toast** placeholder for v1.1.
+
+**Artifacts:** `v21-mock.html`, `v21-measure.js`, `v21-measure-{light,dark}.json`,
+`v21-modal-{light,dark}.png` (in `/home/kare/work`).
 
 ---
 
@@ -373,6 +546,8 @@ directly receives a 403.
 | Seat | Sign-off | Date |
 |---|---|---|
 | Walt (product) | ✅ APPROVED — 2026-07-05 | |
-| Kare (design) | ⬜ Awaiting §8 design section | |
+| Kare (design) | ✅ DESIGN GO — §8 authored, measured @ iPad 768 light+dark | 2026-07-05 |
 
-**Cleared to build:** No — awaiting Kare §8 design section and sign-off.
+**Cleared to build:** Yes — both sign-offs present (Walt product ✅ + Kare design ✅). Backend
+prerequisite still binds: the SPEC-245-224 admin gate on `PATCH /api/services/{id}` and the icon
+endpoints must land first or in the same PR (§7.3 / AC-016).
