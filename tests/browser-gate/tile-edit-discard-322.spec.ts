@@ -47,6 +47,11 @@ test('Keep editing dismisses the discard strip without saving the tile (#322)', 
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('tile-discard-confirm')).toBeVisible();
 
+  // #321 (§8.4) — the strip's safe default ("Keep editing") receives focus when
+  // it appears, so Enter keeps editing rather than confirming discard. Guards the
+  // imperative useRef+useEffect focus (replacing declarative autoFocus).
+  await expect(page.getByTestId('tile-discard-keep')).toBeFocused();
+
   // The action under test: click "Keep editing".
   await page.getByTestId('tile-discard-keep').click();
 
