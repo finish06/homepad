@@ -385,11 +385,68 @@ fix. Proceed to build.
 | Role | Person | Status |
 |------|--------|--------|
 | Product | Walt | Approved — 2026-07-05 |
-| Design / UX | Kare | **Approved (design GO) — 2026-07-05** — §9 authored (Q1–Q5 resolved); build verification per Q5 committed. |
+| Design / UX (spec) | Kare | **Approved (design GO) — 2026-07-05** — §9 authored (Q1–Q5 resolved); build verification per Q5 committed. |
+| Design / UX (built PR #299) | Kare | **APPROVE (design GO) — 2026-07-05** — live 768px iPad-portrait verification, light + dark, per §10.1 below. |
 
 *This spec requires both sign-offs before Stitch builds. Both are now recorded: Walt (product) and
-Kare (design). §9 is authored and this spec is `approve`d for build. Kare co-signs the built PR
-separately per §9 Q5 (live 768px light/dark AC verification) before merge.*
+Kare (design). §9 is authored and this spec is `approve`d for build. The built-PR co-sign (§9 Q5)
+is now also recorded — see §10.1.*
+
+---
+
+### 10.1 Build co-sign — live verification of PR #299 (§9 Q5)
+
+**Verdict: APPROVE (design GO).** Verified against `homepad-web.homepad-staging.svc` at **768×1024
+(iPad portrait), both light and dark**, read off the live DOM (`getBoundingClientRect` for touch
+targets, alpha-composited `getComputedStyle` for contrast). Every in-scope AC passes.
+
+| AC | Target | Live measurement (768px) | Verdict |
+|---|---|---|---|
+| AC-001 | Sign in ≥44px tall | 44.0px (light+dark) | ✅ |
+| AC-002 | Login inputs ≥44px tall | email 44.0 / password 44.0 | ✅ |
+| AC-003 | Mode-toggle ≥44×44 | "Need an account? Register" row 334×44 | ✅ |
+| AC-004 | "or" divider ≥4.5:1 (light) | **source-verified** `text-neutral-500` (#737373 = 4.74:1). Control is OIDC-gated (`oidcEnabled && …`, App.tsx:395) and staging reports `oidcEnabled:false`, so the divider does not render live — measured from source, not DOM. | ✅ (source) |
+| AC-005 | Gear ≥44×44 | 44.0×44.0 (light+dark) | ✅ |
+| AC-006 | Launcher trigger ≥44px tall | 44.0px | ✅ |
+| AC-007 | Launcher placeholder ≥4.5:1 | light 5.10:1 (#6e6e6e), dark 7.34:1 | ✅ |
+| AC-008 | Status caption ≥4.5:1 | light 4.74:1 (#737373), dark 7.36:1 | ✅ |
+| AC-009 | Tile ⋯ menu glyph ≥3:1 | **MOOT — see reconciliation below.** The ⋯ menu (Catalog.tsx) is dead code since #223; Catalog.tsx is imported only by tests. The successor control is the favorite ★. | ⚠️ reconciled |
+| AC-010 | Avatar ≥44×44 | `user-menu-trigger` 44.0×44.0 | ✅ |
+| AC-011 | "+ Add apps" ≥44px tall | gear-menu `gear-add-apps` 186×44 | ✅ |
+| AC-012 | Edit banner exact copy | "Editing the shared catalog — changes affect all users" — exact match (App.tsx:215; rendered) | ✅ |
+| AC-013 | No "personal dashboard" in note | note reads the §9 Q3 shared-catalog copy verbatim; `personal dashboard` absent from menu DOM | ✅ |
+| AC-014 | Dark banner label ≥AA | **9.03:1** (indigo-300 #a5b4fc on the live dark banner ground rgb(21,21,38)); was 2.86:1 | ✅ |
+| AC-015 | No failing specs | Stitch-owned build gate (PR carries the #163 768px live-DOM gate test) | ⛭ Stitch |
+| AC-016 | PR-description measurements | Stitch-owned PR-description obligation | ⛭ Stitch |
+
+**Admin-gated ACs (AC-012 / AC-014).** No admin session was obtainable on staging (no admin creds;
+no `kubectl`/`psql` in the pod to promote a user). The banner is unconditional markup gated only by
+`isAdmin && editMode` — its CSS, copy, and contrast are identical however edit mode is triggered. So
+those two were measured **byte-faithfully by injecting the exact App.tsx:213–224 markup into the
+live app surface** (real `index.css` `.dark .edit-mode-banner` rules + real dark background apply),
+not by driving a real admin edit session. Values above are from that live-CSS injection.
+
+**AC-009 reconciliation (drift: Catalog.tsx dead since #223 → AppGrid ships).** AC-009 as literally
+written targets the **Catalog tile ⋯ menu glyph**, which no longer ships — Catalog.tsx is dead code
+(imported only by tests) and the App renders **AppGrid**. The per-tile control it was replaced by is
+the **favorite ★ toggle** (#240, `data-testid="tile-favorite"`). AC-009's letter is **moot**, but
+its *intent* — the per-tile affordance must clear the touch and non-text-contrast floors — transfers
+to the ★, and the ★ **does not clear them**:
+
+- **Touch target:** rendered **34×34px** at 768px (`.app-grid-tool-fav`, index.css:2476) — below the
+  ≥44×44 floor. (On touch it is correctly kept opaque via `@media (hover:none)`, but the *hit box* is
+  still 34px.)
+- **Contrast (light):** default ☆ = `#94a3b8` on the white tile = **2.56:1** — below the ≥3:1
+  non-text floor. Dark ☆ = `#64748b` = 3.79:1 (passes 3:1).
+
+This is a **pre-existing gap, not a v19 regression** — the ★ predates v19 (#240 / reviewed at PR
+#253) and was **out of v19's declared scope** (v19's §4 measured the now-dead ⋯ menu). It is already
+tracked in **Gitea #255** and re-confirmed live here. It therefore does **not** hold the v19 co-sign
+(v19 delivers all its own ACs and closes 5 real blockers); it is flagged to Walt as follow-up spec
+input. **Design GO on PR #299 stands.**
+
+Artifacts (768px): `v19-login-768-{light,dark}.png`, `v19-dash-768-{light,dark}.png`,
+`v19-usermenu-768-light.png`, `v19-gearmenu-768-light.png`, `v19-editbanner-768-{light,dark}.png`.
 
 ---
 
@@ -399,3 +456,4 @@ separately per §9 Q5 (live 768px light/dark AC verification) before merge.*
 |------|---------|--------|---------|
 | 2026-07-05 | 1.0.0 | Walt | Initial spec — closes 5 design-review blockers + login a11y + 2 copy regressions |
 | 2026-07-05 | 1.1.0 | Kare | Authored §9 (Q1–Q5 resolved, per-control verification checklist); recorded design GO in §10 |
+| 2026-07-05 | 1.2.0 | Kare | §10.1 — built-PR co-sign (APPROVE): live 768px light/dark AC verification off staging DOM; AC-009 reconciled (⋯ menu dead since #223 → favorite ★ successor; 34px + 2.56:1 gap = pre-existing #255, flagged to Walt, does not hold v19) |
