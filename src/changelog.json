@@ -2,6 +2,16 @@
   "pending": [],
   "versions": [
     {
+      "version": "13.8.0",
+      "date": "2026-07-05",
+      "changes": [
+        { "type": "bug-fix", "text": "The 'Editing the shared catalog — changes affect all users' banner is back. It had quietly disappeared from the live app when the dashboard switched over to the new App Grid, so admins in edit mode no longer had that heads-up; it now shows again at the top of the page while you're editing." },
+        { "type": "bug-fix", "text": "Fixed hard-to-read text in dark mode. The edit-banner label was a dark indigo that barely stood out against the near-black banner (failing accessibility contrast standards); it's now a lighter indigo that's comfortably legible." },
+        { "type": "enhancement", "text": "The account menu's note for non-admins now describes what you're actually looking at — the shared homelab catalog everyone sees — instead of calling it your 'personal dashboard'." },
+        { "type": "enhancement", "text": "Accessibility and touch pass: we re-measured tap targets and text contrast across the interface (phone width, light and dark) to confirm everything still meets our 44px touch-target and readability bars. No changes you'll notice — just verification, plus a fix to a flaky internal check that measures the login screen." }
+      ]
+    },
+    {
       "version": "13.5.0",
       "date": "2026-07-04",
       "changes": [
