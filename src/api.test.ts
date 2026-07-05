@@ -265,8 +265,15 @@ describe('fetchIcon', () => {
       iconUrl: '/api/services/s1/icon/light',
     });
     const [url, opts] = fn.mock.calls[0];
-    expect(url).toBe('/api/services/s1/fetch-icon');
+    // v22 §6.4 — the variant is carried on the query string; defaults to light.
+    expect(url).toBe('/api/services/s1/fetch-icon?variant=light');
     expect(opts).toMatchObject({ method: 'POST', credentials: 'include' });
+  });
+
+  it('carries the requested variant on the query string (v22 §6.4)', async () => {
+    const fn = mockFetch(JSON.stringify({ iconUrl: '/api/services/s1/icon/dark' }), 200);
+    await fetchIcon('s1', 'dark');
+    expect(fn.mock.calls[0][0]).toBe('/api/services/s1/fetch-icon?variant=dark');
   });
 
   it('surfaces the server 422 reason inline when no favicon is found', async () => {

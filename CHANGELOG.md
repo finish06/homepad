@@ -7,6 +7,54 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [13.11.0] — 2026-07-05 — Icon Light/Dark Tabs (v22)
+
+Reorganises the v21 `TileEditModal` icon section into a two-tab ARIA tablist —
+**Light Mode** (default) and **Dark Mode** — so an admin can set a distinct icon
+per theme without the flat panel's clutter (spec
+`specs/v22-icon-light-dark-tabs.md`). A **pure front-end reorganisation**: the
+backend already stores two independent icon blobs keyed by `(service_id,
+variant)` with variant-specific upload/delete endpoints, so there is **no schema
+change and no migration**. Frontend-only — only the `homepad` image rebuilds.
+
+### Added
+
+- **Two-tab icon section (§5, §8.1).** The flat icon panel becomes a segmented
+  control that is a WAI-ARIA `tablist` — "Light Mode" (index 0, always default on
+  open, AC-001/AC-007) + "Dark Mode". Each tab has its own preview, **Upload
+  PNG**, **Fetch from URL**, and **Remove**, operating independently on that
+  variant (AC-002/AC-003). Roles are independent of the segmented visual
+  treatment; automatic-activation with **← / → arrow-key nav** that wraps both
+  ways and moves focus to the newly active tab (AC-009).
+- **Honest per-tab preview states (§8.3).** A tab with no PNG of its own renders
+  the resolved fallback (other variant or URL) at reduced emphasis with an inline
+  note (*"No dark PNG — showing the light icon."*); a truly empty variant shows an
+  explicit dashed **"No icon set"** box plus the initials-badge consequence hint,
+  never a bare badge that reads as "configured". Preview `<img>` carries a
+  variant-specific `alt` (§8.2).
+- **`both modes` scope pill (§8.4).** The shared `services.icon` URL field is
+  relabelled **"URL fallback"** with an accent-outline `both modes` pill and sits
+  **below the tabpanel behind a divider** — it applies to both themes (one shared
+  column), made explicit so it doesn't read as tab-scoped (AC-005).
+
+### Changed
+
+- **Remove is now per-tab and non-destructive (§5.2, AC-004).** "Remove
+  [light/dark] icon" deletes only the active tab's variant via an inline,
+  variant-specific confirm (Keep focused as the safe default, §8.5) — it no longer
+  clears the other variant or the URL, unlike the v21 flat-panel Remove.
+- **Fetch-favicon carries the active variant (§6.4/§8.6).** The front-end now
+  sends `POST /api/services/{id}/fetch-icon?variant=light|dark`. **Note:** storing
+  the fetched icon under the *dark* variant depends on a companion `homepad-api`
+  change to honour the `variant` param; a pre-v22 backend defaults to `light`
+  (backward-compatible). The Light-tab fetch works against the current backend.
+
+### Unchanged
+
+- Save/Cancel, discard confirm, focus trap, and all other modal fields are
+  inherited from v21 verbatim (AC-013). No `iconSrc()` precedence change — the tab
+  UI only makes the existing dark variant easier to set (AC-012).
+
 ## [13.10.0] — 2026-07-05 — Tile Edit Modal (v21)
 
 Per-tile editing from the dashboard (spec `specs/v21-tile-edit-modal.md`). An
