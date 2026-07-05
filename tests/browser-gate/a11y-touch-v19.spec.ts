@@ -203,11 +203,31 @@ test.describe('v19 dashboard @768 — touch targets & contrast', () => {
     console.log('[v19-measure] AC-012 | edit-mode banner | present + exact copy | PASS');
   });
 
+});
+
+// ── Dark mode: admin edit-mode chrome (#163 / AC-014) ───────────────────────
+// Dark is forced deterministically via the server themePref ('dark'), NOT by
+// racing document.documentElement.classList — the ThemeProvider owns that class
+// and would clobber a manual add. The test asserts `.dark` actually applied
+// before measuring, so it can never pass vacuously against a light surface.
+test.describe('v19 dark @768 — #163 admin edit-mode chrome contrast', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(INIT);
+    await mockApi(page, undefined, [{ id: 'c1', name: 'Media', sortIndex: 0, gridWidth: 8 }], 'admin');
+    // Re-route /api/me AFTER mockApi (LIFO — this wins) to force a dark theme pref.
+    await page.route('**/api/me', (route) =>
+      route.fulfill({ json: { id: 'a1', email: 'caleb@ohana.io', role: 'admin', themePref: 'dark' } }),
+    );
+    await page.goto('/');
+    await expect(page.getByTestId('user-menu-trigger')).toBeVisible();
+    // Fail loudly if dark didn't apply — no vacuous light-mode pass.
+    await expect.poll(async () => page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(true);
+  });
+
   test('AC-014/#163 edit-mode chrome contrast in DARK mode', async ({ page }) => {
-    await page.emulateMedia({ colorScheme: 'dark' });
-    await page.evaluate(() => document.documentElement.classList.add('dark'));
     await page.getByTestId('settings-gear').click();
     await page.getByTestId('gear-edit-dashboard').click();
+    await expect(page.getByTestId('edit-mode-banner')).toBeVisible();
     // Banner label (indigo) on dark ground — must clear AA for its 11px bold text.
     const bannerRatio = await page.getByTestId('edit-mode-banner').evaluate((el) => {
       const w = window as unknown as { __parse: (s: string) => { r: number; g: number; b: number; a: number }; __resolveBg: (e: Element) => { r: number; g: number; b: number }; __ratio: (a: number[], b: number[]) => number; __composite: (f: { r: number; g: number; b: number; a: number }, b: { r: number; g: number; b: number }) => { r: number; g: number; b: number } };
