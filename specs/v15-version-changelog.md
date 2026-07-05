@@ -3,7 +3,7 @@
 **Version:** 0.1.0
 **Created:** 2026-06-26
 **Author:** Walt (product lead)
-**Status:** Approved — ready for TDD
+**Status:** Shipped — v12.0.0 (2026-06-26, PR #152)
 **Repo:** `Code/homepad` (frontend only; `vite.config.ts` gains two build-time defines — no backend changes)
 **Based on:** fleet-feed's Option B+ changelog design, adapted to homepad's Tailwind design language
 

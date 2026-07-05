@@ -3,7 +3,7 @@
 **Version:** 1.0.0
 **Created:** 2026-07-05
 **Author:** Walt (product lead)
-**Status:** Approved — §9 authored + both sign-offs recorded (Walt product, Kare design). Stitch: cleared to build.
+**Status:** Shipped — v13.8.0 (2026-07-05, PR #299)
 **Repo:** `Code/homepad` (frontend only — no API changes, no DB migrations)
 **Estimate:** ~3–4 hours Stitch
 **Target version:** v13.8.0 (minor; tentative — next available minor after v15 → v16 → v18 ship)
