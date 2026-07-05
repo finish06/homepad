@@ -2,6 +2,14 @@
   "pending": [],
   "versions": [
     {
+      "version": "13.9.0",
+      "date": "2026-07-05",
+      "changes": [
+        { "type": "bug-fix", "text": "The favorite star (★) in the corner of each app tile is now easier to tap. Its invisible tap area was smaller than our 44px touch-target bar, so a thumb aimed at the corner could miss it and open the app instead; the star now catches a comfortable 44×44px corner tap while looking exactly the same." },
+        { "type": "bug-fix", "text": "The empty (not-yet-favorited) star outline is now easier to see. In light mode it was a pale gray that didn't stand out enough against the white tile (failing accessibility contrast standards); it's now a slightly deeper slate that clears the bar, matching the star's look in dark mode." }
+      ]
+    },
+    {
       "version": "13.8.0",
       "date": "2026-07-05",
       "changes": [
