@@ -7,6 +7,27 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [13.9.0] — 2026-07-05 — Favorite ★ Touch Target & Contrast Fix (v20)
+
+Fixes two pre-existing design-system floors on the per-tile ★ favorite toggle
+(`data-testid="tile-favorite"`) at 768px (iPad), both introduced with the App
+Grid in #240 and tracked in #255. Frontend only — `src/index.css`, no API
+changes.
+
+### Fixed
+
+- **★ favorite hit area lifted 34×34 → 44×44 (DESIGN-SYSTEM §9.3).** A
+  transparent, centered `.app-grid-tool-fav::before` extends only the invisible
+  hit area to 44×44px; the painted 34×34 button, glyph position (0px delta),
+  hover pill, and focus ring are all unchanged. Added `touch-action:
+  manipulation` so a corner tap fires without the 300ms double-tap-zoom delay
+  (#255).
+- **Default ☆ light-mode contrast raised 2.56:1 → 4.76:1 (DESIGN-SYSTEM §1.1).**
+  The resting unfavorited ☆ moved slate-400 (`#94a3b8`, 2.56:1 on the white
+  tile — below the ≥3:1 non-text floor) to slate-500 (`#64748b`, 4.76:1),
+  unifying the resting-star color with dark mode. Opacity (0.5), the favorited
+  amber ★, hover, and the focus ring are unchanged (#255).
+
 ## [13.8.0] — 2026-07-05 — A11y & Touch-Target Hardening Pass (v19)
 
 An accessibility and touch-target hardening pass over the shared-catalog UI. No

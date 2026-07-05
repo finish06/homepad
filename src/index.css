@@ -2489,12 +2489,26 @@
     border: none;
     border-radius: 999px;
     background: transparent;
-    color: #94a3b8;
+    color: #64748b;
     font-size: 16px;
     line-height: 1;
     cursor: pointer;
     opacity: 0.5;
+    touch-action: manipulation;
     transition: color 120ms ease, background 120ms ease, opacity 120ms ease;
+  }
+  /* v20 (#255, spec §8.1) — extend only the invisible hit area to 44×44,
+     centered on the painted 34×34 button so the glyph does not move (0px delta)
+     and the hover pill / focus ring stay 34px. A pointer event anywhere in this
+     transparent ::before fires the button's onClick (AC-001). */
+  .app-grid-tool-fav::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
   }
   .app-grid-tool-wrap:hover .app-grid-tool-fav,
   .app-grid-tool-fav:focus-visible {
