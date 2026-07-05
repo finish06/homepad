@@ -541,12 +541,92 @@ directly receives a 403.
 
 ---
 
+## 10. Built-UI Design Co-Sign (Kare)
+
+**Verdict: APPROVE — design GO.** Reviewed the **built** UI on PR #320 (build `homepad:4655683-test`) live
+in the headless Chromium sidecar, as **admin, in edit mode**, at **iPad portrait 768×1024, light + dark**.
+Every value below is read off the live DOM (`getComputedStyle` / `getBoundingClientRect`, contrast computed
+from resolved fg/bg), not eyeballed. The built UI matches §8 on every measurable rule; **one minor** focus
+deviation (issue **#321**) is filed and does not gate the merge.
+
+Artifacts: `_v21_modal_light.png`, `_v21_modal_dark.png`, `_v21_step1.png` (edit-mode tiles), `_v21_discard_light.png`.
+
+### 10.1 Edit affordance (§8.1) — ✅
+
+| Check | Spec | Measured (light / dark) |
+|---|---|---|
+| Painted glyph box | 34×34 | **34×34** |
+| Hit area (`::before`) | 44×44 | **44×44** |
+| Glyph size | ≤20px | **16px** |
+| Resting opacity | ~0.85 | **0.85** |
+| `aria-label` | "Edit <name>" | **"Edit ArchiveTeam Warrior1"** |
+| Corner anchor | bottom-right 4/4; ★ top-right 4/4 | **pencil BR 4/4 · ★ TR 4/4** |
+| Hit-area gap to ★ | ≥34px, no collision | **36px** (on a 122px tile) |
+| `touch-action` | manipulation | **manipulation** |
+| Glyph contrast (accent) | ≥3 graphic | **6.29 (#4f46e5) / 5.54 (#818cf8)** |
+
+Pencil renders **only** when `editMode && isAdmin` (absent from DOM otherwise, AC-001 ✓).
+
+### 10.2 Modal a11y & layout (§8.2) — ✅
+
+`role="dialog"` ✓ · `aria-modal="true"` ✓ · `aria-labelledby` resolves to the `h2` ✓ ·
+**focus-on-open lands on the Title field** (`tile-field-title`, §8.2 note ✓) · `max-width` **480px** ·
+`max-height` **90vh (921.6px)** · `radius` **16px** · scrim **rgba(0,0,0,.5)**. Reading order Title → URL →
+Category → icon panel → Description → Cancel/Save matches §8.2. Clean `Esc` closes and **returns focus to the
+opening pencil** (`aria-label="Edit …"` ✓, AC-013) · **backdrop click closes** ✓.
+
+### 10.3 Touch targets (§8.6) — ✅ all ≥44, zero fails (both themes)
+
+✕ close **44×44** · Title/URL/Icon-URL inputs **44.5** · Category select **44** · Upload/Dark/Fetch **44** ·
+Remove **44** · Description textarea **85** (min 76) · Cancel/Save **44**.
+
+### 10.4 Icon compound panel (§8.3, §8.5) — ✅
+
+Preview **64×64** on a definition border (**3.36 light / 4.31 dark**, ≥3 ✓) · Upload = secondary solid,
+Dark variant + Fetch = ghost · optimistic preview updates live (title "…edited" → badge AW→AE observed) ·
+**Fetch-from-URL disabled when URL empty** with `disabled` + `aria-disabled="true"` + `title="Enter a URL
+first"` (§8.5 — reasoned, not a silent dead button ✓) · Remove = danger text (**6.57 / 6.15**).
+
+### 10.5 Discard confirmation (§8.4) — ✅ inline, not native (one minor delta)
+
+Dirty dismissal transforms the action bar **in place** into "Discard changes?" + **Keep editing**
+(secondary) + **Discard** (danger-outline). `window.confirm` spy confirms native confirm is **never called**
+(✓). `Esc`-on-strip = "Keep editing" (✓). **Minor (#321):** on strip appearance focus stays on the Title
+input rather than moving to "Keep editing" (the `autoFocus` on the swap doesn't fire). Low impact — strip is
+`role="alert"` (announced), Esc=keep works, and focus rests on the benign Title, not the destructive
+Discard, so no accidental-discard risk. Fix dispatched to Stitch (imperative focus via ref + effect).
+
+### 10.6 Contrast & the §8.6 dark-token corrections — ✅ VERIFIED LIVE
+
+All text/graphic contrast clears its floor in **both** themes (measured light / dark): heading 17.93/15.61 ·
+subtitle 6.19/8.11 · label 10.37/13.51 · input text 17.93/15.61 · helper 7.81/11.48 · Cancel 17.93/15.61 ·
+✕ close 10.37/13.51 · Remove-danger 6.57/6.15.
+
+The three dark-mode token decisions from §8.6 are **confirmed on the built UI**:
+
+1. **Primary fill stays indigo-600 `#4f46e5` + white in BOTH themes → white-on-fill 6.29:1** (not lightened
+   to indigo-500, which would fail at 4.47). ✓
+2. **Accent (glyph / ghost label / edit ring) is theme-aware:** `#4f46e5` light, `#818cf8` dark → ghost label
+   **6.29 light / 5.70 dark** (indigo-600 would be 4.47 in dark — the fail this correction prevents). ✓
+3. **Control-border token theme-aware:** `#8c8c8c` light (**3.36**) / `#808080` dark (**4.31**), both ≥3. ✓
+
+### 10.7 Design deltas
+
+- **#321 (minor):** discard-strip focus stays on Title, not "Keep editing" (§8.4). Filed + fix dispatched to
+  Stitch. Does **not** gate merge.
+- Hit-area gap to ★ measured **36px** vs the §8.1 stated 34px — expected (gap scales with tile height; §8.1
+  computed on a 120px tile, live tiles are 122px). Not a defect: ≥34, no collision.
+
+**Design GO on the built UI. Ships from a design standpoint with #321 tracked as a known minor.**
+
+---
+
 ## Sign-offs
 
 | Seat | Sign-off | Date |
 |---|---|---|
 | Walt (product) | ✅ APPROVED — 2026-07-05 | |
-| Kare (design) | ✅ DESIGN GO — §8 authored, measured @ iPad 768 light+dark | 2026-07-05 |
+| Kare (design) | ✅ DESIGN GO — §8 authored, measured @ iPad 768 light+dark; **built-UI co-sign §10 APPROVE (PR #320, one minor #321)** | 2026-07-05 |
 
 **Cleared to build:** Yes — both sign-offs present (Walt product ✅ + Kare design ✅). Backend
 prerequisite still binds: the SPEC-245-224 admin gate on `PATCH /api/services/{id}` and the icon
