@@ -155,8 +155,9 @@ export default function UserMenu({
           </button>
           {!isAdmin && (
             <p data-testid="menu-dashboard-note" className="menu-dashboard-note">
-              Your tiles, categories, and icons are your personal dashboard —
-              manage them directly on the home screen.
+              These tiles and categories are the shared homelab catalog, managed
+              by your admin. Favorite the ones you use most and arrange them on
+              your home screen.
             </p>
           )}
 
