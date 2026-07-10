@@ -34,6 +34,7 @@ import { iconSrc, initialBadge } from './icons';
 import { useServicesContext } from './services';
 import { useResolvedTheme } from './theme';
 import TileEditModal from './TileEditModal';
+import IframeOverlay from './IframeOverlay';
 
 // AppGrid (SPEC-app-grid, Amendment A1) — the primary dashboard layout: glass
 // boxes (= categories) that pack left→right with flex-wrap. Each box's width
@@ -95,6 +96,9 @@ export default function AppGrid({
   // for a non-admin — the modal is unreachable without the affordance.
   const [editTarget, setEditTarget] = useState<{ service: Service; opener: HTMLElement | null } | null>(null);
   const [toast, setToast] = useState<{ msg: string; kind: 'success' | 'error' } | null>(null);
+  // v23 — the service whose IframeOverlay is open (clickAction='iframe'), or null.
+  const [iframeTarget, setIframeTarget] = useState<Service | null>(null);
+  const openIframe = useCallback((service: Service) => setIframeTarget(service), []);
 
   useEffect(() => {
     if (!toast) return;
@@ -328,17 +332,17 @@ export default function AppGrid({
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext items={sortableBoxes.map((b) => b.id)} strategy={rectSortingStrategy}>
                 {sortableBoxes.map((box) => (
-                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
+                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
                 ))}
               </SortableContext>
             </DndContext>
             {uncatBox && (
-              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(uncatBox.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
+              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(uncatBox.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
             )}
           </>
         ) : (
           boxes.map((box) => (
-            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
+            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
           ))
         )}
         {addButton}
@@ -358,6 +362,10 @@ export default function AppGrid({
           onToast={(msg, kind) => setToast({ msg, kind })}
         />
       )}
+      {/* v23 — the in-app embed overlay for a clickAction='iframe' tile. Rendered
+          at the grid root (like the edit modal) so its fixed backdrop escapes any
+          box stacking context. */}
+      {iframeTarget && <IframeOverlay service={iframeTarget} onClose={() => setIframeTarget(null)} />}
       {/* v21 — Save success / error toast (AC-014/015). Bottom-right, auto-dismiss;
           same visual family as the cap5 status toasts. */}
       {toast && (
@@ -403,6 +411,7 @@ function BoxCard({
   onWidth,
   onToggleFavorite,
   onEdit,
+  onOpenIframe,
   onRename,
   onDelete,
   showUptimeDisplay,
@@ -416,6 +425,7 @@ function BoxCard({
   onWidth: (id: string, width: number) => void;
   onToggleFavorite: (id: string) => void;
   onEdit: (service: Service, opener: HTMLElement | null) => void;
+  onOpenIframe: (service: Service) => void;
   onRename: (id: string, name: string) => Promise<true | string>;
   onDelete: (id: string) => Promise<boolean>;
   showUptimeDisplay: boolean;
@@ -616,7 +626,7 @@ function BoxCard({
       ) : (
         <div className="app-grid-tools" data-testid="box-tools">
           {box.tools.map((s) => (
-            <ToolLink key={s.id} service={s} theme={theme} editing={editing} onToggleFavorite={onToggleFavorite} onEdit={onEdit} showUptimeDisplay={showUptimeDisplay} />
+            <ToolLink key={s.id} service={s} theme={theme} editing={editing} onToggleFavorite={onToggleFavorite} onEdit={onEdit} onOpenIframe={onOpenIframe} showUptimeDisplay={showUptimeDisplay} />
           ))}
         </div>
       )}
@@ -636,6 +646,7 @@ function SortableBox({
   onWidth,
   onToggleFavorite,
   onEdit,
+  onOpenIframe,
   onRename,
   onDelete,
   showUptimeDisplay,
@@ -648,6 +659,7 @@ function SortableBox({
   onWidth: (id: string, width: number) => void;
   onToggleFavorite: (id: string) => void;
   onEdit: (service: Service, opener: HTMLElement | null) => void;
+  onOpenIframe: (service: Service) => void;
   onRename: (id: string, name: string) => Promise<true | string>;
   onDelete: (id: string) => Promise<boolean>;
   showUptimeDisplay: boolean;
@@ -664,6 +676,7 @@ function SortableBox({
       onWidth={onWidth}
       onToggleFavorite={onToggleFavorite}
       onEdit={onEdit}
+      onOpenIframe={onOpenIframe}
       onRename={onRename}
       onDelete={onDelete}
       showUptimeDisplay={showUptimeDisplay}
@@ -745,6 +758,7 @@ function ToolLink({
   editing,
   onToggleFavorite,
   onEdit,
+  onOpenIframe,
   showUptimeDisplay,
 }: {
   service: Service;
@@ -753,12 +767,31 @@ function ToolLink({
   editing: boolean;
   onToggleFavorite: (id: string) => void;
   onEdit: (service: Service, opener: HTMLElement | null) => void;
+  // v23 — open the in-app embed overlay for a clickAction='iframe' tile.
+  onOpenIframe: (service: Service) => void;
   showUptimeDisplay: boolean;
 }) {
   const fav = service.favorite;
   // SPEC-242 D-4 — one-shot pulse when this tile's status changes on a live poll.
   const pulsing = useStatusPulse(service.status);
   const editRef = useRef<HTMLButtonElement>(null);
+  // v23 — how this tile navigates (SPEC-tile-click-action §5). Absent/undefined
+  // is treated as 'new_tab' (AC-014, the hardcoded prior behavior). new_tab keeps
+  // target=_blank + the safe rel; same_tab drops target so the current tab
+  // navigates; iframe keeps href (right-click "open in new tab" still works,
+  // AC-007) but intercepts the left-click to open IframeOverlay (AC-005).
+  const action = service.clickAction ?? 'new_tab';
+  const linkProps: React.ComponentPropsWithoutRef<'a'> =
+    action === 'new_tab'
+      ? { target: '_blank', rel: 'noreferrer noopener' }
+      : action === 'iframe'
+        ? {
+            onClick: (e) => {
+              e.preventDefault();
+              onOpenIframe(service);
+            },
+          }
+        : {}; // same_tab — plain in-tab navigation, no target/rel
   return (
     <div className={`app-grid-tool-wrap${editing ? ' is-editing' : ''}`}>
       {/* SPEC-242 §5 — per-tile status pip. A SIBLING of the <a> (not nested), so
@@ -780,10 +813,9 @@ function ToolLink({
         className="app-grid-tool"
         data-testid="tool-link"
         href={service.url}
-        target="_blank"
-        rel="noreferrer noopener"
         aria-label={service.name}
         title={service.name}
+        {...linkProps}
       >
         <span className="app-grid-tool-icon">
           <img
