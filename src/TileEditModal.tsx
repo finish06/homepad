@@ -5,10 +5,18 @@ import {
   updateService,
   uploadIcon,
   type Category,
+  type ClickAction,
   type IconVariant,
   type Service,
 } from './api';
 import { iconSrc, initialBadge, validateIconFile } from './icons';
+
+// v23 §4.2 — the per-option hint shown under the click-action selector.
+const CLICK_ACTION_HINT: Record<ClickAction, string> = {
+  new_tab: 'Opens in a new browser tab (default).',
+  same_tab: 'Navigates this tab to the service.',
+  iframe: 'Embeds the service in an overlay panel.',
+};
 
 // v21 — Tile Edit Modal (specs/v21-tile-edit-modal.md §6, §8). An admin in edit
 // mode taps a tile's pencil to edit that SHARED-CATALOG entry (Option A) without
@@ -40,6 +48,9 @@ export default function TileEditModal({
   const [description, setDescription] = useState(service.description);
   const [iconUrl, setIconUrl] = useState(service.icon);
   const [categoryId, setCategoryId] = useState(service.categoryId ?? '');
+  // v23 — the tile's click behavior. Absent on a pre-migration service reads as
+  // 'new_tab' (AC-002/014), so the control opens on New tab for those too.
+  const [clickAction, setClickAction] = useState<ClickAction>(service.clickAction ?? 'new_tab');
   // Local icon presence — flips live as immediate uploads/removes complete, so
   // the preview (and its cache-busting rev) tracks the new state before Save.
   const [iconLight, setIconLight] = useState(service.iconLight);
@@ -58,6 +69,7 @@ export default function TileEditModal({
   const headingId = useId();
   const titleId = useId();
   const urlId = useId();
+  const clickActionId = useId();
   const catId = useId();
   const iconUrlId = useId();
   const descId = useId();
@@ -102,7 +114,8 @@ export default function TileEditModal({
     url !== service.url ||
     description !== service.description ||
     iconUrl !== service.icon ||
-    categoryId !== (service.categoryId ?? '');
+    categoryId !== (service.categoryId ?? '') ||
+    clickAction !== (service.clickAction ?? 'new_tab');
 
   const previewSvc: Service = { ...service, name: title, icon: iconUrl, iconLight, iconDark };
   // v22 §5.4 — the preview resolves the ACTIVE TAB's variant, not the app theme;
@@ -182,6 +195,8 @@ export default function TileEditModal({
     if (description !== service.description) patch.description = description;
     if (iconUrl !== service.icon) patch.icon = iconUrl;
     if (categoryId !== (service.categoryId ?? '')) patch.categoryId = categoryId || null;
+    // v23 — include click_action only when it changed (no-op patches avoided, §4.3).
+    if (clickAction !== (service.clickAction ?? 'new_tab')) patch.clickAction = clickAction;
 
     const r = await updateService(service.id, patch);
     setBusy(false);
@@ -199,6 +214,7 @@ export default function TileEditModal({
       icon: iconUrl,
       categoryId: categoryId || null,
       categoryName,
+      clickAction,
     });
     onToast('Tile updated.', 'success');
     onClose();
@@ -347,6 +363,35 @@ export default function TileEditModal({
               aria-required="true"
               onChange={(e) => setUrl(e.target.value)}
             />
+          </div>
+
+          {/* v23 §4 — click-action selector, URL-adjacent because it controls how
+              the URL is navigated. A <select> (Kare §8 pending; matches the
+              Category control already here). The selected option's hint shows
+              below, plus the honest embed caveat when Inline overlay is chosen. */}
+          <div className="tile-edit-field">
+            <label className="tile-edit-label" htmlFor={clickActionId}>
+              Click action
+            </label>
+            <select
+              id={clickActionId}
+              data-testid="tile-field-click-action"
+              className="tile-edit-input tile-edit-select"
+              value={clickAction}
+              onChange={(e) => setClickAction(e.target.value as ClickAction)}
+            >
+              <option value="new_tab">New tab</option>
+              <option value="same_tab">Same tab</option>
+              <option value="iframe">Inline overlay</option>
+            </select>
+            <p className="tile-edit-help" data-testid="tile-click-action-hint">
+              {CLICK_ACTION_HINT[clickAction]}
+            </p>
+            {clickAction === 'iframe' && (
+              <p className="tile-edit-help tile-click-action-caveat" data-testid="tile-click-action-caveat">
+                Some sites block embedding — a fallback link appears if that happens.
+              </p>
+            )}
           </div>
 
           <div className="tile-edit-field">

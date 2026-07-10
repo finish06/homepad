@@ -3366,6 +3366,14 @@
     }
   }
 
+  /* v23 §4.2 — the Inline-overlay embed caveat under the click-action selector.
+     A touch stronger than a plain help line so the "some sites block embedding"
+     honesty is not missed, without shouting like an error. */
+  .tile-click-action-caveat {
+    font-style: italic;
+    opacity: 0.85;
+  }
+
   /* ============================================================
      v23 — IframeOverlay (SPEC-tile-click-action §5.4-5.5). Same scrim + centered
      panel + sticky ✕ header as the tile-edit modal family, but a "host" container

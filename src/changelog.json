@@ -2,6 +2,14 @@
   "pending": [],
   "versions": [
     {
+      "version": "13.12.0",
+      "date": "2026-07-10",
+      "changes": [
+        { "type": "feature", "text": "You can now choose what happens when you open an app tile. Turn on Edit dashboard, open a tile's Edit window, and the new 'Click action' setting lets you pick: open the app in a new browser tab (the default — unchanged for every existing tile), open it in the current tab, or open it inside homepad in an overlay panel without leaving the dashboard." },
+        { "type": "enhancement", "text": "The overlay option embeds the app in a window with the app's name and a close button, and also closes on Esc or by clicking outside it. Some apps refuse to be embedded; when that happens homepad shows a clear 'This site can't be embedded' message with an 'Open in new tab' button instead of a blank panel." }
+      ]
+    },
+    {
       "version": "13.11.0",
       "date": "2026-07-05",
       "changes": [
