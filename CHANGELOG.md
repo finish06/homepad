@@ -7,6 +7,38 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [14.0.0] — 2026-07-10 — Per-Tile Click Action (v23)
+
+Adds a per-tile choice of how a tile's URL opens — **New tab** (the existing
+default), **Same tab**, or an in-app **Inline overlay** (iframe) — set from the
+tile's Edit window in Edit-dashboard mode (spec
+`specs/SPEC-tile-click-action-20260710.md` §4–§5). Frontend-only; the
+`clickAction` field rides the existing create/PATCH service body and defaults to
+`new_tab`, so every pre-migration tile is unchanged (AC-014). Companion backend:
+`Code/homepad-api#47`.
+
+### Added
+
+- **Per-tile "Click action" setting (`new_tab` | `same_tab` | `iframe`).** In the
+  `TileEditModal`, admins pick how the tile opens; the field is optional and reads
+  as `new_tab` when absent.
+- **`IframeOverlay` inline embed.** The `iframe` action opens the service in a
+  sandboxed backdrop modal (service-title header, loading spinner, Esc / backdrop /
+  ✕ dismiss, focus management). A 5s blocked-embed fallback surfaces an "Open in
+  new tab" panel for sites that refuse framing (X-Frame-Options/CSP), since those
+  blocks fire no reliable event (§5.5). Right-click still works — `href` is retained.
+
+### Changed
+
+- **`ToolLink` routing** branches on `clickAction`: `new_tab` →
+  `target=_blank rel="noreferrer noopener"`; `same_tab` → same-tab navigation;
+  `iframe` → intercepts the click to open the overlay.
+
+### Notes
+
+- Major bump (13.x → 14.0.0) marks the click-action milestone; the change itself
+  is additive and backward-compatible (unset tiles behave exactly as before).
+
 ## [13.11.0] — 2026-07-05 — Icon Light/Dark Tabs (v22)
 
 Reorganises the v21 `TileEditModal` icon section into a two-tab ARIA tablist —
