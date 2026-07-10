@@ -46,7 +46,17 @@ export type Service = {
   // fraction 0..1. Optional/absent/empty → no monitoring or no data; the tile
   // shows no long-window uptime line. Additive.
   uptimeWindows?: Record<string, number>;
+  // v23: how a tile's click is routed — 'new_tab' (open in a new browser tab —
+  // the hardcoded prior behavior), 'same_tab' (navigate this tab), or 'iframe'
+  // (open the in-app IframeOverlay). Optional so a pre-migration server that
+  // omits it (and hand-built fixtures) read as new_tab — ToolLink/TileEditModal
+  // treat absent/undefined as 'new_tab' (AC-014).
+  clickAction?: ClickAction;
 };
+
+// v23 — the per-tile click-action enum. Shared across api types, ToolLink, and
+// the TileEditModal selector so the three values stay in lockstep.
+export type ClickAction = 'new_tab' | 'same_tab' | 'iframe';
 
 // A v4 category: admin-managed shared-catalog metadata. `sortIndex` is the
 // admin-controlled order (not alphabetical). The layout fields (SPEC category
@@ -92,6 +102,10 @@ export type ServiceInput = {
   url: string;
   icon: string;
   gatus_key: string;
+  // v23: the tile's click behavior. Optional on input — omitting it lets the
+  // server apply its `new_tab` default (create) or leave the value unchanged
+  // (PATCH). Wire name is camelCase `clickAction`, matching the read model.
+  clickAction?: ClickAction;
 };
 
 export type AuthConfig = { oidcEnabled: boolean };

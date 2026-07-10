@@ -156,6 +156,63 @@ describe('v21 TileEditModal — Save (AC-004..AC-007, AC-014)', () => {
   });
 });
 
+// v23 — SPEC-tile-click-action §4: the click-action selector inside the edit modal.
+describe('v23 TileEditModal — Click action selector (AC-010/011)', () => {
+  it('shows a Click action selector with the three options (AC-010)', () => {
+    renderModal();
+    const select = screen.getByTestId('tile-field-click-action') as HTMLSelectElement;
+    const values = Array.from(select.options).map((o) => o.value);
+    expect(values).toEqual(['new_tab', 'same_tab', 'iframe']);
+  });
+
+  it('defaults an absent clickAction to New tab (AC-002/010)', () => {
+    renderModal(); // svc() has no clickAction
+    expect(screen.getByTestId('tile-field-click-action')).toHaveValue('new_tab');
+  });
+
+  it('reflects the saved clickAction on open (AC-010)', () => {
+    renderModal({ service: svc({ clickAction: 'iframe' }) });
+    expect(screen.getByTestId('tile-field-click-action')).toHaveValue('iframe');
+  });
+
+  it('surfaces the embed caveat only when Inline overlay is chosen (§4.2)', async () => {
+    const u = userEvent.setup();
+    renderModal();
+    expect(screen.queryByTestId('tile-click-action-caveat')).not.toBeInTheDocument();
+    await u.selectOptions(screen.getByTestId('tile-field-click-action'), 'iframe');
+    expect(screen.getByTestId('tile-click-action-caveat')).toHaveTextContent(/block embedding/i);
+  });
+
+  it('PATCHes the changed click_action on Save (AC-011)', async () => {
+    const u = userEvent.setup();
+    mUpdate.mockResolvedValue({ ok: true, status: 200, service: svc({ clickAction: 'iframe' }) });
+    const { onPatch } = renderModal();
+
+    await u.selectOptions(screen.getByTestId('tile-field-click-action'), 'iframe');
+    await u.click(screen.getByTestId('tile-edit-save'));
+
+    await waitFor(() => expect(mUpdate).toHaveBeenCalledTimes(1));
+    const [, patch] = mUpdate.mock.calls[0];
+    expect(patch).toMatchObject({ clickAction: 'iframe' });
+    // Inline tile update carries the new behavior so it takes effect without reload.
+    expect(onPatch).toHaveBeenCalledWith(expect.objectContaining({ clickAction: 'iframe' }));
+  });
+
+  it('omits click_action from the PATCH when it was not changed (no-op patch)', async () => {
+    const u = userEvent.setup();
+    mUpdate.mockResolvedValue({ ok: true, status: 200, service: svc({ name: 'Renamed' }) });
+    renderModal();
+
+    await u.clear(screen.getByTestId('tile-field-title'));
+    await u.type(screen.getByTestId('tile-field-title'), 'Renamed');
+    await u.click(screen.getByTestId('tile-edit-save'));
+
+    await waitFor(() => expect(mUpdate).toHaveBeenCalledTimes(1));
+    const [, patch] = mUpdate.mock.calls[0];
+    expect(patch).not.toHaveProperty('clickAction');
+  });
+});
+
 describe('v21 TileEditModal — dismiss & discard (AC-011)', () => {
   it('closes immediately with no prompt when nothing is dirty', async () => {
     const u = userEvent.setup();

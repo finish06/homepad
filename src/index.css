@@ -3365,4 +3365,201 @@
       grid-template-columns: repeat(2, minmax(0, 190px));
     }
   }
+
+  /* v23 §4.2 — the Inline-overlay embed caveat under the click-action selector.
+     A touch stronger than a plain help line so the "some sites block embedding"
+     honesty is not missed, without shouting like an error. */
+  .tile-click-action-caveat {
+    font-style: italic;
+    opacity: 0.85;
+  }
+
+  /* ============================================================
+     v23 — IframeOverlay (SPEC-tile-click-action §5.4-5.5). Same scrim + centered
+     panel + sticky ✕ header as the tile-edit modal family, but a "host" container
+     for an embedded service: the panel fills ≥90% of the viewport so the embed
+     gets maximum real estate, and goes edge-to-edge below 640px. Kare §8 was not
+     yet recorded when this was built, so values follow the launcher/tile-edit
+     tokens already in this layer; a Kare pass can retune spacing/opacity without
+     touching the component contract.
+     ============================================================ */
+  .iframe-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 70; /* above the tile-edit modal family (60) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3vh 3vw;
+    background: rgba(0, 0, 0, 0.6);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .iframe-overlay {
+      animation: tile-edit-scrim 160ms ease-out;
+    }
+    .iframe-overlay-panel {
+      animation: tile-edit-rise 160ms ease-out;
+    }
+  }
+  .iframe-overlay-panel {
+    display: flex;
+    flex-direction: column;
+    width: 94vw;
+    height: 94vh;
+    background: #ffffff;
+    color: #171717;
+    border-radius: 14px;
+    box-shadow: 0 24px 60px -12px rgba(16, 24, 40, 0.45), 0 0 0 1px rgba(16, 24, 40, 0.06);
+    overflow: hidden;
+  }
+  .dark .iframe-overlay-panel {
+    background: #1c1c1e;
+    color: #f5f5f5;
+    box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  }
+  .iframe-overlay-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 0 0 auto;
+    min-height: 52px;
+    padding: 8px 8px 8px 16px;
+    border-bottom: 1px solid rgba(16, 24, 40, 0.1);
+    background: #f7f7f8;
+  }
+  .dark .iframe-overlay-header {
+    background: #262629;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+  .iframe-overlay-title {
+    flex: 1 1 auto;
+    font-weight: 600;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .iframe-overlay-close {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .iframe-overlay-close:hover {
+    background: rgba(16, 24, 40, 0.06);
+  }
+  .dark .iframe-overlay-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .iframe-overlay-close:focus-visible {
+    outline: 2px solid #4f46e5;
+    outline-offset: 2px;
+  }
+  .dark .iframe-overlay-close:focus-visible {
+    outline-color: #818cf8;
+  }
+  .iframe-overlay-body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    background: #ffffff;
+  }
+  .dark .iframe-overlay-body {
+    background: #0f0f10;
+  }
+  .iframe-overlay-frame {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+  }
+  .iframe-overlay-spinner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .iframe-overlay-spinner-ring {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 3px solid rgba(16, 24, 40, 0.15);
+    border-top-color: #4f46e5;
+  }
+  .dark .iframe-overlay-spinner-ring {
+    border-color: rgba(255, 255, 255, 0.15);
+    border-top-color: #818cf8;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .iframe-overlay-spinner-ring {
+      animation: iframe-overlay-spin 700ms linear infinite;
+    }
+  }
+  @keyframes iframe-overlay-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .iframe-overlay-fallback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+    padding: 24px;
+  }
+  .iframe-overlay-fallback-title {
+    font-weight: 600;
+    font-size: 1.05rem;
+  }
+  .iframe-overlay-fallback-text {
+    font-size: 0.9rem;
+    opacity: 0.75;
+    max-width: 32ch;
+  }
+  .iframe-overlay-fallback-open {
+    margin-top: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 20px;
+    border-radius: 10px;
+    background: #4f46e5;
+    color: #ffffff;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .iframe-overlay-fallback-open:hover {
+    background: #4338ca;
+  }
+  .iframe-overlay-fallback-open:focus-visible {
+    outline: 2px solid #4f46e5;
+    outline-offset: 2px;
+  }
+  @media (max-width: 640px) {
+    .iframe-overlay {
+      padding: 0;
+    }
+    .iframe-overlay-panel {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      border-radius: 0;
+    }
+  }
 }
