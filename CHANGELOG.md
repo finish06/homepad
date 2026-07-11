@@ -7,6 +7,22 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [14.0.1] — 2026-07-11 — Optimize: code-split on-demand overlays
+
+Performance-only pass (ADD `optimize`). No functional or visual change a user
+would notice; every existing test still passes. The admin Settings panel, the
+app Library, the custom-app form, the per-tile Edit modal, and the inline iframe
+overlay are now lazily loaded (`React.lazy` + `Suspense`), moving them out of the
+initial JS bundle into their own on-demand chunks fetched when the surface opens.
+
+### Changed
+
+- **Initial JS bundle trimmed ~7%** — `index-*.js` went from 304.72 kB (gzip
+  94.58 kB) to 273.58 kB (gzip 87.91 kB). Five on-demand overlays now load as
+  separate async chunks (SettingsPanel, TileEditModal, LibraryBrowse,
+  ServiceForm, IframeOverlay; ~10.5 kB gzip total), fetched only when opened.
+  The rendered DOM/CSS of each overlay is unchanged — only load timing shifts.
+
 ## [14.0.0] — 2026-07-10 — Per-Tile Click Action (v23)
 
 Adds a per-tile choice of how a tile's URL opens — **New tab** (the existing
