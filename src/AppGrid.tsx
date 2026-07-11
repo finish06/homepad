@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -33,8 +33,14 @@ import { boxesFromData, boxWidthPx, contentMaxPx, fitsViewport, frameContentPx, 
 import { iconSrc, initialBadge } from './icons';
 import { useServicesContext } from './services';
 import { useResolvedTheme } from './theme';
-import TileEditModal from './TileEditModal';
-import IframeOverlay from './IframeOverlay';
+
+// v14.0.1 optimize — both overlays mount only on a user action (open a tile's
+// Edit modal, or open a clickAction='iframe' tile), never during the grid's
+// initial render, so they are code-split into their own async chunks. Suspense
+// fallback is null: each renders its own fixed backdrop, so the sub-frame gap
+// before its small chunk resolves is imperceptible.
+const TileEditModal = lazy(() => import('./TileEditModal'));
+const IframeOverlay = lazy(() => import('./IframeOverlay'));
 
 // AppGrid (SPEC-app-grid, Amendment A1) — the primary dashboard layout: glass
 // boxes (= categories) that pack left→right with flex-wrap. Each box's width
@@ -353,19 +359,25 @@ export default function AppGrid({
       </div>
       {addOpen && <AddBoxModal onCreate={onCreate} onClose={() => setAddOpen(false)} />}
       {editTarget && (
-        <TileEditModal
-          service={editTarget.service}
-          categories={cats}
-          theme={gridTheme}
-          onClose={closeEdit}
-          onPatch={(partial) => patchService(editTarget.service.id, partial)}
-          onToast={(msg, kind) => setToast({ msg, kind })}
-        />
+        <Suspense fallback={null}>
+          <TileEditModal
+            service={editTarget.service}
+            categories={cats}
+            theme={gridTheme}
+            onClose={closeEdit}
+            onPatch={(partial) => patchService(editTarget.service.id, partial)}
+            onToast={(msg, kind) => setToast({ msg, kind })}
+          />
+        </Suspense>
       )}
       {/* v23 — the in-app embed overlay for a clickAction='iframe' tile. Rendered
           at the grid root (like the edit modal) so its fixed backdrop escapes any
           box stacking context. */}
-      {iframeTarget && <IframeOverlay service={iframeTarget} onClose={() => setIframeTarget(null)} />}
+      {iframeTarget && (
+        <Suspense fallback={null}>
+          <IframeOverlay service={iframeTarget} onClose={() => setIframeTarget(null)} />
+        </Suspense>
+      )}
       {/* v21 — Save success / error toast (AC-014/015). Bottom-right, auto-dismiss;
           same visual family as the cap5 status toasts. */}
       {toast && (
