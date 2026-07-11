@@ -2,6 +2,16 @@
   "pending": [],
   "versions": [
     {
+      "version": "14.0.1",
+      "date": "2026-07-11",
+      "changes": [
+        {
+          "type": "enhancement",
+          "text": "The dashboard now loads a little faster. Screens you only open on demand — admin Settings, the app Library, the 'Add custom app' form, a tile's Edit window, and the in-app overlay viewer — are no longer downloaded up front; each is fetched the moment you open it (and then cached). Nothing about how any of them look or work has changed."
+        }
+      ]
+    },
+    {
       "version": "14.0.0",
       "date": "2026-07-10",
       "changes": [

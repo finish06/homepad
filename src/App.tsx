@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   authConfig,
   categories as fetchCategories,
@@ -15,19 +15,25 @@ import {
 } from './api';
 import AppHeader from './AppHeader';
 import AppGrid from './AppGrid';
-import LibraryBrowse from './LibraryBrowse';
-import ServiceForm from './ServiceForm';
 import StatusBar from './StatusBar';
 import CommandLauncher from './CommandLauncher';
 import { LauncherProvider, useLauncher } from './launcher';
 import { ServicesProvider, useServicesContext } from './services';
 import { AlertHistoryProvider, useAlertHistory } from './alerts';
 import AlertHistoryPanel from './AlertHistoryPanel';
-import SettingsPanel from './SettingsPanel';
 import ToastContainer from './Toasts';
 import ChangelogOverlay from './ChangelogOverlay';
 import { ThemeProvider } from './theme';
 import { CONTENT_WIDTH } from './layout';
+
+// v14.0.1 optimize — these three surfaces only ever mount after a user action
+// (open the Library, open the custom-app form, open admin Settings), so they are
+// code-split into their own async chunks and kept out of the initial bundle.
+// Suspense fallback is null: each is a modal/overlay, so a sub-frame gap before
+// its small chunk resolves is imperceptible (and its own backdrop covers paint).
+const LibraryBrowse = lazy(() => import('./LibraryBrowse'));
+const ServiceForm = lazy(() => import('./ServiceForm'));
+const SettingsPanel = lazy(() => import('./SettingsPanel'));
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -233,22 +239,26 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             AppGrid (unlike Catalog) doesn't host them; their result lands in the
             shared services context AppGrid renders from. */}
         {browseOpen && (
-          <LibraryBrowse
-            isAdmin={isAdmin}
-            onClose={() => setBrowseOpen(false)}
-            onAdded={onAddedFromLibrary}
-            onCustomAdd={() => {
-              setBrowseOpen(false);
-              setCustomFormOpen(true);
-            }}
-          />
+          <Suspense fallback={null}>
+            <LibraryBrowse
+              isAdmin={isAdmin}
+              onClose={() => setBrowseOpen(false)}
+              onAdded={onAddedFromLibrary}
+              onCustomAdd={() => {
+                setBrowseOpen(false);
+                setCustomFormOpen(true);
+              }}
+            />
+          </Suspense>
         )}
         {customFormOpen && (
-          <ServiceForm
-            categories={cats}
-            onClose={() => setCustomFormOpen(false)}
-            onSaved={onSavedCustom}
-          />
+          <Suspense fallback={null}>
+            <ServiceForm
+              categories={cats}
+              onClose={() => setCustomFormOpen(false)}
+              onSaved={onSavedCustom}
+            />
+          </Suspense>
         )}
 
         {/* Feeds the launcher the shared catalog array; while still loading it
@@ -262,13 +272,15 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
         <AlertHistoryPanel open={alertOpen} events={alerts?.events ?? []} onClose={closeAlerts} />
 
         {settingsOpen && (
-          <SettingsPanel
-            isAdmin={isAdmin}
-            oidcEnabled={oidcEnabled}
-            showUptimeDisplay={sysConfig.showUptimeDisplay}
-            onSaveSettings={onSaveSettings}
-            onClose={() => setSettingsOpen(false)}
-          />
+          <Suspense fallback={null}>
+            <SettingsPanel
+              isAdmin={isAdmin}
+              oidcEnabled={oidcEnabled}
+              showUptimeDisplay={sysConfig.showUptimeDisplay}
+              onSaveSettings={onSaveSettings}
+              onClose={() => setSettingsOpen(false)}
+            />
+          </Suspense>
         )}
       </main>
 
