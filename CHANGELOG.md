@@ -7,6 +7,23 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [14.0.2] — 2026-07-12 — Fix: overlay launch type no longer reverts on reload
+
+Patch fix for [#342](https://gitea.kube.calebdunn.tech/Code/homepad/issues/342).
+Setting a tile's launch type to **Inline overlay** (the "overlay" behaviour) could
+appear to save and then revert on the next page reload.
+
+### Fixed
+
+- **Tile Edit — launch type reflects what was persisted (#342).** After Save, the
+  inline tile update now mirrors the `click_action` the **server** returned rather
+  than the optimistic local selection. If a backend silently drops the value (for
+  example one that predates the `click_action` column / migration 0011), the tile
+  now shows the un-persisted value immediately instead of a false "saved" that
+  reverts on reload. The end-to-end persistence contract itself is unchanged and
+  correct on `main`; a companion round-trip test in `homepad-api` (all launch-type
+  enum values survive a re-fetch) guards it against regression.
+
 ## [14.0.1] — 2026-07-11 — Optimize: code-split on-demand overlays
 
 Performance-only pass (ADD `optimize`). No functional or visual change a user
