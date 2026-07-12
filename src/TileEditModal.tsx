@@ -207,6 +207,10 @@ export default function TileEditModal({
       return;
     }
     const categoryName = categoryId ? categories.find((c) => c.id === categoryId)?.name ?? null : null;
+    // #342 — reflect the click_action the SERVER actually persisted, not the
+    // optimistic local selection. If a backend silently drops it (e.g. one that
+    // predates the click_action column), the tile shows the un-persisted value
+    // immediately instead of a false success that reverts on the next reload.
     onPatch({
       name: title.trim(),
       url: url.trim(),
@@ -214,7 +218,7 @@ export default function TileEditModal({
       icon: iconUrl,
       categoryId: categoryId || null,
       categoryName,
-      clickAction,
+      clickAction: r.service.clickAction,
     });
     onToast('Tile updated.', 'success');
     onClose();
