@@ -198,6 +198,24 @@ describe('v23 TileEditModal — Click action selector (AC-010/011)', () => {
     expect(onPatch).toHaveBeenCalledWith(expect.objectContaining({ clickAction: 'iframe' }));
   });
 
+  // #342 — the "overlay" (iframe) launch type silently reverted on reload: the
+  // modal reported success and updated the tile from the OPTIMISTIC local
+  // selection, without reflecting what the server actually persisted. The inline
+  // tile update must mirror the server's authoritative response so a dropped
+  // value can't masquerade as a save until the next reload. Named for the symptom.
+  it('reflects the server-persisted click_action after Save, not the optimistic selection (#342)', async () => {
+    const u = userEvent.setup();
+    // Server is authoritative: it persisted 'same_tab' even though the control shows 'iframe'.
+    mUpdate.mockResolvedValue({ ok: true, status: 200, service: svc({ clickAction: 'same_tab' }) });
+    const { onPatch } = renderModal();
+
+    await u.selectOptions(screen.getByTestId('tile-field-click-action'), 'iframe');
+    await u.click(screen.getByTestId('tile-edit-save'));
+
+    await waitFor(() => expect(mUpdate).toHaveBeenCalledTimes(1));
+    expect(onPatch).toHaveBeenCalledWith(expect.objectContaining({ clickAction: 'same_tab' }));
+  });
+
   it('omits click_action from the PATCH when it was not changed (no-op patch)', async () => {
     const u = userEvent.setup();
     mUpdate.mockResolvedValue({ ok: true, status: 200, service: svc({ name: 'Renamed' }) });
