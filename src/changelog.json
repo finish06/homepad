@@ -2,6 +2,16 @@
   "pending": [],
   "versions": [
     {
+      "version": "15.1.0",
+      "date": "2026-07-14",
+      "changes": [
+        {
+          "type": "enhancement",
+          "text": "The little health meter at the top now groups its ticks by status instead of by tile order: all your online services show as one solid green band, then not-monitored in gray, then anything offline in red. At a glance you can see how much of the fleet is healthy — mostly green with a sliver of gray reads instantly — where before the colours were mixed together. The meter still preserves your tile order within each colour, so nothing jumps around when a service's status changes, and the counts, legend and click-to-peek all work exactly as before."
+        }
+      ]
+    },
+    {
       "version": "15.0.0",
       "date": "2026-07-14",
       "changes": [

@@ -546,7 +546,6 @@
   }
   .health-tick-up { background: var(--v-up); }
   .health-tick-down { background: var(--v-down); }
-  .health-tick-degraded { background: var(--v-degraded); }
   .health-tick-idle { background: var(--v-tick-idle); }
 
   .health-legend {
