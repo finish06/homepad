@@ -3,7 +3,7 @@
 **Spec ID:** SPEC-v24-health-meter-banding
 **Created:** 2026-07-14
 **Author:** Walt (product lead)
-**Status:** Draft — Kare §8 authored + design GO; awaiting Walt product go + Caleb's DEGRADED decision
+**Status:** Approved — Walt + Kare co-signed 2026-07-14. Shipped as v15.1.0 (impl PR #361, merged 2026-07-14 14:49 UTC).
 **Repos:** `Code/homepad` (frontend only — render-order change in the health panel)
 **Estimate:** ~1–2 hours Stitch
 **Target version:** v15.x (ships as part of v15 build, or as the first v15 patch)
@@ -65,27 +65,22 @@ edge, where the eye can quickly measure severity by band width.
 | `NOT_MONITORED` | GRAY | `idle` (neutral) |
 | `UNKNOWN` | GRAY | `idle` (neutral) |
 | `DOWN` | RED | `down` (red) |
-| `DEGRADED` | RED | `down` (red) — **see §3.3 open question** |
+| `DEGRADED` | RED | `down` (red) — **DECIDED: folds into RED (3 bands). See §3.3.** |
 
 `UNKNOWN` joins GRAY (not RED) because it is a monitoring-infrastructure signal — the service
 hasn't been confirmed down, only unobservable. This matches the StatusBar's existing exclusion
 rationale (StatusBar.tsx header comment) and keeps the RED band a firm signal of known failure.
 
-### 3.3 Open question: DEGRADED in its own AMBER band?
+### 3.3 DEGRADED → RED (3 bands) — **DECIDED by Caleb 2026-07-14** ✅
 
-The v15 design has an amber LED for "degraded only, no down" — DEGRADED is visually distinct from
-DOWN at the LED and chip level. A 4-band meter (GREEN → GRAY → AMBER → RED) would extend that
-distinction into the tick strip. A 3-band meter (GREEN → GRAY → RED, with DEGRADED in RED)
-matches Caleb's literal "GREEN / GRAY / RED" request and is simpler.
+**Decision (Caleb, on record in fleet chat 2026-07-14):** *"GREEN / GRAY / RED"* and *"For meter,
+it is up, down or not monitored, three options."* — 3 bands, DEGRADED folds into RED.
 
-**Recommendation: fold DEGRADED into RED (3 bands).** Caleb said three bands explicitly. The LED
-and chip already carry the amber severity signal; the meter is tertiary texture (`aria-hidden`),
-not the primary diagnostic. Adding a fourth amber band increases visual complexity for marginal
-gain. A DEGRADED service IS unhealthy — red in the meter is honest.
-
-**Caleb should confirm** before Stitch builds. If the answer is "give DEGRADED its own amber
-band," the spec becomes a 4-band order: GREEN → GRAY → AMBER → RED, and Kare must update §8.
-This decision gates the build.
+This matches the spec recommendation and is consistent with how homepad already handles DEGRADED in
+distribution/count contexts: the count chips count `DOWN + DEGRADED` together, and the v16
+quick-peek popover renders DEGRADED with a red dot. The meter is the third member of that family.
+Amber is reserved for per-identity signals (the LED, the individual tile status dot), not for
+distribution views. Decision is final; 4-band amber is out of scope for this feature.
 
 ### 3.4 Within-band tick order
 
@@ -329,7 +324,7 @@ signal, this is **not a blocker** — but it is worth designing:
 | AC-V24-007 | The count chips, legend, LED, headline, and sub-line are unchanged from the v15 spec. The banding is isolated to the meter tick order. | Must |
 | AC-V24-008 | Loading state: ticks are neutral placeholders, as per v15 §4.2. Band-order sort is not applied until real status data is available. | Must |
 | AC-V24-009 | Empty state: meter is hidden, as per v15 AC-V15-015. No change to empty-state behavior. | Must |
-| **AC-V24-010** | **[PENDING CALEB'S DECISION on §3.3]** If the decision is 3 bands: `DEGRADED` ticks appear in the RED band. If the decision is 4 bands: a distinct AMBER band appears between GRAY and RED, containing all `DEGRADED` ticks. Kare's §8 must record the design treatment for the chosen option before build begins. | Must — gates build |
+| **AC-V24-010** | **[DECIDED — 3 bands]** `DEGRADED` ticks appear in the RED band (same as `DOWN`). Caleb confirmed 2026-07-14: *"GREEN / GRAY / RED … up, down or not monitored, three options."* 4-band amber is out of scope. | Must |
 
 ---
 
@@ -406,7 +401,7 @@ are NOT_MONITORED.
 
 ## 12. Co-sign (records the gate — NOT cleared for build until both signed)
 
-- [ ] **Walt** — product go. *(pending Kare §8 and Caleb's DEGRADED decision)*
+- [x] **Walt** — product go. *(2026-07-14. Caleb's 3-band decision recorded in §3.3. Kare's §8 design section reviewed and requirements folded into spec. Feature shipped as v15.1.0 PR #361 and already passed QA on staging — this spec closeout is documentation hygiene. PASS.)*
 - [x] **Kare** — design go. *(§8 authored 2026-07-14. Design GO on the banding model with three
   MUST requirements baked into §8: (D) the gray band is a mode-aware token — neutral-500 light /
   neutral-400 dark; (C) a 1px track-gap seam at band boundaries, driven by the measured 1.01:1
