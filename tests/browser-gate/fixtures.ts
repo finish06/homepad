@@ -30,6 +30,25 @@ function sidecarReachable(endpoint: string): boolean {
   }
 }
 
+// #344: resolve the sidecar's raw ws:// debugger URL and connect to THAT directly.
+// connectOverCDP(<http url>) makes playwright do its own /json/version discovery +
+// http→ws upgrade, which intermittently times out (30s) against the Chrome 148
+// sidecar (148.0.7778.97) even though the ws connect itself works. A ws:// endpoint
+// is passed straight through; any discovery failure falls back to the original
+// endpoint so this is never worse than before.
+function resolveWsEndpoint(endpoint: string): string {
+  if (/^wss?:\/\//i.test(endpoint)) return endpoint;
+  try {
+    const out = execSync(`curl -sf --max-time 2 ${endpoint.replace(/\/+$/, '')}/json/version`, {
+      encoding: 'utf8',
+    });
+    const ws = JSON.parse(out).webSocketDebuggerUrl;
+    return typeof ws === 'string' && ws ? ws : endpoint;
+  } catch {
+    return endpoint;
+  }
+}
+
 // Only override the built-in `browser` fixture when there's actually a sidecar to
 // attach to; otherwise re-export the stock `test`, leaving Playwright's normal
 // launch (and all of its launchOptions handling) completely untouched.
@@ -37,7 +56,7 @@ export const test = sidecarReachable(CDP_ENDPOINT)
   ? base.extend({
       browser: [
         async ({ playwright }, use) => {
-          const browser = await playwright.chromium.connectOverCDP(CDP_ENDPOINT);
+          const browser = await playwright.chromium.connectOverCDP(resolveWsEndpoint(CDP_ENDPOINT));
           await use(browser);
           // Disconnects from the shared sidecar (does not kill it).
           await browser.close();

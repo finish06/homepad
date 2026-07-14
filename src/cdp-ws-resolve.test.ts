@@ -13,8 +13,10 @@
 // it never touches a real sidecar or spawns a browser.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// cdp.js is CommonJS (qa-kit is scoped to CJS); import it through the module
-// namespace so we get its module.exports regardless of interop shape.
+// cdp.js is CommonJS (qa-kit is scoped to CJS) and ships no .d.ts; import it
+// through the module namespace so we get its module.exports regardless of
+// interop shape.
+// @ts-ignore — untyped CJS helper, shape asserted below.
 import * as cdpNs from '../qa-kit/cdp.js';
 const cdp = (cdpNs as any).default ?? cdpNs;
 const { resolveWsEndpoint, connect } = cdp as {
