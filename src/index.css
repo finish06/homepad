@@ -582,15 +582,24 @@
     .health-led { animation: none; }
   }
 
-  /* §6.1 Wordmark — indigo→violet gradient text via background-clip. */
+  /* §6.1 Wordmark — accent gradient text via background-clip (re-hues on accent
+     change, §4.1). Light mode uses the mid→deep accent stops; dark mode uses the
+     lighter light→mid stops so the text keeps its high contrast on the dark field
+     (the deep stop reads too dark on the dark canvas). */
   .wordmark {
-    font-size: 1.125rem;
-    font-weight: 800;
+    font-size: 1.25rem;
+    font-weight: 700;
     letter-spacing: -0.02em;
-    background: linear-gradient(135deg, #4f46e5, #a855f7);
+    background: linear-gradient(135deg, var(--accent-mid), var(--accent-3));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+    transition: background 0.4s ease;
+  }
+  .dark .wordmark {
+    background: linear-gradient(135deg, var(--accent), var(--accent-mid));
+    -webkit-background-clip: text;
+    background-clip: text;
   }
 
   /* §6.2 Avatar trigger — 34×34 gradient circle, white initials, auth ring. */
@@ -598,33 +607,34 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
     border-radius: 9999px;
-    background: linear-gradient(135deg, #4f46e5, #a855f7);
-    color: #fff;
+    background: linear-gradient(135deg, var(--accent-mid), var(--accent-3));
+    color: var(--on-accent);
     font-weight: 700;
-    font-size: 13px;
+    font-size: 14px;
     box-shadow:
       0 0 0 2px #fff,
-      0 0 0 4px rgba(99, 102, 241, 0.35),
-      0 4px 10px -2px rgba(79, 70, 229, 0.5);
+      0 0 0 4px color-mix(in srgb, var(--accent-3) 35%, transparent),
+      0 4px 10px -2px color-mix(in srgb, var(--accent-3) 50%, transparent);
     transition:
       transform 0.18s ease,
-      box-shadow 0.25s ease;
+      box-shadow 0.25s ease,
+      background 0.4s ease;
   }
   .user-avatar:hover {
     transform: translateY(-1px);
     box-shadow:
       0 0 0 2px #fff,
-      0 0 0 4px rgba(99, 102, 241, 0.5),
-      0 6px 14px -2px rgba(79, 70, 229, 0.6);
+      0 0 0 4px color-mix(in srgb, var(--accent-3) 50%, transparent),
+      0 6px 14px -2px color-mix(in srgb, var(--accent-3) 60%, transparent);
   }
   .dark .user-avatar {
     box-shadow:
       0 0 0 2px #0e1117,
-      0 0 0 4px rgba(99, 102, 241, 0.35),
-      0 4px 10px -2px rgba(79, 70, 229, 0.5);
+      0 0 0 4px color-mix(in srgb, var(--accent-3) 35%, transparent),
+      0 4px 10px -2px color-mix(in srgb, var(--accent-3) 50%, transparent);
   }
 
   /* §6.3 Dropdown — 248px, right-aligned under the avatar, menu shadow. */
@@ -2727,50 +2737,80 @@
     gap: 8px;
     min-height: 120px;
     box-sizing: border-box;
-    padding: 15px 15px 13px;
-    border-radius: 18px;
-    background: linear-gradient(180deg, #fff, #fbfcff);
-    border: 1px solid rgba(15, 23, 42, 0.06);
-    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 20px -10px rgba(16, 24, 40, 0.12);
+    padding: 16px;
+    border-radius: var(--r-tile);
+    background: var(--v-tile);
+    -webkit-backdrop-filter: blur(20px) saturate(112%);
+    backdrop-filter: blur(20px) saturate(112%);
+    border: 1px solid var(--v-tilebrd);
+    box-shadow: 0 6px 20px var(--v-shadow-tile), inset 0 1px 0 var(--v-tilehi);
     text-decoration: none;
     text-align: center;
     transition: transform 0.18s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   }
   .dark .app-grid-tool {
-    background: linear-gradient(180deg, #12161e, #0e1117);
-    border-color: rgba(255, 255, 255, 0.06);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 24px -12px rgba(0, 0, 0, 0.7),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    background: var(--v-tile);
+    border-color: var(--v-tilebrd);
+    box-shadow: 0 6px 20px var(--v-shadow-tile), inset 0 1px 0 var(--v-tilehi);
   }
+  /* Hover lifts 2px and the edge picks up the accent (§4.3, AC-V15-024). */
   .app-grid-tool:hover {
-    transform: translateY(-3px);
-    border-color: rgba(99, 102, 241, 0.45);
-    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 18px 34px -14px rgba(79, 70, 229, 0.3),
-      0 0 0 1px rgba(99, 102, 241, 0.12);
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--accent-3) 45%, var(--v-tilebrd));
+    box-shadow: 0 12px 30px var(--v-shadow),
+      0 0 0 1px color-mix(in srgb, var(--accent-3) 22%, transparent),
+      inset 0 1px 0 var(--v-tilehi);
   }
   .app-grid-tool:active {
     transform: translateY(0);
   }
   .app-grid-tool:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px #6366f1;
+    box-shadow: 0 0 0 2px var(--accent-3);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-grid-tool,
+    .app-grid-tool:hover,
+    .app-grid-tool:active {
+      transform: none;
+    }
+  }
+  /* Status tile treatments (AC-V15-021). DOWN/DEGRADED get a left status bar +
+     a status-tinted border; DOWN additionally tints its fill. Idle (not
+     monitored) gets a dashed ring. Text stays at full token contrast — no blanket
+     opacity (§9 correction #1). */
+  .app-grid-tool[data-status='DOWN'] {
+    border-color: color-mix(in srgb, var(--v-down) 45%, var(--v-tilebrd));
+    background: color-mix(in srgb, var(--v-down) 10%, var(--v-tile));
+    box-shadow: inset 3px 0 0 var(--v-down), 0 6px 20px var(--v-shadow-tile);
+  }
+  .app-grid-tool[data-status='DEGRADED'] {
+    border-color: color-mix(in srgb, var(--v-degraded) 42%, var(--v-tilebrd));
+    box-shadow: inset 3px 0 0 var(--v-degraded), 0 6px 20px var(--v-shadow-tile);
+  }
+  .app-grid-tool[data-status='NOT_MONITORED'] {
+    border-style: dashed;
+    border-color: var(--v-idle);
   }
   .app-grid-tool-icon {
     flex: none;
-    width: 46px;
-    height: 46px;
+    width: 44px;
+    height: 44px;
     padding: 7px;
     box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 13px;
+    border-radius: var(--r-ico);
     overflow: hidden;
-    background: linear-gradient(135deg, #f2f4fc, #e9edf9);
-    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+    background: var(--v-glass2);
+    box-shadow: inset 0 0 0 1px var(--v-ico-hi);
   }
   .dark .app-grid-tool-icon {
-    background: linear-gradient(135deg, #1b2130, #161b26);
+    background: var(--v-glass2);
+  }
+  .app-grid-tool[data-status='NOT_MONITORED'] .app-grid-tool-icon {
+    opacity: 0.82;
   }
   .app-grid-tool-icon img {
     width: 100%;
@@ -3014,6 +3054,21 @@
   }
   .dark .app-grid-tool-status[data-status='NOT_MONITORED'] {
     border-color: #a3a3a3;
+  }
+  /* §3.8/§3.9 — DOWN is the one state that draws the eye with a continuous pulse
+     (DEGRADED does not). Scoped :not(--pulse) so it yields to the single-shot
+     change-pulse below, and frozen under prefers-reduced-motion. */
+  .app-grid-tool-status[data-status='DOWN']:not(.app-grid-tool-status--pulse) {
+    animation: down-status-breathe 1.6s ease-in-out infinite;
+  }
+  @keyframes down-status-breathe {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-grid-tool-status[data-status='DOWN']:not(.app-grid-tool-status--pulse) {
+      animation: none;
+    }
   }
   /* D-4 — single-shot pulse fired only on the tile whose status changed (JS adds
      the class on a poll diff). scale(1→1.7→1), 0.6s, transform only (no reflow).
