@@ -77,13 +77,13 @@ describe('#191 — header status captions contrast (light)', () => {
     expect(cls).toContain('dark:text-neutral-400');
   });
 
-  it('A191 — "N not monitored" caption uses neutral-500 (not resting neutral-400)', () => {
-    // Already neutral-500 on main (StatusBar summary line) — guard it stays put.
-    const i = statusBar.indexOf('} not monitored'); // the `${n} not monitored` summary, not the PEEK_META label
-    expect(i).toBeGreaterThan(-1);
-    const around = statusBar.slice(i, i + 200);
-    expect(around).toMatch(/text-neutral-500/);
-    expect(around).not.toMatch(/(?<!dark:)text-neutral-400/);
+  it('A191 — the not-monitored count is a token-driven health chip (AA), not a resting neutral caption', () => {
+    // v15: the count strip → health panel (§4.2). The "not monitored" count is no
+    // longer a Tailwind neutral caption — it renders as a .health-chip whose
+    // number/label read --v-muted (light ≈4.9:1, AA) via CSS, so the contrast
+    // that #191 guarded now lives in the token layer (dashboard-a11y guards it).
+    expect(statusBar).toMatch(/health-chip-label/);
+    expect(statusBar).toMatch(/not monitored/);
   });
 });
 
