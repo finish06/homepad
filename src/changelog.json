@@ -2,6 +2,28 @@
   "pending": [],
   "versions": [
     {
+      "version": "15.0.0",
+      "date": "2026-07-14",
+      "changes": [
+        {
+          "type": "feature",
+          "text": "homepad v15 — the glass redesign. The whole dashboard has a new frosted-glass look: translucent panels, tiles, command palette and top bar float over a soft, colour-tinted backdrop, with rounded corners and gentle depth. It's a fresh coat of paint only — every tile, monitoring state, uptime line, favourite, the ⌘K launcher, alerts, your profile menu and settings all work exactly as before. Dark mode stays the default and light mode is fully supported."
+        },
+        {
+          "type": "feature",
+          "text": "New system health panel. The status strip at the top is now a clear headline — \"All systems operational\", or \"N systems need attention\" when something's offline — next to online / not-monitored / offline counts and a little per-service meter. Click a count to peek at exactly which services are in it, just like before."
+        },
+        {
+          "type": "enhancement",
+          "text": "Two more accent colours. The colour picker under your profile now offers eight accents (blue, teal, green, yellow, orange, red, pink, purple). If you previously picked indigo or violet it becomes purple; the new default is blue. The picker stays exactly where it was — under your profile's Appearance section."
+        },
+        {
+          "type": "enhancement",
+          "text": "Readability and touch-target polish throughout: not-monitored tiles are gently dimmed while staying legible, an offline count is coloured when it matters, and every button stays comfortably tappable on phones and tablets."
+        }
+      ]
+    },
+    {
       "version": "14.0.2",
       "date": "2026-07-12",
       "changes": [

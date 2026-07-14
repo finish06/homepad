@@ -126,11 +126,13 @@ afterEach(() => {
 });
 
 describe('StatusBar alignment (#196)', () => {
-  it('keeps the outer stripe full-bleed (no max-width on it) — AC-010', () => {
+  // v15: the full-bleed count STRIPE is replaced by a glass health PANEL, but the
+  // full-bleed outer / content-width inner split is preserved so the panel's left
+  // edge still aligns with the header wordmark and the grid below.
+  it('keeps the outer wrapper full-bleed (no max-width on it) — AC-010', () => {
     setItems([svc('UP', 'u1'), svc('DOWN', 'd1'), svc('NOT_MONITORED', 'n1')]);
     render(<StatusBar />);
     const bar = screen.getByTestId('status-bar');
-    expect(bar.className).toContain('bg-white/50'); // stripe background survives
     expect(bar.className).not.toContain('max-w-'); // outer is NOT constrained
   });
 
@@ -143,13 +145,15 @@ describe('StatusBar alignment (#196)', () => {
     expect(inner!.className).toContain('max-w-[max(1536px,92vw)]');
     expect(inner!.className).toContain('mx-auto');
     // Left-edge alignment with the grid/header requires left-aligned content,
-    // not centered — otherwise segments float mid-container at 2560px.
+    // not centered — otherwise the panel floats mid-container at 2560px.
     expect(bar.className).not.toContain('text-center');
   });
 
-  it('keeps the "not monitored" count in the StatusBar — AC-012', () => {
+  it('keeps the "not monitored" count in the health panel — AC-012', () => {
     setItems([svc('NOT_MONITORED', 'n1'), svc('NOT_MONITORED', 'n2')]);
     render(<StatusBar />);
-    expect(screen.getByTestId('status-bar-not-monitored')).toHaveTextContent('2 not monitored');
+    const nmChip = screen.getByTestId('status-bar-not-monitored');
+    expect(nmChip).toHaveTextContent('2');
+    expect(nmChip).toHaveTextContent('not monitored');
   });
 });

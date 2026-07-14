@@ -43,16 +43,19 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('StatusBar', () => {
-  // AC-006: null items (still loading) → nothing rendered.
-  it('renders nothing while items is null', () => {
+// v15 — StatusBar is now the health summary panel (chips restyled as stacked
+// number+label quick-peek buttons; loading/empty/unknown-only now render a panel
+// rather than nothing). The count/quick-peek contract below is preserved.
+describe('StatusBar chips (health panel)', () => {
+  // v15: null items → the loading panel (was: nothing).
+  it('renders the loading panel while items is null', () => {
     setItems(null);
-    const { container } = render(<StatusBar />);
-    expect(screen.queryByTestId('status-bar')).toBeNull();
-    expect(container).toBeEmptyDOMElement();
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'loading');
+    expect(screen.getByTestId('health-headline')).toHaveTextContent('Checking services');
   });
 
-  // AC-002/AC-003/AC-004/AC-005: mixed list → correct counts, UNKNOWN excluded.
+  // AC-002/AC-003/AC-004/AC-005: mixed list → correct chip counts, UNKNOWN excluded.
   it('shows correct counts for a mixed list and excludes UNKNOWN', () => {
     setItems([
       svc('UP', 'u1'),
@@ -69,36 +72,43 @@ describe('StatusBar', () => {
 
     expect(screen.getByTestId('status-bar')).toHaveAttribute('role', 'status');
     expect(screen.getByTestId('status-bar')).toHaveAttribute('aria-label', 'Service status summary');
-    expect(screen.getByTestId('status-bar-up')).toHaveTextContent('3 UP');
+    const upChip = screen.getByTestId('status-bar-up');
+    expect(upChip).toHaveTextContent('3');
+    expect(upChip).toHaveTextContent('UP');
     // 2 DOWN + 1 DEGRADED = 3
-    expect(screen.getByTestId('status-bar-down')).toHaveTextContent('3 DOWN');
-    expect(screen.getByTestId('status-bar-not-monitored')).toHaveTextContent('2 not monitored');
+    const downChip = screen.getByTestId('status-bar-down');
+    expect(downChip).toHaveTextContent('3');
+    expect(downChip).toHaveTextContent('DOWN');
+    const nmChip = screen.getByTestId('status-bar-not-monitored');
+    expect(nmChip).toHaveTextContent('2');
+    expect(nmChip).toHaveTextContent('not monitored');
   });
 
-  // AC-002: all UP → only the UP segment, no zero-count placeholders.
-  it('renders only the UP segment when every service is UP', () => {
+  // AC-002: all UP → only the UP chip, no zero-count placeholders.
+  it('renders only the UP chip when every service is UP', () => {
     setItems([svc('UP', 'u1'), svc('UP', 'u2')]);
     render(<StatusBar />);
 
-    expect(screen.getByTestId('status-bar-up')).toHaveTextContent('2 UP');
+    expect(screen.getByTestId('status-bar-up')).toHaveTextContent('2');
     expect(screen.queryByTestId('status-bar-down')).toBeNull();
     expect(screen.queryByTestId('status-bar-not-monitored')).toBeNull();
   });
 
-  // AC-003/AC-004/AC-005: UNKNOWN-only services produce no segments at all.
-  it('renders nothing when the only services are UNKNOWN', () => {
+  // v15/AC-V15-018: UNKNOWN-only → operational panel with no chips (was: nothing).
+  it('shows an operational panel with no chips when only UNKNOWN', () => {
     setItems([svc('UNKNOWN', 'k1'), svc('UNKNOWN', 'k2')]);
-    const { container } = render(<StatusBar />);
-    expect(screen.queryByTestId('status-bar')).toBeNull();
-    expect(container).toBeEmptyDOMElement();
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'operational');
+    expect(screen.queryByTestId('status-bar-up')).toBeNull();
+    expect(screen.queryByTestId('status-bar-down')).toBeNull();
+    expect(screen.queryByTestId('status-bar-not-monitored')).toBeNull();
   });
 
-  // AC-006 (empty): zero services → nothing rendered.
-  it('renders nothing for an empty items array', () => {
+  // v15/AC-V15-015: zero services → the empty panel (was: nothing).
+  it('renders the empty panel for an empty items array', () => {
     setItems([]);
-    const { container } = render(<StatusBar />);
-    expect(screen.queryByTestId('status-bar')).toBeNull();
-    expect(container).toBeEmptyDOMElement();
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-headline')).toHaveTextContent('No services yet');
   });
 });
 
@@ -128,8 +138,9 @@ describe('StatusBar quick-peek popover', () => {
     setItems([svc('UP', 'u1'), svc('DOWN', 'd1'), svc('DEGRADED', 'g1')]);
     render(<StatusBar />);
     expect(screen.getByTestId('status-bar')).toBeInTheDocument();
-    expect(screen.getByTestId('status-bar-up')).toHaveTextContent('1 UP');
-    expect(screen.getByTestId('status-bar-down')).toHaveTextContent('2 DOWN');
+    expect(screen.getByTestId('status-bar-up')).toHaveTextContent('1');
+    // 1 DOWN + 1 DEGRADED = 2
+    expect(screen.getByTestId('status-bar-down')).toHaveTextContent('2');
   });
 
   // AC-002/AC-004/AC-005/AC-015a: clicking DOWN opens a popover listing the

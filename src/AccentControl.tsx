@@ -15,7 +15,7 @@ import { ACCENTS, initAccent, setAccent, type AccentId } from './accent';
 // Mid-spectrum swatches (yellow/orange/green) are too light for a white check
 // (≈1.6–2.4:1); they get the near-black one. The high-contrast selection RING is
 // the primary indicator either way — the check is §6.3 redundancy.
-const DARK_CHECK: ReadonlySet<AccentId> = new Set(['yellow', 'orange', 'green']);
+const DARK_CHECK: ReadonlySet<AccentId> = new Set(['yellow', 'orange', 'green', 'teal']);
 
 export default function AccentControl() {
   const [accent, setAccentState] = useState<AccentId>(() => initAccent());

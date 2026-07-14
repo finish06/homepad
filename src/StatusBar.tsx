@@ -1,12 +1,14 @@
-// v14 — Dashboard Status Summary Bar. A compact strip below the sticky header
-// summarizing fleet health from the already-loaded ServicesContext array (no new
-// fetch). UNKNOWN is intentionally excluded — it is a monitoring-infra signal,
-// not a per-service health reading; the tile's gray dot already surfaces it.
+// v15 — Health summary panel (design spec §4.2). Rebuilds v14's count-strip
+// StatusBar into a glass verdict panel: a status LED + a loud headline
+// ("All systems operational" / "N services need attention" / "Checking…" /
+// "No services yet") + a service·group·monitored sub-line on the left, and
+// count chips + a per-service meter + a freshness legend on the right.
 //
-// v16 — Status Bar Quick-Peek. Each non-empty chip is now a <button>; clicking
-// it opens a popover listing the services in that bucket, each a direct link to
-// its url. Dismiss on Escape, outside-click, or re-click. Frontend-only — the
-// list is filtered from the same ctx.items the bar already reads.
+// It still derives purely from the already-loaded ServicesContext (no new
+// fetch). Two v14 features are preserved verbatim: the five status states
+// (UP/DOWN/DEGRADED/UNKNOWN/NOT_MONITORED) feed the aggregate, and the count
+// chips remain quick-peek buttons — clicking one opens a popover listing that
+// bucket's services as links (Escape / outside-click / re-click dismiss).
 
 import { useEffect, useRef, useState } from 'react';
 import { useServicesContext } from './services';
@@ -16,8 +18,8 @@ import { CONTENT_WIDTH } from './layout';
 // Which chip's popover is open (if any).
 type PeekStatus = 'UP' | 'DOWN_DEGRADED' | 'NOT_MONITORED';
 
-// Status-dot color coding, matching the tiles (Catalog.tsx statusDot): UP green,
-// DOWN/DEGRADED red, NOT_MONITORED dashed neutral ring (AC-004/AC-011).
+// Status-dot color coding in the popover, matching the tiles (Catalog.tsx):
+// UP green, DOWN/DEGRADED red, NOT_MONITORED dashed neutral ring.
 const peekDot: Record<ServiceStatus, string> = {
   UP: 'bg-emerald-500',
   DOWN: 'bg-red-500',
@@ -26,8 +28,6 @@ const peekDot: Record<ServiceStatus, string> = {
   NOT_MONITORED: 'bg-transparent border-2 border-dashed border-neutral-400 dark:border-neutral-500',
 };
 
-// Each peek bucket: its chip testid, the human label used in the aria-label, and
-// the predicate selecting its members from ctx.items.
 const PEEK_META: Record<PeekStatus, { testId: string; label: string; match: (s: Service) => boolean }> = {
   UP: { testId: 'status-bar-up', label: 'UP', match: (s) => s.status === 'UP' },
   DOWN_DEGRADED: {
@@ -42,19 +42,52 @@ const PEEK_META: Record<PeekStatus, { testId: string; label: string; match: (s: 
   },
 };
 
+// Meter-tick color class per status (accent-independent, semantic only).
+const tickClass: Record<ServiceStatus, string> = {
+  UP: 'health-tick-up',
+  DOWN: 'health-tick-down',
+  DEGRADED: 'health-tick-degraded',
+  UNKNOWN: 'health-tick-idle',
+  NOT_MONITORED: 'health-tick-idle',
+};
+
+// §4.2 stale thresholds (§5.3): freshness label → amber past 5 min, red past 15.
+function staleness(ageMs: number): 'fresh' | 'amber' | 'red' {
+  if (ageMs > 15 * 60 * 1000) return 'red';
+  if (ageMs > 5 * 60 * 1000) return 'amber';
+  return 'fresh';
+}
+
+function formatAgo(ageMs: number): string {
+  const s = Math.max(0, Math.floor(ageMs / 1000));
+  if (s < 5) return 'just now';
+  if (s < 60) return `updated ${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `updated ${m}m ago`;
+  return `updated ${Math.floor(m / 60)}h ago`;
+}
+
 export default function StatusBar() {
   const ctx = useServicesContext();
   const [peek, setPeek] = useState<PeekStatus | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRefs = useRef<Partial<Record<PeekStatus, HTMLButtonElement | null>>>({});
 
-  // Outside-click dismiss — same pattern as UserMenu. Attached only while open.
+  // Freshness self-tick — recompute the "updated Xs ago" label each second so it
+  // counts up (and crosses the stale thresholds) without a new fetch.
+  const lastUpdatedAt = ctx?.lastUpdatedAt ?? null;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (lastUpdatedAt == null) return;
+    const id = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(id);
+  }, [lastUpdatedAt]);
+
+  // Outside-click dismiss for the quick-peek popover (v14 behavior preserved).
   useEffect(() => {
     if (!peek) return;
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
-      // Clicks on a chip button are owned by its onClick toggle — closing here
-      // too would race it (mousedown closes, then onClick reopens). Ignore them.
       const onTrigger = Object.values(triggerRefs.current).some((b) => b?.contains(target));
       if (!onTrigger && !popoverRef.current?.contains(target)) setPeek(null);
     };
@@ -62,7 +95,7 @@ export default function StatusBar() {
     return () => document.removeEventListener('mousedown', handler);
   }, [peek]);
 
-  // Escape dismiss — closes and returns focus to the triggering chip (AC-009).
+  // Escape dismiss — closes and returns focus to the triggering chip.
   useEffect(() => {
     if (!peek) return;
     const handler = (e: KeyboardEvent) => {
@@ -76,77 +109,150 @@ export default function StatusBar() {
     return () => document.removeEventListener('keydown', handler);
   }, [peek]);
 
-  if (!ctx?.items) return null;
-  const items = ctx.items;
+  const items = ctx?.items ?? null;
+  const loading = items === null;
+  const empty = !loading && items.length === 0;
 
-  const up = items.filter(PEEK_META.UP.match).length;
-  const down = items.filter(PEEK_META.DOWN_DEGRADED.match).length;
-  const notMonitored = items.filter(PEEK_META.NOT_MONITORED.match).length;
+  // Aggregate derivation (§4.2). idle (NOT_MONITORED) and UNKNOWN never promote
+  // the LED — only DOWN → red, else DEGRADED → amber, else operational green.
+  const up = loading || empty ? 0 : items.filter(PEEK_META.UP.match).length;
+  const down = loading || empty ? 0 : items.filter((s) => s.status === 'DOWN').length;
+  const degraded = loading || empty ? 0 : items.filter((s) => s.status === 'DEGRADED').length;
+  const notMonitored = loading || empty ? 0 : items.filter(PEEK_META.NOT_MONITORED.match).length;
+  const total = loading || empty ? 0 : items.length;
+  const monitored = loading || empty ? 0 : items.filter((s) => s.status !== 'NOT_MONITORED').length;
+  const groups = loading || empty ? 0 : new Set((items ?? []).map((s) => s.categoryName ?? '·uncategorized')).size;
 
-  const segments: { peekId: PeekStatus; count: number; label: string; className: string }[] = [];
-  if (up > 0)
-    segments.push({ peekId: 'UP', count: up, label: `${up} UP`, className: 'text-emerald-600 dark:text-emerald-400' });
-  if (down > 0)
-    segments.push({ peekId: 'DOWN_DEGRADED', count: down, label: `${down} DOWN`, className: 'text-red-600 dark:text-red-500' });
-  if (notMonitored > 0)
-    segments.push({
-      peekId: 'NOT_MONITORED',
-      count: notMonitored,
-      label: `${notMonitored} not monitored`,
-      className: 'text-neutral-500 dark:text-neutral-400',
+  const attention = down + degraded;
+  const variant = loading ? 'loading' : attention > 0 ? 'attention' : 'operational';
+  const severity = down > 0 ? 'down' : degraded > 0 ? 'degraded' : 'none';
+
+  let headline: string;
+  let subline: string;
+  if (loading) {
+    headline = 'Checking services…';
+    subline = 'Reading the latest status from every service.';
+  } else if (empty) {
+    headline = 'No services yet';
+    subline = 'Add your first service to get started';
+  } else if (attention > 0) {
+    headline = `${attention} service${attention === 1 ? '' : 's'} need${attention === 1 ? 's' : ''} attention`;
+    subline = `${total} service${total === 1 ? '' : 's'} across ${groups} group${groups === 1 ? '' : 's'} · ${monitored} monitored`;
+  } else {
+    headline = 'All systems operational';
+    subline = `${total} service${total === 1 ? '' : 's'} across ${groups} group${groups === 1 ? '' : 's'} · ${monitored} monitored`;
+  }
+
+  const showMetrics = !loading && !empty;
+
+  // Quick-peek chips (v14). Down chip carries down+degraded; its number takes the
+  // severity color when >0 (AC-V15-017). Rendered only when their count > 0.
+  const chips: { peekId: PeekStatus; count: number; label: string; sev: 'up' | 'down' | 'degraded' | 'idle' }[] = [];
+  if (up > 0) chips.push({ peekId: 'UP', count: up, label: `${up} UP`, sev: 'up' });
+  if (attention > 0)
+    chips.push({
+      peekId: 'DOWN_DEGRADED',
+      count: attention,
+      label: `${attention} DOWN`,
+      sev: down > 0 ? 'down' : 'degraded',
     });
+  if (notMonitored > 0)
+    chips.push({ peekId: 'NOT_MONITORED', count: notMonitored, label: `${notMonitored} not monitored`, sev: 'idle' });
 
-  if (segments.length === 0) return null;
-
-  // v16: live-refresh coherence (TC-007). If a poll empties the open bucket while
-  // its popover is up, the chip disappears — render no stale popover for it.
-  const openSegment = peek ? segments.find((s) => s.peekId === peek) : undefined;
+  // If a poll empties the open bucket, drop its stale popover.
+  const openSegment = peek ? chips.find((s) => s.peekId === peek) : undefined;
   const peekServices = openSegment
-    ? items.filter(PEEK_META[peek!].match).slice().sort((a, b) => a.name.localeCompare(b.name))
+    ? (items ?? []).filter(PEEK_META[peek!].match).slice().sort((a, b) => a.name.localeCompare(b.name))
     : [];
 
+  const ageMs = lastUpdatedAt == null ? null : now - lastUpdatedAt;
+
   return (
-    <div
-      data-testid="status-bar"
-      role="status"
-      aria-label="Service status summary"
-      className="relative border-b border-neutral-100 bg-white/50 py-1.5 text-left text-xs font-medium tracking-wide dark:border-neutral-800/50 dark:bg-neutral-900/50"
-    >
-      {/* #196 AC-008/AC-009/AC-010: the stripe stays full-bleed; only this inner
-          content shares the App/AppHeader content width so its left edge aligns
-          with the header wordmark and the grid. */}
+    <div data-testid="status-bar" role="status" aria-label="Service status summary" className="relative px-3 pt-3">
+      {/* Content stays constrained to the shared width so the panel's left edge
+          aligns with the header wordmark and the grid below (#196 intent kept). */}
       <div data-testid="status-bar-content" className={CONTENT_WIDTH}>
-        {segments.map((seg, i) => (
-          <span key={seg.peekId}>
-            {i > 0 && <span className="mx-2 text-neutral-300 dark:text-neutral-600">·</span>}
-            <button
-              type="button"
-              data-testid={PEEK_META[seg.peekId].testId}
-              ref={(el) => {
-                triggerRefs.current[seg.peekId] = el;
-              }}
-              aria-haspopup="dialog"
-              aria-expanded={peek === seg.peekId}
-              aria-label={`Show ${seg.count} service${seg.count === 1 ? '' : 's'} that are ${PEEK_META[seg.peekId].label}`}
-              onClick={() => setPeek((cur) => (cur === seg.peekId ? null : seg.peekId))}
-              className={`cursor-pointer rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${seg.className}`}
-            >
-              {seg.label}
-            </button>
-          </span>
-        ))}
+        <div className="health glass" data-variant={variant} data-severity={severity}>
+          <div className="health-verdict">
+            <span
+              data-testid="health-led"
+              className="health-led"
+              data-variant={variant}
+              data-severity={severity}
+              aria-hidden="true"
+            />
+            <h2 data-testid="health-headline" className="health-headline">
+              {headline}
+            </h2>
+            <p data-testid="health-subline" className="health-subline">
+              {subline}
+            </p>
+          </div>
+
+          {showMetrics && (
+            <div className="health-metrics">
+              <div className="health-chips">
+                {chips.map((seg) => (
+                  <button
+                    key={seg.peekId}
+                    type="button"
+                    data-testid={PEEK_META[seg.peekId].testId}
+                    ref={(el) => {
+                      triggerRefs.current[seg.peekId] = el;
+                    }}
+                    aria-haspopup="dialog"
+                    aria-expanded={peek === seg.peekId}
+                    aria-label={`Show ${seg.count} service${seg.count === 1 ? '' : 's'} that are ${PEEK_META[seg.peekId].label}`}
+                    onClick={() => setPeek((cur) => (cur === seg.peekId ? null : seg.peekId))}
+                    className="health-chip"
+                    data-sev={seg.sev}
+                  >
+                    <span className="health-chip-n">{seg.count}</span>
+                    <span className="health-chip-label">{PEEK_META[seg.peekId].label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* One tick per service, colored by status. Decorative — the chips
+                  carry the accessible numbers, so the meter is aria-hidden. */}
+              <div data-testid="health-meter" className="health-meter" aria-hidden="true">
+                {(items ?? []).map((s) => (
+                  <span key={s.id} data-tick className={`health-tick ${tickClass[s.status] ?? 'health-tick-idle'}`} />
+                ))}
+              </div>
+
+              <div className="health-legend">
+                <span className="health-legend-item">
+                  <span className="health-legend-sw health-tick-up" /> Online
+                </span>
+                <span className="health-legend-item">
+                  <span className="health-legend-sw health-tick-down" /> Offline
+                </span>
+                <span className="health-legend-item">
+                  <span className="health-legend-sw health-tick-idle" /> Not monitored
+                </span>
+                {ageMs != null && (
+                  <span
+                    data-testid="health-updated"
+                    className="health-updated"
+                    data-stale={staleness(ageMs)}
+                  >
+                    {formatAgo(ageMs)}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Popover stays a child of the full-bleed relative wrapper so its
-          left-1/2 anchor centers on the viewport, not the constrained box. */}
       {openSegment && <StatusPeekPopover services={peekServices} popoverRef={popoverRef} />}
     </div>
   );
 }
 
-// Co-located popover: a positioned overlay below the bar listing the bucket's
-// services as new-tab links. z-30 sits above tiles (z-10) and below the command
-// launcher (z-60). Scroll-contained so a long list never covers the page.
+// Quick-peek popover (v14, unchanged): a positioned overlay listing the bucket's
+// services as new-tab links. z-30 sits above tiles (z-10), below the launcher.
 function StatusPeekPopover({
   services,
   popoverRef,

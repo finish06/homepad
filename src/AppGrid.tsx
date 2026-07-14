@@ -824,6 +824,7 @@ function ToolLink({
       <a
         className="app-grid-tool"
         data-testid="tool-link"
+        data-status={service.status}
         href={service.url}
         aria-label={service.name}
         title={service.name}

@@ -10,9 +10,162 @@
    AMBIENT color rides these vars — never a text/icon/ring token, so accent
    choice can not move any WCAG-measured contrast. */
 :root {
-  --accent-1: 99 102 241;
-  --accent-2: 168 85 247;
+  /* Type stacks (§3.1) — mono is used for numerics, status labels, counts, ⌘K. */
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+
+  /* Ambient-blob triplets the .app-surface reads (glass-v2 contract). Default =
+     blue; each [data-theme] block below overrides per accent. Consumed only as
+     ambient colour — never a text/status token, so accent is contrast-safe. */
+  --accent-1: 90 155 255;
+  --accent-2: 46 99 224;
+
+  /* ===== v15 glass design tokens (SPEC-v15-design-system) ===== */
+  /* Radii (§3.3) */
+  --r-panel: 24px;
+  --r-tile: 18px;
+  --r-ico: 12px;
+  --r-pill: 999px;
+  --r-chip: 14px;
+
+  /* LIGHT surface / glass / status tokens (§3.4–3.8). Consumed by the v15 chrome
+     (topbar pill, health panel, section heads, tiles). `--accent*` are the accent
+     CHROME hexes (personality only); `--accent-1/2` above stay the blob triplets. */
+  --v-txt: rgba(20, 23, 30, 0.92);
+  --v-muted: rgba(28, 32, 42, 0.62);
+  --v-faint: rgba(28, 32, 42, 0.44);
+  --v-up: #0e9e5c;
+  --v-up-strong: #0b7a46; /* §9.6 — LED label needs ≥4.5:1 in light */
+  --v-down: #d23a3d;
+  --v-degraded: #b7791f; /* §3.8 amber, ≈4.6:1 on light tile */
+  --v-unknown: rgba(28, 32, 42, 0.62);
+  --v-idle: rgba(22, 25, 32, 0.34);
+  --v-glass: rgba(255, 255, 255, 0.55);
+  --v-glass2: rgba(255, 255, 255, 0.5);
+  --v-brd: rgba(255, 255, 255, 0.65);
+  --v-hi: rgba(255, 255, 255, 0.9);
+  --v-hi2: rgba(255, 255, 255, 0.8);
+  --v-shadow: rgba(30, 42, 72, 0.14);
+  --v-shadow-tile: rgba(30, 42, 72, 0.1);
+  --v-hover: rgba(255, 255, 255, 0.78);
+  --v-rule: rgba(24, 30, 48, 0.14);
+  --v-kbdbrd: rgba(24, 30, 48, 0.2);
+  --v-btnhover: rgba(255, 255, 255, 0.72);
+  --v-sep: #ffffff;
+  --v-tick-idle: rgba(24, 30, 48, 0.16);
+  --v-legend-idle: rgba(24, 30, 48, 0.22);
+  --v-tile: rgba(255, 255, 255, 0.52);
+  --v-tilebrd: rgba(255, 255, 255, 0.62);
+  --v-tilehi: rgba(255, 255, 255, 0.85);
+  --v-ico-hi: rgba(255, 255, 255, 0.5);
+  --v-chip: rgba(255, 255, 255, 0.55);
+  --v-chipbrd: rgba(255, 255, 255, 0.6);
+  --v-focus-fill: rgba(255, 255, 255, 0.75);
+
+  /* Default accent (blue) chrome + light field — restated by [data-theme] blocks. */
+  --accent: #8fb8ff;
+  --accent-mid: #5a9bff;
+  --accent-3: #2e63e0;
+  --on-accent: #fff;
+  --amb: rgba(58, 108, 224, 0.16);
+  --bg-1: #eef3fb;
+  --bg-2: #e2eaf6;
 }
+
+.dark {
+  /* DARK surface / glass / status tokens (§3.4–3.8). */
+  --v-txt: rgba(255, 255, 255, 0.93);
+  --v-muted: rgba(255, 255, 255, 0.54);
+  --v-faint: rgba(255, 255, 255, 0.36);
+  --v-up: #43d18e;
+  --v-up-strong: #43d18e;
+  --v-down: #f0686b;
+  --v-degraded: #f5b34a; /* §3.8 amber, ≈8:1 on dark tile */
+  --v-unknown: rgba(255, 255, 255, 0.54);
+  --v-idle: rgba(255, 255, 255, 0.4);
+  --v-glass: rgba(255, 255, 255, 0.055);
+  --v-glass2: rgba(255, 255, 255, 0.05);
+  --v-brd: rgba(255, 255, 255, 0.09);
+  --v-hi: rgba(255, 255, 255, 0.14);
+  --v-hi2: rgba(255, 255, 255, 0.1);
+  --v-shadow: rgba(0, 0, 0, 0.34);
+  --v-shadow-tile: rgba(0, 0, 0, 0.28);
+  --v-hover: rgba(255, 255, 255, 0.085);
+  --v-rule: rgba(255, 255, 255, 0.14);
+  --v-kbdbrd: rgba(255, 255, 255, 0.16);
+  --v-btnhover: rgba(255, 255, 255, 0.12);
+  --v-sep: #0b0d16;
+  --v-tick-idle: rgba(255, 255, 255, 0.14);
+  --v-legend-idle: rgba(255, 255, 255, 0.18);
+  --v-tile: rgba(255, 255, 255, 0.055);
+  --v-tilebrd: rgba(255, 255, 255, 0.08);
+  --v-tilehi: rgba(255, 255, 255, 0.12);
+  --v-ico-hi: rgba(255, 255, 255, 0.14);
+  --v-chip: rgba(255, 255, 255, 0.06);
+  --v-chipbrd: rgba(255, 255, 255, 0.08);
+  --v-focus-fill: rgba(255, 255, 255, 0.09);
+  /* Default accent (blue) dark field — restated by .dark[data-theme] blocks. */
+  --amb: rgba(58, 108, 224, 0.26);
+  --bg-1: #0d1526;
+  --bg-2: #080b14;
+}
+
+/* ── Accent chrome (§3.6, mode-independent) + ambient-blob triplets per accent.
+   `--accent/-mid/-3/--on-accent` are the personality hexes; `--accent-1/2` are the
+   blob triplets the .app-surface reads. Field (`--amb/--bg-1/--bg-2`) is
+   mode-dependent → the .dark / :root:not(.dark) blocks that follow. ── */
+[data-theme="blue"] {
+  --accent: #8fb8ff; --accent-mid: #5a9bff; --accent-3: #2e63e0; --on-accent: #fff;
+  --accent-1: 90 155 255; --accent-2: 46 99 224;
+}
+[data-theme="teal"] {
+  --accent: #7fe3dc; --accent-mid: #2bc4bc; --accent-3: #0e938d; --on-accent: #04140f;
+  --accent-1: 43 196 188; --accent-2: 14 147 141;
+}
+[data-theme="green"] {
+  --accent: #63e6a6; --accent-mid: #22c67d; --accent-3: #0e9a5c; --on-accent: #05130d;
+  --accent-1: 34 198 125; --accent-2: 14 154 92;
+}
+[data-theme="yellow"] {
+  --accent: #ffdc7a; --accent-mid: #ffc72e; --accent-3: #c79310; --on-accent: #241b00;
+  --accent-1: 255 199 46; --accent-2: 199 147 16;
+}
+[data-theme="orange"] {
+  --accent: #ffc08f; --accent-mid: #ff8a3d; --accent-3: #e06a12; --on-accent: #2a1400;
+  --accent-1: 255 138 61; --accent-2: 224 106 18;
+}
+[data-theme="red"] {
+  --accent: #ff9a9c; --accent-mid: #ff5a5c; --accent-3: #d63437; --on-accent: #fff;
+  --accent-1: 255 90 92; --accent-2: 214 52 55;
+}
+[data-theme="pink"] {
+  --accent: #ff9ec8; --accent-mid: #ff5ca0; --accent-3: #d63a7c; --on-accent: #fff;
+  --accent-1: 255 92 160; --accent-2: 214 58 124;
+}
+[data-theme="purple"] {
+  --accent: #c4b4ff; --accent-mid: #9b7cff; --accent-3: #6a4fcf; --on-accent: #fff;
+  --accent-1: 155 124 255; --accent-2: 106 79 207;
+}
+
+/* Dark field per accent (§3.6 dark bases). */
+.dark[data-theme="blue"] { --amb: rgba(58, 108, 224, 0.26); --bg-1: #0d1526; --bg-2: #080b14; }
+.dark[data-theme="teal"] { --amb: rgba(30, 190, 180, 0.22); --bg-1: #08201f; --bg-2: #061413; }
+.dark[data-theme="green"] { --amb: rgba(28, 176, 118, 0.22); --bg-1: #0a1b15; --bg-2: #07110d; }
+.dark[data-theme="yellow"] { --amb: rgba(220, 176, 44, 0.2); --bg-1: #181407; --bg-2: #100c05; }
+.dark[data-theme="orange"] { --amb: rgba(230, 120, 48, 0.22); --bg-1: #1b1209; --bg-2: #120b06; }
+.dark[data-theme="red"] { --amb: rgba(220, 74, 84, 0.22); --bg-1: #1b0f13; --bg-2: #120a0c; }
+.dark[data-theme="pink"] { --amb: rgba(236, 80, 150, 0.22); --bg-1: #210e1a; --bg-2: #150a11; }
+.dark[data-theme="purple"] { --amb: rgba(150, 110, 246, 0.24); --bg-1: #150e26; --bg-2: #0d0916; }
+
+/* Light field per accent (§3.6 pale washes). */
+:root:not(.dark)[data-theme="blue"] { --amb: rgba(58, 108, 224, 0.16); --bg-1: #eef3fb; --bg-2: #e2eaf6; }
+:root:not(.dark)[data-theme="teal"] { --amb: rgba(30, 190, 180, 0.15); --bg-1: #e9f6f6; --bg-2: #d9eeee; }
+:root:not(.dark)[data-theme="green"] { --amb: rgba(28, 176, 118, 0.15); --bg-1: #ecf6f1; --bg-2: #deeee6; }
+:root:not(.dark)[data-theme="yellow"] { --amb: rgba(210, 168, 40, 0.16); --bg-1: #f9f4e3; --bg-2: #f2ebd1; }
+:root:not(.dark)[data-theme="orange"] { --amb: rgba(230, 120, 48, 0.15); --bg-1: #fbf1e8; --bg-2: #f5e5d6; }
+:root:not(.dark)[data-theme="red"] { --amb: rgba(214, 58, 62, 0.15); --bg-1: #fbeef0; --bg-2: #f5e1e5; }
+:root:not(.dark)[data-theme="pink"] { --amb: rgba(236, 80, 150, 0.15); --bg-1: #fbeef5; --bg-2: #f5dfeb; }
+:root:not(.dark)[data-theme="purple"] { --amb: rgba(150, 110, 246, 0.16); --bg-1: #f2eefb; --bg-2: #e7dff6; }
 
 /* v7 ux-redesign (specs/v7-ux-redesign.md §2–5). The gradients, soft shadows,
    status glow and accent chip are expressed as @layer component classes so the
@@ -36,7 +189,7 @@
       radial-gradient(900px 520px at 102% -6%, rgb(var(--accent-2) / 0.1), transparent 55%),
       radial-gradient(1000px 600px at 55% 42%, rgb(var(--accent-1) / 0.07), transparent 60%),
       radial-gradient(900px 560px at 8% 96%, rgb(var(--accent-2) / 0.08), transparent 60%),
-      linear-gradient(180deg, #f6f8fd 0%, #eceffa 100%);
+      linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
   }
   .dark .app-surface {
     background:
@@ -46,7 +199,7 @@
       radial-gradient(900px 520px at 102% -6%, rgb(var(--accent-2) / 0.12), transparent 55%),
       radial-gradient(1000px 600px at 55% 42%, rgb(var(--accent-1) / 0.09), transparent 60%),
       radial-gradient(900px 560px at 8% 96%, rgb(var(--accent-2) / 0.1), transparent 60%),
-      linear-gradient(180deg, #0b0d12 0%, #0e1117 100%);
+      linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
   }
 
   /* #184 — app/dashboard loading state. Replaces the bare low-contrast
@@ -240,15 +393,213 @@
     background: rgba(255, 255, 255, 0.08);
   }
 
-  /* §6.1 Wordmark — indigo→violet gradient text via background-clip. */
+  /* ===== v15 health summary panel (design spec §4.2) =====
+     Glass verdict panel: a two-column grid (verdict | metrics) that collapses to
+     one column ≤720px. All chrome reads from the v15 --v-* glass/status tokens so
+     it is mode-aware and accent-independent (status color is never re-hued). */
+  .health {
+    display: grid;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+    align-items: center;
+    gap: 20px 40px;
+    padding: 24px 32px;
+    background: var(--v-glass);
+    backdrop-filter: blur(30px) saturate(112%);
+    border: 1px solid var(--v-brd);
+    border-radius: var(--r-panel);
+    box-shadow: 0 10px 34px var(--v-shadow), inset 0 1px 0 var(--v-hi);
+  }
+  @media (max-width: 720px) {
+    .health {
+      grid-template-columns: 1fr;
+      gap: 20px;
+      padding: 20px;
+    }
+  }
+
+  .health-verdict {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 14px;
+    row-gap: 4px;
+  }
+  /* The LED occupies the left rail across both text rows. */
+  .health-led {
+    grid-row: 1 / span 2;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: var(--v-unknown);
+  }
+  .health-led[data-variant='operational'] {
+    background: var(--v-up);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--v-up) 20%, transparent), 0 0 12px color-mix(in srgb, var(--v-up) 55%, transparent);
+  }
+  .health-led[data-variant='attention'][data-severity='down'] {
+    background: var(--v-down);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--v-down) 20%, transparent), 0 0 12px color-mix(in srgb, var(--v-down) 55%, transparent);
+    animation: health-led-pulse 1.4s ease-in-out infinite;
+  }
+  .health-led[data-variant='attention'][data-severity='degraded'] {
+    background: var(--v-degraded);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--v-degraded) 20%, transparent), 0 0 12px color-mix(in srgb, var(--v-degraded) 55%, transparent);
+  }
+  .health-led[data-variant='loading'] {
+    background: var(--v-muted);
+    animation: health-led-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes health-led-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  .health-headline {
+    grid-column: 2;
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    color: var(--v-txt);
+  }
+  .health-subline {
+    grid-column: 2;
+    font-size: 13px;
+    color: var(--v-muted);
+  }
+  @media (max-width: 480px) {
+    .health-headline { font-size: 24px; }
+  }
+
+  .health-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    justify-self: end;
+    align-items: stretch;
+    min-width: 0;
+  }
+  @media (max-width: 720px) {
+    .health-metrics { justify-self: stretch; }
+  }
+
+  .health-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: flex-end;
+  }
+  @media (max-width: 720px) {
+    .health-chips { justify-content: flex-start; }
+  }
+  /* Quick-peek chip (v14 interactive → ≥44px). Big mono number + uppercase
+     label. Severity color on the number when >0 (§9 correction #3). */
+  .health-chip {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 64px;
+    padding: 8px 16px;
+    border-radius: var(--r-chip);
+    background: var(--v-chip);
+    border: 1px solid var(--v-chipbrd);
+    color: var(--v-muted);
+    cursor: pointer;
+    outline: none;
+    transition: transform 0.15s ease, border-color 0.18s ease;
+  }
+  .health-chip:hover { transform: translateY(-1px); }
+  .health-chip:focus-visible { box-shadow: 0 0 0 2px var(--accent-3); }
+  .health-chip-n {
+    font-family: var(--mono, ui-monospace, monospace);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--v-txt);
+  }
+  .health-chip-label {
+    font-family: var(--mono, ui-monospace, monospace);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--v-muted);
+  }
+  .health-chip[data-sev='up'] .health-chip-n { color: var(--v-up); }
+  .health-chip[data-sev='down'] .health-chip-n { color: var(--v-down); }
+  .health-chip[data-sev='degraded'] .health-chip-n { color: var(--v-degraded); }
+
+  /* Meter — one tick per service, colored by status. Decorative (aria-hidden). */
+  .health-meter {
+    display: flex;
+    gap: 3px;
+    height: 26px;
+    align-items: stretch;
+  }
+  .health-tick {
+    flex: 1 1 2px;
+    min-width: 2px;
+    border-radius: 999px;
+  }
+  .health-tick-up { background: var(--v-up); }
+  .health-tick-down { background: var(--v-down); }
+  .health-tick-degraded { background: var(--v-degraded); }
+  .health-tick-idle { background: var(--v-tick-idle); }
+
+  .health-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--mono, ui-monospace, monospace);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--v-muted);
+  }
+  .health-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .health-legend-sw {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+  }
+  .health-updated {
+    margin-left: auto;
+    color: var(--v-muted);
+  }
+  .health-updated[data-stale='amber'] { color: var(--v-degraded); }
+  .health-updated[data-stale='red'] { color: var(--v-down); }
+
+  /* Reduced-motion / no-blur fallback — keep the panel legible without the
+     backdrop-filter (v14 glass-v2 contract) and freeze the LED pulse. */
+  @media (prefers-reduced-motion: reduce) {
+    .health-led { animation: none; }
+  }
+
+  /* §6.1 Wordmark — accent gradient text via background-clip (re-hues on accent
+     change, §4.1). Light mode uses the mid→deep accent stops; dark mode uses the
+     lighter light→mid stops so the text keeps its high contrast on the dark field
+     (the deep stop reads too dark on the dark canvas). */
   .wordmark {
-    font-size: 1.125rem;
-    font-weight: 800;
+    font-size: 1.25rem;
+    font-weight: 700;
     letter-spacing: -0.02em;
-    background: linear-gradient(135deg, #4f46e5, #a855f7);
+    background: linear-gradient(135deg, var(--accent-mid), var(--accent-3));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+    transition: background 0.4s ease;
+  }
+  .dark .wordmark {
+    background: linear-gradient(135deg, var(--accent), var(--accent-mid));
+    -webkit-background-clip: text;
+    background-clip: text;
   }
 
   /* §6.2 Avatar trigger — 34×34 gradient circle, white initials, auth ring. */
@@ -256,33 +607,34 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
     border-radius: 9999px;
-    background: linear-gradient(135deg, #4f46e5, #a855f7);
-    color: #fff;
+    background: linear-gradient(135deg, var(--accent-mid), var(--accent-3));
+    color: var(--on-accent);
     font-weight: 700;
-    font-size: 13px;
+    font-size: 14px;
     box-shadow:
       0 0 0 2px #fff,
-      0 0 0 4px rgba(99, 102, 241, 0.35),
-      0 4px 10px -2px rgba(79, 70, 229, 0.5);
+      0 0 0 4px color-mix(in srgb, var(--accent-3) 35%, transparent),
+      0 4px 10px -2px color-mix(in srgb, var(--accent-3) 50%, transparent);
     transition:
       transform 0.18s ease,
-      box-shadow 0.25s ease;
+      box-shadow 0.25s ease,
+      background 0.4s ease;
   }
   .user-avatar:hover {
     transform: translateY(-1px);
     box-shadow:
       0 0 0 2px #fff,
-      0 0 0 4px rgba(99, 102, 241, 0.5),
-      0 6px 14px -2px rgba(79, 70, 229, 0.6);
+      0 0 0 4px color-mix(in srgb, var(--accent-3) 50%, transparent),
+      0 6px 14px -2px color-mix(in srgb, var(--accent-3) 60%, transparent);
   }
   .dark .user-avatar {
     box-shadow:
       0 0 0 2px #0e1117,
-      0 0 0 4px rgba(99, 102, 241, 0.35),
-      0 4px 10px -2px rgba(79, 70, 229, 0.5);
+      0 0 0 4px color-mix(in srgb, var(--accent-3) 35%, transparent),
+      0 4px 10px -2px color-mix(in srgb, var(--accent-3) 50%, transparent);
   }
 
   /* §6.3 Dropdown — 248px, right-aligned under the avatar, menu shadow. */
@@ -605,17 +957,22 @@
     }
   }
 
+  /* §4.5 — the ⌘K palette as a v15 glass modal: radius 24, frosted surface with a
+     backdrop blur. The surface stays fairly opaque so the grouped result rows keep
+     full text contrast over whatever's behind the scrim. */
   .launcher-panel {
     display: flex;
     flex-direction: column;
     width: min(640px, calc(100vw - 32px));
     max-height: min(60vh, 520px);
-    background: #fff;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.86);
+    -webkit-backdrop-filter: blur(30px) saturate(130%);
+    backdrop-filter: blur(30px) saturate(130%);
+    border: 1px solid var(--v-brd);
+    border-radius: var(--r-panel);
     box-shadow:
-      0 18px 40px -12px rgba(16, 24, 40, 0.28),
-      0 0 0 1px rgba(15, 23, 42, 0.03);
+      0 18px 40px -12px var(--v-shadow),
+      inset 0 1px 0 var(--v-hi);
     overflow: hidden;
     animation: launcher-panel-in 0.14s ease;
   }
@@ -650,11 +1007,12 @@
     outline: none;
     background: transparent;
     font-size: 15px;
-    color: #0f172a;
-    caret-color: #4f46e5;
+    color: var(--v-txt);
+    caret-color: var(--accent-3);
   }
+  /* §9 correction #2 — placeholder was --faint (≈2.7–3.3:1); --v-muted is AA. */
   .launcher-input::placeholder {
-    color: #9aa3b8;
+    color: var(--v-muted);
   }
   .launcher-clear {
     flex: none;
@@ -697,7 +1055,7 @@
     background: #f4f5fb;
   }
   .launcher-row[data-selected='true'] {
-    background: rgba(99, 102, 241, 0.1);
+    background: color-mix(in srgb, var(--accent-3) 12%, transparent);
   }
   /* §2/§8 — selection is signalled by a leading accent bar (NOT colour alone). */
   .launcher-row[data-selected='true']::before {
@@ -708,7 +1066,7 @@
     bottom: 8px;
     width: 2px;
     border-radius: 2px;
-    background: linear-gradient(135deg, #4f46e5, #a855f7);
+    background: linear-gradient(135deg, var(--accent-mid), var(--accent-3));
   }
   .launcher-row-icon {
     flex: none;
@@ -793,24 +1151,32 @@
   /* §4.2 — the header trigger. Pill on desktop (glyph + "Search…" + chord hint),
      icon-only on phones (the hint span is `hidden sm:flex`). Built from v7
      hairline/faint tokens; hover raises the hairline + a faint accent tint. */
+  /* §4.1 ⌘K trigger — a v15 glass control pill (≥44px hit area, §6.3). */
   .launcher-trigger {
     display: inline-flex;
     align-items: center;
     gap: 8px;
     min-height: 44px;
-    padding: 6px 8px;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 9999px;
-    color: #6e6e6e;
+    padding: 6px 12px;
+    border: 1px solid var(--v-brd);
+    border-radius: var(--r-pill);
+    background: var(--v-glass2);
+    -webkit-backdrop-filter: blur(20px) saturate(112%);
+    backdrop-filter: blur(20px) saturate(112%);
+    color: var(--v-muted);
     transition:
       border-color 0.18s ease,
       background 0.18s ease,
       color 0.18s ease;
   }
   .launcher-trigger:hover {
-    border-color: rgba(99, 102, 241, 0.35);
-    background: rgba(99, 102, 241, 0.06);
-    color: #475069;
+    border-color: color-mix(in srgb, var(--accent-3) 40%, var(--v-brd));
+    background: color-mix(in srgb, var(--accent-3) 8%, var(--v-glass2));
+    color: var(--v-txt);
+  }
+  .launcher-trigger:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent-3);
   }
   .launcher-trigger-glyph {
     flex: none;
@@ -847,8 +1213,8 @@
     background: rgba(2, 4, 10, 0.6);
   }
   .dark .launcher-panel {
-    background: #0e1117;
-    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(16, 19, 26, 0.9);
+    border-color: var(--v-brd);
   }
   .dark .launcher-input-row {
     border-bottom-color: rgba(255, 255, 255, 0.07);
@@ -2385,50 +2751,80 @@
     gap: 8px;
     min-height: 120px;
     box-sizing: border-box;
-    padding: 15px 15px 13px;
-    border-radius: 18px;
-    background: linear-gradient(180deg, #fff, #fbfcff);
-    border: 1px solid rgba(15, 23, 42, 0.06);
-    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 20px -10px rgba(16, 24, 40, 0.12);
+    padding: 16px;
+    border-radius: var(--r-tile);
+    background: var(--v-tile);
+    -webkit-backdrop-filter: blur(20px) saturate(112%);
+    backdrop-filter: blur(20px) saturate(112%);
+    border: 1px solid var(--v-tilebrd);
+    box-shadow: 0 6px 20px var(--v-shadow-tile), inset 0 1px 0 var(--v-tilehi);
     text-decoration: none;
     text-align: center;
     transition: transform 0.18s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   }
   .dark .app-grid-tool {
-    background: linear-gradient(180deg, #12161e, #0e1117);
-    border-color: rgba(255, 255, 255, 0.06);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 24px -12px rgba(0, 0, 0, 0.7),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    background: var(--v-tile);
+    border-color: var(--v-tilebrd);
+    box-shadow: 0 6px 20px var(--v-shadow-tile), inset 0 1px 0 var(--v-tilehi);
   }
+  /* Hover lifts 2px and the edge picks up the accent (§4.3, AC-V15-024). */
   .app-grid-tool:hover {
-    transform: translateY(-3px);
-    border-color: rgba(99, 102, 241, 0.45);
-    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 18px 34px -14px rgba(79, 70, 229, 0.3),
-      0 0 0 1px rgba(99, 102, 241, 0.12);
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--accent-3) 45%, var(--v-tilebrd));
+    box-shadow: 0 12px 30px var(--v-shadow),
+      0 0 0 1px color-mix(in srgb, var(--accent-3) 22%, transparent),
+      inset 0 1px 0 var(--v-tilehi);
   }
   .app-grid-tool:active {
     transform: translateY(0);
   }
   .app-grid-tool:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px #6366f1;
+    box-shadow: 0 0 0 2px var(--accent-3);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-grid-tool,
+    .app-grid-tool:hover,
+    .app-grid-tool:active {
+      transform: none;
+    }
+  }
+  /* Status tile treatments (AC-V15-021). DOWN/DEGRADED get a left status bar +
+     a status-tinted border; DOWN additionally tints its fill. Idle (not
+     monitored) gets a dashed ring. Text stays at full token contrast — no blanket
+     opacity (§9 correction #1). */
+  .app-grid-tool[data-status='DOWN'] {
+    border-color: color-mix(in srgb, var(--v-down) 45%, var(--v-tilebrd));
+    background: color-mix(in srgb, var(--v-down) 10%, var(--v-tile));
+    box-shadow: inset 3px 0 0 var(--v-down), 0 6px 20px var(--v-shadow-tile);
+  }
+  .app-grid-tool[data-status='DEGRADED'] {
+    border-color: color-mix(in srgb, var(--v-degraded) 42%, var(--v-tilebrd));
+    box-shadow: inset 3px 0 0 var(--v-degraded), 0 6px 20px var(--v-shadow-tile);
+  }
+  .app-grid-tool[data-status='NOT_MONITORED'] {
+    border-style: dashed;
+    border-color: var(--v-idle);
   }
   .app-grid-tool-icon {
     flex: none;
-    width: 46px;
-    height: 46px;
+    width: 44px;
+    height: 44px;
     padding: 7px;
     box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 13px;
+    border-radius: var(--r-ico);
     overflow: hidden;
-    background: linear-gradient(135deg, #f2f4fc, #e9edf9);
-    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+    background: var(--v-glass2);
+    box-shadow: inset 0 0 0 1px var(--v-ico-hi);
   }
   .dark .app-grid-tool-icon {
-    background: linear-gradient(135deg, #1b2130, #161b26);
+    background: var(--v-glass2);
+  }
+  .app-grid-tool[data-status='NOT_MONITORED'] .app-grid-tool-icon {
+    opacity: 0.82;
   }
   .app-grid-tool-icon img {
     width: 100%;
@@ -2467,7 +2863,13 @@
     margin-top: 2px;
     font-size: 11px;
     line-height: 1.3;
-    color: #737373;
+    /* #351 — over the DOWN tile's translucent pink fill the old neutral-500
+       #737373 dropped below AA (4.07 on Kare's rgb(249,234,236); as low as 3.69
+       on the darkest live composite — phone + purple accent); UP was a thin 4.70.
+       #5f5f5f clears 4.5 across every measured light composite (~4.97 on the
+       darkest DOWN pink, ~5.5 on Kare's; UP ≥5.2) while staying visibly muted
+       below the #262626 name. Dark (#a3a3a3, 4.95) is unaffected. */
+    color: #5f5f5f;
     text-align: center;
     overflow-wrap: anywhere;
   }
@@ -2672,6 +3074,21 @@
   }
   .dark .app-grid-tool-status[data-status='NOT_MONITORED'] {
     border-color: #a3a3a3;
+  }
+  /* §3.8/§3.9 — DOWN is the one state that draws the eye with a continuous pulse
+     (DEGRADED does not). Scoped :not(--pulse) so it yields to the single-shot
+     change-pulse below, and frozen under prefers-reduced-motion. */
+  .app-grid-tool-status[data-status='DOWN']:not(.app-grid-tool-status--pulse) {
+    animation: down-status-breathe 1.6s ease-in-out infinite;
+  }
+  @keyframes down-status-breathe {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-grid-tool-status[data-status='DOWN']:not(.app-grid-tool-status--pulse) {
+      animation: none;
+    }
   }
   /* D-4 — single-shot pulse fired only on the tile whose status changed (JS adds
      the class on a poll diff). scale(1→1.7→1), 0.6s, transform only (no reflow).
