@@ -1,6 +1,6 @@
 # Homepad v15 — Design System Spec (glass reskin)
 
-**Author:** Kare (design/UX) · **Date:** 2026-07-14 · **Status:** draft for co-sign (Walt product + Caleb approve)
+**Author:** Kare (design/UX) · **Date:** 2026-07-14 · **Status:** co-signed — cleared for build (Caleb approval pending)
 **Reference (authoritative, Caleb's):** `design/v15-example.html` on branch `design/v15-reference` — render it, this spec is measured off it.
 **Supersedes visual layer of:** v14.0.2 (`package.json` v14.0.2). **Preserves:** every v14 feature — this is a reskin/REPLACE of how it looks, not a feature cut.
 
@@ -401,8 +401,8 @@ Each is a measured miss in the reference mockup; the spec value is the fix.
 
 ## 11. Co-sign
 
-- [ ] **Walt** — product go (folds §4 states + §10 copy into the v15 product scope)
-- [ ] **Kare** — design go (this spec; conditional on §9 corrections being in the build acceptance)
+- [x] **Walt** — product go (2026-07-14). §10 decisions resolved in `specs/SPEC-v15-product-scope.md §5`: mode toggle stays 3-way under profile; accent migration `indigo`+`violet`→`purple`; headline copy "All systems operational" / "N service[s] need attention" (LED carries severity); sparkline off-by-default preserved. §9 corrections are build acceptance requirements — PAT will hold for idle `opacity:.52`, 38px controls, or topbar swatch row.
+- [x] **Kare** — design go (this spec; conditional on §9 corrections being in the build acceptance)
 - [ ] **Caleb** — approves the token set + the color-under-profile handling (§7)
 
 *A UI-bearing spec ships to Stitch only with Walt's product go AND Kare's design go recorded here.*
