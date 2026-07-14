@@ -957,17 +957,22 @@
     }
   }
 
+  /* §4.5 — the ⌘K palette as a v15 glass modal: radius 24, frosted surface with a
+     backdrop blur. The surface stays fairly opaque so the grouped result rows keep
+     full text contrast over whatever's behind the scrim. */
   .launcher-panel {
     display: flex;
     flex-direction: column;
     width: min(640px, calc(100vw - 32px));
     max-height: min(60vh, 520px);
-    background: #fff;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.86);
+    -webkit-backdrop-filter: blur(30px) saturate(130%);
+    backdrop-filter: blur(30px) saturate(130%);
+    border: 1px solid var(--v-brd);
+    border-radius: var(--r-panel);
     box-shadow:
-      0 18px 40px -12px rgba(16, 24, 40, 0.28),
-      0 0 0 1px rgba(15, 23, 42, 0.03);
+      0 18px 40px -12px var(--v-shadow),
+      inset 0 1px 0 var(--v-hi);
     overflow: hidden;
     animation: launcher-panel-in 0.14s ease;
   }
@@ -1002,11 +1007,12 @@
     outline: none;
     background: transparent;
     font-size: 15px;
-    color: #0f172a;
-    caret-color: #4f46e5;
+    color: var(--v-txt);
+    caret-color: var(--accent-3);
   }
+  /* §9 correction #2 — placeholder was --faint (≈2.7–3.3:1); --v-muted is AA. */
   .launcher-input::placeholder {
-    color: #9aa3b8;
+    color: var(--v-muted);
   }
   .launcher-clear {
     flex: none;
@@ -1049,7 +1055,7 @@
     background: #f4f5fb;
   }
   .launcher-row[data-selected='true'] {
-    background: rgba(99, 102, 241, 0.1);
+    background: color-mix(in srgb, var(--accent-3) 12%, transparent);
   }
   /* §2/§8 — selection is signalled by a leading accent bar (NOT colour alone). */
   .launcher-row[data-selected='true']::before {
@@ -1060,7 +1066,7 @@
     bottom: 8px;
     width: 2px;
     border-radius: 2px;
-    background: linear-gradient(135deg, #4f46e5, #a855f7);
+    background: linear-gradient(135deg, var(--accent-mid), var(--accent-3));
   }
   .launcher-row-icon {
     flex: none;
@@ -1145,24 +1151,32 @@
   /* §4.2 — the header trigger. Pill on desktop (glyph + "Search…" + chord hint),
      icon-only on phones (the hint span is `hidden sm:flex`). Built from v7
      hairline/faint tokens; hover raises the hairline + a faint accent tint. */
+  /* §4.1 ⌘K trigger — a v15 glass control pill (≥44px hit area, §6.3). */
   .launcher-trigger {
     display: inline-flex;
     align-items: center;
     gap: 8px;
     min-height: 44px;
-    padding: 6px 8px;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 9999px;
-    color: #6e6e6e;
+    padding: 6px 12px;
+    border: 1px solid var(--v-brd);
+    border-radius: var(--r-pill);
+    background: var(--v-glass2);
+    -webkit-backdrop-filter: blur(20px) saturate(112%);
+    backdrop-filter: blur(20px) saturate(112%);
+    color: var(--v-muted);
     transition:
       border-color 0.18s ease,
       background 0.18s ease,
       color 0.18s ease;
   }
   .launcher-trigger:hover {
-    border-color: rgba(99, 102, 241, 0.35);
-    background: rgba(99, 102, 241, 0.06);
-    color: #475069;
+    border-color: color-mix(in srgb, var(--accent-3) 40%, var(--v-brd));
+    background: color-mix(in srgb, var(--accent-3) 8%, var(--v-glass2));
+    color: var(--v-txt);
+  }
+  .launcher-trigger:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent-3);
   }
   .launcher-trigger-glyph {
     flex: none;
@@ -1199,8 +1213,8 @@
     background: rgba(2, 4, 10, 0.6);
   }
   .dark .launcher-panel {
-    background: #0e1117;
-    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(16, 19, 26, 0.9);
+    border-color: var(--v-brd);
   }
   .dark .launcher-input-row {
     border-bottom-color: rgba(255, 255, 255, 0.07);
