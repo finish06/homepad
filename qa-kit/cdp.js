@@ -22,6 +22,37 @@ const { chromium } = require("playwright-core");
 const CDP_URL = process.env.CDP_URL || "http://127.0.0.1:9222";
 
 /**
+ * Resolve a CDP endpoint to a raw ws:// debugger URL, bypassing playwright's own
+ * http→ws auto-resolution. Issue #344: chromium.connectOverCDP(<http url>) makes
+ * playwright do its own GET /json/version discovery + websocket upgrade, and that
+ * path intermittently times out (30s) against the Chrome 148 sidecar
+ * (148.0.7778.97) even though a raw ws:// connect works. So we fetch
+ * /json/version ourselves, read `webSocketDebuggerUrl`, and hand connectOverCDP
+ * the ws:// URL directly.
+ *
+ * Defensive: a ws:// / wss:// URL is passed straight through, and any discovery
+ * failure (unreachable, non-JSON, missing field) falls back to the original URL
+ * so behaviour is never worse than handing playwright the http endpoint.
+ *
+ * @param {string} cdpUrl  the CDP endpoint (http:// for discovery, or ws:// direct).
+ * @param {object} [opts]
+ * @param {typeof fetch} [opts.fetchImpl]  injectable fetch (defaults to global fetch); for tests.
+ * @returns {Promise<string>} a ws:// debugger URL, or cdpUrl unchanged on fallback.
+ */
+async function resolveWsEndpoint(cdpUrl, opts = {}) {
+  if (/^wss?:\/\//i.test(cdpUrl)) return cdpUrl;
+  const fetchImpl = opts.fetchImpl || globalThis.fetch;
+  try {
+    const res = await fetchImpl(cdpUrl.replace(/\/+$/, "") + "/json/version");
+    if (!res || !res.ok) return cdpUrl;
+    const info = await res.json();
+    return info && info.webSocketDebuggerUrl ? info.webSocketDebuggerUrl : cdpUrl;
+  } catch {
+    return cdpUrl;
+  }
+}
+
+/**
  * Connect to the Chromium sidecar over CDP and reuse its existing context.
  * Returns { browser, context }. The caller owns browser.close().
  *
@@ -29,10 +60,15 @@ const CDP_URL = process.env.CDP_URL || "http://127.0.0.1:9222";
  * @param {string} [opts.cdpUrl]  CDP endpoint (default http://127.0.0.1:9222 / $CDP_URL).
  * @param {Array}  [opts.cookies] cookies to addCookies() onto the context (auth-via-API).
  * @param {boolean}[opts.fresh]   force a brand-new context instead of reusing contexts()[0].
+ * @param {Function}[opts.connectImpl] connector fn (default chromium.connectOverCDP); for tests.
+ * @param {typeof fetch}[opts.fetchImpl] injectable fetch for ws discovery; for tests.
  */
 async function connect(opts = {}) {
   const cdpUrl = opts.cdpUrl || CDP_URL;
-  const browser = await chromium.connectOverCDP(cdpUrl);
+  const connectImpl = opts.connectImpl || chromium.connectOverCDP.bind(chromium);
+  // #344: connect via the resolved ws:// URL, not the bare http endpoint.
+  const wsUrl = await resolveWsEndpoint(cdpUrl, { fetchImpl: opts.fetchImpl });
+  const browser = await connectImpl(wsUrl);
   const context =
     opts.fresh ? await browser.newContext() : browser.contexts()[0] || (await browser.newContext());
   if (opts.cookies && opts.cookies.length) await context.addCookies(opts.cookies);
@@ -227,4 +263,4 @@ async function clearEvents(page) {
   await page.evaluate(() => { window.__qaEv = []; });
 }
 
-module.exports = { connect, gridScan, realTap, recordEvents, readEvents, clearEvents, CDP_URL };
+module.exports = { connect, resolveWsEndpoint, gridScan, realTap, recordEvents, readEvents, clearEvents, CDP_URL };
