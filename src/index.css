@@ -10,6 +10,10 @@
    AMBIENT color rides these vars — never a text/icon/ring token, so accent
    choice can not move any WCAG-measured contrast. */
 :root {
+  /* Type stacks (§3.1) — mono is used for numerics, status labels, counts, ⌘K. */
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+
   /* Ambient-blob triplets the .app-surface reads (glass-v2 contract). Default =
      blue; each [data-theme] block below overrides per accent. Consumed only as
      ambient colour — never a text/status token, so accent is contrast-safe. */
@@ -387,6 +391,195 @@
   .dark .cat-count {
     color: #9aa3b8;
     background: rgba(255, 255, 255, 0.08);
+  }
+
+  /* ===== v15 health summary panel (design spec §4.2) =====
+     Glass verdict panel: a two-column grid (verdict | metrics) that collapses to
+     one column ≤720px. All chrome reads from the v15 --v-* glass/status tokens so
+     it is mode-aware and accent-independent (status color is never re-hued). */
+  .health {
+    display: grid;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+    align-items: center;
+    gap: 20px 40px;
+    padding: 24px 32px;
+    background: var(--v-glass);
+    backdrop-filter: blur(30px) saturate(112%);
+    border: 1px solid var(--v-brd);
+    border-radius: var(--r-panel);
+    box-shadow: 0 10px 34px var(--v-shadow), inset 0 1px 0 var(--v-hi);
+  }
+  @media (max-width: 720px) {
+    .health {
+      grid-template-columns: 1fr;
+      gap: 20px;
+      padding: 20px;
+    }
+  }
+
+  .health-verdict {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 14px;
+    row-gap: 4px;
+  }
+  /* The LED occupies the left rail across both text rows. */
+  .health-led {
+    grid-row: 1 / span 2;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: var(--v-unknown);
+  }
+  .health-led[data-variant='operational'] {
+    background: var(--v-up);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--v-up) 20%, transparent), 0 0 12px color-mix(in srgb, var(--v-up) 55%, transparent);
+  }
+  .health-led[data-variant='attention'][data-severity='down'] {
+    background: var(--v-down);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--v-down) 20%, transparent), 0 0 12px color-mix(in srgb, var(--v-down) 55%, transparent);
+    animation: health-led-pulse 1.4s ease-in-out infinite;
+  }
+  .health-led[data-variant='attention'][data-severity='degraded'] {
+    background: var(--v-degraded);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--v-degraded) 20%, transparent), 0 0 12px color-mix(in srgb, var(--v-degraded) 55%, transparent);
+  }
+  .health-led[data-variant='loading'] {
+    background: var(--v-muted);
+    animation: health-led-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes health-led-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  .health-headline {
+    grid-column: 2;
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    color: var(--v-txt);
+  }
+  .health-subline {
+    grid-column: 2;
+    font-size: 13px;
+    color: var(--v-muted);
+  }
+  @media (max-width: 480px) {
+    .health-headline { font-size: 24px; }
+  }
+
+  .health-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    justify-self: end;
+    align-items: stretch;
+    min-width: 0;
+  }
+  @media (max-width: 720px) {
+    .health-metrics { justify-self: stretch; }
+  }
+
+  .health-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: flex-end;
+  }
+  @media (max-width: 720px) {
+    .health-chips { justify-content: flex-start; }
+  }
+  /* Quick-peek chip (v14 interactive → ≥44px). Big mono number + uppercase
+     label. Severity color on the number when >0 (§9 correction #3). */
+  .health-chip {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 64px;
+    padding: 8px 16px;
+    border-radius: var(--r-chip);
+    background: var(--v-chip);
+    border: 1px solid var(--v-chipbrd);
+    color: var(--v-muted);
+    cursor: pointer;
+    outline: none;
+    transition: transform 0.15s ease, border-color 0.18s ease;
+  }
+  .health-chip:hover { transform: translateY(-1px); }
+  .health-chip:focus-visible { box-shadow: 0 0 0 2px var(--accent-3); }
+  .health-chip-n {
+    font-family: var(--mono, ui-monospace, monospace);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--v-txt);
+  }
+  .health-chip-label {
+    font-family: var(--mono, ui-monospace, monospace);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--v-muted);
+  }
+  .health-chip[data-sev='up'] .health-chip-n { color: var(--v-up); }
+  .health-chip[data-sev='down'] .health-chip-n { color: var(--v-down); }
+  .health-chip[data-sev='degraded'] .health-chip-n { color: var(--v-degraded); }
+
+  /* Meter — one tick per service, colored by status. Decorative (aria-hidden). */
+  .health-meter {
+    display: flex;
+    gap: 3px;
+    height: 26px;
+    align-items: stretch;
+  }
+  .health-tick {
+    flex: 1 1 2px;
+    min-width: 2px;
+    border-radius: 999px;
+  }
+  .health-tick-up { background: var(--v-up); }
+  .health-tick-down { background: var(--v-down); }
+  .health-tick-degraded { background: var(--v-degraded); }
+  .health-tick-idle { background: var(--v-tick-idle); }
+
+  .health-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--mono, ui-monospace, monospace);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--v-muted);
+  }
+  .health-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .health-legend-sw {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+  }
+  .health-updated {
+    margin-left: auto;
+    color: var(--v-muted);
+  }
+  .health-updated[data-stale='amber'] { color: var(--v-degraded); }
+  .health-updated[data-stale='red'] { color: var(--v-down); }
+
+  /* Reduced-motion / no-blur fallback — keep the panel legible without the
+     backdrop-filter (v14 glass-v2 contract) and freeze the LED pulse. */
+  @media (prefers-reduced-motion: reduce) {
+    .health-led { animation: none; }
   }
 
   /* §6.1 Wordmark — indigo→violet gradient text via background-clip. */
