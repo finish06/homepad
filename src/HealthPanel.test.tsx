@@ -126,3 +126,63 @@ describe('v15 health summary panel', () => {
     expect(screen.getByTestId('health-updated')).toHaveAttribute('data-stale', 'amber');
   });
 });
+
+// v24 (SPEC-v24-health-meter-banding) — the meter groups its ticks into three
+// contiguous status bands, healthy-first: GREEN (UP) → GRAY (NOT_MONITORED +
+// UNKNOWN) → RED (DOWN + DEGRADED). Caleb's resolved decision: 3 bands, no amber
+// band (DEGRADED folds into RED). Within a band, ticks keep the user's layout
+// order. The strip is still aria-hidden decorative; the chips carry the numbers.
+describe('v24 health-meter status banding', () => {
+  const bandOf = (el: Element): 'green' | 'gray' | 'red' | 'other' => {
+    if (el.classList.contains('health-tick-up')) return 'green';
+    if (el.classList.contains('health-tick-idle')) return 'gray';
+    if (el.classList.contains('health-tick-down')) return 'red';
+    return 'other';
+  };
+
+  // AC-V24-001 — interleaved statuses render as three contiguous bands
+  // GREEN → GRAY → RED; ticks never interleave across bands. DEGRADED is red
+  // (3-band decision — no amber tick survives in the meter).
+  it('groups ticks into contiguous GREEN → GRAY → RED bands (no amber)', () => {
+    // Layout order deliberately interleaves all bands.
+    setCtx([
+      svc('UP', 'u1'),
+      svc('DOWN', 'd1'),
+      svc('NOT_MONITORED', 'n1'),
+      svc('UP', 'u2'),
+      svc('DEGRADED', 'g1'),
+      svc('UNKNOWN', 'k1'),
+    ]);
+    render(<StatusBar />);
+    const ticks = [...screen.getByTestId('health-meter').querySelectorAll('[data-tick]')];
+    expect(ticks.map(bandOf)).toEqual(['green', 'green', 'gray', 'gray', 'red', 'red']);
+    // No tick keeps the standalone amber degraded color — degraded folds into red.
+    expect(screen.getByTestId('health-meter').querySelector('.health-tick-degraded')).toBeNull();
+  });
+
+  // AC-V24-002 — within a band, ticks preserve the user's layout order. A
+  // NOT_MONITORED at layout index 1 precedes an UNKNOWN at index 2 inside the
+  // GRAY band (they are NOT sub-sorted by status within the band).
+  it('preserves layout order within a band, including UNKNOWN among NOT_MONITORED', () => {
+    setCtx([
+      svc('UP', 'u1'), // idx 0 → green
+      svc('NOT_MONITORED', 'n1'), // idx 1 → gray
+      svc('UNKNOWN', 'k1'), // idx 2 → gray
+      svc('UP', 'u2'), // idx 3 → green
+      svc('DOWN', 'd1'), // idx 4 → red
+    ]);
+    render(<StatusBar />);
+    const statuses = [...screen.getByTestId('health-meter').querySelectorAll('[data-tick]')].map(
+      (el) => el.getAttribute('data-status'),
+    );
+    expect(statuses).toEqual(['UP', 'UP', 'NOT_MONITORED', 'UNKNOWN', 'DOWN']);
+  });
+
+  // AC-V24-004 — an all-UP fleet is a single unbroken green strip.
+  it('renders an all-UP fleet as a single green band', () => {
+    setCtx([svc('UP', 'u1'), svc('UP', 'u2'), svc('UP', 'u3')]);
+    render(<StatusBar />);
+    const ticks = [...screen.getByTestId('health-meter').querySelectorAll('[data-tick]')];
+    expect(ticks.map(bandOf)).toEqual(['green', 'green', 'green']);
+  });
+});
