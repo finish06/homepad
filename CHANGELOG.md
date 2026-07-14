@@ -7,6 +7,29 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [15.1.0] — 2026-07-14 — health-meter status banding
+
+Minor enhancement, fully backward-compatible. The system health panel's
+per-service meter now **groups its ticks into three contiguous status bands**,
+healthy-first: all online (green) first, then not-monitored (gray), then
+offline (red). Previously ticks followed tile-layout order and interleaved the
+three colours, so the meter told you individual positions but not the
+*distribution*; banded, it reads "mostly green, a sliver of gray, nothing red"
+at a glance, and the legend swatches now map onto contiguous meter regions.
+
+Within each band the meter preserves your tile-layout order, so ticks don't jump
+around on a refresh — only their band changes when a service's status changes.
+Degraded services fold into the red band (no separate amber band), matching the
+offline count chip and the quick-peek popover. The meter stays decorative
+(`aria-hidden`); the count chips remain the accessible numbers. Nothing else in
+the panel changes — LED, headline, chips, legend and the quick-peek popover are
+untouched.
+
+### Changed
+
+- The health-panel meter renders its ticks in three status bands
+  (green → gray → red) instead of tile-layout order (SPEC-v24-health-meter-banding).
+
 ## [15.0.0] — 2026-07-14 — homepad v15: the glass redesign
 
 Major visual release. A full **glass-morphism reskin** of the whole dashboard —
