@@ -42,13 +42,28 @@ const PEEK_META: Record<PeekStatus, { testId: string; label: string; match: (s: 
   },
 };
 
-// Meter-tick color class per status (accent-independent, semantic only).
+// Meter-tick color class per status (accent-independent, semantic only). Three
+// colors only — the meter is a distribution view (like the chips + v16 popover),
+// so DEGRADED reads red, not amber (SPEC-v24 §8.B; amber is reserved for the LED
+// and the per-tile dot). This keeps the meter to exactly its three bands.
 const tickClass: Record<ServiceStatus, string> = {
   UP: 'health-tick-up',
   DOWN: 'health-tick-down',
-  DEGRADED: 'health-tick-degraded',
+  DEGRADED: 'health-tick-down',
   UNKNOWN: 'health-tick-idle',
   NOT_MONITORED: 'health-tick-idle',
+};
+
+// Status → meter band (SPEC-v24 §3.2): 0 GREEN (UP), 1 GRAY (NOT_MONITORED +
+// UNKNOWN — unobservable, not known-down), 2 RED (DOWN + DEGRADED). Ticks are
+// grouped into these contiguous bands, healthy-first, so the distribution reads
+// at a glance; within a band, layout order is preserved (§3.4).
+const statusBand: Record<ServiceStatus, number> = {
+  UP: 0,
+  NOT_MONITORED: 1,
+  UNKNOWN: 1,
+  DOWN: 2,
+  DEGRADED: 2,
 };
 
 // §4.2 stale thresholds (§5.3): freshness label → amber past 5 min, red past 15.
@@ -213,12 +228,23 @@ export default function StatusBar() {
                 ))}
               </div>
 
-              {/* One tick per service, colored by status. Decorative — the chips
-                  carry the accessible numbers, so the meter is aria-hidden. */}
+              {/* One tick per service, grouped into three status bands
+                  (GREEN → GRAY → RED, healthy-first; SPEC-v24). Ticks keep their
+                  layout order within a band — sort by band, then layout index.
+                  Decorative — the chips carry the accessible numbers, so the
+                  meter is aria-hidden. */}
               <div data-testid="health-meter" className="health-meter" aria-hidden="true">
-                {(items ?? []).map((s) => (
-                  <span key={s.id} data-tick className={`health-tick ${tickClass[s.status] ?? 'health-tick-idle'}`} />
-                ))}
+                {(items ?? [])
+                  .map((s, i) => ({ s, i }))
+                  .sort((a, b) => statusBand[a.s.status] - statusBand[b.s.status] || a.i - b.i)
+                  .map(({ s }) => (
+                    <span
+                      key={s.id}
+                      data-tick
+                      data-status={s.status}
+                      className={`health-tick ${tickClass[s.status] ?? 'health-tick-idle'}`}
+                    />
+                  ))}
               </div>
 
               <div className="health-legend">
