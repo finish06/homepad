@@ -7,6 +7,40 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [15.0.0] — 2026-07-14 — homepad v15: the glass redesign
+
+Major visual release. A full **glass-morphism reskin** of the whole dashboard —
+new design system, same app. This is a REPLACE of how homepad *looks*, not what
+it does: every v14 feature (service tiles + 5 monitoring states, the uptime
+lines, favourite/remove, admin Edit Dashboard, the ⌘K command launcher, the
+alert bell, the user profile menu, the version badge + changelog) is preserved
+and works exactly as before. Built to Kare's v15 design-system spec.
+
+### Added
+
+- **Frosted-glass design language.** Panels, tiles, the command palette and the
+  top bar are now translucent glass over a soft, accent-tinted ambient field —
+  rounded corners (24/18/12), layered shadows and a subtle backdrop blur. Dark
+  mode stays the default; full light mode is included.
+- **A health summary panel.** The old status strip is replaced by a headline
+  verdict — “All systems operational” / “N systems need attention” / “Checking
+  services…” — alongside online / not-monitored / offline count chips and a
+  per-service status meter. It reads the same live data and keeps the click-to-
+  peek popover for each bucket.
+- **Two more accent colours (8 total).** The accent picker (still under your
+  profile’s Appearance section, unchanged) now offers blue · teal · green ·
+  yellow · orange · red · pink · purple. Existing indigo/violet choices map to
+  purple automatically; the default is now blue.
+
+### Changed
+
+- **Every surface restyled to the glass system** — top bar (now a floating
+  pill), service tiles, section headers (with a per-group status count), the ⌘K
+  launcher and the profile menu. No layout data, routing or behaviour changed.
+- **Accessibility corrections folded in** (Kare §9 / #348): idle tiles are dimmed
+  with AA-passing tokens instead of a blanket opacity, the offline count colours
+  its number when it matters, and touch targets stay ≥44px.
+
 ## [14.0.2] — 2026-07-12 — Fix: overlay launch type no longer reverts on reload
 
 Patch fix for [#342](https://gitea.kube.calebdunn.tech/Code/homepad/issues/342).
