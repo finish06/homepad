@@ -4,10 +4,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import AccentControl from './AccentControl';
 import { ACCENTS, ACCENT_CACHE_KEY } from './accent';
 
-// SPEC-glass-v2-accent — the ROYGBIV picker in the user menu's Appearance
-// section. Assertions follow the design-system bar the reviews hold homepad to:
-// ≥44px hit areas (the #182/#190 class of miss), selected state announced AND
-// drawn as a checkmark — never color alone (§6.3).
+// SPEC-v15-design-system §3.6/§7 — the eight-accent picker in the user menu's
+// Appearance section (unchanged placement — Caleb's hard constraint). Assertions
+// follow the design-system bar the reviews hold homepad to: ≥44px hit areas (the
+// #182/#190 class of miss), selected state announced AND drawn as a checkmark —
+// never colour alone (§6.3). v15 applies the accent by setting `data-theme` on
+// <html>; the stylesheet owns the colour values.
 
 // Self-contained in-memory localStorage (see accent.test.ts — some jsdom builds
 // expose a partial Storage; the suite brings its own).
@@ -25,13 +27,13 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  document.documentElement.style.removeProperty('--accent-1');
-  document.documentElement.style.removeProperty('--accent-2');
+  document.documentElement.removeAttribute('data-theme');
 });
 
 describe('AccentControl', () => {
-  it('renders all seven ROYGBIV swatches as ≥44px buttons with accessible names', () => {
+  it('renders all eight accent swatches as ≥44px buttons with accessible names', () => {
     render(<AccentControl />);
+    expect(ACCENTS).toHaveLength(8);
     for (const a of ACCENTS) {
       const btn = screen.getByTestId(`accent-${a.id}`);
       expect(btn).toHaveAccessibleName(`${a.label} accent`);
@@ -40,36 +42,32 @@ describe('AccentControl', () => {
     }
   });
 
-  it('marks the default (indigo) selected via aria-pressed + checkmark, not color alone', () => {
+  it('marks the default (blue) selected via aria-pressed + checkmark, not colour alone', () => {
     render(<AccentControl />);
-    expect(screen.getByTestId('accent-indigo')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('accent-blue')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('accent-check')).toBeInTheDocument();
     expect(screen.getByTestId('accent-red')).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('clicking a swatch applies the pair to <html> and persists it', async () => {
+  it('clicking a swatch sets data-theme on <html> and persists it', async () => {
     const user = userEvent.setup();
     render(<AccentControl />);
     await user.click(screen.getByTestId('accent-green'));
-    const green = ACCENTS.find((a) => a.id === 'green')!;
-    expect(document.documentElement.style.getPropertyValue('--accent-1')).toBe(green.a);
+    expect(document.documentElement.getAttribute('data-theme')).toBe('green');
     expect(window.localStorage.getItem(ACCENT_CACHE_KEY)).toBe('green');
     expect(screen.getByTestId('accent-green')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('accent-indigo')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('accent-blue')).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('boots selected from the cached preference', () => {
-    window.localStorage.setItem(ACCENT_CACHE_KEY, 'blue');
+    window.localStorage.setItem(ACCENT_CACHE_KEY, 'teal');
     render(<AccentControl />);
-    expect(screen.getByTestId('accent-blue')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('accent-teal')).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('re-choosing the default clears the inline override (stylesheet owns brand values)', async () => {
-    const user = userEvent.setup();
+  it('migrates a retired v14 accent (indigo) to purple on boot', () => {
+    window.localStorage.setItem(ACCENT_CACHE_KEY, 'indigo');
     render(<AccentControl />);
-    await user.click(screen.getByTestId('accent-red'));
-    await user.click(screen.getByTestId('accent-indigo'));
-    expect(document.documentElement.style.getPropertyValue('--accent-1')).toBe('');
-    expect(window.localStorage.getItem(ACCENT_CACHE_KEY)).toBe('indigo');
+    expect(screen.getByTestId('accent-purple')).toHaveAttribute('aria-pressed', 'true');
   });
 });
