@@ -10,9 +10,158 @@
    AMBIENT color rides these vars — never a text/icon/ring token, so accent
    choice can not move any WCAG-measured contrast. */
 :root {
-  --accent-1: 99 102 241;
-  --accent-2: 168 85 247;
+  /* Ambient-blob triplets the .app-surface reads (glass-v2 contract). Default =
+     blue; each [data-theme] block below overrides per accent. Consumed only as
+     ambient colour — never a text/status token, so accent is contrast-safe. */
+  --accent-1: 90 155 255;
+  --accent-2: 46 99 224;
+
+  /* ===== v15 glass design tokens (SPEC-v15-design-system) ===== */
+  /* Radii (§3.3) */
+  --r-panel: 24px;
+  --r-tile: 18px;
+  --r-ico: 12px;
+  --r-pill: 999px;
+  --r-chip: 14px;
+
+  /* LIGHT surface / glass / status tokens (§3.4–3.8). Consumed by the v15 chrome
+     (topbar pill, health panel, section heads, tiles). `--accent*` are the accent
+     CHROME hexes (personality only); `--accent-1/2` above stay the blob triplets. */
+  --v-txt: rgba(20, 23, 30, 0.92);
+  --v-muted: rgba(28, 32, 42, 0.62);
+  --v-faint: rgba(28, 32, 42, 0.44);
+  --v-up: #0e9e5c;
+  --v-up-strong: #0b7a46; /* §9.6 — LED label needs ≥4.5:1 in light */
+  --v-down: #d23a3d;
+  --v-degraded: #b7791f; /* §3.8 amber, ≈4.6:1 on light tile */
+  --v-unknown: rgba(28, 32, 42, 0.62);
+  --v-idle: rgba(22, 25, 32, 0.34);
+  --v-glass: rgba(255, 255, 255, 0.55);
+  --v-glass2: rgba(255, 255, 255, 0.5);
+  --v-brd: rgba(255, 255, 255, 0.65);
+  --v-hi: rgba(255, 255, 255, 0.9);
+  --v-hi2: rgba(255, 255, 255, 0.8);
+  --v-shadow: rgba(30, 42, 72, 0.14);
+  --v-shadow-tile: rgba(30, 42, 72, 0.1);
+  --v-hover: rgba(255, 255, 255, 0.78);
+  --v-rule: rgba(24, 30, 48, 0.14);
+  --v-kbdbrd: rgba(24, 30, 48, 0.2);
+  --v-btnhover: rgba(255, 255, 255, 0.72);
+  --v-sep: #ffffff;
+  --v-tick-idle: rgba(24, 30, 48, 0.16);
+  --v-legend-idle: rgba(24, 30, 48, 0.22);
+  --v-tile: rgba(255, 255, 255, 0.52);
+  --v-tilebrd: rgba(255, 255, 255, 0.62);
+  --v-tilehi: rgba(255, 255, 255, 0.85);
+  --v-ico-hi: rgba(255, 255, 255, 0.5);
+  --v-chip: rgba(255, 255, 255, 0.55);
+  --v-chipbrd: rgba(255, 255, 255, 0.6);
+  --v-focus-fill: rgba(255, 255, 255, 0.75);
+
+  /* Default accent (blue) chrome + light field — restated by [data-theme] blocks. */
+  --accent: #8fb8ff;
+  --accent-mid: #5a9bff;
+  --accent-3: #2e63e0;
+  --on-accent: #fff;
+  --amb: rgba(58, 108, 224, 0.16);
+  --bg-1: #eef3fb;
+  --bg-2: #e2eaf6;
 }
+
+.dark {
+  /* DARK surface / glass / status tokens (§3.4–3.8). */
+  --v-txt: rgba(255, 255, 255, 0.93);
+  --v-muted: rgba(255, 255, 255, 0.54);
+  --v-faint: rgba(255, 255, 255, 0.36);
+  --v-up: #43d18e;
+  --v-up-strong: #43d18e;
+  --v-down: #f0686b;
+  --v-degraded: #f5b34a; /* §3.8 amber, ≈8:1 on dark tile */
+  --v-unknown: rgba(255, 255, 255, 0.54);
+  --v-idle: rgba(255, 255, 255, 0.4);
+  --v-glass: rgba(255, 255, 255, 0.055);
+  --v-glass2: rgba(255, 255, 255, 0.05);
+  --v-brd: rgba(255, 255, 255, 0.09);
+  --v-hi: rgba(255, 255, 255, 0.14);
+  --v-hi2: rgba(255, 255, 255, 0.1);
+  --v-shadow: rgba(0, 0, 0, 0.34);
+  --v-shadow-tile: rgba(0, 0, 0, 0.28);
+  --v-hover: rgba(255, 255, 255, 0.085);
+  --v-rule: rgba(255, 255, 255, 0.14);
+  --v-kbdbrd: rgba(255, 255, 255, 0.16);
+  --v-btnhover: rgba(255, 255, 255, 0.12);
+  --v-sep: #0b0d16;
+  --v-tick-idle: rgba(255, 255, 255, 0.14);
+  --v-legend-idle: rgba(255, 255, 255, 0.18);
+  --v-tile: rgba(255, 255, 255, 0.055);
+  --v-tilebrd: rgba(255, 255, 255, 0.08);
+  --v-tilehi: rgba(255, 255, 255, 0.12);
+  --v-ico-hi: rgba(255, 255, 255, 0.14);
+  --v-chip: rgba(255, 255, 255, 0.06);
+  --v-chipbrd: rgba(255, 255, 255, 0.08);
+  --v-focus-fill: rgba(255, 255, 255, 0.09);
+  /* Default accent (blue) dark field — restated by .dark[data-theme] blocks. */
+  --amb: rgba(58, 108, 224, 0.26);
+  --bg-1: #0d1526;
+  --bg-2: #080b14;
+}
+
+/* ── Accent chrome (§3.6, mode-independent) + ambient-blob triplets per accent.
+   `--accent/-mid/-3/--on-accent` are the personality hexes; `--accent-1/2` are the
+   blob triplets the .app-surface reads. Field (`--amb/--bg-1/--bg-2`) is
+   mode-dependent → the .dark / :root:not(.dark) blocks that follow. ── */
+[data-theme="blue"] {
+  --accent: #8fb8ff; --accent-mid: #5a9bff; --accent-3: #2e63e0; --on-accent: #fff;
+  --accent-1: 90 155 255; --accent-2: 46 99 224;
+}
+[data-theme="teal"] {
+  --accent: #7fe3dc; --accent-mid: #2bc4bc; --accent-3: #0e938d; --on-accent: #04140f;
+  --accent-1: 43 196 188; --accent-2: 14 147 141;
+}
+[data-theme="green"] {
+  --accent: #63e6a6; --accent-mid: #22c67d; --accent-3: #0e9a5c; --on-accent: #05130d;
+  --accent-1: 34 198 125; --accent-2: 14 154 92;
+}
+[data-theme="yellow"] {
+  --accent: #ffdc7a; --accent-mid: #ffc72e; --accent-3: #c79310; --on-accent: #241b00;
+  --accent-1: 255 199 46; --accent-2: 199 147 16;
+}
+[data-theme="orange"] {
+  --accent: #ffc08f; --accent-mid: #ff8a3d; --accent-3: #e06a12; --on-accent: #2a1400;
+  --accent-1: 255 138 61; --accent-2: 224 106 18;
+}
+[data-theme="red"] {
+  --accent: #ff9a9c; --accent-mid: #ff5a5c; --accent-3: #d63437; --on-accent: #fff;
+  --accent-1: 255 90 92; --accent-2: 214 52 55;
+}
+[data-theme="pink"] {
+  --accent: #ff9ec8; --accent-mid: #ff5ca0; --accent-3: #d63a7c; --on-accent: #fff;
+  --accent-1: 255 92 160; --accent-2: 214 58 124;
+}
+[data-theme="purple"] {
+  --accent: #c4b4ff; --accent-mid: #9b7cff; --accent-3: #6a4fcf; --on-accent: #fff;
+  --accent-1: 155 124 255; --accent-2: 106 79 207;
+}
+
+/* Dark field per accent (§3.6 dark bases). */
+.dark[data-theme="blue"] { --amb: rgba(58, 108, 224, 0.26); --bg-1: #0d1526; --bg-2: #080b14; }
+.dark[data-theme="teal"] { --amb: rgba(30, 190, 180, 0.22); --bg-1: #08201f; --bg-2: #061413; }
+.dark[data-theme="green"] { --amb: rgba(28, 176, 118, 0.22); --bg-1: #0a1b15; --bg-2: #07110d; }
+.dark[data-theme="yellow"] { --amb: rgba(220, 176, 44, 0.2); --bg-1: #181407; --bg-2: #100c05; }
+.dark[data-theme="orange"] { --amb: rgba(230, 120, 48, 0.22); --bg-1: #1b1209; --bg-2: #120b06; }
+.dark[data-theme="red"] { --amb: rgba(220, 74, 84, 0.22); --bg-1: #1b0f13; --bg-2: #120a0c; }
+.dark[data-theme="pink"] { --amb: rgba(236, 80, 150, 0.22); --bg-1: #210e1a; --bg-2: #150a11; }
+.dark[data-theme="purple"] { --amb: rgba(150, 110, 246, 0.24); --bg-1: #150e26; --bg-2: #0d0916; }
+
+/* Light field per accent (§3.6 pale washes). */
+:root:not(.dark)[data-theme="blue"] { --amb: rgba(58, 108, 224, 0.16); --bg-1: #eef3fb; --bg-2: #e2eaf6; }
+:root:not(.dark)[data-theme="teal"] { --amb: rgba(30, 190, 180, 0.15); --bg-1: #e9f6f6; --bg-2: #d9eeee; }
+:root:not(.dark)[data-theme="green"] { --amb: rgba(28, 176, 118, 0.15); --bg-1: #ecf6f1; --bg-2: #deeee6; }
+:root:not(.dark)[data-theme="yellow"] { --amb: rgba(210, 168, 40, 0.16); --bg-1: #f9f4e3; --bg-2: #f2ebd1; }
+:root:not(.dark)[data-theme="orange"] { --amb: rgba(230, 120, 48, 0.15); --bg-1: #fbf1e8; --bg-2: #f5e5d6; }
+:root:not(.dark)[data-theme="red"] { --amb: rgba(214, 58, 62, 0.15); --bg-1: #fbeef0; --bg-2: #f5e1e5; }
+:root:not(.dark)[data-theme="pink"] { --amb: rgba(236, 80, 150, 0.15); --bg-1: #fbeef5; --bg-2: #f5dfeb; }
+:root:not(.dark)[data-theme="purple"] { --amb: rgba(150, 110, 246, 0.16); --bg-1: #f2eefb; --bg-2: #e7dff6; }
 
 /* v7 ux-redesign (specs/v7-ux-redesign.md §2–5). The gradients, soft shadows,
    status glow and accent chip are expressed as @layer component classes so the
@@ -36,7 +185,7 @@
       radial-gradient(900px 520px at 102% -6%, rgb(var(--accent-2) / 0.1), transparent 55%),
       radial-gradient(1000px 600px at 55% 42%, rgb(var(--accent-1) / 0.07), transparent 60%),
       radial-gradient(900px 560px at 8% 96%, rgb(var(--accent-2) / 0.08), transparent 60%),
-      linear-gradient(180deg, #f6f8fd 0%, #eceffa 100%);
+      linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
   }
   .dark .app-surface {
     background:
@@ -46,7 +195,7 @@
       radial-gradient(900px 520px at 102% -6%, rgb(var(--accent-2) / 0.12), transparent 55%),
       radial-gradient(1000px 600px at 55% 42%, rgb(var(--accent-1) / 0.09), transparent 60%),
       radial-gradient(900px 560px at 8% 96%, rgb(var(--accent-2) / 0.1), transparent 60%),
-      linear-gradient(180deg, #0b0d12 0%, #0e1117 100%);
+      linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
   }
 
   /* #184 — app/dashboard loading state. Replaces the bare low-contrast
