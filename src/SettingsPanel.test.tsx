@@ -4,11 +4,13 @@ import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import SettingsPanel from './SettingsPanel';
 import {
+  adminEnvConfig,
   createLibraryApp,
   deleteLibraryApp,
   listLibrary,
   setLibraryOrder,
   updateLibraryApp,
+  type EnvConfigEntry,
   type LibraryOffer,
 } from './api';
 
@@ -18,6 +20,7 @@ vi.mock('./api', () => ({
   updateLibraryApp: vi.fn(),
   deleteLibraryApp: vi.fn(),
   setLibraryOrder: vi.fn(),
+  adminEnvConfig: vi.fn(),
 }));
 
 expect.extend(toHaveNoViolations);
@@ -33,11 +36,25 @@ const OFFERS: LibraryOffer[] = [
   },
 ];
 
+// SPEC-v26 — the full allowlisted env-config the endpoint returns. PORT and
+// OIDC_DISCOVERY_URL are intentionally empty to exercise the em-dash empty state.
+const ENV_CONFIG: EnvConfigEntry[] = [
+  { key: 'GATUS_BASE_URL', value: 'http://gatus.kube.local' },
+  { key: 'COOKIE_SECURE', value: 'true' },
+  { key: 'HOMEPAD_REGISTRATION', value: 'open' },
+  { key: 'PORT', value: '' },
+  { key: 'OIDC_ENABLED', value: 'true' },
+  { key: 'OIDC_ISSUER', value: 'https://id.example.com' },
+  { key: 'OIDC_DISCOVERY_URL', value: '' },
+  { key: 'OIDC_REDIRECT_URL', value: 'https://homepad.example.com/api/auth/oidc/callback' },
+  { key: 'OIDC_CLIENT_ID', value: 'homepad-web' },
+  { key: 'OIDC_ADMIN_GROUP', value: 'admins' },
+];
+
 function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> = {}) {
   return render(
     <SettingsPanel
       isAdmin={props.isAdmin ?? true}
-      oidcEnabled={props.oidcEnabled ?? false}
       showUptimeDisplay={props.showUptimeDisplay ?? true}
       onSaveSettings={props.onSaveSettings ?? vi.fn().mockResolvedValue(undefined)}
       onClose={props.onClose ?? vi.fn()}
@@ -46,6 +63,7 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
 }
 
 beforeEach(() => {
+  vi.mocked(adminEnvConfig).mockResolvedValue(ENV_CONFIG);
   vi.mocked(listLibrary).mockResolvedValue(OFFERS);
   vi.mocked(createLibraryApp).mockResolvedValue({
     ok: true, status: 201,
@@ -71,22 +89,89 @@ describe('A17 — admin-only visibility', () => {
     await waitFor(() => expect(listLibrary).not.toHaveBeenCalled());
     expect(screen.queryByTestId('settings-library')).not.toBeInTheDocument();
     expect(screen.queryByTestId('settings-system')).not.toBeInTheDocument();
+    // AC-002/gating — the env-config is never even fetched for a non-admin.
+    expect(adminEnvConfig).not.toHaveBeenCalled();
   });
 });
 
-describe('A17/A15 — read-only system settings', () => {
-  it('shows OIDC enabled and notes it is env-managed', async () => {
-    renderPanel({ isAdmin: true, oidcEnabled: true });
+// SPEC-v26 §6.2 — the hardcoded OIDC / self-registration rows are replaced by a
+// live table fetched from GET /api/admin/env-config, rendered per Kare §8.
+describe('SPEC-v26 — env-config table', () => {
+  it('AC-010 — fetches env-config on mount and renders the allowlisted rows', async () => {
+    renderPanel({ isAdmin: true });
     const sys = await screen.findByTestId('settings-system');
-    expect(within(sys).getByText(/oidc/i)).toBeInTheDocument();
-    expect(within(sys).getByText(/enabled/i)).toBeInTheDocument();
-    expect(within(sys).getAllByText(/environment|redeploy/i).length).toBeGreaterThan(0);
+    await within(sys).findByTestId('env-row-GATUS_BASE_URL');
+    expect(adminEnvConfig).toHaveBeenCalledTimes(1);
+    // dual label: friendly primary + raw var name (§8.1)
+    const row = within(sys).getByTestId('env-row-GATUS_BASE_URL');
+    expect(within(row).getByText('Gatus base URL')).toBeInTheDocument();
+    expect(within(row).getByText('GATUS_BASE_URL')).toBeInTheDocument();
+    expect(within(row).getByText('http://gatus.kube.local')).toBeInTheDocument();
   });
 
-  it('shows OIDC disabled when off', async () => {
-    renderPanel({ isAdmin: true, oidcEnabled: false });
+  it('AC-012 — every allowlisted key renders a row with its value', async () => {
+    renderPanel({ isAdmin: true });
     const sys = await screen.findByTestId('settings-system');
-    expect(within(sys).getByText(/disabled/i)).toBeInTheDocument();
+    await within(sys).findByTestId('env-row-GATUS_BASE_URL');
+    for (const { key } of ENV_CONFIG) {
+      expect(within(sys).getByTestId(`env-row-${key}`)).toBeInTheDocument();
+    }
+    // literal os.Getenv values, not "Enabled/Disabled" prose (§8.1 note)
+    const oidc = within(sys).getByTestId('env-row-OIDC_ENABLED');
+    expect(within(oidc).getByText('true')).toBeInTheDocument();
+  });
+
+  it('§8.5 — rows are grouped under Server and Identity (OIDC) captions', async () => {
+    renderPanel({ isAdmin: true });
+    const sys = await screen.findByTestId('settings-system');
+    await within(sys).findByTestId('env-row-GATUS_BASE_URL');
+    expect(within(sys).getByText('Server')).toBeInTheDocument();
+    expect(within(sys).getByText('Identity (OIDC)')).toBeInTheDocument();
+  });
+
+  it('§8.2 — an empty value renders as an em-dash with an sr-only "not set"', async () => {
+    renderPanel({ isAdmin: true });
+    const sys = await screen.findByTestId('settings-system');
+    const portRow = await within(sys).findByTestId('env-row-PORT');
+    expect(within(portRow).getByText('—')).toBeInTheDocument();
+    expect(within(portRow).getByText('not set')).toBeInTheDocument();
+    // a set value is NOT shown as an em-dash
+    const gatus = within(sys).getByTestId('env-row-GATUS_BASE_URL');
+    expect(within(gatus).queryByText('—')).not.toBeInTheDocument();
+  });
+
+  it('§8.8 — each row carries an aria-hidden [env] badge', async () => {
+    renderPanel({ isAdmin: true });
+    const sys = await screen.findByTestId('settings-system');
+    const row = await within(sys).findByTestId('env-row-GATUS_BASE_URL');
+    const badge = within(row).getByText('env');
+    expect(badge).toHaveClass('settings-env-badge');
+    expect(badge).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('§8.3/AC-013 — shows a busy loading status before the fetch resolves', async () => {
+    let resolve!: (v: EnvConfigEntry[]) => void;
+    vi.mocked(adminEnvConfig).mockReturnValue(new Promise<EnvConfigEntry[]>((r) => { resolve = r; }));
+    renderPanel({ isAdmin: true });
+    const sys = await screen.findByTestId('settings-system');
+    // a status node announces loading while in-flight
+    expect(within(sys).getByRole('status')).toHaveTextContent(/loading/i);
+    // the rows are not there yet
+    expect(within(sys).queryByTestId('env-row-GATUS_BASE_URL')).not.toBeInTheDocument();
+    resolve(ENV_CONFIG);
+    await within(sys).findByTestId('env-row-GATUS_BASE_URL');
+  });
+
+  it('§8.4/AC-014 — a fetch error shows an in-place alert and leaves the toggle live', async () => {
+    vi.mocked(adminEnvConfig).mockRejectedValue(new Error('boom'));
+    renderPanel({ isAdmin: true });
+    const sys = await screen.findByTestId('settings-system');
+    const alert = await within(sys).findByRole('alert');
+    expect(alert).toHaveTextContent(/couldn't load server configuration/i);
+    // the uptime toggle above is unaffected (AC-014)
+    expect(within(sys).getByTestId('settings-switch-uptime')).toBeInTheDocument();
+    // no env rows rendered on error
+    expect(within(sys).queryByTestId('env-row-GATUS_BASE_URL')).not.toBeInTheDocument();
   });
 });
 
@@ -235,27 +320,6 @@ describe('v11 A5/A6 — section scope notes', () => {
   });
 });
 
-// v12 §6 A8/A9 — per-field env badges on each read-only System row, and the
-// self-registration copy drops the raw env-var name.
-describe('v12 A8/A9 — per-field env badges + clean copy', () => {
-  it('A8 — each System row has an env badge reading "env"', async () => {
-    renderPanel({ isAdmin: true, oidcEnabled: true });
-    const sys = await screen.findByTestId('settings-system');
-    const oidcBadge = within(sys).getByTestId('settings-env-badge-oidc');
-    const regBadge = within(sys).getByTestId('settings-env-badge-registration');
-    expect(oidcBadge).toHaveTextContent(/^env$/i);
-    expect(regBadge).toHaveTextContent(/^env$/i);
-  });
-
-  it('A9 — self-registration reads "Controlled by server environment", no raw env-var name', async () => {
-    renderPanel({ isAdmin: true });
-    const sys = await screen.findByTestId('settings-system');
-    const dd = within(sys).getByText(/controlled by server environment/i);
-    expect(dd).toBeInTheDocument();
-    expect(within(sys).queryByText(/HOMEPAD_REGISTRATION/)).not.toBeInTheDocument();
-  });
-});
-
 describe('A17/A19 — a11y + dismissal', () => {
   it('Escape closes the panel', async () => {
     const onClose = vi.fn();
@@ -266,8 +330,9 @@ describe('A17/A19 — a11y + dismissal', () => {
   });
 
   it('has no axe violations (admin, populated)', async () => {
-    const { container } = renderPanel({ isAdmin: true, oidcEnabled: true });
+    const { container } = renderPanel({ isAdmin: true });
     await screen.findByTestId('settings-library');
+    await screen.findByTestId('env-row-GATUS_BASE_URL');
     expect(await axe(container)).toHaveNoViolations();
   });
 });
