@@ -52,6 +52,11 @@ export type Service = {
   // omits it (and hand-built fixtures) read as new_tab — ToolLink/TileEditModal
   // treat absent/undefined as 'new_tab' (AC-014).
   clickAction?: ClickAction;
+  // v25: the Gatus endpoint slug backing the tile's health meter (SPEC-v25). The
+  // server now returns it on every service ("" when unmonitored) so TileEditModal
+  // can prefill the current key. Optional so pre-v25 payloads and hand-built
+  // fixtures read as unmonitored — consumers normalize with `?? ''`.
+  gatus_key?: string;
 };
 
 // v23 — the per-tile click-action enum. Shared across api types, ToolLink, and
@@ -92,9 +97,10 @@ export type CategoryLayout = {
 export type Result = { ok: boolean; status: number; error?: string };
 
 // The admin-editable catalog fields for create/update (A6), keyed by their
-// snake_case wire names. The server never returns `gatus_key` (it stays
-// server-side, resolved into `status`), so the edit form can't prefill it —
-// see ServiceForm for how a blank key is omitted from a PATCH.
+// snake_case wire names. As of v25 the server DOES return `gatus_key` on the read
+// model (`Service.gatus_key`), so TileEditModal prefills it; the write shape below
+// still carries it for create/PATCH. See ServiceForm for how a blank key is
+// omitted from its PATCH.
 export type ServiceInput = {
   slug: string;
   name: string;

@@ -51,6 +51,9 @@ export default function TileEditModal({
   // v23 — the tile's click behavior. Absent on a pre-migration service reads as
   // 'new_tab' (AC-002/014), so the control opens on New tab for those too.
   const [clickAction, setClickAction] = useState<ClickAction>(service.clickAction ?? 'new_tab');
+  // v25 §7 — the Gatus endpoint slug backing the tile's health meter. Prefills
+  // from the read model (absent on a pre-v25 payload → ''), no format validation.
+  const [gatusKey, setGatusKey] = useState(service.gatus_key ?? '');
   // Local icon presence — flips live as immediate uploads/removes complete, so
   // the preview (and its cache-busting rev) tracks the new state before Save.
   const [iconLight, setIconLight] = useState(service.iconLight);
@@ -73,6 +76,7 @@ export default function TileEditModal({
   const catId = useId();
   const iconUrlId = useId();
   const descId = useId();
+  const gatusKeyId = useId();
   const lightTabId = useId();
   const darkTabId = useId();
   const iconPanelId = useId();
@@ -115,7 +119,8 @@ export default function TileEditModal({
     description !== service.description ||
     iconUrl !== service.icon ||
     categoryId !== (service.categoryId ?? '') ||
-    clickAction !== (service.clickAction ?? 'new_tab');
+    clickAction !== (service.clickAction ?? 'new_tab') ||
+    gatusKey !== (service.gatus_key ?? '');
 
   const previewSvc: Service = { ...service, name: title, icon: iconUrl, iconLight, iconDark };
   // v22 §5.4 — the preview resolves the ACTIVE TAB's variant, not the app theme;
@@ -197,6 +202,10 @@ export default function TileEditModal({
     if (categoryId !== (service.categoryId ?? '')) patch.categoryId = categoryId || null;
     // v23 — include click_action only when it changed (no-op patches avoided, §4.3).
     if (clickAction !== (service.clickAction ?? 'new_tab')) patch.clickAction = clickAction;
+    // v25 §8.8 — the Gatus slug, matching the clickAction shape: sent only when the
+    // TRIMMED value differs from the prefill (a blank/whitespace value trims to ""
+    // and clears monitoring — §8.5, AC-007). No format validation (AC-011).
+    if (gatusKey.trim() !== (service.gatus_key ?? '')) patch.gatus_key = gatusKey.trim();
 
     const r = await updateService(service.id, patch);
     setBusy(false);
@@ -219,6 +228,9 @@ export default function TileEditModal({
       categoryId: categoryId || null,
       categoryName,
       clickAction: r.service.clickAction,
+      // v25 — reflect the server-persisted slug (server-authoritative, like #342)
+      // so a reopened modal prefills the saved key without waiting for a reload.
+      gatus_key: r.service.gatus_key,
     });
     onToast('Tile updated.', 'success');
     onClose();
@@ -633,6 +645,30 @@ export default function TileEditModal({
               rows={3}
               onChange={(e) => setDescription(e.target.value)}
             />
+          </div>
+
+          {/* v25 §8 — the Gatus endpoint key (slug). Last field in the body, below
+              Description. Plain text input (NOT type=url — the value is a slug, not
+              a URL; §8.8). No format validation, no modal error: a wrong key
+              resolves to UNKNOWN on the tile, never here (§8.5). Reuses the shared
+              modal input tokens (no new CSS beyond the §8.4 ::placeholder AA rule). */}
+          <div className="tile-edit-field">
+            <label className="tile-edit-label" htmlFor={gatusKeyId}>
+              Gatus endpoint key
+            </label>
+            <input
+              id={gatusKeyId}
+              data-testid="tile-field-gatus-key"
+              className="tile-edit-input"
+              type="text"
+              value={gatusKey}
+              placeholder="e.g. kube_plex"
+              onChange={(e) => setGatusKey(e.target.value)}
+            />
+            <p className="tile-edit-help" data-testid="tile-gatus-key-help">
+              The endpoint key from your Gatus config — its group_name (e.g. kube_plex). Leave blank to disable
+              health monitoring.
+            </p>
           </div>
 
           {error && (
