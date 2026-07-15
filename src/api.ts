@@ -121,6 +121,11 @@ export type AuthConfig = { oidcEnabled: boolean };
 // app-grid uptime-display toggle; new settings add fields here.
 export type SystemConfig = { showUptimeDisplay: boolean };
 
+// SPEC-v26 — one allowlisted runtime env var surfaced by the admin env-config
+// viewer. The server returns an ordered array of these (Server vars then OIDC
+// vars); an unset var carries an empty-string value.
+export type EnvConfigEntry = { key: string; value: string };
+
 // v9.2/v9.3: a library offer — admin-curated catalog metadata any user can browse
 // (`GET /api/library`) and copy onto their own dashboard. `added` is the per-user
 // hint (do I already hold a copy — D6, non-blocking). `suggestedCategory` is a
@@ -194,6 +199,16 @@ export async function saveSystemSettings(patch: Partial<SystemConfig>): Promise<
   if (res.status !== 200) throw new Error(await errorText(res));
   const data = (await res.json()) as { showUptimeDisplay?: boolean };
   return { showUptimeDisplay: data.showUptimeDisplay !== false };
+}
+
+// SPEC-v26 §6.2 AC-015 — reads the allowlisted runtime env config for the admin
+// System panel. Unlike the tolerant reads above, this REJECTS on any non-200 (or
+// network error) so the caller can render its in-place error state (§8.4) rather
+// than silently showing an empty/misleading table.
+export async function adminEnvConfig(): Promise<EnvConfigEntry[]> {
+  const res = await fetch('/api/admin/env-config', { credentials: 'include' });
+  if (res.status !== 200) throw new Error(await errorText(res));
+  return (await res.json()) as EnvConfigEntry[];
 }
 
 export async function me(): Promise<User | null> {

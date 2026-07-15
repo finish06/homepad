@@ -7,6 +7,32 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [15.3.0] — 2026-07-15 — Admin env-config viewer (v26)
+
+Minor feature, fully backward-compatible. Admins get a read-only **Environment
+Configuration** list in the Admin Panel → **System** section, below the "Show
+uptime display" toggle. It surfaces the server's runtime env vars — the Gatus
+base URL, cookie/port settings, registration mode, and the full OIDC setup —
+each row showing a friendly label plus the exact env-var name (mono sub-label),
+grouped into **Server** and **Identity (OIDC)**. Unset vars render as an em-dash
+with an accessible "not set". This closes the v25 gap: admins now have an in-UI
+way to confirm the `GATUS_BASE_URL` the poller composes tile health checks
+against, without SSHing into the cluster.
+
+The values come from a new admin-only endpoint **`GET /api/admin/env-config`**
+(homepad-api, shipped at the same 15.3.0). The endpoint returns an **explicit
+allowlist** of 10 non-sensitive keys — a security-by-construction choice: a new
+env var is invisible until deliberately added to the list, so secrets like
+`DATABASE_URL` and `OIDC_CLIENT_SECRET` are **absent** (not redacted) from the
+response. Unauthenticated callers get 401; non-admins get 403.
+
+This phase is **read-only** — editing config from the UI is a deliberate future
+phase. Also folds in two accessibility contrast fixes to the System panel: the
+light-mode `[env]` badge grey and the dark-mode error text.
+
+**Deploy note:** this release changes **both** `homepad` and `homepad-api`; both
+images ship 15.3.0 and must be rolled together (two-image deploy).
+
 ## [15.2.0] — 2026-07-15 — Gatus endpoint key on the tile editor
 
 Minor feature, fully backward-compatible. An admin can now set a tile's health

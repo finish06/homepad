@@ -2,6 +2,20 @@
   "pending": [],
   "versions": [
     {
+      "version": "15.3.0",
+      "date": "2026-07-15",
+      "changes": [
+        {
+          "type": "feature",
+          "text": "Admins can now see the server's runtime configuration right in the Admin Panel. Open Settings → System and, below the uptime toggle, you'll find a read-only Environment Configuration list showing the values homepad was started with — the Gatus base URL, cookie and port settings, the registration mode, and the full OIDC setup (issuer, redirect URL, client ID, admin group and whether sign-in is enabled). Each row shows a friendly label plus the exact environment variable name, grouped into Server and Identity (OIDC), so you can confirm what's configured without SSHing into the cluster. It's view-only for now, and it deliberately shows only non-sensitive settings — secrets like the database URL and OIDC client secret are never listed."
+        },
+        {
+          "type": "enhancement",
+          "text": "Small contrast fixes in the System settings: the read-only \"env\" badges are a touch darker in light mode and the error text is lighter in dark mode, so both clear accessibility contrast."
+        }
+      ]
+    },
+    {
       "version": "15.2.0",
       "date": "2026-07-15",
       "changes": [

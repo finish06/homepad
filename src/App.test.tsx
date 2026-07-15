@@ -15,13 +15,13 @@ vi.mock('./AppGrid', () => ({
 
 // v9.3 §7.3 — the admin Settings modal has its own tests (SettingsPanel.test);
 // stub it here so the App-wiring tests assert only the trigger/mount, and can
-// read back the props App threads in (isAdmin, oidcEnabled).
+// read back the props App threads in (isAdmin). SPEC-v26: the panel reads its
+// own env-config, so App no longer threads OIDC state into it.
 vi.mock('./SettingsPanel', () => ({
-  default: (props: { isAdmin?: boolean; oidcEnabled?: boolean; onClose: () => void }) => (
+  default: (props: { isAdmin?: boolean; onClose: () => void }) => (
     <div
       data-testid="settings-panel-stub"
       data-admin={String(!!props.isAdmin)}
-      data-oidc={String(!!props.oidcEnabled)}
     >
       <button data-testid="settings-panel-close" onClick={props.onClose}>
         close
@@ -471,17 +471,6 @@ describe('v9.3 §7.3 — admin Settings modal wiring (A17)', () => {
     await dropLoading();
     await openMenu(user);
     expect(screen.queryByTestId('menu-admin-settings')).not.toBeInTheDocument();
-  });
-
-  it('passes the resolved OIDC state into the panel', async () => {
-    const user = userEvent.setup();
-    mockedMe.mockResolvedValue(ADMIN);
-    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true });
-    render(<App />);
-    await dropLoading();
-    await openMenu(user);
-    await user.click(screen.getByTestId('menu-admin-settings'));
-    expect(screen.getByTestId('settings-panel-stub')).toHaveAttribute('data-oidc', 'true');
   });
 
   it('closing the panel unmounts it', async () => {
