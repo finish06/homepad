@@ -2,6 +2,16 @@
   "pending": [],
   "versions": [
     {
+      "version": "15.2.0",
+      "date": "2026-07-15",
+      "changes": [
+        {
+          "type": "feature",
+          "text": "You can now set a tile's health monitoring right from its edit panel. Open a tile's pencil in edit mode and you'll find a new \"Gatus endpoint key\" field at the bottom — type the endpoint key from your Gatus config (its group_name, like kube_plex) and save, and the tile's status light starts reflecting whether that service is up or down. Leave it blank to turn monitoring off. No more hunting through Settings to wire a tile to its monitor; a wrong key simply shows as unknown on the tile rather than blocking your save."
+        }
+      ]
+    },
+    {
       "version": "15.1.0",
       "date": "2026-07-14",
       "changes": [

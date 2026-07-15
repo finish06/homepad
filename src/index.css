@@ -3413,6 +3413,16 @@
     outline-color: #818cf8;
     border-color: #818cf8;
   }
+  /* v25 §8.4 — the UA-default placeholder (~3.4:1) misses AA; pin the modal input
+     token so the new Gatus-key placeholder AND the pre-existing URL-fallback
+     placeholder both clear 4.5:1. Documented modal-input token evolution. */
+  .tile-edit-input::placeholder {
+    color: #525252; /* 7.81:1 on #fff */
+    opacity: 1; /* Firefox lowers placeholder opacity by default */
+  }
+  .dark .tile-edit-input::placeholder {
+    color: #a3a3a3; /* ≥4.5:1 on #141416 */
+  }
   .tile-edit-textarea {
     min-height: 76px; /* §8.6 — the one multi-line field */
     resize: vertical;

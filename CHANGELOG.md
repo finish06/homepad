@@ -7,6 +7,48 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [15.2.0] — 2026-07-15 — Gatus endpoint key on the tile editor
+
+Minor feature, fully backward-compatible. An admin can now set a tile's health
+monitoring **directly from the tile edit modal** — no more visiting the Settings
+"Add / Edit app" form. Opening a tile's pencil in edit mode reveals a new
+**"Gatus endpoint key"** field below Description: type the endpoint slug from
+your Gatus config (its `group_name`, e.g. `kube_plex`) and save, and the tile's
+health meter starts resolving to online (green) / offline (red) on the next poll
+tick. Leave it blank to disable monitoring (the tile reverts to gray
+not-monitored). A mismatched or unknown key resolves to **unknown on the tile**,
+never a modal error — there's no client-side format validation, only a trim.
+
+Additive and non-breaking: the `services.gatus_key` column already existed and
+the PATCH API already accepted it. This release exposes the slug on the service
+**read model** (both the homepad-api response and the SPA `Service` type) so the
+modal can prefill the current key, and adds the admin-only field to the modal
+following the v21–v23 pattern (prefill → dirty-track → PATCH on save). The
+existing ServiceForm "Gatus key" field is unchanged. `GATUS_BASE_URL` stays an
+operator env var (never exposed in any admin UI); all tiles share one Gatus
+instance.
+
+> **Ships with homepad-api.** This SPA release pairs with the homepad-api change
+> that returns `gatus_key` on the read model — **roll both images at 15.2.0
+> together** (the field prefills from that response).
+
+### Added
+
+- A **"Gatus endpoint key"** admin-only text field in the TileEditModal, below
+  Description: prefills from `service.gatus_key`, dirty-tracks, and PATCHes the
+  trimmed slug on save (blank clears monitoring). No format validation; a wrong
+  key resolves to UNKNOWN on the tile, not a modal error
+  (SPEC-v25-gatus-key-tile-health).
+
+### Changed
+
+- The service **read model** (`GET /api/services`, SPA `Service` type) now
+  carries `gatus_key` (the slug when monitored, `""` when not) so the tile editor
+  can prefill it.
+- The modal input `::placeholder` colour is pinned to an AA-contrast token
+  (fixing the new Gatus-key placeholder and the pre-existing URL-fallback
+  placeholder in one rule).
+
 ## [15.1.0] — 2026-07-14 — health-meter status banding
 
 Minor enhancement, fully backward-compatible. The system health panel's

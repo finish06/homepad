@@ -51,6 +51,7 @@ function svc(overrides: Partial<Service> = {}): Service {
     iconDark: false,
     categoryId: 'c1',
     categoryName: 'Media',
+    gatus_key: '',
     ...overrides,
   };
 }
@@ -510,5 +511,125 @@ describe('v22 TileEditModal — icon Light/Dark tabs (AC-001..AC-013)', () => {
     await u.click(screen.getByTestId('tile-icon-fetch'));
     await waitFor(() => expect(mFetch).toHaveBeenCalledWith('S1', 'dark'));
     expect(onPatch).toHaveBeenLastCalledWith(expect.objectContaining({ iconDark: true }));
+  });
+});
+
+// v25 — SPEC-v25-gatus-key-tile-health §5.2/§8: the "Gatus endpoint key" slug
+// field, admin-only (the modal only renders in edit mode), below Description.
+// Prefills from the read model, dirty-tracks, PATCHes the trimmed value on save;
+// blank clears monitoring. No client-side validation, no modal error (a bad key
+// resolves to UNKNOWN on the TILE, never here — §8.5).
+const GATUS_HELP =
+  'The endpoint key from your Gatus config — its group_name (e.g. kube_plex). Leave blank to disable health monitoring.';
+
+describe('v25 TileEditModal — Gatus endpoint key (AC-003..AC-011)', () => {
+  it('AC-003 — renders the Gatus endpoint key field below the Description', () => {
+    renderModal();
+    const dialog = screen.getByRole('dialog');
+    const field = within(dialog).getByTestId('tile-field-gatus-key');
+    expect(field).toBeInTheDocument();
+    // Labelled "Gatus endpoint key" (§8.2).
+    expect(screen.getByLabelText('Gatus endpoint key')).toBe(field);
+    // DOM order: the Gatus field comes strictly after the Description textarea (§8.1).
+    const all = Array.from(dialog.querySelectorAll('[data-testid]'));
+    const descPos = all.indexOf(within(dialog).getByTestId('tile-field-description'));
+    const gatusPos = all.indexOf(field);
+    expect(gatusPos).toBeGreaterThan(descPos);
+  });
+
+  it('AC-004 — prefills the current slug when the service is monitored', () => {
+    renderModal({ service: svc({ gatus_key: 'core_gitea' }) });
+    expect(screen.getByTestId('tile-field-gatus-key')).toHaveValue('core_gitea');
+  });
+
+  it('AC-004 — prefills blank when the service is unmonitored', () => {
+    renderModal({ service: svc({ gatus_key: '' }) });
+    expect(screen.getByTestId('tile-field-gatus-key')).toHaveValue('');
+  });
+
+  it('AC-004 — prefills blank when the read model omits gatus_key (pre-v25 payload)', () => {
+    const s = svc();
+    delete (s as { gatus_key?: string }).gatus_key;
+    renderModal({ service: s });
+    expect(screen.getByTestId('tile-field-gatus-key')).toHaveValue('');
+  });
+
+  it('AC-005 — shows the approved help text verbatim', () => {
+    renderModal();
+    expect(screen.getByTestId('tile-gatus-key-help')).toHaveTextContent(GATUS_HELP);
+  });
+
+  it('§8.8 — is a plain text input (not type=url) with the e.g. kube_plex placeholder', () => {
+    renderModal();
+    const input = screen.getByTestId('tile-field-gatus-key');
+    expect(input).toHaveAttribute('type', 'text');
+    expect(input).toHaveAttribute('placeholder', 'e.g. kube_plex');
+  });
+
+  it('AC-006 — Save with a non-blank key PATCHes the trimmed gatus_key', async () => {
+    const u = userEvent.setup();
+    mUpdate.mockResolvedValue({ ok: true, status: 200, service: svc({ gatus_key: 'kube_plex' }) });
+    const { onPatch } = renderModal({ service: svc({ gatus_key: '' }) });
+
+    await u.type(screen.getByTestId('tile-field-gatus-key'), '  kube_plex  ');
+    await u.click(screen.getByTestId('tile-edit-save'));
+
+    await waitFor(() => expect(mUpdate).toHaveBeenCalledTimes(1));
+    const [, patch] = mUpdate.mock.calls[0];
+    expect(patch).toMatchObject({ gatus_key: 'kube_plex' });
+    // Inline tile update carries the server-persisted key (server-authoritative, #342).
+    expect(onPatch).toHaveBeenCalledWith(expect.objectContaining({ gatus_key: 'kube_plex' }));
+  });
+
+  it('AC-007 — Save after blanking an existing key PATCHes gatus_key:"" to clear monitoring', async () => {
+    const u = userEvent.setup();
+    mUpdate.mockResolvedValue({ ok: true, status: 200, service: svc({ gatus_key: '' }) });
+    renderModal({ service: svc({ gatus_key: 'core_gitea' }) });
+
+    await u.clear(screen.getByTestId('tile-field-gatus-key'));
+    await u.click(screen.getByTestId('tile-edit-save'));
+
+    await waitFor(() => expect(mUpdate).toHaveBeenCalledTimes(1));
+    const [, patch] = mUpdate.mock.calls[0];
+    expect(patch).toMatchObject({ gatus_key: '' });
+  });
+
+  it('AC-007/AC-011 — a whitespace-only key trims to "" (clears), never a validation error', async () => {
+    const u = userEvent.setup();
+    mUpdate.mockResolvedValue({ ok: true, status: 200, service: svc({ gatus_key: '' }) });
+    renderModal({ service: svc({ gatus_key: 'core_gitea' }) });
+
+    await u.clear(screen.getByTestId('tile-field-gatus-key'));
+    await u.type(screen.getByTestId('tile-field-gatus-key'), '   ');
+    await u.click(screen.getByTestId('tile-edit-save'));
+
+    await waitFor(() => expect(mUpdate).toHaveBeenCalledTimes(1));
+    const [, patch] = mUpdate.mock.calls[0];
+    expect(patch).toMatchObject({ gatus_key: '' });
+    // §8.5 — no modal error is ever raised for this field.
+    expect(screen.queryByTestId('tile-edit-error')).not.toBeInTheDocument();
+  });
+
+  it('AC-008 — typing a key marks the modal dirty (inline discard confirm on dismiss)', async () => {
+    const u = userEvent.setup();
+    const { onClose } = renderModal({ service: svc({ gatus_key: '' }) });
+    await u.type(screen.getByTestId('tile-field-gatus-key'), 'media_jellyfin');
+    await u.click(screen.getByTestId('tile-edit-cancel'));
+    expect(screen.getByTestId('tile-discard-confirm')).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('omits gatus_key from the PATCH when unchanged (no-op patch, matches clickAction §8.8)', async () => {
+    const u = userEvent.setup();
+    mUpdate.mockResolvedValue({ ok: true, status: 200, service: svc({ name: 'Renamed' }) });
+    renderModal({ service: svc({ gatus_key: 'core_gitea' }) });
+
+    await u.clear(screen.getByTestId('tile-field-title'));
+    await u.type(screen.getByTestId('tile-field-title'), 'Renamed');
+    await u.click(screen.getByTestId('tile-edit-save'));
+
+    await waitFor(() => expect(mUpdate).toHaveBeenCalledTimes(1));
+    const [, patch] = mUpdate.mock.calls[0];
+    expect(patch).not.toHaveProperty('gatus_key');
   });
 });
