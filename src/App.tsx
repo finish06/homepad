@@ -101,10 +101,10 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [browseOpen, setBrowseOpen] = useState(false);
   const [customFormOpen, setCustomFormOpen] = useState(false);
   // v9.3 §7.3 — the admin Settings modal (App Library management + read-only
-  // System settings). Opened from the avatar menu (admin only). OIDC is read
-  // from the client-visible auth config — no API change.
+  // System settings). Opened from the avatar menu (admin only). SPEC-v26: the
+  // System panel now reads its own env-config from GET /api/admin/env-config,
+  // so App no longer needs to feed it the client auth config.
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [oidcEnabled, setOidcEnabled] = useState(false);
   // cap6 — the global uptime-display toggle. Seeded ON so the first paint (before
   // the config resolves) matches today's behavior; systemConfig() then corrects it.
   const [sysConfig, setSysConfig] = useState<SystemConfig>({ showUptimeDisplay: true });
@@ -123,7 +123,6 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [cats, setCats] = useState<Category[]>([]);
 
   useEffect(() => {
-    authConfig().then((c) => setOidcEnabled(c.oidcEnabled));
     systemConfig().then(setSysConfig);
     fetchCategories().then(setCats);
   }, []);
@@ -275,7 +274,6 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Suspense fallback={null}>
             <SettingsPanel
               isAdmin={isAdmin}
-              oidcEnabled={oidcEnabled}
               showUptimeDisplay={sysConfig.showUptimeDisplay}
               onSaveSettings={onSaveSettings}
               onClose={() => setSettingsOpen(false)}

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SettingsPanel from './SettingsPanel';
-import { listLibrary } from './api';
+import { adminEnvConfig, listLibrary } from './api';
 
 // SPEC cap6-uptime-display-toggle §8/§9 — the writable "Show uptime display"
 // toggle in the admin System settings section. It is a role="switch" whose
@@ -16,13 +16,13 @@ vi.mock('./api', () => ({
   updateLibraryApp: vi.fn(),
   deleteLibraryApp: vi.fn(),
   setLibraryOrder: vi.fn(),
+  adminEnvConfig: vi.fn(),
 }));
 
 function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> = {}) {
   return render(
     <SettingsPanel
       isAdmin={props.isAdmin ?? true}
-      oidcEnabled={props.oidcEnabled ?? false}
       showUptimeDisplay={props.showUptimeDisplay ?? true}
       onSaveSettings={props.onSaveSettings ?? vi.fn().mockResolvedValue(undefined)}
       onClose={props.onClose ?? vi.fn()}
@@ -32,6 +32,7 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
 
 beforeEach(() => {
   vi.mocked(listLibrary).mockResolvedValue([]);
+  vi.mocked(adminEnvConfig).mockResolvedValue([]);
 });
 
 afterEach(() => vi.clearAllMocks());

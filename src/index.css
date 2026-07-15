@@ -1762,11 +1762,16 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     border-radius: 4px;
-    color: #9aa3b8;
+    /* SPEC-v26 §8.6 — light badge grey lifted #9aa3b8→#5b6472 (2.5:1→~5.0:1 on
+       the pale fill). This feature stamps the badge 10× down a column, so the
+       pre-existing light-mode contrast miss is fixed here. Dark already passes at
+       #9aa3b8, so it is preserved below. */
+    color: #5b6472;
     background: rgba(15, 23, 42, 0.05);
     vertical-align: middle;
   }
   .dark .settings-env-badge {
+    color: #9aa3b8;
     background: rgba(255, 255, 255, 0.07);
   }
   /* cap6 §9.5 — the one writable System row: a hairline separates it from the
@@ -1784,6 +1789,151 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
+  }
+
+  /* SPEC-v26 §8 — the read-only Environment Configuration list. Each env row
+     stacks a friendly label over the raw var name in the dt; the dd carries the
+     value + [env] badge, right-aligned like the control row. */
+  .settings-kv-row--env dt {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+  .settings-kv-label {
+    color: #475069;
+    font-weight: 600;
+  }
+  .dark .settings-kv-label {
+    color: #aab2c5;
+  }
+  /* §8.1 — the exact env-var name, mono + muted, AA at 11px (light 4.77:1). */
+  .settings-kv-var {
+    font: 500 11px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
+    letter-spacing: 0.01em;
+    color: #64748b;
+  }
+  .dark .settings-kv-var {
+    color: #aab2c5;
+  }
+  .settings-kv-row--env dd {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+  }
+  .settings-kv-value {
+    color: #0f172a;
+  }
+  .dark .settings-kv-value {
+    color: #e6e9f2;
+  }
+  /* §8.2 — empty value renders as a visible (not ghosted) em-dash. */
+  .settings-kv-value--empty {
+    color: #475069;
+  }
+  .dark .settings-kv-value--empty {
+    color: #aab2c5;
+  }
+  /* §8.5 — full-width group caption; orients without competing with "System".
+     The caption row is a div-wrapped dt/dd group (valid <dl> structure); the
+     empty decorative dd is hidden and the dt spans the row. */
+  .settings-kv-group-row {
+    margin-top: 8px;
+  }
+  .settings-kv-group-row:first-child {
+    margin-top: 0;
+  }
+  .settings-kv-group-dd {
+    display: none;
+  }
+  .settings-kv-group-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #475069;
+  }
+  .dark .settings-kv-group-label {
+    color: #aab2c5;
+  }
+  /* §8.4 — in-place error cell (below the toggle), reload-guided second line. */
+  .settings-env-error-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .settings-env-error-hint {
+    font-size: 12px;
+    color: #475069;
+  }
+  .dark .settings-env-error-hint {
+    color: #aab2c5;
+  }
+  /* §8.3 — skeleton rows hold the layout height while the fetch is in flight. */
+  .settings-skeleton-bar {
+    display: block;
+    height: 12px;
+    border-radius: 4px;
+    background: rgba(15, 23, 42, 0.06);
+    background-image: linear-gradient(
+      90deg,
+      rgba(15, 23, 42, 0.06) 0%,
+      rgba(15, 23, 42, 0.12) 50%,
+      rgba(15, 23, 42, 0.06) 100%
+    );
+    background-size: 200% 100%;
+    animation: settings-skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+  .dark .settings-skeleton-bar {
+    background: rgba(255, 255, 255, 0.08);
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(255, 255, 255, 0.16) 50%,
+      rgba(255, 255, 255, 0.08) 100%
+    );
+    background-size: 200% 100%;
+  }
+  .settings-skeleton-bar--dt {
+    width: 40%;
+  }
+  .settings-skeleton-bar--dd {
+    width: 55%;
+    margin-left: auto;
+  }
+  @keyframes settings-skeleton-shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+  /* §8.3 — reduced-motion: static bars, no sweep. */
+  @media (prefers-reduced-motion: reduce) {
+    .settings-skeleton-bar {
+      animation: none;
+      background-image: none;
+    }
+  }
+  /* §8.7 — below 480px stack the row and hard-wrap long OIDC URLs; the [env]
+     badge stays glued to the end of the value. */
+  @media (max-width: 480px) {
+    .settings-kv-row--env {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+    }
+    .settings-kv-row--env dd {
+      text-align: left;
+      flex-wrap: wrap;
+    }
+    .settings-kv-value {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      min-width: 0;
+    }
   }
   /* Pill switch — 44×44 hit area, 44×24 visible track centered inside (≥44 touch
      target; OFF track carries a 1.5px #767676 boundary so it clears the 3:1
@@ -2045,6 +2195,11 @@
   .dark .settings-kv-row dd,
   .dark .settings-row-name {
     color: #e6e9f2;
+  }
+  /* SPEC-v26 §8.4 — .settings-error is #be123c with no dark override (~3.0:1 on
+     the dark panel, under the 4.5:1 body-text bar). Lift it to #fda4af (~7.8:1). */
+  .dark .settings-error {
+    color: #fda4af;
   }
   .dark .settings-input {
     background: #11151c;

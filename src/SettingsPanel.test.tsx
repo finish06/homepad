@@ -154,8 +154,10 @@ describe('SPEC-v26 — env-config table', () => {
     vi.mocked(adminEnvConfig).mockReturnValue(new Promise<EnvConfigEntry[]>((r) => { resolve = r; }));
     renderPanel({ isAdmin: true });
     const sys = await screen.findByTestId('settings-system');
-    // a status node announces loading while in-flight
-    expect(within(sys).getByRole('status')).toHaveTextContent(/loading/i);
+    // the list is marked busy and an sr-only status announces the load
+    expect(within(sys).getByTestId('settings-env-list')).toHaveAttribute('aria-busy', 'true');
+    const status = within(sys).getByText(/loading server configuration/i);
+    expect(status).toHaveAttribute('role', 'status');
     // the rows are not there yet
     expect(within(sys).queryByTestId('env-row-GATUS_BASE_URL')).not.toBeInTheDocument();
     resolve(ENV_CONFIG);
