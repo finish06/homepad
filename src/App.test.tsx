@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitForElementToBeRemoved } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 import { authConfig, login, logout, me, register, setThemePref, type User } from './api';
@@ -148,9 +148,12 @@ describe('auth gate', () => {
     render(<App />);
     await dropLoading();
 
-    await user.click(screen.getByRole('button', { name: /need an account\? register/i }));
+    // Copy: the secondary link now reads "Create account" (was "Need an
+    // account? Register") — clicking it flips the card into register mode.
+    await user.click(screen.getByRole('button', { name: /create account/i }));
     await user.type(screen.getByLabelText(/email/i), USER.email);
     await user.type(screen.getByLabelText(/password/i), 'stitch626');
+    // In register mode the submit button is the only "Create account" control.
     await user.click(screen.getByRole('button', { name: /create account/i }));
 
     expect(await screen.findByTestId('app-grid-stub')).toBeInTheDocument();
@@ -164,7 +167,7 @@ describe('auth gate', () => {
     render(<App />);
     await dropLoading();
 
-    await user.click(screen.getByRole('button', { name: /need an account\? register/i }));
+    await user.click(screen.getByRole('button', { name: /create account/i }));
     await user.type(screen.getByLabelText(/email/i), USER.email);
     await user.type(screen.getByLabelText(/password/i), 'stitch626');
     await user.click(screen.getByRole('button', { name: /create account/i }));
@@ -205,26 +208,131 @@ describe('login a11y — design system', () => {
     expect(screen.getByRole('button', { name: /sign in/i })).toHaveClass('min-h-[44px]');
     expect(screen.getByLabelText(/email/i)).toHaveClass('min-h-[44px]');
     expect(screen.getByLabelText(/password/i)).toHaveClass('min-h-[44px]');
+    // The secondary link is now "Create account" (glass restyle copy #10).
     expect(
-      screen.getByRole('button', { name: /need an account\? register/i }),
+      screen.getByRole('button', { name: /create account/i }),
     ).toHaveClass('min-h-[44px]');
     expect(await screen.findByRole('button', { name: /pocketid/i })).toHaveClass(
       'min-h-[44px]',
     );
   });
 
-  // #178 (High, finding #4): the "or" divider label was text-neutral-400
-  // (#A3A3A3, 2.52:1) — fails AA body. Must clear >=4.5:1; neutral-500
-  // (#737373) measures 4.74:1.
-  it('A178 — the "or" divider label clears AA body contrast', async () => {
+  // #178 → glass restyle: the "or" divider no longer hardcodes a raw neutral
+  // utility; it reads from the v15 --v-muted / --v-rule tokens via `.auth-divider`
+  // (dark 5.59:1, light 4.74:1), so it passes AA in BOTH schemes rather than only
+  // clearing it on white. Guard the migration off the neutral utilities.
+  it('A178 — the "or" divider uses the glass token treatment, not a raw neutral', async () => {
     mockedAuthConfig.mockResolvedValue({ oidcEnabled: true });
     render(<App />);
     await dropLoading();
     await screen.findByRole('button', { name: /pocketid/i });
 
     const divider = screen.getByText((_, el) => el?.textContent === 'or');
+    expect(divider).toHaveClass('auth-divider');
     expect(divider).not.toHaveClass('text-neutral-400');
-    expect(divider).toHaveClass('text-neutral-500');
+    expect(divider).not.toHaveClass('text-neutral-500');
+  });
+});
+
+// v27 login glass restyle (DESIGN-login-glass-2026-07-17, PR #380). The sign-in
+// card is re-skinned onto the v15 glass system — same tokens, surfaces and accent
+// as the logged-in app. jsdom can't measure paint/contrast (Kare + the CDP QA do
+// that in the real browser); these cases guard the class hooks, copy, and the two
+// pieces of genuine BEHAVIOR the redesign adds (PocketID timeout + busy label).
+describe('v27 — login glass restyle', () => {
+  // #2 — the card sits on the dashboard's own glass atmosphere and is itself a
+  // glass surface (was a flat bg-white / dark:bg-neutral-900 slab off-system).
+  it('mounts the sign-in card on the glass app-surface as a glass auth-card', async () => {
+    render(<App />);
+    await dropLoading();
+    expect(screen.getByRole('main').className).toContain('app-surface');
+    const form = screen.getByRole('button', { name: /sign in/i }).closest('form');
+    expect(form).toHaveClass('auth-card');
+  });
+
+  // #10 — copy: the secondary action reads "Create account", not "Register".
+  it('offers "Create account" as the secondary action (not "Register")', async () => {
+    render(<App />);
+    await dropLoading();
+    expect(screen.getByRole('button', { name: /create account/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /need an account\? register/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  // #4 — auth errors render in the glass --v-down token style, not raw red-600
+  // (which was unverified on the dark card). The measured ratio lives in the PR.
+  it('renders login errors in the glass down-token style (not raw red-600)', async () => {
+    const user = userEvent.setup();
+    mockedLogin.mockResolvedValue({ ok: false, status: 401, error: 'bad credentials' });
+    render(<App />);
+    await dropLoading();
+    await user.type(screen.getByLabelText(/email/i), USER.email);
+    await user.type(screen.getByLabelText(/password/i), 'wrong');
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+    const err = await screen.findByText('bad credentials');
+    expect(err).toHaveClass('auth-error');
+    expect(err).not.toHaveClass('text-red-600');
+  });
+
+  // #6 states — busy CTA shows "Signing in…" (was the bare "…").
+  it('shows "Signing in…" on the CTA while a credential login is in flight', async () => {
+    const user = userEvent.setup();
+    let resolveLogin: (v: { ok: boolean; status: number; user?: User }) => void = () => {};
+    mockedLogin.mockReturnValue(
+      new Promise((r) => {
+        resolveLogin = r;
+      }),
+    );
+    render(<App />);
+    await dropLoading();
+    await user.type(screen.getByLabelText(/email/i), USER.email);
+    await user.type(screen.getByLabelText(/password/i), 'stitch626');
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+    expect(await screen.findByRole('button', { name: /signing in/i })).toBeInTheDocument();
+    resolveLogin({ ok: true, status: 200, user: USER });
+  });
+
+  // #9 — a faint version footer on the sign-in screen so an operator can see which
+  // build they're hitting before they authenticate.
+  it('shows a version footer on the sign-in screen', async () => {
+    render(<App />);
+    await dropLoading();
+    const footer = screen.getByTestId('auth-footer');
+    expect(footer).toBeInTheDocument();
+    expect(footer.textContent ?? '').toMatch(/homepad v/i);
+  });
+
+  // #7 — PocketID busy state must not spin forever if the OIDC redirect stalls
+  // (PocketBase restart). Clicking it shows "Signing in…"; after ~30s with no
+  // navigation the button resets with a retry message. Fake timers only around
+  // the click (userEvent+fakeTimers hangs — use fireEvent, real timers for setup).
+  it('resets the PocketID button after a 30s timeout with a retry message', async () => {
+    vi.stubGlobal('location', { assign: vi.fn() });
+    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true });
+    render(<App />);
+    await dropLoading();
+    const btn = await screen.findByRole('button', { name: /log in with pocketid/i });
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(btn);
+      // busy affordance, not an infinite bare spinner
+      expect(screen.getByRole('button', { name: /signing in/i })).toBeInTheDocument();
+      act(() => {
+        vi.advanceTimersByTime(30000);
+      });
+      expect(screen.getByText(/pocketid timed out/i)).toBeInTheDocument();
+      // button restored to its resting label so the user can retry
+      expect(
+        screen.getByRole('button', { name: /log in with pocketid/i }),
+      ).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 });
 
