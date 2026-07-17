@@ -7,6 +7,31 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [15.4.0] — 2026-07-17 — Login/sign-in glass restyle (v27)
+
+Minor feature, no data or API changes. The sign-in screen — the one screen you
+see before the glass dashboard, and the last one still on the old flat palette —
+is re-skinned onto the v15 glass design system. The card is now a frosted glass
+panel floating on the same accent-blob atmosphere as the dashboard, the harsh
+pure-white input boxes become soft tinted glass fields, and the primary button
+uses the app's solid accent color.
+
+Accessibility: in dark mode five text elements (the field labels, the PocketID
+label, the subtitle, the secondary link and the "or" divider) were inheriting
+light-mode colors on the dark card and failing WCAG AA — some as low as 1.73:1.
+All five now read from the mode-aware glass tokens and clear AA in both light and
+dark. The sign-in error message moves to the glass "down" color, measured at
+**5.08:1** on the dark card (well clear of the 4.5:1 floor).
+
+Also in this release: password-manager autofill no longer paints a harsh
+white/yellow box over the glass field; the card has a solid fallback and
+`-webkit-backdrop-filter` so it never renders invisible on older iPad Safari;
+the "Log in with PocketID" button now shows a "Signing in…" state that resets
+itself after 30 seconds with a retry hint if the redirect stalls (e.g. during a
+PocketBase restart) instead of spinning forever; a faint version footer shows
+which build you're signing in to; and the secondary action now reads "Create
+account". Touch targets stay ≥44px throughout.
+
 ## [15.3.0] — 2026-07-15 — Admin env-config viewer (v26)
 
 Minor feature, fully backward-compatible. Admins get a read-only **Environment

@@ -2,6 +2,24 @@
   "pending": [],
   "versions": [
     {
+      "version": "15.4.0",
+      "date": "2026-07-17",
+      "changes": [
+        {
+          "type": "feature",
+          "text": "The sign-in screen has been restyled to match the rest of homepad. It's now a frosted glass card floating on the same soft accent-blob background as your dashboard, instead of a flat panel with two harsh white input boxes. The email and password fields are soft tinted glass, the labels and helper text are all clearly readable in both light and dark mode, and the Sign in button uses the app's accent color. It's the same login, just finally wearing the same design as everything behind it."
+        },
+        {
+          "type": "fix",
+          "text": "Fixed five dark-mode contrast problems on the login: the field labels, the PocketID label, the subtitle, the secondary link and the \"or\" divider were all inheriting light-mode colors on the dark card and failing accessibility contrast (some barely visible). They now read from the theme-aware tokens and pass WCAG AA in both schemes, and the sign-in error message uses the readable glass \"down\" color (measured 5.08:1 on the dark card)."
+        },
+        {
+          "type": "enhancement",
+          "text": "Login polish: password-manager autofill no longer paints a harsh box over the glass field; the card has a solid fallback and vendor-prefixed backdrop blur so it never shows up blank on older iPad Safari; the \"Log in with PocketID\" button now shows a \"Signing in…\" state and resets after 30 seconds with a retry hint if the redirect stalls (instead of spinning forever); a faint version footer shows which build you're on; and the secondary action now reads \"Create account\"."
+        }
+      ]
+    },
+    {
       "version": "15.3.0",
       "date": "2026-07-15",
       "changes": [
