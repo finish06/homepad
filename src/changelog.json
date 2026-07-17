@@ -11,7 +11,7 @@
         },
         {
           "type": "fix",
-          "text": "Fixed five dark-mode contrast problems on the login: the field labels, the PocketID label, the subtitle, the secondary link and the \"or\" divider were all inheriting light-mode colors on the dark card and failing accessibility contrast (some barely visible). They now read from the theme-aware tokens and pass WCAG AA in both schemes, and the sign-in error message uses the readable glass \"down\" color (measured 5.08:1 on the dark card)."
+          "text": "Fixed five dark-mode contrast problems on the login: the field labels, the PocketID label, the subtitle, the secondary link and the \"or\" divider were all inheriting light-mode colors on the dark card and failing accessibility contrast (some barely visible). They now read from the theme-aware tokens and pass WCAG AA in both schemes, and the sign-in error message uses the readable glass \"down\" color (measured 4.72:1 dark / 4.59:1 light on the real glass card)."
         },
         {
           "type": "enhancement",

@@ -20,8 +20,10 @@ Accessibility: in dark mode five text elements (the field labels, the PocketID
 label, the subtitle, the secondary link and the "or" divider) were inheriting
 light-mode colors on the dark card and failing WCAG AA — some as low as 1.73:1.
 All five now read from the mode-aware glass tokens and clear AA in both light and
-dark. The sign-in error message moves to the glass "down" color, measured at
-**5.08:1** on the dark card (well clear of the 4.5:1 floor).
+dark. The sign-in error message moves to the glass "down" color, measured on the
+real glass card at **4.72:1 (dark)** and **4.59:1 (light)** — both clear of the
+4.5:1 floor. (Measured on the composited card surface, not on white: the card's
+light-mode frost was tuned up until every text element cleared AA there.)
 
 Also in this release: password-manager autofill no longer paints a harsh
 white/yellow box over the glass field; the card has a solid fallback and

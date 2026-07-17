@@ -4170,30 +4170,36 @@
     min-height: 100vh;
     min-height: 100dvh;
     padding: 24px;
+    /* Bloom alphas kept deliberately low so the tint behind the glass card never
+       drags the card's text contrast below AA (measured on the real surface, not
+       white). Restated fainter in light mode where a blue tint costs the most. */
+    --auth-bloom-size: 460px 380px;
+    --auth-bloom-1: 0.11;
+    --auth-bloom-2: 0.055;
+  }
+  html:not(.dark) .auth-main {
+    --auth-bloom-1: 0.055;
+    --auth-bloom-2: 0.028;
+  }
+  @media (min-width: 900px) {
+    .auth-main {
+      --auth-bloom-size: 720px 560px;
+    }
   }
   /* Decorative brand-gradient bloom behind the card. No text sits over it, so it
-     carries no contrast floor (§4). Larger + softer on desktop. */
+     carries no contrast floor (§4) — but it DOES sit behind the glass card, so
+     its alpha is bounded by the card's contrast budget (above). */
   .auth-main::before {
     content: '';
     position: absolute;
     inset: 0;
     pointer-events: none;
     background: radial-gradient(
-      460px 380px at 50% 40%,
-      rgb(var(--accent-1) / 0.16),
-      rgb(var(--accent-2) / 0.08) 46%,
+      var(--auth-bloom-size) at 50% 40%,
+      rgb(var(--accent-1) / var(--auth-bloom-1)),
+      rgb(var(--accent-2) / var(--auth-bloom-2)) 46%,
       transparent 72%
     );
-  }
-  @media (min-width: 900px) {
-    .auth-main::before {
-      background: radial-gradient(
-        720px 560px at 50% 42%,
-        rgb(var(--accent-1) / 0.18),
-        rgb(var(--accent-2) / 0.09) 48%,
-        transparent 74%
-      );
-    }
   }
 
   .auth-card {
@@ -4202,6 +4208,11 @@
     width: 100%;
     max-width: 400px;
     padding: 24px;
+    /* Dark uses the panel glass (--v-glass). Light needs a whiter frost than
+       --v-glass (.55 over the tinted surface lands as a blue-grey that pushes
+       --v-muted + the red error UNDER AA on the real card — measured, not
+       assumed): a 0.78 white keeps it clearly frosted while restoring AA. */
+    --auth-card-fill: var(--v-glass);
     /* #8 iPad-first fallback: a solid card background FIRST, so engines without
        backdrop-filter (older iOS Safari) render an opaque card, never an
        invisible transparent pane. @supports swaps in the translucent glass when
@@ -4214,9 +4225,12 @@
     box-shadow: 0 10px 34px var(--v-shadow), inset 0 1px 0 var(--v-hi);
     color: var(--v-txt);
   }
+  html:not(.dark) .auth-card {
+    --auth-card-fill: rgba(255, 255, 255, 0.83);
+  }
   @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
     .auth-card {
-      background: var(--v-glass);
+      background: var(--auth-card-fill);
     }
   }
 
