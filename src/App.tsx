@@ -306,16 +306,28 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   );
 }
 
+// v27 login-glass — if a PocketID/OIDC redirect stalls (e.g. a PocketBase
+// restart), the browser keeps our page on screen while the request hangs, so a
+// bare spinner would spin forever. Reset the button after this window with a
+// retry hint instead. 30s comfortably outlasts a healthy 302 round-trip.
+const OIDC_TIMEOUT_MS = 30000;
+
 function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [oidcBusy, setOidcBusy] = useState(false);
   const [oidcEnabled, setOidcEnabled] = useState(false);
+  const oidcTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     authConfig().then((c) => setOidcEnabled(c.oidcEnabled));
+    // Clear a pending OIDC-timeout timer if the card unmounts mid-redirect.
+    return () => {
+      if (oidcTimer.current) clearTimeout(oidcTimer.current);
+    };
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -341,54 +353,72 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
     }
   }
 
+  function handlePocketId() {
+    setError('');
+    setOidcBusy(true);
+    oidcTimer.current = setTimeout(() => {
+      setOidcBusy(false);
+      setError('PocketID timed out — try again or use email/password');
+    }, OIDC_TIMEOUT_MS);
+    // Full-page navigation to the OIDC start endpoint. On success the page is
+    // replaced (the timer never fires); on a stalled redirect the timer resets us.
+    window.location.assign('/api/auth/oidc/login');
+  }
+
   return (
-    <main className="min-h-screen flex items-center justify-center p-6 font-sans">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
-      >
-        <img
-          src="/icon-192.png"
-          alt="homepad"
-          className="mb-3 h-12 w-12 rounded-xl"
-        />
-        <h1 className="text-xl font-semibold">homepad</h1>
-        <p className="mt-1 text-sm text-neutral-500">
+    <main className="app-surface auth-main font-sans">
+      <form onSubmit={handleSubmit} className="auth-card">
+        <div className="auth-logo mb-4 inline-flex">
+          <img src="/icon-192.png" alt="homepad" className="h-11 w-11 rounded-xl" />
+        </div>
+        <h1 className="auth-title text-xl font-semibold">homepad</h1>
+        <p className="auth-subtitle mt-1 text-sm">
           {mode === 'login' ? 'Sign in to your dashboard' : 'Create your account'}
         </p>
 
-        <label className="mt-5 block text-sm font-medium text-neutral-700">
+        <label className="auth-label mt-5 block text-[13px] font-medium">
           Email
           <input
             type="email"
             required
             autoComplete="email"
+            placeholder="you@home.lan"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 min-h-[44px] w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+            className="auth-field mt-1.5 min-h-[44px] w-full"
           />
         </label>
 
-        <label className="mt-4 block text-sm font-medium text-neutral-700">
+        <label className="auth-label mt-4 block text-[13px] font-medium">
           Password
           <input
             type="password"
             required
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+            placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 min-h-[44px] w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+            className="auth-field mt-1.5 min-h-[44px] w-full"
           />
         </label>
 
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        {error && <p className="auth-error mt-3 text-sm">{error}</p>}
 
         <button
           type="submit"
           disabled={busy}
-          className="mt-5 flex min-h-[44px] w-full items-center justify-center rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+          className="auth-cta mt-5 flex min-h-[44px] w-full items-center justify-center gap-2 py-2 text-sm font-semibold"
         >
-          {busy ? '…' : mode === 'login' ? 'Sign in' : 'Create account'}
+          {busy ? (
+            <>
+              <span className="auth-spin" aria-hidden="true" />
+              Signing in…
+            </>
+          ) : mode === 'login' ? (
+            'Sign in'
+          ) : (
+            'Create account'
+          )}
         </button>
 
         <button
@@ -397,28 +427,42 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
             setMode(mode === 'login' ? 'register' : 'login');
             setError('');
           }}
-          className="mt-3 flex min-h-[44px] w-full items-center justify-center text-center text-sm text-neutral-500 hover:text-neutral-800"
+          className="auth-secondary mt-3 flex min-h-[44px] w-full items-center justify-center text-center text-sm"
         >
-          {mode === 'login' ? 'Need an account? Register' : 'Have an account? Sign in'}
+          {mode === 'login' ? 'Create account' : 'Have an account? Sign in'}
         </button>
 
         {oidcEnabled && (
           <>
-            <div className="my-4 flex items-center gap-3 text-xs text-neutral-500">
-              <span className="h-px flex-1 bg-neutral-200" />
+            <div className="auth-divider my-4 flex items-center gap-3 text-xs">
+              <span className="auth-divider-rule h-px flex-1" />
               or
-              <span className="h-px flex-1 bg-neutral-200" />
+              <span className="auth-divider-rule h-px flex-1" />
             </div>
             <button
               type="button"
-              onClick={() => window.location.assign('/api/auth/oidc/login')}
-              className="flex min-h-[44px] w-full items-center justify-center rounded-lg border border-neutral-300 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              onClick={handlePocketId}
+              disabled={oidcBusy}
+              className="auth-oidc flex min-h-[44px] w-full items-center justify-center gap-2 py-2 text-sm font-medium"
             >
-              Log in with PocketID
+              {oidcBusy ? (
+                <>
+                  <span className="auth-spin" aria-hidden="true" />
+                  Signing in…
+                </>
+              ) : (
+                'Log in with PocketID'
+              )}
             </button>
           </>
         )}
       </form>
+
+      {/* #9 — faint version footer so an operator can see which build they're
+          hitting before authenticating. */}
+      <p className="auth-footer" data-testid="auth-footer">
+        homepad v{__APP_VERSION__}
+      </p>
     </main>
   );
 }

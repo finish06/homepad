@@ -61,6 +61,13 @@
   --v-chip: rgba(255, 255, 255, 0.55);
   --v-chipbrd: rgba(255, 255, 255, 0.6);
   --v-focus-fill: rgba(255, 255, 255, 0.75);
+  /* v27 login-glass §4 — dedicated frosted input fill. Distinct from --v-tile
+     (panel glass) so a field reads as an input, but never the harsh UA-white
+     slab; text 14.26:1 / placeholder 4.60:1 on light. */
+  --v-field: rgba(255, 255, 255, 0.62);
+  /* Opaque approximation of the resting field used ONLY by the autofill override
+     (a translucent inset shadow can't hide the UA autofill background). */
+  --v-field-fill: #e9eef8;
 
   /* Default accent (blue) chrome + light field — restated by [data-theme] blocks. */
   --accent: #8fb8ff;
@@ -104,6 +111,11 @@
   --v-chip: rgba(255, 255, 255, 0.06);
   --v-chipbrd: rgba(255, 255, 255, 0.08);
   --v-focus-fill: rgba(255, 255, 255, 0.09);
+  /* v27 login-glass §4/§5.2 — frosted input fill on dark. .07 is the sweet spot:
+     text 11.52:1, placeholder 4.98:1, soft (not the 19.8:1 white-slab). The 3:1
+     resting boundary is carried by the focus ring (§5.2), not this fill. */
+  --v-field: rgba(255, 255, 255, 0.07);
+  --v-field-fill: #171b24;
   /* Default accent (blue) dark field — restated by .dark[data-theme] blocks. */
   --amb: rgba(58, 108, 224, 0.26);
   --bg-1: #0d1526;
@@ -4141,6 +4153,236 @@
       height: 100vh;
       height: 100dvh;
       border-radius: 0;
+    }
+  }
+
+  /* ===== v27 login / sign-in glass restyle (DESIGN-login-glass-2026-07-17) =====
+     The sign-in card is "the first glass tile you touch": same .app-surface
+     atmosphere, same --v-* glass tokens, same --accent as the dashboard. Every
+     color reads from a token (one new: --v-field), so it is mode-aware and
+     accent-aware. Retires the pre-v15 flat-white slabs + off-token neutrals. */
+  .auth-main {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 24px;
+  }
+  /* Decorative brand-gradient bloom behind the card. No text sits over it, so it
+     carries no contrast floor (§4). Larger + softer on desktop. */
+  .auth-main::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      460px 380px at 50% 40%,
+      rgb(var(--accent-1) / 0.16),
+      rgb(var(--accent-2) / 0.08) 46%,
+      transparent 72%
+    );
+  }
+  @media (min-width: 900px) {
+    .auth-main::before {
+      background: radial-gradient(
+        720px 560px at 50% 42%,
+        rgb(var(--accent-1) / 0.18),
+        rgb(var(--accent-2) / 0.09) 48%,
+        transparent 74%
+      );
+    }
+  }
+
+  .auth-card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 400px;
+    padding: 24px;
+    /* #8 iPad-first fallback: a solid card background FIRST, so engines without
+       backdrop-filter (older iOS Safari) render an opaque card, never an
+       invisible transparent pane. @supports swaps in the translucent glass when
+       the blur is available. */
+    background: var(--bg-1);
+    -webkit-backdrop-filter: blur(30px) saturate(112%);
+    backdrop-filter: blur(30px) saturate(112%);
+    border: 1px solid var(--v-brd);
+    border-radius: var(--r-panel);
+    box-shadow: 0 10px 34px var(--v-shadow), inset 0 1px 0 var(--v-hi);
+    color: var(--v-txt);
+  }
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .auth-card {
+      background: var(--v-glass);
+    }
+  }
+
+  .auth-logo {
+    /* the gradient house-logo kept as the brand hook, seated in a glass chip. */
+    padding: 8px;
+    border-radius: var(--r-chip);
+    background: var(--v-glass);
+    border: 1px solid var(--v-brd);
+    box-shadow: inset 0 1px 0 var(--v-hi), 0 0 26px rgb(var(--accent-1) / 0.25);
+  }
+
+  .auth-title {
+    color: var(--v-txt);
+  }
+  .auth-subtitle {
+    color: var(--v-muted);
+  }
+  .auth-label {
+    color: var(--v-txt);
+  }
+
+  .auth-field {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 14px;
+    /* 16px kills iOS focus-zoom on the field (see fleet-feed iPhone fix). */
+    font-size: 16px;
+    color: var(--v-txt);
+    background: var(--v-field);
+    border: 1px solid var(--v-kbdbrd);
+    border-radius: var(--r-tile);
+    box-shadow: inset 0 1px 0 var(--v-hi2);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .auth-field::placeholder {
+    color: var(--v-muted);
+  }
+  /* Focus carries the 1.4.11-compliant >=3:1 indicator (4.69:1, §5.2). */
+  .auth-field:focus {
+    border-color: var(--accent);
+    box-shadow: inset 0 1px 0 var(--v-hi2), 0 0 0 2px var(--accent-mid);
+  }
+  /* #5 autofill — Chrome/Safari/Bitwarden paint background-color !important over
+     the field; the inset box-shadow trick (opaque --v-field-fill) hides it and
+     -webkit-text-fill-color keeps the text on the glass. Without this the field
+     flashes UA-white/yellow, re-introducing the slab we removed. */
+  .auth-field:-webkit-autofill,
+  .auth-field:-webkit-autofill:hover,
+  .auth-field:-webkit-autofill:focus {
+    -webkit-box-shadow: inset 0 0 0 1000px var(--v-field-fill), inset 0 1px 0 var(--v-hi2);
+    -webkit-text-fill-color: var(--v-txt);
+    caret-color: var(--v-txt);
+    /* delay the UA background swap effectively forever */
+    transition: background-color 9999s ease-out;
+  }
+  .auth-field:-webkit-autofill:focus {
+    -webkit-box-shadow: inset 0 0 0 1000px var(--v-field-fill), 0 0 0 2px var(--accent-mid);
+  }
+
+  .auth-cta {
+    /* #3 solid --accent-3 (the brand gradient fails AA at its purple end). */
+    background: var(--accent-3);
+    color: var(--on-accent);
+    border: none;
+    border-radius: var(--r-tile);
+    font-weight: 600;
+  }
+  .auth-cta:hover:not(:disabled) {
+    filter: brightness(1.06);
+  }
+  .auth-cta:disabled {
+    filter: saturate(0.85) brightness(0.9);
+    cursor: default;
+  }
+  .auth-cta:focus-visible {
+    outline: 2px solid var(--accent-mid);
+    outline-offset: 2px;
+  }
+
+  .auth-secondary {
+    color: var(--v-muted);
+    background: transparent;
+    border: none;
+  }
+  .auth-secondary:hover {
+    color: var(--v-txt);
+  }
+  .auth-secondary:focus-visible {
+    outline: 2px solid var(--accent-mid);
+    outline-offset: 2px;
+    border-radius: var(--r-chip);
+  }
+
+  .auth-divider {
+    color: var(--v-muted);
+  }
+  .auth-divider-rule {
+    background: var(--v-rule);
+  }
+
+  .auth-oidc {
+    background: var(--v-glass);
+    border: 1px solid var(--v-brd);
+    color: var(--v-txt);
+    border-radius: var(--r-tile);
+    font-weight: 500;
+  }
+  .auth-oidc:hover:not(:disabled) {
+    background: var(--v-hover);
+  }
+  .auth-oidc:disabled {
+    color: var(--v-muted);
+    cursor: default;
+  }
+  .auth-oidc:focus-visible {
+    outline: 2px solid var(--accent-mid);
+    outline-offset: 2px;
+  }
+
+  .auth-error {
+    color: var(--v-down);
+  }
+
+  /* Busy affordance inside the CTA / PocketID button — inherits the button's
+     text color so one class works on both (white on --accent-3, --v-txt on
+     glass). Pairs with the "Signing in…" label, not a bare "…". */
+  .auth-spin {
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+    border-top-color: currentColor;
+    animation: app-spin 0.7s linear infinite;
+    flex: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .auth-spin {
+      animation: none;
+    }
+  }
+
+  .auth-footer {
+    position: absolute;
+    bottom: 16px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 12px;
+    color: var(--v-faint);
+  }
+
+  /* Motion restraint (§5.4): the card fades in; no transform that could trap a
+     child. Honored off entirely under reduced-motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    .auth-card {
+      animation: auth-fade-in 0.28s ease both;
+    }
+  }
+  @keyframes auth-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
     }
   }
 }
