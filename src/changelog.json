@@ -2,6 +2,16 @@
   "pending": [],
   "versions": [
     {
+      "version": "15.4.2",
+      "date": "2026-07-18",
+      "changes": [
+        {
+          "type": "fix",
+          "text": "Lined up the Health Summary card (the UP / NOT MONITORED status card at the top of the dashboard) with the app grid underneath it. The card used to sit slightly inset — about 12px narrower on each side — so its left and right edges didn't match the apps below, and the two stacked sections looked misaligned. The card now shares the exact same width and edges as the app grid and the header wordmark at every screen size."
+        }
+      ]
+    },
+    {
       "version": "15.4.1",
       "date": "2026-07-18",
       "changes": [
