@@ -1,0 +1,28 @@
+# Minimal Gatus config for the Homepad self-host demo stack.
+#
+# Homepad's API polls Gatus at GET /api/v1/endpoints/statuses (every 30s) and
+# surfaces the results as the dashboard's status tiles. The two endpoints below
+# are internal to the compose network so the tiles have live data out of the box
+# with no external egress — replace them with (or add) your own services.
+#
+# Docs: https://gatus.io/docs
+
+storage:
+  type: memory
+
+endpoints:
+  # The Homepad web frontend (nginx) — a 200 on / means the UI is being served.
+  - name: homepad-web
+    group: homepad
+    url: "http://web:80/"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  # The Homepad API — /health pings Postgres, so a 200 here also proves the DB.
+  - name: homepad-api
+    group: homepad
+    url: "http://api:8080/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
