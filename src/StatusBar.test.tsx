@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import StatusBar from './StatusBar';
 import { useServicesContext } from './services';
+import { CONTENT_WIDTH } from './layout';
 import type { Service, ServiceStatus } from './api';
 
 // StatusBar derives purely from useServicesContext(). Mock the context hook so
@@ -53,6 +54,28 @@ describe('StatusBar chips (health panel)', () => {
     render(<StatusBar />);
     expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'loading');
     expect(screen.getByTestId('health-headline')).toHaveTextContent('Checking services');
+  });
+
+  // #386 — the health card edges must line up with the app grid below. The
+  // wrapper must NOT add its own horizontal inset (a stray `px-3` made the card
+  // 12px narrower per side than the header + grid, which both use CONTENT_WIDTH
+  // directly). Named for the observed symptom: edges don't line up with the grid.
+  it('health card wrapper adds no horizontal inset beyond the shared frame (#386)', () => {
+    setItems([svc('UP', 'u1')]);
+    render(<StatusBar />);
+
+    const wrapper = screen.getByTestId('status-bar');
+    // No horizontal-padding utility on the wrapper — its only inset is the
+    // shared CONTENT_WIDTH frame, identical to the header + app grid.
+    const horizPad = [...wrapper.classList].filter((c) => /^(px|pl|pr)-/.test(c));
+    expect(horizPad).toEqual([]);
+    // Structural spacing classes are preserved.
+    expect(wrapper).toHaveClass('relative');
+    expect(wrapper).toHaveClass('pt-3');
+    // The inner content frame is the shared CONTENT_WIDTH (single source of inset).
+    for (const cls of CONTENT_WIDTH.split(' ')) {
+      expect(screen.getByTestId('status-bar-content')).toHaveClass(cls);
+    }
   });
 
   // AC-002/AC-003/AC-004/AC-005: mixed list → correct chip counts, UNKNOWN excluded.
