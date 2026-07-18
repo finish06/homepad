@@ -2,6 +2,16 @@
   "pending": [],
   "versions": [
     {
+      "version": "15.4.1",
+      "date": "2026-07-18",
+      "changes": [
+        {
+          "type": "fix",
+          "text": "Polished the Status Summary card's two stat boxes (the \"UP\" / \"NOT MONITORED\" quick-peek boxes). They're now equal width and line up flush with the uptime bar underneath instead of floating at unequal sizes off to one side. In light mode each box now has a real, visible edge (previously the box fill was the same color as the card behind it, so the boxes were nearly invisible), and the green \"UP\" number is a slightly deeper green that's easier to read on the light card. Dark mode gets a matching lift so the boxes separate cleanly from the panel."
+        }
+      ]
+    },
+    {
       "version": "15.4.0",
       "date": "2026-07-17",
       "changes": [
