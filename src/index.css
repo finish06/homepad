@@ -496,14 +496,13 @@
     .health-metrics { justify-self: stretch; }
   }
 
+  /* #384 — equal-column grid so the two stat boxes are equal-width and their
+     outer edges sit flush with the .health-meter uptime bar (one unit). */
   .health-chips {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     gap: 12px;
-    justify-content: flex-end;
-  }
-  @media (max-width: 720px) {
-    .health-chips { justify-content: flex-start; }
   }
   /* Quick-peek chip (v14 interactive → ≥44px). Big mono number + uppercase
      label. Severity color on the number when >0 (§9 correction #3). */
@@ -543,6 +542,21 @@
   .health-chip[data-sev='up'] .health-chip-n { color: var(--v-up); }
   .health-chip[data-sev='down'] .health-chip-n { color: var(--v-down); }
   .health-chip[data-sev='degraded'] .health-chip-n { color: var(--v-degraded); }
+  /* #384 — the light chip fill was byte-identical to the panel (1.03:1); an
+     ink hairline + soft lift give the box a real edge. Dark fill lifted so it
+     separates from the panel too. */
+  :root:not(.dark) .health-chip {
+    background: rgba(255, 255, 255, 0.62);
+    border-color: rgba(20, 23, 30, 0.12);
+    box-shadow: 0 1px 2px rgba(30, 42, 72, 0.06);
+  }
+  .dark .health-chip {
+    background: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+  /* #384 — UP number is text, so use the text-grade green (5.35:1) not the
+     fill-grade --v-up (3.39:1). No-op in dark (--v-up-strong == --v-up). */
+  :root:not(.dark) .health-chip[data-sev='up'] .health-chip-n { color: var(--v-up-strong); }
 
   /* Meter — one tick per service, colored by status. Decorative (aria-hidden). */
   .health-meter {

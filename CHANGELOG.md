@@ -7,6 +7,32 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [15.4.1] — 2026-07-18 — Status Summary stat-box alignment & contrast fix
+
+Patch, CSS-only (`src/index.css`), no data/API/markup changes. Kare's live-
+measured design fix for the v15 health summary at 646px (Caleb's prod phone
+width), light + dark (#384):
+
+- **Alignment.** The two quick-peek stat boxes (`.health-chips`) were
+  content-width flex items floating at the left over a full-width meter — the
+  `46 UP` box was 64px, `3 NOT MONITORED` was 143px, and neither edge aligned to
+  the other or to the uptime bar (314px of dead space to the right). They now lay
+  out as an equal-column grid (`grid-auto-columns: minmax(0, 1fr)`) so both boxes
+  are equal width and their outer edges sit flush with the meter (49 / 582 →
+  261px each). The old flex-end row and its `@media(max-width:720px)`
+  flex-start override are removed.
+- **Fill/edge.** The light box fill (`--v-chip`) was byte-identical to the panel
+  (`--v-glass`) at 1.03:1 — the box was invisible. Light chips now get an ink
+  hairline border (`rgba(20,23,30,0.12)`) plus a soft lift; the dark fill is
+  raised `0.06 → 0.10` so the box separates from the panel there too.
+- **Green.** The `UP` number used the fill-grade success token `--v-up` (3.39:1
+  as text on the light chip); it now uses the text-grade `--v-up-strong`
+  (5.35:1). No-op in dark, where the two tokens are identical.
+
+(Finding 3 from the rec — the tile/sparkline `emerald-500` vs `--v-up`
+design-system reconciliation — is a separate, larger task and is out of scope
+here.)
+
 ## [15.4.0] — 2026-07-17 — Login/sign-in glass restyle (v27)
 
 Minor feature, no data or API changes. The sign-in screen — the one screen you
