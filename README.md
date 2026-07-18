@@ -164,6 +164,75 @@ npm run dev          # vite dev server on :5173, proxies /api → :8080
 For the full app to do anything useful, also run `Code/homepad-api` locally
 (`make run`).
 
+## Self-hosting with Docker Compose
+
+The fastest way to run the whole stack — frontend, Go API, Postgres, and a
+Gatus status source — on your own machine. One command, no Kubernetes.
+
+**Prerequisites:** Docker Engine 24+ with the Compose plugin (`docker compose
+version`).
+
+```bash
+git clone https://github.com/finish06/homepad.git
+cd homepad
+cp .env.example .env          # then edit POSTGRES_PASSWORD (at minimum)
+docker compose up --build -d
+```
+
+Then open **http://localhost:8080**. The **first account you register becomes
+the admin** — create it, then set `HOMEPAD_REGISTRATION=invite_only` in `.env`
+and `docker compose up -d` again to lock down sign-ups.
+
+Check status and logs:
+
+```bash
+docker compose ps            # `web` shows healthy once the full chain is up
+docker compose logs -f api   # look for "migrations applied"
+```
+
+What each service does:
+
+| Service    | Image / build                    | Purpose                                            |
+| ---------- | -------------------------------- | -------------------------------------------------- |
+| `web`      | built from this repo's Dockerfile | nginx serving the built SPA; proxies `/api` → api |
+| `api`      | built from `homepad-api`          | Go backend; runs DB migrations on boot            |
+| `postgres` | `postgres:16-alpine`              | all persistent data (accounts, dashboards, icons) |
+| `gatus`    | `ghcr.io/twin/gatus`              | uptime source the dashboard status tiles read from |
+
+All configuration lives in `.env` (see `.env.example` for the full list with
+defaults). Notes:
+
+- **Persistence.** Everything is stored in Postgres, kept in the named volume
+  `homepad_pg`. That's the only stateful volume — the web and api containers are
+  disposable. Back up (or `docker compose down -v` to wipe) that volume.
+- **The API build source.** The Go backend is a separate repo. Compose builds it
+  from `HOMEPAD_API_CONTEXT` (default: the public GitHub repo). To build from a
+  local checkout, clone both repos side by side and set
+  `HOMEPAD_API_CONTEXT=../homepad-api`.
+- **HTTPS.** Over plain-HTTP localhost, `COOKIE_SECURE=false` (the default in
+  `.env.example`) is required or the login cookie is dropped. Set it `true` only
+  when you serve Homepad behind a TLS-terminating proxy.
+- **Status tiles.** `deploy/compose/gatus.yaml` ships two example endpoints so
+  the tiles have data immediately — replace them with your own services.
+
+### Enabling OIDC / SSO
+
+Homepad runs entirely on local accounts by default. To add single sign-on, set
+in `.env`:
+
+```dotenv
+OIDC_ENABLED=true
+OIDC_ISSUER=https://your-provider.example.com
+OIDC_CLIENT_ID=homepad
+OIDC_CLIENT_SECRET=...
+OIDC_REDIRECT_URL=http://localhost:8080/api/auth/oidc/callback
+OIDC_ADMIN_GROUP=admins        # optional: group whose members become admins
+```
+
+Register the callback URL above with your provider, then
+`docker compose up -d`. With `OIDC_ENABLED=false` the SSO endpoints stay
+unregistered and the login screen shows local sign-in only.
+
 ## Test
 
 ```bash

@@ -7,6 +7,41 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [15.5.0] — 2026-07-18 — One-command self-host (`docker compose up`)
+
+Packaging, no app/UI change. Closes the market-assessment self-host gap (R-2)
+and powers the gethomepad.dev "self-host" CTA: a fresh clone can stand up the
+entire stack — frontend, Go API, Postgres, and a Gatus status source — with
+`docker compose up --build`.
+
+- **`compose.yaml`.** Full stack, all from public images or repo Dockerfiles (no
+  private `dockerhub.calebdunn.tech` refs): `web` (built from this repo's
+  `Dockerfile`, nginx serving the SPA), `api` (built from the `homepad-api`
+  repo, migrates on boot), `postgres:16-alpine`, and `gatus`. `web` is published
+  on `http://localhost:8080`.
+- **`.env.example`.** Every knob with dev defaults + clear placeholders:
+  `POSTGRES_PASSWORD`, `DATABASE_URL` (assembled), `SESSION_SECRET`,
+  `HOMEPAD_REGISTRATION`, `GATUS_BASE_URL`, and the optional `OIDC_*` block —
+  Homepad runs on local accounts with `OIDC_ENABLED=false`.
+- **Web `/api` proxy.** `deploy/compose/nginx.conf` mirrors the platform
+  `homepad-web-nginx` ConfigMap so the web container proxies `/api` → `api:8080`
+  (prod does this at the ingress, so the image's own `nginx.conf` omits it).
+- **Gatus config.** `deploy/compose/gatus.yaml` ships two internal example
+  endpoints so the dashboard status tiles have data out of the box.
+- **Healthchecks + ordering.** `pg_isready` on Postgres; an end-to-end wget on
+  `web` that proxies through to the api (so `web` only reports healthy once
+  web + proxy + api + db are all serving); `api` waits for Postgres healthy.
+- **README.** New "Self-hosting with Docker Compose" section — prerequisites,
+  first-login/admin note, persistence, and how to enable OIDC.
+
+Notes for reviewers: (1) `COOKIE_SECURE` defaults to `false` in `.env.example`
+because the api defaults it to `true` (prod is behind TLS) and a Secure cookie
+is dropped over plain-HTTP localhost. (2) There is no separate homepad `/data`
+volume — all persistent state lives in Postgres (`homepad_pg`); the api/web
+containers are stateless. (3) The `api` service has no container healthcheck:
+its image is distroless/static (no shell) so it can't self-probe; the `web`
+healthcheck gates the whole chain instead.
+
 ## [15.4.2] — 2026-07-18 — Health Summary card edge-alignment fix
 
 Patch, one-line TSX (`src/StatusBar.tsx`), no data/API/CSS/markup changes.

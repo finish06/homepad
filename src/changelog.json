@@ -2,6 +2,16 @@
   "pending": [],
   "versions": [
     {
+      "version": "15.5.0",
+      "date": "2026-07-18",
+      "changes": [
+        {
+          "type": "feat",
+          "text": "You can now self-host the whole Homepad stack with one command. A new docker-compose setup stands up the dashboard, the API, its database, and a status monitor together — copy the example config, run \"docker compose up\", and open http://localhost:8080. It runs on local accounts out of the box, with single sign-on (OIDC) available as an opt-in. This is a packaging change only; nothing in the app itself changed."
+        }
+      ]
+    },
+    {
       "version": "15.4.2",
       "date": "2026-07-18",
       "changes": [
