@@ -7,6 +7,23 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [15.4.2] — 2026-07-18 — Health Summary card edge-alignment fix
+
+Patch, one-line TSX (`src/StatusBar.tsx`), no data/API/CSS/markup changes.
+Kare's live-measured design fix for the v15 Health Summary card (#386):
+
+- **Alignment.** The Health Summary glass card (`.health`) sat inset ~12px per
+  side relative to the App Grid and header below it, so the stacked cards didn't
+  form a clean vertical column. Root cause: the StatusBar wrapper wrapped the
+  shared `CONTENT_WIDTH` frame in a stray `px-3` (12px) on top of the frame's own
+  `px-4` (16px) → a 28px health inset vs the 16px used by the header
+  (`AppHeader.tsx`) and grid (`App.tsx`), which use `CONTENT_WIDTH` directly.
+  Dropping the `px-3` makes the wrapper structurally identical to the header, so
+  health, header, and grid share one inset at every viewport. Measured at 646px
+  (light + dark): health card `16 / 630 / 614`, pixel-identical to the app grid.
+  `relative` (peek-dropdown positioning) and `pt-3` (top spacing) are preserved;
+  the dropdown is absolute-positioned and unaffected.
+
 ## [15.4.1] — 2026-07-18 — Status Summary stat-box alignment & contrast fix
 
 Patch, CSS-only (`src/index.css`), no data/API/markup changes. Kare's live-

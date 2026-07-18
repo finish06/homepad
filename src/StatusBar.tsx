@@ -183,7 +183,7 @@ export default function StatusBar() {
   const ageMs = lastUpdatedAt == null ? null : now - lastUpdatedAt;
 
   return (
-    <div data-testid="status-bar" role="status" aria-label="Service status summary" className="relative px-3 pt-3">
+    <div data-testid="status-bar" role="status" aria-label="Service status summary" className="relative pt-3">
       {/* Content stays constrained to the shared width so the panel's left edge
           aligns with the header wordmark and the grid below (#196 intent kept). */}
       <div data-testid="status-bar-content" className={CONTENT_WIDTH}>
