@@ -20,7 +20,7 @@ tile order. Status data is pulled server-side from [Gatus](https://github.com/Tw
 the browser never talks to Gatus directly.
 
 This repo is the **web frontend** (React + Vite + TypeScript + Tailwind). It
-pairs with the Go backend at [`Code/homepad-api`](https://gitea.kube.calebdunn.tech/Code/homepad-api).
+pairs with the Go backend at [`homepad-api`](../homepad-api).
 
 > **Spec:** [`specs/v1-launcher.md`](./specs/v1-launcher.md) — canonical for both repos.
 > **Test plan:** [`specs/test-plan-v1.md`](./specs/test-plan-v1.md)
