@@ -42,12 +42,12 @@ pairs with the Go backend at [`homepad-api`](https://github.com/finish06/homepad
   non-admins get a 403.
 - **Gatus is server-side only** — no Gatus URL ever ships in the JS bundle or
   reaches the browser (verified: `grep -ri gatus dist/` is empty).
-- **Admin/personal scope clarity** (v11) — the UserMenu shows a distinct ADMIN
+- **Admin/personal scope clarity** — the UserMenu shows a distinct ADMIN
   section label (shield icon, amber) with per-item scope tags ("personal" /
   "global"), the Settings modal is titled "Admin Panel" with a global-scope
   subtitle, and non-admins see a note explaining their dashboard is their
   settings.
-- **UserMenu dropdown z-index** (v11) — the sticky header is at `z-20`,
+- **UserMenu dropdown z-index** — the sticky header is at `z-20`,
   clearing the tile drag-grips' `z-10` so the dropdown is always accessible;
   a real-browser Playwright gate guards against regression.
 
@@ -125,18 +125,18 @@ endpoints are unregistered (404) and homepad is local-only.
 
 ## Screenshots
 
-> Real captures from the live **v11** deploy.
+> Real captures from the live **v15** deploy.
 
 <p align="center">
   <img src="./docs/screenshots/catalog.png" alt="homepad service catalog — apps grouped by category with live icons" width="100%">
   <br><em>The catalog — your apps grouped by category, each with its own icon.</em>
 </p>
 
-| Admin &amp; personal scope (v11) | Sign in |
+| Admin &amp; personal scope | Sign in |
 | --- | --- |
 | ![User menu showing the admin section with PERSONAL and GLOBAL scope tags](./docs/screenshots/usermenu.png) | ![Sign-in screen](./docs/screenshots/login.png) |
 
-<p align="center"><em>v11 makes scope explicit at the point of use: an <strong>Admin</strong> section in the menu, with <strong>personal</strong> vs <strong>global</strong> tags on each action so you always know who a change affects.</em></p>
+<p align="center"><em>homepad makes scope explicit at the point of use: an <strong>Admin</strong> section in the menu, with <strong>personal</strong> vs <strong>global</strong> tags on each action so you always know who a change affects.</em></p>
 
 <p align="center">
   <img src="./docs/screenshots/mobile.png" alt="homepad on mobile (390×844)" width="280">
@@ -235,7 +235,7 @@ unregistered and the login screen shows local sign-in only.
 ## Test
 
 ```bash
-npm test                       # Vitest component/unit suite (44 tests)
+npm test                       # Vitest component/unit suite
 npm run test:e2e:install       # one-time Playwright browsers
 npm run test:e2e               # full E2E suite (desktop + mobile)
 npm run build && npm run lhci   # Lighthouse perf budgets (AC A8)
