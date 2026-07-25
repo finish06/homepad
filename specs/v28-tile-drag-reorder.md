@@ -347,15 +347,257 @@ no product direction decisions are outstanding.
 
 ## 8. Design — Kare's section
 
-*This section is reserved for Kare's design pass (visual design of the tile drag grip:
-placement, icon, size, active/dragging state, dark/light mode token usage). The spec
-cannot be marked Ready-for-Build until this section is complete and co-signed.*
+**Author:** Kare (design/UX) · **Date:** 2026-07-25 · **Verified:** rendered on the
+*built* frontend (local vite, mocked API), glass tiles at both themes, deviceScaleFactor 2.
+All contrast numbers below are **sampled from the true composited pixel** (glass blur +
+accent gradient baked in) at the grip's corner, not computed from token math — see §8.7.
+
+Reference renders (proposed grip in place, bottom-left, beside the pencil bottom-right;
+tile #2 shown in its lifted `is-grabbed` state):
+
+- `specs/assets/v28-tile-drag/grip-light.png`
+- `specs/assets/v28-tile-drag/grip-dark.png`
+
+### 8.0 Design intent
+
+Reorder is a *calm, discoverable* affordance, not a loud one. In edit mode the tile
+already carries three corner controls plus the accent edit-outline; the grip must join
+that cluster as a fourth, balanced corner — legible enough to invite a drag, quiet enough
+not to compete with the pencil (the primary per-tile action) or the icon/label. It reuses
+the **exact construction** of the shipped box grip (`app-grid-box-grip`) and per-tile
+pencil (`app-grid-tool-edit`) so it reads as part of the same edit-mode language — with
+**one measured correction**: the box grip's *colors* cannot be copied onto the glass tile
+(§8.7), so the grip takes the box-grip slate pair **swapped by theme**.
+
+### 8.1 Placement — the free corner
+
+The tile (`.app-grid-tool-wrap`, `position: relative`; the tile body is 190×124px) has
+four corners, three already occupied:
+
+| Corner        | Occupant                                   | Interactive? |
+|---------------|--------------------------------------------|--------------|
+| top-left      | status pip `.app-grid-tool-status` (8/8)   | no (`pointer-events: none`) |
+| top-right     | favorite star `.app-grid-tool-fav` (4/4)   | yes |
+| bottom-right  | pencil `.app-grid-tool-edit` (4/4)         | yes (edit mode) |
+| **bottom-left** | **— free —**                             | — |
+
+→ **The drag grip lives bottom-left**, anchored `bottom: 4px; left: 4px`. This makes it
+the **horizontal mirror of the pencil** (bottom-right), exactly as the pencil (v21) mirrors
+the star. The two bottom-corner controls become a matched *edit-mode pair*: reorder on the
+left, edit on the right.
+
+**Measured tap clearance (no collision):** grip painted glyph 34×34 at `left:4` → hit-area
+centre at `x ≈ left+21`; pencil painted 34×34 at `right:4` → hit-area centre at
+`x ≈ right−21`. On the 190px tile the two 44px hit boxes span `[left−1, left+43]` and
+`[right−43, right+1]` — a **~148px gap between centres**, zero overlap. The grip sits below
+the status pip (top-left) with the full tile height between them. AC-012 (pencil/star
+unaffected) is satisfied by geometry, not guard logic.
+
+### 8.2 The grip — construction, icon, touch target
+
+A real `<button>` (per §4.1), built like the pencil/star — a 34×34 **painted** glyph with
+a transparent, centred **44×44 `::before`** that extends only the *hit area*, so the glyph
+never moves and the ≥44×44 touch rule (design-principle 3) is met with **0px layout shift**:
+
+```css
+.app-grid-tool-grip {
+  position: absolute; bottom: 4px; left: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+  border: none; background: transparent;
+  color: #64748b;                    /* LIGHT rest — slate-500, see §8.7 */
+  font-size: 18px; line-height: 1;   /* same glyph size as the box grip */
+  border-radius: 999px;
+  cursor: grab; touch-action: none;  /* touch-action:none so a drag doesn't fight scroll */
+  opacity: 1;                        /* NOT hover-gated — see §8.2 note */
+  transition: color 120ms ease, background 120ms ease;
+}
+.app-grid-tool-grip::before {        /* invisible 44×44 hit area, centred on the 34px glyph */
+  content: ''; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%); width: 44px; height: 44px;
+}
+.app-grid-tool-grip:hover        { color: #475569; background: rgba(15,23,42,0.06); }
+.app-grid-tool-grip:focus-visible{ outline: none; box-shadow: 0 0 0 2px #4f46e5; }
+.app-grid-tool-grip[aria-pressed='true'] { color: #4f46e5; cursor: grabbing; }
+
+.dark .app-grid-tool-grip                 { color: #94a3b8; }  /* DARK rest — slate-400 */
+.dark .app-grid-tool-grip:hover           { color: #cbd5e1; background: rgba(255,255,255,0.08); }
+.dark .app-grid-tool-grip:focus-visible   { box-shadow: 0 0 0 2px #818cf8; }
+.dark .app-grid-tool-grip[aria-pressed='true'] { color: #818cf8; }
+```
+
+- **Icon:** the braille **`⠿` (U+283F)** — the *same* glyph as the shipped box grip, so
+  the drag-handle metaphor is one symbol system-wide. No new icon asset.
+- **Touch target:** 44×44 via the `::before` (design-principle 3), glyph fixed at 34×34.
+- **Focus ring / pressed accent:** the grip's accent is the **pencil's theme-aware indigo**
+  (`#4f46e5` light / `#818cf8` dark), *not* the box grip's `#6366f1`. This is deliberate:
+  the grip lives among the tile's edit affordances, so it joins the *tile-edit* accent
+  family (pencil, edit-outline) rather than the box-header family. Measured: focus ring
+  `#4f46e5` on the light tile = **6.2:1**; `#818cf8` on the dark tile = **4.8:1** — both
+  clear the 3:1 non-text floor (the flat `#4f46e5` would fail at **2.3:1** on the dark
+  tile, which is exactly why the pencil already swaps to `#818cf8` in dark).
+
+**Note — always visible, never hover-gated (touch-first).** The star and pencil are
+*revealed* on `.app-grid-tool-wrap:hover`. The grip is **not** — it rests at full opacity
+whenever `editing` is true. This homelab is iPad/phone-first (CLAUDE.md); touch has no
+hover, and a keyboard user must be able to Tab to a grip they can see. A hover-revealed
+drag handle is undiscoverable on the exact devices this feature targets.
+
+**Note — calm via colour, not opacity.** The grip rests at `opacity: 1`; its low emphasis
+comes from the *mid-slate token*, not a dimmed alpha. This is a homepad lesson learned:
+dimming an affordance with `opacity` erodes its measured contrast against the glass (the
+idle-tile `opacity:.52` that killed meta-text contrast in v15). The grip stays calm because
+slate-500/400 *is* calm, while still sitting at 4.7:1 / 5.6:1 (§8.7).
+
+**Absent when not editing (AC-001/013).** The grip `<button>` is rendered only when
+`editing` is true — no zero-opacity ghost, no disabled node — mirroring the pencil.
+
+### 8.3 Lifted / dragging state (`is-grabbed`)
+
+While a tile is picked up it must read as **lifted toward the user** — clearly above its
+resting siblings, and unmistakably *not* an error (no red, no heavy fade). The box already
+defines `is-grabbed` (opacity 0.9 + elevation); the tile extends that with a **hair of
+scale** for a stronger "picked up" read, applied to the **inner `.app-grid-tool`** (not the
+wrapper — dnd-kit owns the wrapper's `transform` for translation, so scaling the child
+avoids clobbering the drag translate):
+
+```css
+.app-grid-tool-wrap.is-grabbed { z-index: 5; }              /* float above siblings */
+.app-grid-tool-wrap.is-grabbed .app-grid-tool {
+  transform: scale(1.03);                                    /* subtle lift, not a jump */
+  box-shadow: 0 14px 32px var(--v-shadow), inset 0 1px 0 var(--v-tilehi);
+  border-color: #4f46e5;                                     /* edit accent; #818cf8 in dark */
+  cursor: grabbing;
+}
+.dark .app-grid-tool-wrap.is-grabbed .app-grid-tool { border-color: #818cf8; }
+```
+
+- **Distinct from rest:** elevation (14/32 shadow vs the resting 6/20) + `scale(1.03)` +
+  accent border. The 2px inset edit-outline stays underneath, so the tile still reads as
+  editable.
+- **Never an error:** opacity stays at/near full; the only colour added is the edit accent
+  (indigo), never a status red. Design-principle 6 (motion has purpose): the scale is a
+  1.03 lift, not decoration.
+- Non-dragged siblings in the same box shift with dnd-kit's `transform` transition
+  (rectSortingStrategy) to open the gap (§8.4).
+
+### 8.4 Drop placeholder gap
+
+As the dragged tile moves, its origin slot must read as *"a tile will land here"* — an
+empty gap on glass otherwise looks like a *missing* tile, not a target. The vacated slot
+shows an explicit placeholder occupying the full **190×124 tile footprint**, at the tile
+radius, in the edit accent:
+
+```css
+.app-grid-tool-placeholder {
+  min-height: 120px;                       /* same footprint as a tile (A1 min-height) */
+  border-radius: var(--r-tile);            /* 18px — matches tiles */
+  border: 2px dashed #4f46e5;              /* edit accent; #818cf8 in dark */
+  background: rgba(79, 70, 229, 0.07);     /* faint accent wash */
+}
+.dark .app-grid-tool-placeholder {
+  border-color: #818cf8;
+  background: rgba(129, 140, 248, 0.10);
+}
+```
+
+The dashed accent outline ties the gap to the same edit-mode indigo as the grip's grabbed
+state and the edit-outline — one accent, one language. It is a **non-text** marker (a
+target region), so 3:1 is the bar; the `#4f46e5`/`#818cf8` border clears it (6.2:1 / 4.8:1
+per §8.7). If the build uses dnd-kit's in-place shift instead of a rendered placeholder
+node, the sibling gap must still be legible — but the explicit placeholder is the
+recommended, on-brand treatment.
+
+### 8.5 Reduced-motion variant (AC-014)
+
+Under `prefers-reduced-motion: reduce`, **motion is removed but every state cue stays** —
+the lifted tile and the drop target are still fully distinguishable *statically*:
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  /* sibling tiles snap to their new slots — no sliding animation */
+  .app-grid-tool-wrap { transition: none !important; }
+  /* drop the scale (a motion cue); keep elevation + accent border (static cues) */
+  .app-grid-tool-wrap.is-grabbed .app-grid-tool { transform: none; }
+  .app-grid-tool-grip { transition: none; }
+}
+```
+
+- Tiles **snap** to their reordered positions instead of sliding (dnd-kit `transition`
+  suppressed).
+- The lifted state drops `scale(1.03)` (the animated cue) but **keeps the elevated shadow
+  and accent border**, so a reduced-motion user still sees which tile is grabbed.
+- The placeholder appears instantly (no fade).
+- Per AC-014, the grip, keyboard path, and persistence are untouched.
+
+### 8.6 States coverage (design-principle 5)
+
+| State | Treatment |
+|-------|-----------|
+| Grip at rest (edit mode) | slate glyph, opacity 1, `cursor: grab` |
+| Grip hover | brighter slate + faint pill background |
+| Grip focus (keyboard) | 2px accent focus ring (`#4f46e5` / `#818cf8`) |
+| Grip pressed / picked up | accent glyph + `cursor: grabbing`, `aria-pressed=true` |
+| Tile lifted | elevation + `scale(1.03)` + accent border (`is-grabbed`) |
+| Drop target slot | dashed accent placeholder, tile footprint |
+| Empty box (0 tiles, AC-017) | unchanged empty state; no grip, no placeholder |
+| Single-tile box (AC-018) | grip present, focusable; drag resolves to a no-op |
+| Reduced motion | all of the above, minus animation (§8.5) |
+| Non-edit mode / non-admin (AC-001/013) | grip absent from DOM entirely |
+| Save failure (AC-009) | order reverts + bottom-right error toast (existing toast style) |
+
+### 8.7 Contrast — measured, both themes (design-principle 1)
+
+The grip is a **non-text UI affordance** → WCAG **1.4.11, 3:1** floor. The glass tile
+background is not a fixed colour; it is `--v-tile` composited over the accent gradient, so
+I sampled the **true composited pixel** at the grip corner (bottom-left inner) from the
+built frontend at both themes (`v28-grip-pixel.js`):
+
+**Light — grip-corner bg sampled `rgb(254,254,255)`:**
+
+| Candidate | Ratio | 3:1 |
+|-----------|-------|-----|
+| slate-300 `#cbd5e1` | 1.47:1 | ✗ |
+| slate-400 `#94a3b8` (box grip's *light* colour) | **2.54:1** | ✗ |
+| **slate-500 `#64748b`** ← chosen rest | **4.72:1** | ✓ |
+| slate-600 `#475569` ← chosen hover | 7.52:1 | ✓ |
+
+**Dark — grip-corner bg sampled `rgb(40,41,54)`:**
+
+| Candidate | Ratio | 3:1 |
+|-----------|-------|-----|
+| slate-300 `#cbd5e1` ← chosen hover | 9.68:1 | ✓ |
+| **slate-400 `#94a3b8`** ← chosen rest | **5.61:1** | ✓ |
+| slate-500 `#64748b` | 3.02:1 | ✓ (tight) |
+| slate-600 `#475569` | 1.90:1 | ✗ |
+
+**Finding baked into the design:** the box grip's *light* colour **`#94a3b8` fails on the
+glass tile at 2.54:1** — the glass tile is a *brighter* surface than the box header the box
+grip sits on. So the tile grip takes the **box-grip slate pair swapped by theme**: rest
+`#64748b` (light, 4.72:1 — clears even the 4.5:1 text bar) / `#94a3b8` (dark, 5.61:1); hover
+`#475569` (7.52:1) / `#cbd5e1` (9.68:1). The pressed/focus accent (`#4f46e5` / `#818cf8`)
+and the placeholder border clear 3:1 in both themes (§8.2). **Every resting, hover, focus,
+and grabbed colour is ≥3:1 on the composited glass — no contrast defect ships.**
+
+*Method:* `v28-grip-pixel.js` (pixel-accurate composited sample) + `v28-grip-mock.js`
+(the reference renders above). Both retained in `/home/kare/work`.
+
+### 8.8 Design system note
+
+No new tokens are introduced — the grip reuses the existing slate scale (`#64748b`,
+`#94a3b8`, `#475569`, `#cbd5e1`), the tile-edit accent (`#4f46e5`/`#818cf8`), the tile radius
+(`--r-tile`), and the shipped 34×34-glyph-in-44×44-hit construction. The one *pattern*
+addition — a per-tile drag grip in the bottom-left corner — folds into the App Grid section
+of the design system as the fourth tile corner affordance; I will update `SPEC-app-grid.md`
+/ the design-system App Grid entry when this ships.
 
 ---
 
 ## Sign-offs
 
 - [ ] **Walt** (product) — spec authored, spec approved
-- [ ] **Kare** (design) — §8 complete, design co-signed
+- [x] **Kare** (design) — §8 complete, design co-signed · **2026-07-25** · design **GO**.
+  Grip placed bottom-left (mirror of the pencil), braille `⠿`, 44×44 hit target, colours
+  measured ≥3:1 on the composited glass in both themes (§8.7). No new tokens.
 
 **Ready for Build:** when both sign-offs are present above.
