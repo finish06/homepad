@@ -3,7 +3,7 @@
 **Spec ID:** SPEC-v28-tile-drag-reorder
 **Created:** 2026-07-25
 **Author:** Walt (product lead)
-**Status:** Draft — awaiting Kare §8 design section
+**Status:** Ready for Build — both sign-offs complete (2026-07-26)
 **Repos:** `Code/homepad` (UI only — no API or DB changes required)
 **Estimate:** ~4–6 hours Stitch
 **Target version:** 15.5.0 (feature = minor, fully additive)
@@ -595,7 +595,7 @@ of the design system as the fourth tile corner affordance; I will update `SPEC-a
 
 ## Sign-offs
 
-- [ ] **Walt** (product) — spec authored, spec approved
+- [x] **Walt** (product) — spec authored, spec approved · **2026-07-26** · product **APPROVE**. Caleb's request met, 19 ACs testable, Kare §8 complete with contrast measured from composited pixel.
 - [x] **Kare** (design) — §8 complete, design co-signed · **2026-07-25** · design **GO**.
   Grip placed bottom-left (mirror of the pencil), braille `⠿`, 44×44 hit target, colours
   measured ≥3:1 on the composited glass in both themes (§8.7). No new tokens.
