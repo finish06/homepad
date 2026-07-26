@@ -3187,6 +3187,101 @@
   .dark .app-grid-tool-wrap.is-editing .app-grid-tool {
     outline-color: #818cf8;
   }
+  /* v28 §8.2 — the tile drag grip: a 34×34 painted braille glyph with an invisible
+     centred 44×44 ::before hit area (design-principle 3, 0px layout shift), built
+     like the pencil (.app-grid-tool-edit) but anchored BOTTOM-LEFT — the fourth
+     tile corner, mirror of the pencil (§8.1). Colour is the box-grip slate pair
+     SWAPPED BY THEME (§8.7): the glass tile is a brighter surface than the box
+     header, so light rest is slate-500 #64748b (4.72:1 on the composited glass)
+     and dark rest is slate-400 #94a3b8 (5.61:1) — both clear the 3:1 non-text
+     floor. Always visible at opacity 1 whenever editing (touch has no hover, and a
+     keyboard user must be able to Tab to a grip they can see — §8.2 note), calm via
+     the mid-slate colour, not a dimmed alpha. */
+  .app-grid-tool-grip {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: none;
+    background: transparent;
+    color: #64748b; /* LIGHT rest — slate-500, §8.7 */
+    font-size: 18px;
+    line-height: 1;
+    border-radius: 999px;
+    cursor: grab;
+    touch-action: none; /* a drag doesn't fight page scroll */
+    opacity: 1; /* NOT hover-gated — §8.2 note */
+    transition: color 120ms ease, background 120ms ease;
+  }
+  .app-grid-tool-grip::before {
+    /* invisible 44×44 hit area, centred on the 34px glyph */
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+  }
+  .app-grid-tool-grip:hover {
+    color: #475569;
+    background: rgba(15, 23, 42, 0.06);
+  }
+  .app-grid-tool-grip:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #4f46e5;
+  }
+  .app-grid-tool-grip[aria-pressed='true'] {
+    color: #4f46e5;
+    cursor: grabbing;
+  }
+  .dark .app-grid-tool-grip {
+    color: #94a3b8; /* DARK rest — slate-400 */
+  }
+  .dark .app-grid-tool-grip:hover {
+    color: #cbd5e1;
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .dark .app-grid-tool-grip:focus-visible {
+    box-shadow: 0 0 0 2px #818cf8;
+  }
+  .dark .app-grid-tool-grip[aria-pressed='true'] {
+    color: #818cf8;
+  }
+  /* v28 §8.3 — lifted / dragging tile. The scale is on the inner .app-grid-tool
+     (dnd-kit owns the wrapper's transform for translation, so scaling the child
+     avoids clobbering the drag translate); the wrapper only lifts its z-index.
+     Elevation + accent border read "picked up", never an error (no red). */
+  .app-grid-tool-wrap.is-grabbed {
+    z-index: 5;
+  }
+  .app-grid-tool-wrap.is-grabbed .app-grid-tool {
+    transform: scale(1.03);
+    box-shadow: 0 14px 32px var(--v-shadow), inset 0 1px 0 var(--v-tilehi);
+    border-color: #4f46e5;
+    cursor: grabbing;
+  }
+  .dark .app-grid-tool-wrap.is-grabbed .app-grid-tool {
+    border-color: #818cf8;
+  }
+  /* v28 §8.5 — reduced motion: drop the scale (a motion cue) but KEEP the
+     elevation + accent border (static cues), and snap siblings instead of sliding.
+     The grip, keyboard path, and persistence are untouched (AC-014). */
+  @media (prefers-reduced-motion: reduce) {
+    .app-grid-tool-wrap {
+      transition: none !important;
+    }
+    .app-grid-tool-wrap.is-grabbed .app-grid-tool {
+      transform: none;
+    }
+    .app-grid-tool-grip {
+      transition: none;
+    }
+  }
   /* #242 — per-tile status pip on the App Grid tool tile (SPEC-242 §5, Kare).
      9px solid circle at top-LEFT (8/8) — mirrors the favorite ★ at top-right so
      the two corner affordances never collide (D-1). pointer-events:none + absolute

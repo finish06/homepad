@@ -2,6 +2,16 @@
   "pending": [],
   "versions": [
     {
+      "version": "15.6.0",
+      "date": "2026-07-26",
+      "changes": [
+        {
+          "type": "feat",
+          "text": "You can now drag to rearrange the app tiles inside a box. Turn on \"Edit dashboard\" from the gear menu and each tile grows a grip handle in its bottom-left corner (next to the pencil) — drag a tile to a new spot within its box and it stays there. It works with touch (press and hold the grip) and with the keyboard too: Tab to a grip, press Space to pick the tile up, use the arrow keys to move it, and Space again to drop (Escape cancels). Your arrangement is saved to your own view — everyone keeps their own tile order. Tiles can only be reordered within their box; to move a tile to a different box, use its pencil to change the box."
+        }
+      ]
+    },
+    {
       "version": "15.5.0",
       "date": "2026-07-18",
       "changes": [
