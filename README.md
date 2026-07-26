@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white" alt="Go 1.25">
   <img src="https://img.shields.io/badge/React%20%2B%20Vite-18%20%C2%B7%205-61DAFB?logo=react&logoColor=white" alt="React + Vite">
   <img src="https://img.shields.io/badge/Tailwind%20CSS-3-38BDF8?logo=tailwindcss&logoColor=white" alt="Tailwind CSS">
-  <img src="https://img.shields.io/badge/version-15.5.0-blue" alt="v15.5.0">
+  <img src="https://img.shields.io/badge/version-15.6.0-blue" alt="v15.6.0">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
 </p>
 

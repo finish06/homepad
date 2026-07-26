@@ -7,6 +7,31 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [15.6.0] — 2026-07-26 — Tile drag-and-drop reorder in edit mode (v28)
+
+Within-box tile reorder in the App Grid's "Edit dashboard" mode (SPEC-v28-tile-drag-reorder,
+closes #393). Frontend-only — reuses the existing `PUT /api/layout` per-user
+ordering contract; no API, DB, or dependency changes.
+
+- **Drag grip per tile.** In edit mode each tile grows a dedicated drag grip — a
+  real `<button>` in the bottom-left corner (the braille `⠿` glyph, mirroring the
+  bottom-right pencil), the *sole* drag origin so navigating vs. reordering never
+  collide. Absent from the DOM entirely outside edit mode. 44×44 hit target via a
+  transparent `::before`, glyph fixed at 34×34 (no layout shift). Colours are the
+  slate pair swapped by theme for ≥3:1 on the composited glass in both themes
+  (Kare §8.7) — no new design tokens.
+- **Within-box only.** Each box wraps its tile grid in its own dnd-kit
+  `DndContext`, so a drop cannot cross a box boundary — the isolation is
+  structural, not guard logic. To move a tile to a different box, use its pencil.
+- **Keyboard + touch.** Tab to a grip, Space/Enter to pick up, arrow keys to move
+  one slot, Space/Enter to drop, Escape to cancel — with `aria-live` position
+  announcements through the shared announce region. Touch lifts on a 200ms
+  long-press. Same sensor recipe as the shipped box reorder.
+- **Optimistic + reduced-motion.** The new order shows immediately on drop and
+  persists via `PUT /api/layout` (the whole ordered id list); a failed save
+  reverts the order and shows an error toast. Under `prefers-reduced-motion` the
+  lift drops its scale animation but keeps the static elevation + accent cues.
+
 ## [15.5.0] — 2026-07-18 — One-command self-host (`docker compose up`)
 
 Packaging, no app/UI change. Closes the market-assessment self-host gap (R-2)
