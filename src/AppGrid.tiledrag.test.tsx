@@ -10,7 +10,7 @@
 // each element gets a deterministic rect keyed off document order (top grows down
 // the document) — all sortableKeyboardCoordinates needs to resolve Arrow moves.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AppGrid from './AppGrid';
 import * as api from './api';
