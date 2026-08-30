@@ -1,0 +1,35 @@
+# Publish the homepad image to GitHub Container Registry (ghcr.io) on every
+# merge to main — a second, public-cloud home for the exact image staging runs,
+# alongside the internal registry push in staging-release.yml.
+#
+# Reuses Code/ci-shared/build-push@v3 (the same Kaniko path every other publish
+# uses — Decision D4: no docker build / dind): checkout, build with
+# --build-arg GIT_SHA (so the footer badge and /version.json carry the real
+# sha), push ghcr.io/finish06/homepad:<7-char sha> + :latest.
+#
+# Test-dedup contract (docs/cicd.md): this workflow runs NO tests — main is
+# branch-protected, so the merged sha is the PR-tested sha; this is purely a
+# second publish target. Kept as its own workflow (not a job in
+# staging-release.yml) so a ghcr.io outage can never block the staging rollout,
+# and vice versa.
+#
+# Auth: REGISTRY_PASSWORD must be a GitHub PAT with the `write:packages` scope
+# (classic PAT; fine-grained PATs don't cover ghcr yet), stored as the Gitea
+# repo/org secret GHCR_TOKEN. The username is not a secret.
+name: ghcr publish
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  ghcr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: http://gitea-http.gitea.svc.cluster.local:3000/Code/ci-shared/build-push@v3
+        with:
+          registry: ghcr.io
+          image-name: finish06/homepad
+        env:
+          REGISTRY_USERNAME: finish06
+          REGISTRY_PASSWORD: ${{ secrets.GHCR_TOKEN }}
