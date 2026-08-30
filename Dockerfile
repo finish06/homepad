@@ -1,8 +1,12 @@
 # --- build ---
 FROM node:20-alpine AS build
 WORKDIR /src
-COPY package.json package-lock.json* ./
-RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+# Lockfile-exact install only. The old `|| npm install` fallback silently
+# re-resolved dependencies when the lockfile was missing/stale — a supply-chain
+# hole (unpinned versions in a prod image) and a repeatability hole. If npm ci
+# fails, the build SHOULD fail.
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
 COPY . .
 # #157: the build context has no .git, so vite.config.ts's `git rev-parse` always
 # fell back to 'dev' and prod footers showed "homepad vN (dev)". CI knows the
@@ -28,6 +32,7 @@ ARG GIT_SHA=dev
 RUN echo "homepad build ${GIT_SHA}" > /etc/homepad-build-sha
 COPY --from=build /src/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 # Fail the build if the webmanifest MIME fix (#18/#69/#71) is missing from the
 # conf that actually landed in the image, and reject an invalid config outright.
 # On staging a stale `COPY nginx.conf` cache layer shipped the pre-fix conf
@@ -40,7 +45,12 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # (#71). Requiring `types { }` makes the cached pre-fix conf fail the build,
 # forcing Docker to re-COPY the real conf. `nginx -t` additionally catches any
 # config syntax error.
+# version.json guard (release awareness): the built dist MUST contain the
+# version probe the UI polls, and the conf MUST serve it no-store — otherwise
+# deployed tabs can never learn a release shipped.
 RUN grep -q 'types { }' /etc/nginx/conf.d/default.conf \
     && grep -q 'application/manifest+json' /etc/nginx/conf.d/default.conf \
+    && grep -q 'location = /version.json' /etc/nginx/conf.d/default.conf \
+    && test -s /usr/share/nginx/html/version.json \
     && nginx -t
 EXPOSE 80

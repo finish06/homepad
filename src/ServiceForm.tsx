@@ -7,6 +7,7 @@ import {
   type Service,
   type ServiceInput,
 } from './api';
+import { isSafeUrl } from './safeUrl';
 
 // Mirror of the backend slugify (homepad-api internal/storage/library.go):
 // lowercase, runs of non-alphanumeric collapse to a single dash, no leading or
@@ -61,6 +62,12 @@ export default function ServiceForm({
     setError('');
     if (!name.trim() || !slug.trim() || !url.trim()) {
       setError('Name, slug and URL are required.');
+      return;
+    }
+    // Scheme allowlist (see safeUrl.ts) — a stored javascript: URL would run
+    // in every clicker's session. UX-level check; the API must enforce it too.
+    if (!isSafeUrl(url.trim())) {
+      setError('URL must be http:// or https://.');
       return;
     }
     setBusy(true);

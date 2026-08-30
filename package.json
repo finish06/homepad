@@ -1,6 +1,9 @@
 {
   "name": "homepad",
   "private": true,
+  "engines": {
+    "node": ">=20 <23"
+  },
   "version": "13.1.0",
   "type": "module",
   "scripts": {

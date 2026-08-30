@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Category, Service } from './api';
-import { boxesFromData, boxWidthPx, clampWidth, contentMaxPx, fitsViewport, MAX_WIDTH, moveCategory, rowFillCounts } from './appGrid';
+import { boxesFromData, boxWidthPx, clampWidth, contentMaxPx, fitsViewport, MAX_WIDTH, moveCategory, rowFillCounts } from './appGridLayout';
 
 // SPEC-app-grid (Amendment A1) — pure layout helpers. The flex-wrap page pack +
 // the fixed-190px auto-fill tools track are pure CSS (browser-gate territory);

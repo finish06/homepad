@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { safeHref } from './safeUrl';
 import {
   DndContext,
   KeyboardSensor,
@@ -1008,7 +1009,7 @@ function RecentlyOpenedRow({
             key={s.id}
             data-testid="recently-opened-item"
             data-service-id={s.id}
-            href={s.url}
+            href={safeHref(s.url)}
             target="_blank"
             rel="noreferrer noopener"
             onClick={() => recordOpen(s.id)}
@@ -1384,7 +1385,7 @@ function ServiceTile({
           clean <a> link; the menu is the always-on per-tile control surface. */}
       <TileMenu service={service} onToggleFavorite={onToggleFavorite} onRemoveService={onRemoveService} />
       <a
-        href={service.url}
+        href={safeHref(service.url)}
         target="_blank"
         rel="noreferrer noopener"
         onClick={() => recordOpen(service.id)}

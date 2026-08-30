@@ -1,5 +1,7 @@
 {
-  "pending": [],
+  "pending": [
+    { "type": "enhancement", "text": "The dashboard now tells you when a new homepad release is live. If an update ships while a tab is open, a quiet pill appears in the bottom-left corner — \"homepad vX.Y.Z is available\" — with a Refresh button that loads the new version in one tap. You can dismiss it; it only comes back if yet another release ships. Handy for wall-mounted or always-open dashboards that used to run stale builds for days." }
+  ],
   "versions": [
     {
       "version": "13.1.0",

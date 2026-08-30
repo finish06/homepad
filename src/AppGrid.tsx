@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { safeHref } from './safeUrl';
 import {
   DndContext,
   KeyboardSensor,
@@ -29,7 +30,7 @@ import {
   type Service,
   type ServiceStatus,
 } from './api';
-import { boxesFromData, boxWidthPx, contentMaxPx, fitsViewport, MAX_WIDTH, moveCategory, rowFillCounts, type Box } from './appGrid';
+import { boxesFromData, boxWidthPx, contentMaxPx, fitsViewport, MAX_WIDTH, moveCategory, rowFillCounts, type Box } from './appGridLayout';
 import { iconSrc, initialBadge } from './icons';
 import { useServicesContext } from './services';
 import { useResolvedTheme } from './theme';
@@ -693,7 +694,7 @@ function ToolLink({
       <a
         className="app-grid-tool"
         data-testid="tool-link"
-        href={service.url}
+        href={safeHref(service.url)}
         target="_blank"
         rel="noreferrer noopener"
         aria-label={service.name}
