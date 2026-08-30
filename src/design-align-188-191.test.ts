@@ -12,7 +12,6 @@ import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
-const catalog = read('src/Catalog.tsx');
 const appHeader = read('src/AppHeader.tsx');
 const statusBar = read('src/StatusBar.tsx');
 const css = read('src/index.css');
@@ -28,16 +27,8 @@ function classesFor(src: string, testid: string): string {
   return m![1];
 }
 
-describe('#188 — tile overflow "..." glyph contrast (light)', () => {
-  // Measured: neutral-400 #a3a3a3 @18px on white = 2.52:1. neutral-500 is
-  // 4.75:1; dark keeps neutral-400 (rides near-black at ~7:1).
-  it('A188 — tile-menu trigger glyph drops the failing neutral-400 light color', () => {
-    const cls = classesFor(catalog, 'tile-menu');
-    expect(cls).not.toMatch(/(?<!dark:)text-neutral-400/); // light 2.52:1 gone
-    expect(cls).toContain('text-neutral-500'); // light now 4.75:1
-    expect(cls).toContain('dark:text-neutral-400'); // dark unchanged (~7:1)
-  });
-});
+// (#188 and the #185 "+ Add apps" advisory guarded the retired Catalog's "..."
+// menu trigger / open-library button; removed with Catalog.tsx.)
 
 describe('#189 — quick-launcher placeholder contrast + bar height', () => {
   // Measured: placeholder rgb(154,163,184) #9aa3b8 = 2.53:1; bar 36px tall.
@@ -84,13 +75,5 @@ describe('#191 — header status captions contrast (light)', () => {
     const around = statusBar.slice(i, i + 200);
     expect(around).toMatch(/text-neutral-500/);
     expect(around).not.toMatch(/(?<!dark:)text-neutral-400/);
-  });
-});
-
-describe('#185 — "+ Add apps" button touch target (advisory)', () => {
-  // Measured: ~34px tall (py-1.5). Bump to a >=44px hit area.
-  it('A185 — open-library "+ Add apps" button is >=44px tall', () => {
-    const cls = classesFor(catalog, 'open-library');
-    expect(cls).toContain('min-h-11');
   });
 });
