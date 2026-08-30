@@ -36,8 +36,13 @@ jobs:
           # still compiles the app (its `npm run build` includes tsc), and the
           # staging deploy + QA pool remain this workflow's actual gate: the
           # e2e/browser level, which runs only here.
+          #
+          # NOTE: the composite splices this string into a shell double-quoted
+          # test ( if [ -n "<test-cmd>" ] ), so it must contain no quotes,
+          # parentheses, semicolons, backticks, or $ — a punctuated echo here
+          # broke the detect step with a bash syntax error (run 5436).
           test-cmd: |
-            echo "unit gate = ci.yml, browser gate = browser-gate.yml (required checks on this sha); mr-staging gates at the deploy+QA level only"
+            echo skipping duplicate unit suite - ci.yml and browser-gate.yml already gate this sha
           deploy-cmd: |
             # Kubeconfig lands 0600 (default umask leaves /tmp/kc world-readable
             # for the rest of the job otherwise) and is removed after the rollout.
