@@ -57,7 +57,19 @@ jobs:
               echo "c6e9c45ce3f82c90663e3c30db3b27c167e8b19d83ed4048b61c1013f6a7c66e  /usr/local/bin/kubectl" | sha256sum -c -
               chmod +x /usr/local/bin/kubectl
             fi
+            # Converge the deploy-owned nginx ConfigMap from Code/homelab BEFORE
+            # rolling the image. That ConfigMap shadows the image's nginx.conf
+            # entirely (issue #414: PR #412's security headers + version.json
+            # no-store never reached staging because only the image conf had
+            # them). The manifest's FIRST yaml doc is the ConfigMap — apply just
+            # that, never the Deployment doc (its image field would fight the
+            # set-image below).
+            curl -sSf http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main/homepad-staging/03-web.yaml \
+              | sed '/^---$/q' | kubectl -n homepad-staging apply -f -
             kubectl -n homepad-staging set image deploy/homepad-web web="$IMAGE_REF"
+            # Restart even when the image tag is unchanged so a ConfigMap-only
+            # change still reaches the pods (mounted configs don't hot-reload).
+            kubectl -n homepad-staging rollout restart deploy/homepad-web
             kubectl -n homepad-staging rollout status deploy/homepad-web --timeout=120s
             rm -f /tmp/kc
         env:
