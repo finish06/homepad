@@ -48,9 +48,30 @@ COPY nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 # version.json guard (release awareness): the built dist MUST contain the
 # version probe the UI polls, and the conf MUST serve it no-store — otherwise
 # deployed tabs can never learn a release shipped.
+#
+# Security-hardening guard (#414): the SAME stale-COPY failure mode re-shipped
+# the *pre-hardening* conf under a fresh tag — the deployed image served no
+# security headers, no `server_tokens off`, and version.json without no-store,
+# because the grep guard above passed on the old conf (it predates `types { }`
+# only for the manifest, not these directives). We now also assert each hardening
+# invariant against the conf that actually landed:
+#   - the security-headers snippet is present AND non-empty AND carries `nosniff`
+#     (an EMPTY snippet is a real failure mode — `include` of an empty file is
+#     valid to nginx, so `add_header` silently vanishes and `nginx -t` still
+#     passes; only `test -s` + grep catch it);
+#   - `server_tokens off` and the version.json `no-store` are in the conf.
+# The pre-hardening conf lacks all three, so a stale/wrong conf now fails the
+# build loudly instead of silently reshipping. Verified with a real nginx 1.27.5
+# (matching this base image) that the shipped conf serves all four headers and
+# no-store, and that an empty snippet drops them — a grep on strings is not
+# enough, but these strings are the ones the pre-hardening conf provably lacks.
 RUN grep -q 'types { }' /etc/nginx/conf.d/default.conf \
     && grep -q 'application/manifest+json' /etc/nginx/conf.d/default.conf \
     && grep -q 'location = /version.json' /etc/nginx/conf.d/default.conf \
+    && grep -q 'server_tokens off' /etc/nginx/conf.d/default.conf \
+    && grep -q 'no-store' /etc/nginx/conf.d/default.conf \
+    && test -s /etc/nginx/snippets/security-headers.conf \
+    && grep -q nosniff /etc/nginx/snippets/security-headers.conf \
     && test -s /usr/share/nginx/html/version.json \
     && nginx -t
 EXPOSE 80
