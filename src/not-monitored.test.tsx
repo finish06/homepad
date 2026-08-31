@@ -1,40 +1,21 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import Catalog from './Catalog';
 import CommandLauncher from './CommandLauncher';
 import { LauncherProvider } from './launcher';
-import {
-  categories,
-  getCollapsedCategories,
-  services,
-  type Service,
-} from './api';
+import type { Service } from './api';
 
-// specs/not-monitored-state.md — a service with no gatus_key resolves to the new
+// specs/not-monitored-state.md — a service with no gatus_key resolves to the
 // "NOT_MONITORED" status and must render an OUTLINED DASHED RING (not the solid
-// gray UNKNOWN dot), with a human-readable "Not monitored" label. UNKNOWN keeps
-// its solid gray dot. jsdom can't paint, so these assert the class hooks +
-// a11y text; the visual distinction is confirmed browser-real before handoff.
-
-vi.mock('./api', () => ({
-  services: vi.fn(),
-  categories: vi.fn(),
-  getCollapsedCategories: vi.fn(),
-  setCollapsedCategories: vi.fn(),
-  setFavorite: vi.fn(),
-  setLayout: vi.fn(),
-}));
-
-vi.mock('./icons', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./icons')>();
-  return { ...actual, validateIconFile: vi.fn() };
-});
-
-const mockedServices = vi.mocked(services);
-const mockedCategories = vi.mocked(categories);
-const mockedGetCollapsed = vi.mocked(getCollapsedCategories);
+// gray UNKNOWN dot). jsdom can't paint, so these assert the class hooks; the
+// visual distinction is confirmed browser-real in the gate.
+//
+// The Catalog-tile half of this spec's coverage moved with the layout: the live
+// App Grid pip is covered by app-grid-status-dot.test.tsx (shape-not-colour,
+// labels) and the real-Chromium gate (dashed hollow ring paint). What remains
+// here are the OTHER live surfaces sharing the .status-dot system: the ⌘K
+// launcher row, and the danger-glow CSS rules (also used by AlertHistoryPanel).
 
 function svc(over: Partial<Service> = {}): Service {
   return {
@@ -55,48 +36,8 @@ function svc(over: Partial<Service> = {}): Service {
 }
 
 beforeEach(() => {
-  mockedCategories.mockResolvedValue([]);
-  mockedGetCollapsed.mockResolvedValue([]);
   // jsdom lacks scrollIntoView; the launcher calls it to keep selection in view.
   Element.prototype.scrollIntoView = vi.fn();
-});
-
-afterEach(() => {
-  vi.clearAllMocks();
-  document.documentElement.classList.remove('dark');
-});
-
-describe('AC-001/004 — Catalog tile: NOT_MONITORED shows an outlined dashed ring', () => {
-  it('renders a transparent dashed-border ring, not a solid dot', async () => {
-    mockedServices.mockResolvedValue([svc({ status: 'NOT_MONITORED' })]);
-    render(<Catalog />);
-    const badge = await screen.findByTestId('status-badge');
-    expect(badge).toHaveAttribute('data-status', 'NOT_MONITORED');
-    expect(badge.className).toContain('border-dashed');
-    expect(badge.className).toContain('bg-transparent');
-    // it must NOT carry the solid gray UNKNOWN fill
-    expect(badge.className).not.toContain('bg-neutral-300');
-  });
-
-  it('labels the ring "Not monitored" in title + aria-label, not the raw constant', async () => {
-    mockedServices.mockResolvedValue([svc({ status: 'NOT_MONITORED' })]);
-    render(<Catalog />);
-    const badge = await screen.findByTestId('status-badge');
-    expect(badge).toHaveAttribute('title', 'Not monitored');
-    expect(badge).toHaveAttribute('aria-label', 'status: Not monitored');
-  });
-});
-
-describe('AC-002 — Catalog tile: UNKNOWN keeps its solid gray dot', () => {
-  it('renders the solid bg-neutral-300 dot, not a ring', async () => {
-    mockedServices.mockResolvedValue([svc({ status: 'UNKNOWN' })]);
-    render(<Catalog />);
-    const badge = await screen.findByTestId('status-badge');
-    expect(badge).toHaveAttribute('data-status', 'UNKNOWN');
-    expect(badge.className).toContain('bg-neutral-300');
-    expect(badge.className).not.toContain('border-dashed');
-    expect(badge).toHaveAttribute('aria-label', 'status: UNKNOWN');
-  });
 });
 
 describe('AC-005 — Command Launcher: NOT_MONITORED row shows the dashed ring', () => {
@@ -119,8 +60,8 @@ describe('AC-005 — Command Launcher: NOT_MONITORED row shows the dashed ring',
 
 // Board finding (release-board PAT): the §4 danger-glow rule was written as
 // `.status-dot:not([data-status='UP'])`, so it painted the rose-red danger halo
-// on EVERY non-UP dot — including the new NOT_MONITORED ring. "Not monitored" is
-// an ABSENCE of monitoring, not a failure, so it must read neutral (dashed ring,
+// on EVERY non-UP dot — including the NOT_MONITORED ring. "Not monitored" is an
+// ABSENCE of monitoring, not a failure, so it must read neutral (dashed ring,
 // NO glow). UNKNOWN is a real monitoring-failure signal and MUST keep its glow.
 // jsdom can't compute the whole index.css (cssom bails on some modern rules), but
 // it DOES resolve a single extracted rule via getComputedStyle — so we pull just
@@ -163,26 +104,12 @@ describe('board finding — NOT_MONITORED carries no danger glow (neutral, not e
   });
 });
 
-// #80 (Walt's 2026-06-19 live UI review): the danger glow was already suppressed
-// (f1f8de1), but the dashed neutral-300 ring is so low-contrast that at the 9px dot
-// size it reads as a faint, ambiguous gray smudge — still "misleading for
-// NOT_MONITORED". Raise the ring to neutral-400 (light) / neutral-500 (dark) so the
-// hollow ring is legibly an INTENTIONAL "not monitored" marker, while staying
-// neutral (no fill, no glow). UNKNOWN's solid gray dot is untouched.
+// #80 (Walt's 2026-06-19 live UI review): the dashed neutral-300 ring read as a
+// faint ambiguous gray smudge at 9px. Raise the ring to neutral-400 (light) /
+// neutral-500 (dark) so the hollow ring is legibly an INTENTIONAL "not
+// monitored" marker, while staying neutral (no fill, no glow).
 describe('#80 — NOT_MONITORED ring is legibly muted, not a faint near-invisible dot', () => {
-  it('Catalog tile uses the higher-contrast neutral-400/500 ring (not the faint neutral-300)', async () => {
-    mockedServices.mockResolvedValue([svc({ status: 'NOT_MONITORED' })]);
-    render(<Catalog />);
-    const badge = await screen.findByTestId('status-badge');
-    expect(badge.className).toContain('border-neutral-400');
-    expect(badge.className).toContain('dark:border-neutral-500');
-    expect(badge.className).not.toContain('border-neutral-300');
-    // unchanged: still a transparent dashed ring with no glow, never a solid dot
-    expect(badge.className).toContain('border-dashed');
-    expect(badge.className).toContain('bg-transparent');
-  });
-
-  it('Command Launcher row uses the same higher-contrast ring', () => {
+  it('Command Launcher row uses the higher-contrast ring', () => {
     const catalog = [svc({ id: 'proxmox', name: 'Proxmox', status: 'NOT_MONITORED' })];
     render(
       <LauncherProvider>

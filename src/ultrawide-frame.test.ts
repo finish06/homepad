@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CONTENT_WIDTH } from './layout';
-import { FRAME_FLUID_VW, FRAME_MAX_PX, FRAME_PAD_PX, frameContentPx } from './appGrid';
+import { FRAME_FLUID_VW, FRAME_MAX_PX, FRAME_PAD_PX, frameContentPx } from './appGridLayout';
 
 // SPEC-ultrawide-fluid-frame (Phase 1b) — the shared CONTENT_WIDTH frame stops
 // being a fixed 1536px island on big monitors: `max-w-[max(1536px,92vw)]` keeps

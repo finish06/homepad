@@ -19,13 +19,22 @@ jobs:
         with:
           image-name: homepad
           deploy-cmd: |
+            # 0600 kubeconfig + checksum-verified kubectl — mirrors mr-staging.yml.
+            install -m 600 /dev/null /tmp/kc
             printf '%s' "$KUBECONFIG_STAGING" > /tmp/kc && export KUBECONFIG=/tmp/kc
             if ! command -v kubectl >/dev/null 2>&1; then
               curl -sSLf -o /usr/local/bin/kubectl https://dl.k8s.io/release/v1.30.2/bin/linux/amd64/kubectl
+              echo "c6e9c45ce3f82c90663e3c30db3b27c167e8b19d83ed4048b61c1013f6a7c66e  /usr/local/bin/kubectl" | sha256sum -c -
               chmod +x /usr/local/bin/kubectl
             fi
+            # Converge the deploy-owned nginx ConfigMap (first yaml doc only —
+            # see mr-staging.yml for the full rationale / issue #414).
+            curl -sSf http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main/homepad-staging/03-web.yaml \
+              | sed '/^---$/q' | kubectl -n homepad-staging apply -f -
             kubectl -n homepad-staging set image deploy/homepad-web web="$IMAGE_REF"
+            kubectl -n homepad-staging rollout restart deploy/homepad-web
             kubectl -n homepad-staging rollout status deploy/homepad-web --timeout=120s
+            rm -f /tmp/kc
         env:
           REGISTRY_USERNAME:  ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASSWORD:  ${{ secrets.REGISTRY_PASSWORD }}

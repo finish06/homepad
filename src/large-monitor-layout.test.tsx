@@ -16,7 +16,6 @@ import { useServicesContext } from './services';
 import type { Service, ServiceStatus } from './api';
 
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
-const catalog = read('src/Catalog.tsx');
 const app = read('src/App.tsx');
 const appHeader = read('src/AppHeader.tsx');
 const indexCss = read('src/index.css');
@@ -71,22 +70,9 @@ describe('app grid caps tiles short of the shared content width (#194, AC-001)',
   });
 });
 
-// v14 supersedes #194/#201: the auto-fill stretch grid (which bloated tiles to
-// ~218px at 1440px) is replaced by the floating-panel field — fixed 190px tile
-// slots inside `.panel-tiles`, panels packed in a `.tile-field`. The real
-// column-count / 190px guarantees live in the CDP browser gate.
-describe('floating-panel field replaces the auto-fill grid (v14, A-006)', () => {
-  it('drops the auto-fill stretch grid that caused the 218px tile defect', () => {
-    expect(catalog).not.toContain('grid-cols-[repeat(auto-fill,minmax(210px,1fr))]');
-    expect(catalog).not.toContain('2xl:grid-cols-6');
-    expect(catalog).not.toContain('lg:grid-cols-4');
-  });
-
-  it('uses the fixed-190px-slot panel-tiles grid inside the tile-field', () => {
-    expect(catalog).toContain('tile-field');
-    expect(catalog).toContain('panel-tiles');
-  });
-});
+// (The v14 floating-panel-field describe guarded the retired Catalog's layout;
+// removed with Catalog.tsx — the App Grid's box layout is guarded by
+// AppGrid.test.tsx and the real-Chromium pane-fill gate.)
 
 // The App Grid lives inside App.tsx's `${CONTENT_WIDTH} py-6` section, which
 // already caps + centers content at max-w-[1536px] px-4. A SECOND max-width +

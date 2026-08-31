@@ -33,7 +33,28 @@ if (envSha && envSha !== 'dev') {
 // (Pangolin Ingress path-routes). Vite dev mirrors this by proxying /api/*
 // to the local Go backend on :8080.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // Release awareness — emit /version.json alongside the bundle. It carries
+    // the SAME version/sha pair baked into the JS via `define`, but as a
+    // fetchable file nginx serves with no-store, so a long-lived tab can ask
+    // "is a newer build deployed than the one I'm running?" (useReleaseCheck).
+    {
+      name: 'emit-version-json',
+      apply: 'build',
+      generateBundle() {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'version.json',
+          source: JSON.stringify(
+            { version: appVersion, sha: gitSha, builtAt: new Date().toISOString() },
+            null,
+            2,
+          ),
+        });
+      },
+    },
+  ],
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
     __GIT_SHA__: JSON.stringify(gitSha),

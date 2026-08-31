@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Service } from './api';
+import { safeHref } from './safeUrl';
 
 // v23 — IframeOverlay (SPEC-tile-click-action §5.4-5.5). A tile whose
 // clickAction='iframe' opens this backdrop modal instead of navigating: the
@@ -108,7 +109,7 @@ export default function IframeOverlay({
               <a
                 className="iframe-overlay-fallback-open"
                 data-testid="iframe-overlay-fallback-open"
-                href={service.url}
+                href={safeHref(service.url)}
                 target="_blank"
                 rel="noreferrer noopener"
               >
@@ -131,7 +132,7 @@ export default function IframeOverlay({
               <iframe
                 className="iframe-overlay-frame"
                 data-testid="iframe-overlay-frame"
-                src={service.url}
+                src={safeHref(service.url)}
                 title={service.name}
                 loading="lazy"
                 sandbox={SANDBOX}

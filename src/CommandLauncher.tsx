@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { safeHref } from './safeUrl';
 import type { Service, ServiceStatus } from './api';
 import { iconSrc, initialBadge } from './icons';
 import { rankServices } from './ranker';
@@ -319,7 +320,7 @@ function ResultRow({
       data-selected={selected ? 'true' : 'false'}
       role="option"
       aria-selected={selected}
-      href={service.url}
+      href={safeHref(service.url)}
       target="_blank"
       rel="noreferrer noopener"
       className="launcher-row"

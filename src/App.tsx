@@ -23,6 +23,7 @@ import { AlertHistoryProvider, useAlertHistory } from './alerts';
 import AlertHistoryPanel from './AlertHistoryPanel';
 import ToastContainer from './Toasts';
 import ChangelogOverlay from './ChangelogOverlay';
+import UpdateBanner from './UpdateBanner';
 import { ThemeProvider } from './theme';
 import { CONTENT_WIDTH } from './layout';
 
@@ -79,6 +80,10 @@ export default function App() {
       ) : (
         <AuthForm onAuthed={setUser} />
       )}
+      {/* Release awareness — polls /version.json (CI-emitted, no-store) and
+          offers a refresh when a newer build is live. Mounted outside the auth
+          branch so even a tab parked on the login screen learns of a release. */}
+      <UpdateBanner />
     </ThemeProvider>
   );
 }

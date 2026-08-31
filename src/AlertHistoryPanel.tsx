@@ -4,6 +4,7 @@
 // new-tab Visit link. In-memory only; the event list is passed in from
 // AlertHistoryProvider via Home.
 import { useEffect, useRef } from 'react';
+import { safeHref } from './safeUrl';
 import type { AlertEvent } from './alerts';
 import { statusDotClass } from './alerts';
 import type { ServiceStatus } from './api';
@@ -54,7 +55,7 @@ function AlertRow({ event }: { event: AlertEvent }) {
         </time>
         <a
           className="alert-row-visit"
-          href={event.serviceUrl}
+          href={safeHref(event.serviceUrl)}
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`Visit ${event.serviceName}`}

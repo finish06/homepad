@@ -12,7 +12,6 @@ import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
-const catalog = read('src/Catalog.tsx');
 const app = read('src/App.tsx');
 const userMenu = read('src/UserMenu.tsx');
 const themeControl = read('src/ThemeControl.tsx');
@@ -31,16 +30,8 @@ function classesFor(src: string, testid: string): string {
   return m![1];
 }
 
-describe('#180 — tile description dark-mode contrast', () => {
-  // Measured: text-neutral-500 with NO dark: override → 4.18:1 in dark (light
-  // 4.74:1). A `dark:text-neutral-400` override lifts dark to ~7:1 while light
-  // keeps neutral-500's passing 4.74:1.
-  it('A180 — service tile description carries a dark-mode color override', () => {
-    const cls = classesFor(catalog, 'service-tile-description');
-    expect(cls).toContain('text-neutral-500'); // light stays 4.74:1
-    expect(cls).toContain('dark:text-neutral-400'); // dark now ~7:1, was 4.18:1
-  });
-});
+// (#180 and #183 guarded the retired Catalog's tile description / "..." menu
+// trigger; they were removed with Catalog.tsx — the App Grid tile has neither.)
 
 describe('#181 — footer "Open changelog" link contrast', () => {
   // Measured: neutral-400 @12px → 2.52:1 (axe serious). neutral-500 (#737373) is
@@ -68,17 +59,6 @@ describe('#182 — header bell + avatar touch targets', () => {
     expect(cls).toMatch(/min-w-\[44px\]/);
     // §6.2 disc preserved on an inner element so the visual token is unchanged.
     expect(userMenu).toContain('user-avatar-disc');
-  });
-});
-
-describe('#183 — tile overflow "..." trigger touch target', () => {
-  // Measured: 36x36 at sm+ / iPad portrait (h-11 base, shrunk by sm:h-9 sm:w-9).
-  it('A183 — tile-menu trigger stays >=44px at sm+ (no shrink override)', () => {
-    const cls = classesFor(catalog, 'tile-menu');
-    expect(cls).toContain('h-11');
-    expect(cls).toContain('w-11');
-    expect(cls).not.toContain('sm:h-9');
-    expect(cls).not.toContain('sm:w-9');
   });
 });
 
@@ -110,10 +90,5 @@ describe('#185 — interactive menu rows >=44px', () => {
     // testid is a template literal (`theme-${value}`), so guard the single
     // segment button className directly.
     expect(themeControl).toMatch(/min-h-\[44px\]/);
-  });
-
-  it('A185 — tile menu Favorite + Remove rows are >=44px tall', () => {
-    expect(classesFor(catalog, 'favorite-toggle')).toMatch(/min-h-\[44px\]/);
-    expect(classesFor(catalog, 'remove-from-dashboard')).toMatch(/min-h-\[44px\]/);
   });
 });

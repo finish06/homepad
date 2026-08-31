@@ -11,6 +11,7 @@
 // bucket's services as links (Escape / outside-click / re-click dismiss).
 
 import { useEffect, useRef, useState } from 'react';
+import { safeHref } from './safeUrl';
 import { useServicesContext } from './services';
 import type { Service, ServiceStatus } from './api';
 import { CONTENT_WIDTH } from './layout';
@@ -300,7 +301,7 @@ function StatusPeekPopover({
       {services.map((s) => (
         <a
           key={s.id}
-          href={s.url}
+          href={safeHref(s.url)}
           target="_blank"
           rel="noreferrer noopener"
           className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-800 hover:bg-neutral-50 dark:text-neutral-200 dark:hover:bg-neutral-800"

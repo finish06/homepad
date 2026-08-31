@@ -1,12 +1,14 @@
 // v13 — Live Status Auto-Refresh + "Last Updated" indicator.
 // Behaviour-level tests driven through the real ServicesProvider / AppHeader /
-// Catalog so each failure is "the feature is missing", not a wiring typo. Global
+// AppGrid so each failure is "the feature is missing", not a wiring typo.
+// (Originally written against the retired Catalog; re-pointed at AppGrid when
+// Catalog was deleted — the provider/poller under test is unchanged.) Global
 // fetch is stubbed (same idiom as api.test) and time is faked so the polling
 // cadence is deterministic.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import AppHeader, { formatUpdatedAgo } from './AppHeader';
-import Catalog from './Catalog';
+import AppGrid from './AppGrid';
 import { LauncherProvider } from './launcher';
 import { ServicesProvider } from './services';
 import type { Service, User } from './api';
@@ -30,8 +32,8 @@ function svc(id: string, status: Service['status']): Service {
 
 // A mutable payload the fetch stub serves on every /api/services call, plus the
 // status it answers with, so a test can flip the upstream data/HTTP code between
-// poll cycles. categories/collapsed-categories answer empty so Catalog renders
-// the flat grid.
+// poll cycles. categories answers empty so AppGrid renders every service in the
+// single Uncategorized box.
 let servicesPayload: Service[];
 let servicesStatus: number;
 
@@ -60,6 +62,23 @@ function servicesCalls(fn: ReturnType<typeof vi.fn>): number {
 function setVisibility(state: 'visible' | 'hidden') {
   Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
   document.dispatchEvent(new Event('visibilitychange'));
+}
+
+// The status pip is a SIBLING of the tool anchor inside .app-grid-tool-wrap
+// (SPEC-242 D-1 DOM), so walk anchor → wrap → pip.
+function tileStatus(href: string): Element | null | undefined {
+  return document
+    .querySelector(`[data-testid="tool-link"][href="${href}"]`)
+    ?.closest('.app-grid-tool-wrap')
+    ?.querySelector('[data-testid="tile-status"]');
+}
+
+function renderGrid() {
+  return render(
+    <ServicesProvider>
+      <AppGrid isAdmin={false} editMode={false} />
+    </ServicesProvider>,
+  );
 }
 
 beforeEach(() => {
@@ -115,29 +134,19 @@ describe('AC-002 — suspend while hidden, resume on visible', () => {
   });
 });
 
-describe('AC-003 — status badges reflect the latest value without reload', () => {
-  it('updates a tile status-badge after a refresh cycle', async () => {
+describe('AC-003 — status pips reflect the latest value without reload', () => {
+  it('updates a tile status pip after a refresh cycle', async () => {
     installFetch();
-    render(
-      <ServicesProvider>
-        <Catalog />
-      </ServicesProvider>,
-    );
+    renderGrid();
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
-    const badgeStatus = (href: string) =>
-      document
-        .querySelector(`[href="${href}"]`)
-        ?.closest('[data-testid="service-tile"]')
-        ?.querySelector('[data-testid="status-badge"]')
-        ?.getAttribute('data-status');
     // tile b starts DOWN
-    expect(badgeStatus('https://b.test')).toBe('DOWN');
+    expect(tileStatus('https://b.test')?.getAttribute('data-status')).toBe('DOWN');
 
     // upstream recovers b → UP
     servicesPayload = [svc('a', 'UP'), svc('b', 'UP')];
     await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
 
-    expect(badgeStatus('https://b.test')).toBe('UP');
+    expect(tileStatus('https://b.test')?.getAttribute('data-status')).toBe('UP');
   });
 });
 
@@ -189,23 +198,15 @@ describe('AC-005 — elapsed label format & cap', () => {
 describe('AC-006 / AC-007 — pulse on status change only', () => {
   it('pulses a tile whose status changed and leaves unchanged tiles alone', async () => {
     installFetch();
-    render(
-      <ServicesProvider>
-        <Catalog />
-      </ServicesProvider>,
-    );
+    renderGrid();
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
 
     // b: DOWN → UP (changes), a: UP → UP (unchanged)
     servicesPayload = [svc('a', 'UP'), svc('b', 'UP')];
     await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
 
-    const tile = (href: string) =>
-      document.querySelector(`[href="${href}"]`)?.closest('[data-testid="service-tile"]');
-    const badge = (href: string) => tile(href)?.querySelector('[data-testid="status-badge"]');
-
-    expect(badge('https://b.test')?.getAttribute('data-pulsing')).toBe('true');
-    expect(badge('https://a.test')?.getAttribute('data-pulsing')).toBe('false');
+    expect(tileStatus('https://b.test')?.getAttribute('data-pulsing')).toBe('true');
+    expect(tileStatus('https://a.test')?.getAttribute('data-pulsing')).toBe('false');
   });
 
   it('does not pulse when prefers-reduced-motion is set', async () => {
@@ -223,23 +224,16 @@ describe('AC-006 / AC-007 — pulse on status change only', () => {
         onchange: null,
       })),
     );
-    render(
-      <ServicesProvider>
-        <Catalog />
-      </ServicesProvider>,
-    );
+    renderGrid();
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     servicesPayload = [svc('a', 'UP'), svc('b', 'UP')];
     await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
 
-    const badgeB = document
-      .querySelector('[href="https://b.test"]')
-      ?.closest('[data-testid="service-tile"]')
-      ?.querySelector('[data-testid="status-badge"]');
+    const pipB = tileStatus('https://b.test');
     // status updated...
-    expect(badgeB?.getAttribute('data-status')).toBe('UP');
+    expect(pipB?.getAttribute('data-status')).toBe('UP');
     // ...but no pulse
-    expect(badgeB?.getAttribute('data-pulsing')).toBe('false');
+    expect(pipB?.getAttribute('data-pulsing')).toBe('false');
   });
 });
 
@@ -268,25 +262,15 @@ describe('AC-011 — stop polling on 401', () => {
 describe('AC-008 — failed refresh is silently ignored', () => {
   it('keeps the last good data when a poll returns non-200', async () => {
     installFetch();
-    render(
-      <ServicesProvider>
-        <Catalog />
-      </ServicesProvider>,
-    );
+    renderGrid();
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
-    const statusOfB = () =>
-      document
-        .querySelector('[href="https://b.test"]')
-        ?.closest('[data-testid="service-tile"]')
-        ?.querySelector('[data-testid="status-badge"]')
-        ?.getAttribute('data-status');
-    expect(statusOfB()).toBe('DOWN');
+    expect(tileStatus('https://b.test')?.getAttribute('data-status')).toBe('DOWN');
 
     servicesStatus = 500;
     servicesPayload = [];
     await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
 
     // data unchanged — b is still rendered and still DOWN
-    expect(statusOfB()).toBe('DOWN');
+    expect(tileStatus('https://b.test')?.getAttribute('data-status')).toBe('DOWN');
   });
 });
