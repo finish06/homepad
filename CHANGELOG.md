@@ -7,6 +7,579 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [15.6.0] — 2026-07-26 — Tile drag-and-drop reorder in edit mode (v28)
+
+Within-box tile reorder in the App Grid's "Edit dashboard" mode (SPEC-v28-tile-drag-reorder,
+closes #393). Frontend-only — reuses the existing `PUT /api/layout` per-user
+ordering contract; no API, DB, or dependency changes.
+
+- **Drag grip per tile.** In edit mode each tile grows a dedicated drag grip — a
+  real `<button>` in the bottom-left corner (the braille `⠿` glyph, mirroring the
+  bottom-right pencil), the *sole* drag origin so navigating vs. reordering never
+  collide. Absent from the DOM entirely outside edit mode. 44×44 hit target via a
+  transparent `::before`, glyph fixed at 34×34 (no layout shift). Colours are the
+  slate pair swapped by theme for ≥3:1 on the composited glass in both themes
+  (Kare §8.7) — no new design tokens.
+- **Within-box only.** Each box wraps its tile grid in its own dnd-kit
+  `DndContext`, so a drop cannot cross a box boundary — the isolation is
+  structural, not guard logic. To move a tile to a different box, use its pencil.
+- **Keyboard + touch.** Tab to a grip, Space/Enter to pick up, arrow keys to move
+  one slot, Space/Enter to drop, Escape to cancel — with `aria-live` position
+  announcements through the shared announce region. Touch lifts on a 200ms
+  long-press. Same sensor recipe as the shipped box reorder.
+- **Optimistic + reduced-motion.** The new order shows immediately on drop and
+  persists via `PUT /api/layout` (the whole ordered id list); a failed save
+  reverts the order and shows an error toast. Under `prefers-reduced-motion` the
+  lift drops its scale animation but keeps the static elevation + accent cues.
+
+## [15.5.0] — 2026-07-18 — One-command self-host (`docker compose up`)
+
+Packaging, no app/UI change. Closes the market-assessment self-host gap (R-2)
+and powers the gethomepad.dev "self-host" CTA: a fresh clone can stand up the
+entire stack — frontend, Go API, Postgres, and a Gatus status source — with
+`docker compose up --build`.
+
+- **`compose.yaml`.** Full stack, all from public images or repo Dockerfiles (no
+  private `dockerhub.calebdunn.tech` refs): `web` (built from this repo's
+  `Dockerfile`, nginx serving the SPA), `api` (built from the `homepad-api`
+  repo, migrates on boot), `postgres:16-alpine`, and `gatus`. `web` is published
+  on `http://localhost:8080`.
+- **`.env.example`.** Every knob with dev defaults + clear placeholders:
+  `POSTGRES_PASSWORD`, `DATABASE_URL` (assembled), `SESSION_SECRET`,
+  `HOMEPAD_REGISTRATION`, `GATUS_BASE_URL`, and the optional `OIDC_*` block —
+  Homepad runs on local accounts with `OIDC_ENABLED=false`.
+- **Web `/api` proxy.** `deploy/compose/nginx.conf` mirrors the platform
+  `homepad-web-nginx` ConfigMap so the web container proxies `/api` → `api:8080`
+  (prod does this at the ingress, so the image's own `nginx.conf` omits it).
+- **Gatus config.** `deploy/compose/gatus.yaml` ships two internal example
+  endpoints so the dashboard status tiles have data out of the box.
+- **Healthchecks + ordering.** `pg_isready` on Postgres; an end-to-end wget on
+  `web` that proxies through to the api (so `web` only reports healthy once
+  web + proxy + api + db are all serving); `api` waits for Postgres healthy.
+- **README.** New "Self-hosting with Docker Compose" section — prerequisites,
+  first-login/admin note, persistence, and how to enable OIDC.
+
+Notes for reviewers: (1) `COOKIE_SECURE` defaults to `false` in `.env.example`
+because the api defaults it to `true` (prod is behind TLS) and a Secure cookie
+is dropped over plain-HTTP localhost. (2) There is no separate homepad `/data`
+volume — all persistent state lives in Postgres (`homepad_pg`); the api/web
+containers are stateless. (3) The `api` service has no container healthcheck:
+its image is distroless/static (no shell) so it can't self-probe; the `web`
+healthcheck gates the whole chain instead.
+
+## [15.4.2] — 2026-07-18 — Health Summary card edge-alignment fix
+
+Patch, one-line TSX (`src/StatusBar.tsx`), no data/API/CSS/markup changes.
+Kare's live-measured design fix for the v15 Health Summary card (#386):
+
+- **Alignment.** The Health Summary glass card (`.health`) sat inset ~12px per
+  side relative to the App Grid and header below it, so the stacked cards didn't
+  form a clean vertical column. Root cause: the StatusBar wrapper wrapped the
+  shared `CONTENT_WIDTH` frame in a stray `px-3` (12px) on top of the frame's own
+  `px-4` (16px) → a 28px health inset vs the 16px used by the header
+  (`AppHeader.tsx`) and grid (`App.tsx`), which use `CONTENT_WIDTH` directly.
+  Dropping the `px-3` makes the wrapper structurally identical to the header, so
+  health, header, and grid share one inset at every viewport. Measured at 646px
+  (light + dark): health card `16 / 630 / 614`, pixel-identical to the app grid.
+  `relative` (peek-dropdown positioning) and `pt-3` (top spacing) are preserved;
+  the dropdown is absolute-positioned and unaffected.
+
+## [15.4.1] — 2026-07-18 — Status Summary stat-box alignment & contrast fix
+
+Patch, CSS-only (`src/index.css`), no data/API/markup changes. Kare's live-
+measured design fix for the v15 health summary at 646px (Caleb's prod phone
+width), light + dark (#384):
+
+- **Alignment.** The two quick-peek stat boxes (`.health-chips`) were
+  content-width flex items floating at the left over a full-width meter — the
+  `46 UP` box was 64px, `3 NOT MONITORED` was 143px, and neither edge aligned to
+  the other or to the uptime bar (314px of dead space to the right). They now lay
+  out as an equal-column grid (`grid-auto-columns: minmax(0, 1fr)`) so both boxes
+  are equal width and their outer edges sit flush with the meter (49 / 582 →
+  261px each). The old flex-end row and its `@media(max-width:720px)`
+  flex-start override are removed.
+- **Fill/edge.** The light box fill (`--v-chip`) was byte-identical to the panel
+  (`--v-glass`) at 1.03:1 — the box was invisible. Light chips now get an ink
+  hairline border (`rgba(20,23,30,0.12)`) plus a soft lift; the dark fill is
+  raised `0.06 → 0.10` so the box separates from the panel there too.
+- **Green.** The `UP` number used the fill-grade success token `--v-up` (3.39:1
+  as text on the light chip); it now uses the text-grade `--v-up-strong`
+  (5.35:1). No-op in dark, where the two tokens are identical.
+
+(Finding 3 from the rec — the tile/sparkline `emerald-500` vs `--v-up`
+design-system reconciliation — is a separate, larger task and is out of scope
+here.)
+
+## [15.4.0] — 2026-07-17 — Login/sign-in glass restyle (v27)
+
+Minor feature, no data or API changes. The sign-in screen — the one screen you
+see before the glass dashboard, and the last one still on the old flat palette —
+is re-skinned onto the v15 glass design system. The card is now a frosted glass
+panel floating on the same accent-blob atmosphere as the dashboard, the harsh
+pure-white input boxes become soft tinted glass fields, and the primary button
+uses the app's solid accent color.
+
+Accessibility: in dark mode five text elements (the field labels, the PocketID
+label, the subtitle, the secondary link and the "or" divider) were inheriting
+light-mode colors on the dark card and failing WCAG AA — some as low as 1.73:1.
+All five now read from the mode-aware glass tokens and clear AA in both light and
+dark. The sign-in error message moves to the glass "down" color, measured on the
+real glass card at **4.72:1 (dark)** and **4.59:1 (light)** — both clear of the
+4.5:1 floor. (Measured on the composited card surface, not on white: the card's
+light-mode frost was tuned up until every text element cleared AA there.)
+
+Also in this release: password-manager autofill no longer paints a harsh
+white/yellow box over the glass field; the card has a solid fallback and
+`-webkit-backdrop-filter` so it never renders invisible on older iPad Safari;
+the "Log in with PocketID" button now shows a "Signing in…" state that resets
+itself after 30 seconds with a retry hint if the redirect stalls (e.g. during a
+PocketBase restart) instead of spinning forever; a faint version footer shows
+which build you're signing in to; and the secondary action now reads "Create
+account". Touch targets stay ≥44px throughout.
+
+## [15.3.0] — 2026-07-15 — Admin env-config viewer (v26)
+
+Minor feature, fully backward-compatible. Admins get a read-only **Environment
+Configuration** list in the Admin Panel → **System** section, below the "Show
+uptime display" toggle. It surfaces the server's runtime env vars — the Gatus
+base URL, cookie/port settings, registration mode, and the full OIDC setup —
+each row showing a friendly label plus the exact env-var name (mono sub-label),
+grouped into **Server** and **Identity (OIDC)**. Unset vars render as an em-dash
+with an accessible "not set". This closes the v25 gap: admins now have an in-UI
+way to confirm the `GATUS_BASE_URL` the poller composes tile health checks
+against, without SSHing into the cluster.
+
+The values come from a new admin-only endpoint **`GET /api/admin/env-config`**
+(homepad-api, shipped at the same 15.3.0). The endpoint returns an **explicit
+allowlist** of 10 non-sensitive keys — a security-by-construction choice: a new
+env var is invisible until deliberately added to the list, so secrets like
+`DATABASE_URL` and `OIDC_CLIENT_SECRET` are **absent** (not redacted) from the
+response. Unauthenticated callers get 401; non-admins get 403.
+
+This phase is **read-only** — editing config from the UI is a deliberate future
+phase. Also folds in two accessibility contrast fixes to the System panel: the
+light-mode `[env]` badge grey and the dark-mode error text.
+
+**Deploy note:** this release changes **both** `homepad` and `homepad-api`; both
+images ship 15.3.0 and must be rolled together (two-image deploy).
+
+## [15.2.0] — 2026-07-15 — Gatus endpoint key on the tile editor
+
+Minor feature, fully backward-compatible. An admin can now set a tile's health
+monitoring **directly from the tile edit modal** — no more visiting the Settings
+"Add / Edit app" form. Opening a tile's pencil in edit mode reveals a new
+**"Gatus endpoint key"** field below Description: type the endpoint slug from
+your Gatus config (its `group_name`, e.g. `kube_plex`) and save, and the tile's
+health meter starts resolving to online (green) / offline (red) on the next poll
+tick. Leave it blank to disable monitoring (the tile reverts to gray
+not-monitored). A mismatched or unknown key resolves to **unknown on the tile**,
+never a modal error — there's no client-side format validation, only a trim.
+
+Additive and non-breaking: the `services.gatus_key` column already existed and
+the PATCH API already accepted it. This release exposes the slug on the service
+**read model** (both the homepad-api response and the SPA `Service` type) so the
+modal can prefill the current key, and adds the admin-only field to the modal
+following the v21–v23 pattern (prefill → dirty-track → PATCH on save). The
+existing ServiceForm "Gatus key" field is unchanged. `GATUS_BASE_URL` stays an
+operator env var (never exposed in any admin UI); all tiles share one Gatus
+instance.
+
+> **Ships with homepad-api.** This SPA release pairs with the homepad-api change
+> that returns `gatus_key` on the read model — **roll both images at 15.2.0
+> together** (the field prefills from that response).
+
+### Added
+
+- A **"Gatus endpoint key"** admin-only text field in the TileEditModal, below
+  Description: prefills from `service.gatus_key`, dirty-tracks, and PATCHes the
+  trimmed slug on save (blank clears monitoring). No format validation; a wrong
+  key resolves to UNKNOWN on the tile, not a modal error
+  (SPEC-v25-gatus-key-tile-health).
+
+### Changed
+
+- The service **read model** (`GET /api/services`, SPA `Service` type) now
+  carries `gatus_key` (the slug when monitored, `""` when not) so the tile editor
+  can prefill it.
+- The modal input `::placeholder` colour is pinned to an AA-contrast token
+  (fixing the new Gatus-key placeholder and the pre-existing URL-fallback
+  placeholder in one rule).
+
+## [15.1.0] — 2026-07-14 — health-meter status banding
+
+Minor enhancement, fully backward-compatible. The system health panel's
+per-service meter now **groups its ticks into three contiguous status bands**,
+healthy-first: all online (green) first, then not-monitored (gray), then
+offline (red). Previously ticks followed tile-layout order and interleaved the
+three colours, so the meter told you individual positions but not the
+*distribution*; banded, it reads "mostly green, a sliver of gray, nothing red"
+at a glance, and the legend swatches now map onto contiguous meter regions.
+
+Within each band the meter preserves your tile-layout order, so ticks don't jump
+around on a refresh — only their band changes when a service's status changes.
+Degraded services fold into the red band (no separate amber band), matching the
+offline count chip and the quick-peek popover. The meter stays decorative
+(`aria-hidden`); the count chips remain the accessible numbers. Nothing else in
+the panel changes — LED, headline, chips, legend and the quick-peek popover are
+untouched.
+
+### Changed
+
+- The health-panel meter renders its ticks in three status bands
+  (green → gray → red) instead of tile-layout order (SPEC-v24-health-meter-banding).
+
+## [15.0.0] — 2026-07-14 — homepad v15: the glass redesign
+
+Major visual release. A full **glass-morphism reskin** of the whole dashboard —
+new design system, same app. This is a REPLACE of how homepad *looks*, not what
+it does: every v14 feature (service tiles + 5 monitoring states, the uptime
+lines, favourite/remove, admin Edit Dashboard, the ⌘K command launcher, the
+alert bell, the user profile menu, the version badge + changelog) is preserved
+and works exactly as before. Built to Kare's v15 design-system spec.
+
+### Added
+
+- **Frosted-glass design language.** Panels, tiles, the command palette and the
+  top bar are now translucent glass over a soft, accent-tinted ambient field —
+  rounded corners (24/18/12), layered shadows and a subtle backdrop blur. Dark
+  mode stays the default; full light mode is included.
+- **A health summary panel.** The old status strip is replaced by a headline
+  verdict — “All systems operational” / “N systems need attention” / “Checking
+  services…” — alongside online / not-monitored / offline count chips and a
+  per-service status meter. It reads the same live data and keeps the click-to-
+  peek popover for each bucket.
+- **Two more accent colours (8 total).** The accent picker (still under your
+  profile’s Appearance section, unchanged) now offers blue · teal · green ·
+  yellow · orange · red · pink · purple. Existing indigo/violet choices map to
+  purple automatically; the default is now blue.
+
+### Changed
+
+- **Every surface restyled to the glass system** — top bar (now a floating
+  pill), service tiles, section headers (with a per-group status count), the ⌘K
+  launcher and the profile menu. No layout data, routing or behaviour changed.
+- **Accessibility corrections folded in** (Kare §9 / #348): idle tiles are dimmed
+  with AA-passing tokens instead of a blanket opacity, the offline count colours
+  its number when it matters, and touch targets stay ≥44px.
+
+## [14.0.2] — 2026-07-12 — Fix: overlay launch type no longer reverts on reload
+
+Patch fix for [#342](https://gitea.kube.calebdunn.tech/Code/homepad/issues/342).
+Setting a tile's launch type to **Inline overlay** (the "overlay" behaviour) could
+appear to save and then revert on the next page reload.
+
+### Fixed
+
+- **Tile Edit — launch type reflects what was persisted (#342).** After Save, the
+  inline tile update now mirrors the `click_action` the **server** returned rather
+  than the optimistic local selection. If a backend silently drops the value (for
+  example one that predates the `click_action` column / migration 0011), the tile
+  now shows the un-persisted value immediately instead of a false "saved" that
+  reverts on reload. The end-to-end persistence contract itself is unchanged and
+  correct on `main`; a companion round-trip test in `homepad-api` (all launch-type
+  enum values survive a re-fetch) guards it against regression.
+
+## [14.0.1] — 2026-07-11 — Optimize: code-split on-demand overlays
+
+Performance-only pass (ADD `optimize`). No functional or visual change a user
+would notice; every existing test still passes. The admin Settings panel, the
+app Library, the custom-app form, the per-tile Edit modal, and the inline iframe
+overlay are now lazily loaded (`React.lazy` + `Suspense`), moving them out of the
+initial JS bundle into their own on-demand chunks fetched when the surface opens.
+
+### Changed
+
+- **Initial JS bundle trimmed ~7%** — `index-*.js` went from 304.72 kB (gzip
+  94.58 kB) to 273.58 kB (gzip 87.91 kB). Five on-demand overlays now load as
+  separate async chunks (SettingsPanel, TileEditModal, LibraryBrowse,
+  ServiceForm, IframeOverlay; ~10.5 kB gzip total), fetched only when opened.
+  The rendered DOM/CSS of each overlay is unchanged — only load timing shifts.
+
+## [14.0.0] — 2026-07-10 — Per-Tile Click Action (v23)
+
+Adds a per-tile choice of how a tile's URL opens — **New tab** (the existing
+default), **Same tab**, or an in-app **Inline overlay** (iframe) — set from the
+tile's Edit window in Edit-dashboard mode (spec
+`specs/SPEC-tile-click-action-20260710.md` §4–§5). Frontend-only; the
+`clickAction` field rides the existing create/PATCH service body and defaults to
+`new_tab`, so every pre-migration tile is unchanged (AC-014). Companion backend:
+`Code/homepad-api#47`.
+
+### Added
+
+- **Per-tile "Click action" setting (`new_tab` | `same_tab` | `iframe`).** In the
+  `TileEditModal`, admins pick how the tile opens; the field is optional and reads
+  as `new_tab` when absent.
+- **`IframeOverlay` inline embed.** The `iframe` action opens the service in a
+  sandboxed backdrop modal (service-title header, loading spinner, Esc / backdrop /
+  ✕ dismiss, focus management). A 5s blocked-embed fallback surfaces an "Open in
+  new tab" panel for sites that refuse framing (X-Frame-Options/CSP), since those
+  blocks fire no reliable event (§5.5). Right-click still works — `href` is retained.
+
+### Changed
+
+- **`ToolLink` routing** branches on `clickAction`: `new_tab` →
+  `target=_blank rel="noreferrer noopener"`; `same_tab` → same-tab navigation;
+  `iframe` → intercepts the click to open the overlay.
+
+### Notes
+
+- Major bump (13.x → 14.0.0) marks the click-action milestone; the change itself
+  is additive and backward-compatible (unset tiles behave exactly as before).
+
+## [13.11.0] — 2026-07-05 — Icon Light/Dark Tabs (v22)
+
+Reorganises the v21 `TileEditModal` icon section into a two-tab ARIA tablist —
+**Light Mode** (default) and **Dark Mode** — so an admin can set a distinct icon
+per theme without the flat panel's clutter (spec
+`specs/v22-icon-light-dark-tabs.md`). A **pure front-end reorganisation**: the
+backend already stores two independent icon blobs keyed by `(service_id,
+variant)` with variant-specific upload/delete endpoints, so there is **no schema
+change and no migration**. Frontend-only — only the `homepad` image rebuilds.
+
+### Added
+
+- **Two-tab icon section (§5, §8.1).** The flat icon panel becomes a segmented
+  control that is a WAI-ARIA `tablist` — "Light Mode" (index 0, always default on
+  open, AC-001/AC-007) + "Dark Mode". Each tab has its own preview, **Upload
+  PNG**, **Fetch from URL**, and **Remove**, operating independently on that
+  variant (AC-002/AC-003). Roles are independent of the segmented visual
+  treatment; automatic-activation with **← / → arrow-key nav** that wraps both
+  ways and moves focus to the newly active tab (AC-009).
+- **Honest per-tab preview states (§8.3).** A tab with no PNG of its own renders
+  the resolved fallback (other variant or URL) at reduced emphasis with an inline
+  note (*"No dark PNG — showing the light icon."*); a truly empty variant shows an
+  explicit dashed **"No icon set"** box plus the initials-badge consequence hint,
+  never a bare badge that reads as "configured". Preview `<img>` carries a
+  variant-specific `alt` (§8.2).
+- **`both modes` scope pill (§8.4).** The shared `services.icon` URL field is
+  relabelled **"URL fallback"** with an accent-outline `both modes` pill and sits
+  **below the tabpanel behind a divider** — it applies to both themes (one shared
+  column), made explicit so it doesn't read as tab-scoped (AC-005).
+
+### Changed
+
+- **Remove is now per-tab and non-destructive (§5.2, AC-004).** "Remove
+  [light/dark] icon" deletes only the active tab's variant via an inline,
+  variant-specific confirm (Keep focused as the safe default, §8.5) — it no longer
+  clears the other variant or the URL, unlike the v21 flat-panel Remove.
+- **Fetch-favicon carries the active variant (§6.4/§8.6).** The front-end now
+  sends `POST /api/services/{id}/fetch-icon?variant=light|dark`. **Note:** storing
+  the fetched icon under the *dark* variant depends on a companion `homepad-api`
+  change to honour the `variant` param; a pre-v22 backend defaults to `light`
+  (backward-compatible). The Light-tab fetch works against the current backend.
+
+### Unchanged
+
+- Save/Cancel, discard confirm, focus trap, and all other modal fields are
+  inherited from v21 verbatim (AC-013). No `iconSrc()` precedence change — the tab
+  UI only makes the existing dark variant easier to set (AC-012).
+
+## [13.10.0] — 2026-07-05 — Tile Edit Modal (v21)
+
+Per-tile editing from the dashboard (spec `specs/v21-tile-edit-modal.md`). An
+admin in edit mode gets a pencil affordance on every App Grid tile that opens a
+`TileEditModal` for that tile's **shared-catalog** entry (Option A — admin edits
+the shared catalog; visible to all users). Touches both `homepad` (this repo)
+and `homepad-api` (fetch-favicon endpoint) — both images rebuild.
+
+### Added
+
+- **Per-tile pencil edit affordance (§5, §8.1).** `AppGrid` `ToolLink` renders a
+  bottom-right pencil **only** for an admin in edit mode (absent from the DOM
+  otherwise — AC-001), a sibling of the tile `<a>` like the ★. 34×34 accent glyph
+  + a transparent centered `.app-grid-tool-edit::before` at 44×44 (the v20 ★
+  pattern — zero layout shift), theme-aware indigo, `aria-label="Edit <name>"`,
+  `touch-action: manipulation`. Editable tiles gain a 2px inset accent ring.
+- **`TileEditModal` (§6, §8.2–8.6).** Fields in Kare's order — Title, URL,
+  Category, a grouped **icon compound panel**, Description. The icon panel has a
+  64px live preview, Upload (light) + Dark-variant + URL-gated **Fetch from URL**,
+  an Icon URL field, and Remove — with a local upload/fetch busy state. Save is a
+  **single PATCH** (text fields + category) that updates the tile inline and
+  toasts "Tile updated."; errors keep the modal open with values intact
+  (AC-004…AC-015). Discard is an **inline in-modal confirm**, never
+  `window.confirm()` (which would break the focus trap). Full WAI-ARIA dialog:
+  `role="dialog"`, `aria-modal`, `aria-labelledby`, focus-on-Title, Tab focus
+  trap, Esc / backdrop close, focus return to the pencil.
+- **Backend `POST /api/services/{id}/fetch-icon` (homepad-api, §7.4).**
+  Admin-only; downloads the favicon from the service's registered URL (HTML
+  `<link rel="icon">` sniff → `{origin}/favicon.ico` fallback) and stores a valid
+  PNG as the light variant. Clean 422 on any failure, existing icon untouched.
+
+### Notes
+
+- All modal controls are ≥44×44 (inputs, textarea ≥76) and clear the 4.5:1 /
+  3:1 contrast floors in light **and** dark (§8.6, measured). Three forced
+  dark-mode token decisions are baked in: the primary CTA stays indigo-600 +
+  white in both themes, accent is theme-aware indigo-600/indigo-400, and the
+  control border is theme-aware `#8c8c8c`/`#808080`.
+- The **backend admin gate** the spec §7.3 calls a prerequisite (403 for
+  non-admin on `PATCH /api/services/{id}` and the icon endpoints — AC-016) was
+  **already shipped in #34** and is green on `main`; no gate change was needed.
+  fetch-icon reuses the same `requireAdmin` gate.
+
+## [13.9.0] — 2026-07-05 — Favorite ★ Touch Target & Contrast Fix (v20)
+
+Fixes two pre-existing design-system floors on the per-tile ★ favorite toggle
+(`data-testid="tile-favorite"`) at 768px (iPad), both introduced with the App
+Grid in #240 and tracked in #255. Frontend only — `src/index.css`, no API
+changes.
+
+### Fixed
+
+- **★ favorite hit area lifted 34×34 → 44×44 (DESIGN-SYSTEM §9.3).** A
+  transparent, centered `.app-grid-tool-fav::before` extends only the invisible
+  hit area to 44×44px; the painted 34×34 button, glyph position (0px delta),
+  hover pill, and focus ring are all unchanged. Added `touch-action:
+  manipulation` so a corner tap fires without the 300ms double-tap-zoom delay
+  (#255).
+- **Default ☆ light-mode contrast raised 2.56:1 → 4.76:1 (DESIGN-SYSTEM §1.1).**
+  The resting unfavorited ☆ moved slate-400 (`#94a3b8`, 2.56:1 on the white
+  tile — below the ≥3:1 non-text floor) to slate-500 (`#64748b`, 4.76:1),
+  unifying the resting-star color with dark mode. Opacity (0.5), the favorited
+  amber ★, hover, and the focus ring are unchanged (#255).
+
+## [13.8.0] — 2026-07-05 — A11y & Touch-Target Hardening Pass (v19)
+
+An accessibility and touch-target hardening pass over the shared-catalog UI. No
+new features: it restores a banner that regressed in the Catalog→AppGrid
+migration, fixes a WCAG AA contrast failure and stale non-admin copy, and
+verifies-and-measures the existing 44px touch targets and text contrast across
+the UI at 768px (light and dark) with the browser gate — no regressions found.
+
+### Changed
+
+- **Non-admin UserMenu note now uses shared-catalog language.** The account
+  menu's note for non-admins dropped the stale "personal dashboard" copy in
+  favor of shared-catalog wording ("These tiles and categories are the shared
+  homelab catalog…"), matching the app's actual multi-user model (#265).
+
+### Fixed
+
+- **Restored the shared-catalog edit-mode banner.** The "Editing the shared
+  catalog — changes affect all users" banner had gone missing from the live app
+  after the Catalog→AppGrid migration; it is restored at the App level, above
+  the grid (#277).
+- **Dark-mode edit-banner label contrast raised to 9.03:1.** The banner label
+  measured only 2.86:1 in dark mode (indigo-600 on the near-black banner
+  ground), failing WCAG AA for its 11px bold text; lifted to indigo-300 for
+  9.03:1 (#163).
+- **AC-004 browser-gate race.** The a11y/touch gate now awaits the OIDC "or"
+  divider before measuring its contrast, fixing an intermittent measurement race
+  (#300).
+
+## [13.5.0] — 2026-07-04 — Uptime display toggle (cap6-uptime-display-toggle)
+
+A global admin System setting that hides the per-tile uptime figures across the
+app grid without touching Gatus monitoring. Default ON (opt-out): existing
+dashboards are unchanged until an admin turns it off. Frontend gates the render;
+the backend persists the choice so no redeploy is needed.
+
+### Added
+
+- **"Show uptime display" toggle (admin, System settings).** A writable pill
+  switch above the read-only OIDC / self-registration rows. Auto-saves on toggle
+  with an inline "Saved ✓" confirmation and an error-revert path; admin-only.
+- **`system_settings` store + endpoints.** Public `GET /api/system/config`
+  (defaults ON when no row exists) and admin-only `PATCH /api/admin/settings`
+  (singleton upsert, partial-patch merge). New migration `0010_system_settings`.
+
+### Changed
+
+- The app grid's per-tile 24h/7d/30d uptime line is now gated by the new setting.
+  When OFF the line is omitted with no layout gap; the status pip and the status
+  bar are unaffected. Render-gate only — the API still serves uptime data (D2).
+- The System settings note no longer declares the whole section read-only; the
+  per-row `[env]` badge now carries the read-only signal (D6).
+
+## [13.4.0] — 2026-07-03 — Glass v2 + ROYGBIV accent preference (SPEC-glass-v2-accent)
+
+The glass finally has something to blur, and users pick the hue. Frontend only.
+
+### Added
+
+- **Accent color preference (ROYGBIV).** A new picker in the user menu's
+  Appearance section (under the theme control): Red / Orange / Yellow / Green /
+  Blue / Indigo / Violet, each re-huing the dashboard's ambient backdrop blobs
+  via `--accent-1`/`--accent-2` CSS vars. Indigo is the default and is
+  byte-identical to the brand indigo/purple atmosphere. Client-only
+  (localStorage `homepad.accent`, applied at boot from `main.tsx`); the accent
+  drives AMBIENT color only — never a text/icon/ring token, so it cannot move
+  any WCAG contrast. Swatches are ≥44px hit areas; selection is announced
+  (aria-pressed) and drawn (ring + checkmark), never color alone.
+
+### Changed
+
+- **Backdrop atmosphere (`.app-surface`).** v1 anchored both color blobs at the
+  page's top corners, so everything below the first screenful sat on a flat
+  gradient and the boxes' backdrop-filter had nothing to blur — glass read as a
+  solid slab. v2 distributes two more accent blobs down the page and lays a
+  tiled SVG feTurbulence grain (~3%) on top to stop gradient banding on large
+  monitors. All blob alphas ≤0.14 — contrast floors unchanged.
+- **Glass material (`.app-grid-box`).** `blur(10px)` → `blur(14px)
+  saturate(1.5)` (color through the glass reads richer, not grayer); glass
+  alpha 0.72→0.65 light / 0.68→0.60 dark; plus a 1px top-edge bevel highlight
+  as a second inset shadow. The structural 1px ring and the content-box width
+  math (AC-004–008) are untouched. Worst-case composited titles still measure
+  ~16:1.
+- **Reduced transparency respected.** Under `prefers-reduced-transparency:
+  reduce`, boxes go near-solid with no backdrop-filter.
+
+## [13.3.0] — 2026-07-03 — Ultra-wide fluid content frame (SPEC-ultrawide-fluid-frame, pane-fill Phase 1b)
+
+The dashboard now uses big monitors instead of floating as a fixed 1536px island.
+Frontend only — one token + its JS mirror + one media-scoped rule.
+
+### Changed
+
+- **`CONTENT_WIDTH` is fluid above ~1670px viewports:** `max-w-[1536px]` →
+  `max-w-[max(1536px,92vw)]` (`src/layout.ts`). The shipped 1536px cap holds as a
+  floor through standard desktops (everything ≤1670px is byte-identical), then
+  the frame grows as 92vw — a 4vw margin per side. 1920 → ~1766px frame,
+  2560 → ~2355px, 3840 (4K) → ~3533px instead of 1536px with ~60% dead margin.
+  Header, StatusBar, and grid all ride the one token, so the layers stay
+  edge-aligned (#196 AC-009). The pane-fill grow model (Phase 1 R3/R4) fills the
+  wider rows; tiles stay exactly 190px (R2, Caleb's invariant).
+- **R4 lone-box bin-pack reads the fluid frame:** new `frameContentPx(vw)` in
+  `src/appGrid.ts` mirrors the CSS token (was a hardcoded 1536 in AppGrid.tsx);
+  `ultrawide-frame.test.ts` locks the CSS/JS pairing, seam continuity at the
+  ~1670px crossover, and monotonicity (no #194-style inversion anywhere).
+- **R3's residual rule implemented (fluid band only):** when every box in a row
+  is already at its content-max and row space remains (few apps on a very wide
+  monitor), the packed cluster now CENTERS — `justify-content: center` on
+  `.app-grid` inside `@media (min-width: 1671px)`. Below the crossover the base
+  rule is untouched.
+
+### QA
+
+- Browser gate extended: the pane-fill dead-space spec now gates 1920/2560/3840
+  and asserts the frame itself is fluid; new cluster-centering spec at 3840.
+  All 21 gate specs green on the built app in real Chromium.
+
+## [13.2.0] — 2026-07-03 — Pane-fill Phase 1: category boxes fill row dead-space (SPEC-pane-fill-reflow)
+
+Wide-viewport polish for the App Grid: category boxes now **flex-grow above their
+`--w` / `grid_width` floor** to consume the leftover slack in a row, so a partly
+filled row no longer leaves a band of dead space to the right. The configured
+width becomes a **minimum** (floor), not a fixed size — boxes never shrink below
+it, they only grow to share the remaining row width. **Frontend only**, and
+**additive on top of the App Grid** (v13.0.0) — no layout regression, no API or
+backend change, no data migration.
+
+Live in prod and Caleb-approved (2026-07-03). This release carries **only** the
+pane-fill layout; the long-window uptime line (24h/7d/30d) is **not** part of this
+prod release — its backend was never verified and it ships separately once
+confirmed.
+
+### Changed
+
+- **Category boxes grow to fill the row.** `.app-grid-box` changed from a fixed
+  `width` to `flex-grow: 1` with the configured width kept as the `min-width`
+  floor and a `max-width` cap, so boxes expand to absorb row dead-space instead
+  of leaving a gap on the right at wide viewports (1440 / 1920 / 2560). Tiles and
+  the App Grid tile sizing are unchanged; a lone box on its own row fills to the
+  full content width.
+
 ## [13.1.0] — 2026-07-02 — Per-tile status dot on the App Grid (SPEC-242)
 
 Restores the live per-service health indicator on every App Grid tool tile (it

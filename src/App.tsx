@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   authConfig,
   categories as fetchCategories,
@@ -6,26 +6,35 @@ import {
   logout,
   me,
   register,
+  saveSystemSettings,
+  systemConfig,
   type Category,
   type Service,
+  type SystemConfig,
   type User,
 } from './api';
 import AppHeader from './AppHeader';
 import AppGrid from './AppGrid';
-import LibraryBrowse from './LibraryBrowse';
-import ServiceForm from './ServiceForm';
 import StatusBar from './StatusBar';
 import CommandLauncher from './CommandLauncher';
 import { LauncherProvider, useLauncher } from './launcher';
 import { ServicesProvider, useServicesContext } from './services';
 import { AlertHistoryProvider, useAlertHistory } from './alerts';
 import AlertHistoryPanel from './AlertHistoryPanel';
-import SettingsPanel from './SettingsPanel';
 import ToastContainer from './Toasts';
 import ChangelogOverlay from './ChangelogOverlay';
 import UpdateBanner from './UpdateBanner';
 import { ThemeProvider } from './theme';
 import { CONTENT_WIDTH } from './layout';
+
+// v14.0.1 optimize — these three surfaces only ever mount after a user action
+// (open the Library, open the custom-app form, open admin Settings), so they are
+// code-split into their own async chunks and kept out of the initial bundle.
+// Suspense fallback is null: each is a modal/overlay, so a sub-frame gap before
+// its small chunk resolves is imperceptible (and its own backdrop covers paint).
+const LibraryBrowse = lazy(() => import('./LibraryBrowse'));
+const ServiceForm = lazy(() => import('./ServiceForm'));
+const SettingsPanel = lazy(() => import('./SettingsPanel'));
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -97,10 +106,13 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [browseOpen, setBrowseOpen] = useState(false);
   const [customFormOpen, setCustomFormOpen] = useState(false);
   // v9.3 §7.3 — the admin Settings modal (App Library management + read-only
-  // System settings). Opened from the avatar menu (admin only). OIDC is read
-  // from the client-visible auth config — no API change.
+  // System settings). Opened from the avatar menu (admin only). SPEC-v26: the
+  // System panel now reads its own env-config from GET /api/admin/env-config,
+  // so App no longer needs to feed it the client auth config.
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [oidcEnabled, setOidcEnabled] = useState(false);
+  // cap6 — the global uptime-display toggle. Seeded ON so the first paint (before
+  // the config resolves) matches today's behavior; systemConfig() then corrects it.
+  const [sysConfig, setSysConfig] = useState<SystemConfig>({ showUptimeDisplay: true });
   // v15 — version badge in the footer opens the changelog overlay.
   const [changelogOpen, setChangelogOpen] = useState(false);
   // v17 — alert-history panel open-state + the bell ref (focus returns here on
@@ -116,9 +128,17 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [cats, setCats] = useState<Category[]>([]);
 
   useEffect(() => {
-    authConfig().then((c) => setOidcEnabled(c.oidcEnabled));
+    systemConfig().then(setSysConfig);
     fetchCategories().then(setCats);
   }, []);
+
+  // cap6 — persist a System settings change and reflect it locally so the app
+  // grid updates without a reload. Rejects on failure so the toggle can revert
+  // its optimistic state (§9.2 error path).
+  async function onSaveSettings(patch: Partial<SystemConfig>) {
+    const next = await saveSystemSettings(patch);
+    setSysConfig(next);
+  }
 
   // Reflect a service added via the Library, or created/edited via the custom-app
   // form, into the shared services list — the SAME array AppGrid + the launcher
@@ -193,7 +213,28 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
         <StatusBar />
 
         <section className={`${CONTENT_WIDTH} py-6`}>
-          <AppGrid isAdmin={isAdmin} editMode={editMode} />
+          {/* v19 §4.5 / #277 — the shared-catalog edit warning. editMode is
+              admin-only (the Gear's "Edit dashboard" only renders for admins), and
+              an admin's rename/delete/box-width changes persist to the shared
+              catalog every user sees. The Catalog→AppGrid migration dropped the
+              old point-of-use banner; restored here at the App level, above the
+              grid, so the warning ships with the live surface. */}
+          {isAdmin && editMode && (
+            <div data-testid="edit-mode-banner" className="edit-mode-banner" role="status">
+              <span className="edit-mode-banner-label">
+                Editing the shared catalog — changes affect all users
+              </span>
+              <button
+                type="button"
+                data-testid="exit-edit-mode"
+                onClick={() => setEditMode(false)}
+                className="edit-mode-banner-exit"
+              >
+                Done
+              </button>
+            </div>
+          )}
+          <AppGrid isAdmin={isAdmin} editMode={editMode} showUptimeDisplay={sysConfig.showUptimeDisplay} />
         </section>
 
         {/* SPEC-app-grid §7 — service management stays on the existing surfaces.
@@ -202,22 +243,26 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             AppGrid (unlike Catalog) doesn't host them; their result lands in the
             shared services context AppGrid renders from. */}
         {browseOpen && (
-          <LibraryBrowse
-            isAdmin={isAdmin}
-            onClose={() => setBrowseOpen(false)}
-            onAdded={onAddedFromLibrary}
-            onCustomAdd={() => {
-              setBrowseOpen(false);
-              setCustomFormOpen(true);
-            }}
-          />
+          <Suspense fallback={null}>
+            <LibraryBrowse
+              isAdmin={isAdmin}
+              onClose={() => setBrowseOpen(false)}
+              onAdded={onAddedFromLibrary}
+              onCustomAdd={() => {
+                setBrowseOpen(false);
+                setCustomFormOpen(true);
+              }}
+            />
+          </Suspense>
         )}
         {customFormOpen && (
-          <ServiceForm
-            categories={cats}
-            onClose={() => setCustomFormOpen(false)}
-            onSaved={onSavedCustom}
-          />
+          <Suspense fallback={null}>
+            <ServiceForm
+              categories={cats}
+              onClose={() => setCustomFormOpen(false)}
+              onSaved={onSavedCustom}
+            />
+          </Suspense>
         )}
 
         {/* Feeds the launcher the shared catalog array; while still loading it
@@ -231,11 +276,14 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
         <AlertHistoryPanel open={alertOpen} events={alerts?.events ?? []} onClose={closeAlerts} />
 
         {settingsOpen && (
-          <SettingsPanel
-            isAdmin={isAdmin}
-            oidcEnabled={oidcEnabled}
-            onClose={() => setSettingsOpen(false)}
-          />
+          <Suspense fallback={null}>
+            <SettingsPanel
+              isAdmin={isAdmin}
+              showUptimeDisplay={sysConfig.showUptimeDisplay}
+              onSaveSettings={onSaveSettings}
+              onClose={() => setSettingsOpen(false)}
+            />
+          </Suspense>
         )}
       </main>
 
@@ -263,16 +311,28 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   );
 }
 
+// v27 login-glass — if a PocketID/OIDC redirect stalls (e.g. a PocketBase
+// restart), the browser keeps our page on screen while the request hangs, so a
+// bare spinner would spin forever. Reset the button after this window with a
+// retry hint instead. 30s comfortably outlasts a healthy 302 round-trip.
+const OIDC_TIMEOUT_MS = 30000;
+
 function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [oidcBusy, setOidcBusy] = useState(false);
   const [oidcEnabled, setOidcEnabled] = useState(false);
+  const oidcTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     authConfig().then((c) => setOidcEnabled(c.oidcEnabled));
+    // Clear a pending OIDC-timeout timer if the card unmounts mid-redirect.
+    return () => {
+      if (oidcTimer.current) clearTimeout(oidcTimer.current);
+    };
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -298,54 +358,72 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
     }
   }
 
+  function handlePocketId() {
+    setError('');
+    setOidcBusy(true);
+    oidcTimer.current = setTimeout(() => {
+      setOidcBusy(false);
+      setError('PocketID timed out — try again or use email/password');
+    }, OIDC_TIMEOUT_MS);
+    // Full-page navigation to the OIDC start endpoint. On success the page is
+    // replaced (the timer never fires); on a stalled redirect the timer resets us.
+    window.location.assign('/api/auth/oidc/login');
+  }
+
   return (
-    <main className="min-h-screen flex items-center justify-center p-6 font-sans">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
-      >
-        <img
-          src="/icon-192.png"
-          alt="homepad"
-          className="mb-3 h-12 w-12 rounded-xl"
-        />
-        <h1 className="text-xl font-semibold">homepad</h1>
-        <p className="mt-1 text-sm text-neutral-500">
+    <main className="app-surface auth-main font-sans">
+      <form onSubmit={handleSubmit} className="auth-card">
+        <div className="auth-logo mb-4 inline-flex">
+          <img src="/icon-192.png" alt="homepad" className="h-11 w-11 rounded-xl" />
+        </div>
+        <h1 className="auth-title text-xl font-semibold">homepad</h1>
+        <p className="auth-subtitle mt-1 text-sm">
           {mode === 'login' ? 'Sign in to your dashboard' : 'Create your account'}
         </p>
 
-        <label className="mt-5 block text-sm font-medium text-neutral-700">
+        <label className="auth-label mt-5 block text-[13px] font-medium">
           Email
           <input
             type="email"
             required
             autoComplete="email"
+            placeholder="you@home.lan"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 min-h-[44px] w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+            className="auth-field mt-1.5 min-h-[44px] w-full"
           />
         </label>
 
-        <label className="mt-4 block text-sm font-medium text-neutral-700">
+        <label className="auth-label mt-4 block text-[13px] font-medium">
           Password
           <input
             type="password"
             required
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+            placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 min-h-[44px] w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+            className="auth-field mt-1.5 min-h-[44px] w-full"
           />
         </label>
 
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        {error && <p className="auth-error mt-3 text-sm">{error}</p>}
 
         <button
           type="submit"
           disabled={busy}
-          className="mt-5 flex min-h-[44px] w-full items-center justify-center rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+          className="auth-cta mt-5 flex min-h-[44px] w-full items-center justify-center gap-2 py-2 text-sm font-semibold"
         >
-          {busy ? '…' : mode === 'login' ? 'Sign in' : 'Create account'}
+          {busy ? (
+            <>
+              <span className="auth-spin" aria-hidden="true" />
+              Signing in…
+            </>
+          ) : mode === 'login' ? (
+            'Sign in'
+          ) : (
+            'Create account'
+          )}
         </button>
 
         <button
@@ -354,28 +432,42 @@ function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
             setMode(mode === 'login' ? 'register' : 'login');
             setError('');
           }}
-          className="mt-3 flex min-h-[44px] w-full items-center justify-center text-center text-sm text-neutral-500 hover:text-neutral-800"
+          className="auth-secondary mt-3 flex min-h-[44px] w-full items-center justify-center text-center text-sm"
         >
-          {mode === 'login' ? 'Need an account? Register' : 'Have an account? Sign in'}
+          {mode === 'login' ? 'Create account' : 'Have an account? Sign in'}
         </button>
 
         {oidcEnabled && (
           <>
-            <div className="my-4 flex items-center gap-3 text-xs text-neutral-500">
-              <span className="h-px flex-1 bg-neutral-200" />
+            <div className="auth-divider my-4 flex items-center gap-3 text-xs">
+              <span className="auth-divider-rule h-px flex-1" />
               or
-              <span className="h-px flex-1 bg-neutral-200" />
+              <span className="auth-divider-rule h-px flex-1" />
             </div>
             <button
               type="button"
-              onClick={() => window.location.assign('/api/auth/oidc/login')}
-              className="flex min-h-[44px] w-full items-center justify-center rounded-lg border border-neutral-300 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              onClick={handlePocketId}
+              disabled={oidcBusy}
+              className="auth-oidc flex min-h-[44px] w-full items-center justify-center gap-2 py-2 text-sm font-medium"
             >
-              Log in with PocketID
+              {oidcBusy ? (
+                <>
+                  <span className="auth-spin" aria-hidden="true" />
+                  Signing in…
+                </>
+              ) : (
+                'Log in with PocketID'
+              )}
             </button>
           </>
         )}
       </form>
+
+      {/* #9 — faint version footer so an operator can see which build they're
+          hitting before authenticating. */}
+      <p className="auth-footer" data-testid="auth-footer">
+        homepad v{__APP_VERSION__}
+      </p>
     </main>
   );
 }

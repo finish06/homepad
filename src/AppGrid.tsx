@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { safeHref } from './safeUrl';
 import {
   DndContext,
@@ -9,9 +9,12 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext,
+  arrayMove,
   rectSortingStrategy,
   sortableKeyboardCoordinates,
   useSortable,
@@ -25,15 +28,24 @@ import {
   saveCategoryWidth,
   setCategoryOrder,
   setFavorite,
+  setLayout,
   services as fetchServices,
   type Category,
   type Service,
   type ServiceStatus,
 } from './api';
-import { boxesFromData, boxWidthPx, contentMaxPx, fitsViewport, MAX_WIDTH, moveCategory, rowFillCounts, type Box } from './appGridLayout';
+import { boxesFromData, boxWidthPx, contentMaxPx, fitsViewport, frameContentPx, MAX_WIDTH, moveCategory, rowFillCounts, type Box } from './appGridLayout';
 import { iconSrc, initialBadge } from './icons';
 import { useServicesContext } from './services';
 import { useResolvedTheme } from './theme';
+
+// v14.0.1 optimize — both overlays mount only on a user action (open a tile's
+// Edit modal, or open a clickAction='iframe' tile), never during the grid's
+// initial render, so they are code-split into their own async chunks. Suspense
+// fallback is null: each renders its own fixed backdrop, so the sub-frame gap
+// before its small chunk resolves is imperceptible.
+const TileEditModal = lazy(() => import('./TileEditModal'));
+const IframeOverlay = lazy(() => import('./IframeOverlay'));
 
 // AppGrid (SPEC-app-grid, Amendment A1) — the primary dashboard layout: glass
 // boxes (= categories) that pack left→right with flex-wrap. Each box's width
@@ -46,12 +58,11 @@ import { useResolvedTheme } from './theme';
 
 const WIDTHS = Array.from({ length: MAX_WIDTH }, (_, i) => i + 1); // [1..8]
 
-// SPEC-pane-fill-reflow (Phase 1, R4) — the shared CONTENT_WIDTH frame is
-// `max-w-[1536px] px-4` (layout.ts): a 1536px cap with 16px padding each side. The
-// `.app-grid` content box the boxes flex-wrap into is therefore min(vw, 1536) − 32.
-// Lone-box detection bin-packs the boxes into that width by their --w floors.
-const FRAME_MAX_PX = 1536;
-const FRAME_PAD_PX = 32;
+// SPEC-pane-fill-reflow (Phase 1, R4) / SPEC-ultrawide-fluid-frame (Phase 1b) —
+// the shared CONTENT_WIDTH frame is `max-w-[max(1536px,92vw)] px-4` (layout.ts):
+// capped at 1536px on standard desktops, fluid 92vw on wider monitors. Lone-box
+// detection bin-packs the boxes' --w floors into that width via frameContentPx
+// (src/appGrid.ts), the JS mirror of the CSS token.
 
 // useViewportWidth tracks window.innerWidth so the width selector can offer a
 // --w that would render off-screen as DISABLED (A1 D-3). The ≤640px mobile
@@ -66,7 +77,17 @@ function useViewportWidth(): number {
   return vw;
 }
 
-export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolean; editMode?: boolean }) {
+export default function AppGrid({
+  isAdmin,
+  editMode = false,
+  showUptimeDisplay = true,
+}: {
+  isAdmin: boolean;
+  editMode?: boolean;
+  // cap6 — the global admin toggle for the per-tile uptime line. Defaults to ON
+  // (opt-out) so existing callers and the pre-fetch initial render are unchanged.
+  showUptimeDisplay?: boolean;
+}) {
   // Services come from the shared provider (the SAME array the launcher + live
   // poll use — §3/A12); AppGrid self-fetches only when rendered without a
   // provider (isolated tests). Categories (box list + widths) AppGrid owns.
@@ -79,6 +100,22 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
   // Catalog category reorder — §10/A7).
   const [announce, setAnnounce] = useState('');
   const viewportWidth = useViewportWidth();
+  const gridTheme = useResolvedTheme();
+  // v21 — the tile whose edit modal is open (with the pencil that opened it, for
+  // focus return, AC-013), plus a small imperative toast for Save success/error
+  // (AC-014/015). editMode is admin-only upstream, so the pencil never renders
+  // for a non-admin — the modal is unreachable without the affordance.
+  const [editTarget, setEditTarget] = useState<{ service: Service; opener: HTMLElement | null } | null>(null);
+  const [toast, setToast] = useState<{ msg: string; kind: 'success' | 'error' } | null>(null);
+  // v23 — the service whose IframeOverlay is open (clickAction='iframe'), or null.
+  const [iframeTarget, setIframeTarget] = useState<Service | null>(null);
+  const openIframe = useCallback((service: Service) => setIframeTarget(service), []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // Sensors for box drag-to-reorder (Edit Dashboard). Pointer with an 8px
   // activation so a click on a width button still registers; touch with a
@@ -124,6 +161,25 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
       else setOwnSvcs((cur) => (cur ? updater(cur) : cur));
     },
     [ctx],
+  );
+
+  // v21 — open the edit modal for a tile, remembering the pencil that opened it.
+  const openEdit = useCallback(
+    (service: Service, opener: HTMLElement | null) => setEditTarget({ service, opener }),
+    [],
+  );
+  // Close and return focus to the opening pencil (AC-013), after the modal unmounts.
+  const closeEdit = useCallback(() => {
+    const opener = editTarget?.opener;
+    setEditTarget(null);
+    if (opener) requestAnimationFrame(() => opener.focus());
+  }, [editTarget]);
+  // Merge a saved/live change into the shared service so the tile updates inline
+  // without a reload (AC-004/007/009) — the same array the launcher reads (§3/A12).
+  const patchService = useCallback(
+    (id: string, partial: Partial<Service>) =>
+      updateSvcs((list) => list.map((s) => (s.id === id ? { ...s, ...partial } : s))),
+    [updateSvcs],
   );
 
   // #240 — per-tile favorite toggle (restores the control the old Catalog ⋯ menu
@@ -190,6 +246,36 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
     [cats],
   );
 
+  // v28 (SPEC-v28-tile-drag-reorder §5.3) — commit a within-box tile reorder on
+  // drop. `active`/`over` are tiles in the SAME box (each box is its own
+  // DndContext, so cross-box drops can't happen — AC-010). arrayMove moves the
+  // dragged tile into the target's slot in the FULL services array and persists
+  // the whole new id order via PUT /api/layout — the existing whole-array
+  // setLayout contract (AC-008); every other tile's relative order is preserved,
+  // so sibling boxes are untouched. Optimistic (AC-015) with rollback + an error
+  // toast if the PUT fails (AC-009); the pre-move snapshot is captured up front so
+  // rollback can't race a render. The success announcement is set box-locally (it
+  // needs the within-box position) — see BoxCard's onTileDrop.
+  const onTileDragEnd = useCallback(
+    async (e: DragEndEvent) => {
+      const { active, over } = e;
+      if (!over || active.id === over.id) return;
+      const prev = svcs ?? [];
+      const gi = prev.findIndex((s) => s.id === active.id);
+      const gj = prev.findIndex((s) => s.id === over.id);
+      if (gi < 0 || gj < 0) return;
+      const next = arrayMove(prev, gi, gj);
+      updateSvcs(() => next);
+      const ok = await setLayout(next.map((s) => s.id));
+      if (!ok) {
+        updateSvcs(() => prev);
+        setAnnounce('Could not save the new tile order.');
+        setToast({ msg: 'Could not save the new tile order.', kind: 'error' });
+      }
+    },
+    [svcs, updateSvcs],
+  );
+
   // #241 — box (category) rename. Optimistic name swap, then reconcile to the
   // server's canonical name; roll back + surface the error inline on a rejection
   // (409 duplicate etc.). Returns true or the error string for the row to show.
@@ -254,7 +340,7 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
   // Bin-pack the boxes' --w floors into the current .app-grid content width; a row
   // of one is a lone box. Recomputes on viewportWidth + boxes changes (both already
   // drive re-render), so it tracks resizes and width-selector edits live.
-  const contentWidth = Math.min(viewportWidth, FRAME_MAX_PX) - FRAME_PAD_PX;
+  const contentWidth = frameContentPx(viewportWidth);
   const rowCounts = rowFillCounts(boxes.map((b) => boxWidthPx(b.width)), contentWidth);
   const loneById = new Map(boxes.map((b, i) => [b.id, rowCounts[i] === 1]));
   // Edit Dashboard is admin-only + client-ephemeral (a reload returns to view
@@ -287,17 +373,17 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext items={sortableBoxes.map((b) => b.id)} strategy={rectSortingStrategy}>
                 {sortableBoxes.map((box) => (
-                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
+                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} sensors={sensors} onTileDragEnd={onTileDragEnd} setAnnounce={setAnnounce} />
                 ))}
               </SortableContext>
             </DndContext>
             {uncatBox && (
-              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(uncatBox.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
+              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(uncatBox.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} sensors={sensors} onTileDragEnd={onTileDragEnd} setAnnounce={setAnnounce} />
             )}
           </>
         ) : (
           boxes.map((box) => (
-            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onRename={onRenameBox} onDelete={onDeleteBox} />
+            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
           ))
         )}
         {addButton}
@@ -307,6 +393,42 @@ export default function AppGrid({ isAdmin, editMode = false }: { isAdmin: boolea
         {announce}
       </div>
       {addOpen && <AddBoxModal onCreate={onCreate} onClose={() => setAddOpen(false)} />}
+      {editTarget && (
+        <Suspense fallback={null}>
+          <TileEditModal
+            service={editTarget.service}
+            categories={cats}
+            theme={gridTheme}
+            onClose={closeEdit}
+            onPatch={(partial) => patchService(editTarget.service.id, partial)}
+            onToast={(msg, kind) => setToast({ msg, kind })}
+          />
+        </Suspense>
+      )}
+      {/* v23 — the in-app embed overlay for a clickAction='iframe' tile. Rendered
+          at the grid root (like the edit modal) so its fixed backdrop escapes any
+          box stacking context. */}
+      {iframeTarget && (
+        <Suspense fallback={null}>
+          <IframeOverlay service={iframeTarget} onClose={() => setIframeTarget(null)} />
+        </Suspense>
+      )}
+      {/* v21 — Save success / error toast (AC-014/015). Bottom-right, auto-dismiss;
+          same visual family as the cap5 status toasts. */}
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-[60] pointer-events-none">
+          <div
+            role="status"
+            aria-live={toast.kind === 'error' ? 'assertive' : 'polite'}
+            data-testid="tile-toast"
+            className={`toast-item pointer-events-auto min-w-56 max-w-xs rounded border-l-4 ${
+              toast.kind === 'error' ? 'border-red-500' : 'border-emerald-500'
+            } bg-white px-4 py-3 text-sm font-medium text-neutral-900 shadow-lg dark:bg-neutral-800 dark:text-neutral-100`}
+          >
+            {toast.msg}
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -335,9 +457,15 @@ function BoxCard({
   lone,
   onWidth,
   onToggleFavorite,
+  onEdit,
+  onOpenIframe,
   onRename,
   onDelete,
+  showUptimeDisplay,
   sortable,
+  sensors,
+  onTileDragEnd,
+  setAnnounce,
 }: {
   box: Box;
   isAdmin: boolean;
@@ -346,9 +474,18 @@ function BoxCard({
   lone: boolean;
   onWidth: (id: string, width: number) => void;
   onToggleFavorite: (id: string) => void;
+  onEdit: (service: Service, opener: HTMLElement | null) => void;
+  onOpenIframe: (service: Service) => void;
   onRename: (id: string, name: string) => Promise<true | string>;
   onDelete: (id: string) => Promise<boolean>;
+  showUptimeDisplay: boolean;
   sortable?: BoxSortable;
+  // v28 — tile drag-and-drop wiring, present only in edit mode: the shared sensor
+  // recipe, the AppGrid-level reorder+persist handler, and the announce setter for
+  // the box-local a11y phrases.
+  sensors?: ReturnType<typeof useSensors>;
+  onTileDragEnd?: (e: DragEndEvent) => void;
+  setAnnounce?: (msg: string) => void;
 }) {
   const theme = useResolvedTheme();
   // The width selector, like rename/delete, is an Edit Dashboard affordance:
@@ -542,14 +679,158 @@ function BoxCard({
         <p className="app-grid-empty" data-testid="box-empty">
           {isAdmin ? 'No apps yet — add from the Library.' : 'No apps in this box.'}
         </p>
+      ) : editing && sensors && onTileDragEnd ? (
+        // v28 — each box wraps its tile grid in its OWN DndContext (§5.1/§5.4), so
+        // a tile drag is structurally scoped to this box: dnd-kit cannot route a
+        // drop across box boundaries (AC-010). The grip on each SortableTile is the
+        // sole drag origin. The box-local start/over/end/cancel handlers own the
+        // within-box "position i of n" announcements (they need box.tools);
+        // onTileDragEnd (AppGrid) owns the actual reorder + persistence + rollback.
+        <TileDndGrid
+          box={box}
+          theme={theme}
+          editing={editing}
+          sensors={sensors}
+          onTileDragEnd={onTileDragEnd}
+          setAnnounce={setAnnounce}
+          onToggleFavorite={onToggleFavorite}
+          onEdit={onEdit}
+          onOpenIframe={onOpenIframe}
+          showUptimeDisplay={showUptimeDisplay}
+        />
       ) : (
         <div className="app-grid-tools" data-testid="box-tools">
           {box.tools.map((s) => (
-            <ToolLink key={s.id} service={s} theme={theme} onToggleFavorite={onToggleFavorite} />
+            <ToolLink key={s.id} service={s} theme={theme} editing={editing} onToggleFavorite={onToggleFavorite} onEdit={onEdit} onOpenIframe={onOpenIframe} showUptimeDisplay={showUptimeDisplay} />
           ))}
         </div>
       )}
     </section>
+  );
+}
+
+// v28 — one box's tile grid as a self-contained dnd-kit sortable scope. Split out
+// of BoxCard so the start/over/end/cancel closures capture this box's `tools` for
+// the within-box "position i of n" announcements (§4.3). The reorder mutation +
+// persistence lives at the AppGrid level (onTileDragEnd) where the shared services
+// array is; here we only announce and forward the drop.
+function TileDndGrid({
+  box,
+  theme,
+  editing,
+  sensors,
+  onTileDragEnd,
+  setAnnounce,
+  onToggleFavorite,
+  onEdit,
+  onOpenIframe,
+  showUptimeDisplay,
+}: {
+  box: Box;
+  theme: 'light' | 'dark';
+  editing: boolean;
+  sensors: ReturnType<typeof useSensors>;
+  onTileDragEnd: (e: DragEndEvent) => void;
+  setAnnounce?: (msg: string) => void;
+  onToggleFavorite: (id: string) => void;
+  onEdit: (service: Service, opener: HTMLElement | null) => void;
+  onOpenIframe: (service: Service) => void;
+  showUptimeDisplay: boolean;
+}) {
+  const tileIds = box.tools.map((s) => s.id);
+  const n = tileIds.length;
+  const nameOf = (id: string) => box.tools.find((s) => s.id === id)?.name ?? '';
+  const announce = setAnnounce ?? (() => {});
+
+  const onDragStart = (e: DragStartEvent) => {
+    const id = e.active.id as string;
+    const i = tileIds.indexOf(id) + 1;
+    announce(
+      `${nameOf(id)} grabbed, position ${i} of ${n}. Use arrow keys to move, space to drop, escape to cancel.`,
+    );
+  };
+  const onDragOver = (e: DragOverEvent) => {
+    const { active, over } = e;
+    // dnd-kit fires onDragOver on pick-up with over === active (no real move);
+    // skip it so the "grabbed" announcement stands until an actual arrow move.
+    if (!over || over.id === active.id) return;
+    const j = tileIds.indexOf(over.id as string) + 1;
+    if (j > 0) announce(`${nameOf(active.id as string)} moved to position ${j} of ${n}.`);
+  };
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (over && active.id !== over.id) {
+      const j = tileIds.indexOf(over.id as string) + 1;
+      announce(`${nameOf(active.id as string)} dropped at position ${j} of ${n}.`);
+      onTileDragEnd(e);
+    }
+    // dropped in place, or outside every droppable (AC-010) → snap back, no PUT.
+  };
+  const onDragCancel = () => announce('Reorder cancelled.');
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragEnd={onDragEnd}
+      onDragCancel={onDragCancel}
+    >
+      <SortableContext items={tileIds} strategy={rectSortingStrategy}>
+        <div className="app-grid-tools" data-testid="box-tools">
+          {box.tools.map((s) => (
+            <SortableTile
+              key={s.id}
+              service={s}
+              theme={theme}
+              editing={editing}
+              onToggleFavorite={onToggleFavorite}
+              onEdit={onEdit}
+              onOpenIframe={onOpenIframe}
+              showUptimeDisplay={showUptimeDisplay}
+            />
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+// v28 — SortableTile makes one tile draggable within its box's DndContext (§5.2),
+// analogous to SortableBox. It calls useSortable (needs a DndContext ancestor,
+// hence a distinct component) and hands the wiring to ToolLink, which applies the
+// node ref + lifted transform to the tile wrapper and the grip to a real <button>.
+function SortableTile({
+  service,
+  theme,
+  editing,
+  onToggleFavorite,
+  onEdit,
+  onOpenIframe,
+  showUptimeDisplay,
+}: {
+  service: Service;
+  theme: 'light' | 'dark';
+  editing: boolean;
+  onToggleFavorite: (id: string) => void;
+  onEdit: (service: Service, opener: HTMLElement | null) => void;
+  onOpenIframe: (service: Service) => void;
+  showUptimeDisplay: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+    useSortable({ id: service.id });
+  return (
+    <ToolLink
+      service={service}
+      theme={theme}
+      editing={editing}
+      onToggleFavorite={onToggleFavorite}
+      onEdit={onEdit}
+      onOpenIframe={onOpenIframe}
+      showUptimeDisplay={showUptimeDisplay}
+      sortable={{ attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging }}
+    />
   );
 }
 
@@ -564,8 +845,14 @@ function SortableBox({
   lone,
   onWidth,
   onToggleFavorite,
+  onEdit,
+  onOpenIframe,
   onRename,
   onDelete,
+  showUptimeDisplay,
+  sensors,
+  onTileDragEnd,
+  setAnnounce,
 }: {
   box: Box;
   isAdmin: boolean;
@@ -574,8 +861,15 @@ function SortableBox({
   lone: boolean;
   onWidth: (id: string, width: number) => void;
   onToggleFavorite: (id: string) => void;
+  onEdit: (service: Service, opener: HTMLElement | null) => void;
+  onOpenIframe: (service: Service) => void;
   onRename: (id: string, name: string) => Promise<true | string>;
   onDelete: (id: string) => Promise<boolean>;
+  showUptimeDisplay: boolean;
+  // v28 — tile drag wiring, forwarded to BoxCard's per-box tile DndContext.
+  sensors?: ReturnType<typeof useSensors>;
+  onTileDragEnd?: (e: DragEndEvent) => void;
+  setAnnounce?: (msg: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: box.id });
@@ -588,9 +882,15 @@ function SortableBox({
       lone={lone}
       onWidth={onWidth}
       onToggleFavorite={onToggleFavorite}
+      onEdit={onEdit}
+      onOpenIframe={onOpenIframe}
       onRename={onRename}
       onDelete={onDelete}
+      showUptimeDisplay={showUptimeDisplay}
       sortable={{ attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging }}
+      sensors={sensors}
+      onTileDragEnd={onTileDragEnd}
+      setAnnounce={setAnnounce}
     />
   );
 }
@@ -665,17 +965,58 @@ function UptimeWindowsLine({ windows }: { windows?: Record<string, number> }) {
 function ToolLink({
   service,
   theme,
+  editing,
   onToggleFavorite,
+  onEdit,
+  onOpenIframe,
+  showUptimeDisplay,
+  sortable,
 }: {
   service: Service;
   theme: 'light' | 'dark';
+  // v21 — admin edit mode: render the pencil affordance + mark the tile editable.
+  editing: boolean;
   onToggleFavorite: (id: string) => void;
+  onEdit: (service: Service, opener: HTMLElement | null) => void;
+  // v23 — open the in-app embed overlay for a clickAction='iframe' tile.
+  onOpenIframe: (service: Service) => void;
+  showUptimeDisplay: boolean;
+  // v28 — dnd-kit sortable wiring, present only when the tile is draggable (edit
+  // mode, via SortableTile). Applied to the wrapper (node ref + lifted transform)
+  // and the grip <button> (activator ref + listeners). Same shape as BoxSortable.
+  sortable?: BoxSortable;
 }) {
   const fav = service.favorite;
   // SPEC-242 D-4 — one-shot pulse when this tile's status changes on a live poll.
   const pulsing = useStatusPulse(service.status);
+  const editRef = useRef<HTMLButtonElement>(null);
+  // v23 — how this tile navigates (SPEC-tile-click-action §5). Absent/undefined
+  // is treated as 'new_tab' (AC-014, the hardcoded prior behavior). new_tab keeps
+  // target=_blank + the safe rel; same_tab drops target so the current tab
+  // navigates; iframe keeps href (right-click "open in new tab" still works,
+  // AC-007) but intercepts the left-click to open IframeOverlay (AC-005).
+  const action = service.clickAction ?? 'new_tab';
+  const linkProps: React.ComponentPropsWithoutRef<'a'> =
+    action === 'new_tab'
+      ? { target: '_blank', rel: 'noreferrer noopener' }
+      : action === 'iframe'
+        ? {
+            onClick: (e) => {
+              e.preventDefault();
+              onOpenIframe(service);
+            },
+          }
+        : {}; // same_tab — plain in-tab navigation, no target/rel
   return (
-    <div className="app-grid-tool-wrap">
+    <div
+      ref={sortable?.setNodeRef}
+      className={`app-grid-tool-wrap${editing ? ' is-editing' : ''}${sortable?.isDragging ? ' is-grabbed' : ''}`}
+      style={
+        sortable
+          ? { transform: CSS.Transform.toString(sortable.transform), transition: sortable.transition }
+          : undefined
+      }
+    >
       {/* SPEC-242 §5 — per-tile status pip. A SIBLING of the <a> (not nested), so
           it stays out of the anchor's accessible name — its own aria-label carries
           the status independently (D-1 DOM). top-LEFT at 8/8 mirrors the favorite ★
@@ -694,11 +1035,11 @@ function ToolLink({
       <a
         className="app-grid-tool"
         data-testid="tool-link"
+        data-status={service.status}
         href={safeHref(service.url)}
-        target="_blank"
-        rel="noreferrer noopener"
         aria-label={service.name}
         title={service.name}
+        {...linkProps}
       >
         <span className="app-grid-tool-icon">
           <img
@@ -709,7 +1050,10 @@ function ToolLink({
           />
         </span>
         <span className="app-grid-tool-name">{service.name}</span>
-        <UptimeWindowsLine windows={service.uptimeWindows} />
+        {/* cap6 — the global admin toggle gates the uptime line here (D2, render
+            gate not data suppression). When off, the tile renders as if it had
+            no uptime data (AC-002/003); the status pip above is untouched. */}
+        {showUptimeDisplay && <UptimeWindowsLine windows={service.uptimeWindows} />}
       </a>
       <button
         type="button"
@@ -726,6 +1070,51 @@ function ToolLink({
       >
         {fav ? '★' : '☆'}
       </button>
+      {/* v21 §8.1 — per-tile pencil edit affordance. A SIBLING of the <a> (like
+          the ★ and status pip), painted BOTTOM-right so it pairs with the ★
+          (top-right) and never shares a row/tap with it. Rendered ONLY in admin
+          edit mode (editing) — absent from the DOM otherwise (AC-001), no
+          zero-opacity ghost. Opens the edit modal for this tile and hands its own
+          element up as the focus-return target (AC-013). */}
+      {editing && (
+        <button
+          type="button"
+          ref={editRef}
+          className="app-grid-tool-edit"
+          data-testid="tile-edit"
+          aria-label={`Edit ${service.name}`}
+          title="Edit tile"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onEdit(service, editRef.current);
+          }}
+        >
+          ✎
+        </button>
+      )}
+      {/* v28 §8.1/§8.2 — the tile drag grip. A real <button> and the SOLE drag
+          origin (pointer, touch, AND keyboard); it carries the useSortable
+          listeners/attributes (not the tile wrapper) so navigate vs. reorder never
+          collide (§4.1). Bottom-LEFT — the horizontal mirror of the pencil
+          (bottom-right), the fourth tile corner (§8.1). Rendered ONLY in edit mode
+          with sortable wiring present — absent from the DOM otherwise (AC-001/013),
+          no zero-opacity ghost. aria-pressed signals the picked-up state. */}
+      {editing && sortable && (
+        <button
+          type="button"
+          ref={sortable.setActivatorNodeRef}
+          {...sortable.attributes}
+          {...(sortable.listeners as React.DOMAttributes<HTMLButtonElement>)}
+          className="app-grid-tool-grip"
+          data-testid="tile-drag-handle"
+          data-service-id={service.id}
+          aria-label={`Reorder ${service.name}`}
+          aria-pressed={sortable.isDragging}
+        >
+          ⠿
+        </button>
+      )}
     </div>
   );
 }

@@ -27,10 +27,12 @@ const appGridRule = indexCss.match(/\.app-grid\s*\{([^}]*)\}/)?.[1] ?? '';
 // The one shared content-width token. AC-009 forbids divergent max-width
 // declarations, so all three layers must consume this exact class string.
 describe('shared content width (#196, AC-009)', () => {
-  it('is a single ~1440px-class token reused by App, AppHeader, and StatusBar', () => {
-    // Must encode one max-width value; AC-001 forces it >=1528px so that a
-    // 6-column grid at 2560px is not narrower than the 4-column 1024px grid.
-    expect(CONTENT_WIDTH).toContain('max-w-[1536px]');
+  it('is a single fluid-frame token reused by App, AppHeader, and StatusBar', () => {
+    // Must encode one max-width value; AC-001 forces its floor >=1528px so that
+    // a 6-column grid at 2560px is not narrower than the 4-column 1024px grid.
+    // SPEC-ultrawide-fluid-frame keeps the 1536px floor and grows the frame as
+    // 92vw beyond ~1670px viewports so big monitors use their width.
+    expect(CONTENT_WIDTH).toContain('max-w-[max(1536px,92vw)]');
     expect(CONTENT_WIDTH).toContain('mx-auto');
   });
 
@@ -59,10 +61,10 @@ describe('app grid caps tiles short of the shared content width (#194, AC-001)',
     expect(appGridRule).not.toMatch(/max-width:\s*1392px/);
   });
 
-  it('carries no divergent inner cap — it inherits the shared CONTENT_WIDTH (max-w-[1536px]) frame', () => {
-    // CONTENT_WIDTH is `max-w-[1536px]`; the grid fills that outer frame rather
-    // than declaring its own (now-removed, #196) inner max-width.
-    const token = CONTENT_WIDTH.match(/max-w-\[(\d+)px\]/)?.[1];
+  it('carries no divergent inner cap — it inherits the shared CONTENT_WIDTH (1536px-floor fluid) frame', () => {
+    // CONTENT_WIDTH is `max-w-[max(1536px,92vw)]`; the grid fills that outer
+    // frame rather than declaring its own (now-removed, #196) inner max-width.
+    const token = CONTENT_WIDTH.match(/max-w-\[max\((\d+)px,92vw\)\]/)?.[1];
     expect(token).toBe('1536');
     expect(appGridRule).not.toMatch(/max-width/);
   });
@@ -110,11 +112,13 @@ afterEach(() => {
 });
 
 describe('StatusBar alignment (#196)', () => {
-  it('keeps the outer stripe full-bleed (no max-width on it) — AC-010', () => {
+  // v15: the full-bleed count STRIPE is replaced by a glass health PANEL, but the
+  // full-bleed outer / content-width inner split is preserved so the panel's left
+  // edge still aligns with the header wordmark and the grid below.
+  it('keeps the outer wrapper full-bleed (no max-width on it) — AC-010', () => {
     setItems([svc('UP', 'u1'), svc('DOWN', 'd1'), svc('NOT_MONITORED', 'n1')]);
     render(<StatusBar />);
     const bar = screen.getByTestId('status-bar');
-    expect(bar.className).toContain('bg-white/50'); // stripe background survives
     expect(bar.className).not.toContain('max-w-'); // outer is NOT constrained
   });
 
@@ -124,16 +128,18 @@ describe('StatusBar alignment (#196)', () => {
     const bar = screen.getByTestId('status-bar');
     const inner = bar.querySelector('[data-testid="status-bar-content"]');
     expect(inner).not.toBeNull();
-    expect(inner!.className).toContain('max-w-[1536px]');
+    expect(inner!.className).toContain('max-w-[max(1536px,92vw)]');
     expect(inner!.className).toContain('mx-auto');
     // Left-edge alignment with the grid/header requires left-aligned content,
-    // not centered — otherwise segments float mid-container at 2560px.
+    // not centered — otherwise the panel floats mid-container at 2560px.
     expect(bar.className).not.toContain('text-center');
   });
 
-  it('keeps the "not monitored" count in the StatusBar — AC-012', () => {
+  it('keeps the "not monitored" count in the health panel — AC-012', () => {
     setItems([svc('NOT_MONITORED', 'n1'), svc('NOT_MONITORED', 'n2')]);
     render(<StatusBar />);
-    expect(screen.getByTestId('status-bar-not-monitored')).toHaveTextContent('2 not monitored');
+    const nmChip = screen.getByTestId('status-bar-not-monitored');
+    expect(nmChip).toHaveTextContent('2');
+    expect(nmChip).toHaveTextContent('not monitored');
   });
 });

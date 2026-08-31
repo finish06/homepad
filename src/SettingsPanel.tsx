@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  adminEnvConfig,
   createLibraryApp,
   deleteLibraryApp,
   listLibrary,
   setLibraryOrder,
   updateLibraryApp,
+  type EnvConfigEntry,
   type LibraryAppInput,
   type LibraryOffer,
+  type SystemConfig,
 } from './api';
 
 // v9.3 §7.3 — the admin Settings surface. A modal extending the v6/v7 settings
@@ -17,11 +20,13 @@ import {
 
 export default function SettingsPanel({
   isAdmin,
-  oidcEnabled,
+  showUptimeDisplay,
+  onSaveSettings,
   onClose,
 }: {
   isAdmin: boolean;
-  oidcEnabled: boolean;
+  showUptimeDisplay: boolean;
+  onSaveSettings: (patch: Partial<SystemConfig>) => Promise<void>;
   onClose: () => void;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -91,7 +96,10 @@ export default function SettingsPanel({
             </p>
           ) : (
             <>
-              <SystemSettings oidcEnabled={oidcEnabled} />
+              <SystemSettings
+                showUptimeDisplay={showUptimeDisplay}
+                onSaveSettings={onSaveSettings}
+              />
               <LibraryManager />
             </>
           )}
@@ -101,36 +109,218 @@ export default function SettingsPanel({
   );
 }
 
-// Read-only system settings (D7). OIDC comes from the client-visible auth config;
-// self-registration is env-driven and not exposed to the client, so it is shown
-// as env-managed. Both carry the "set via environment / redeploy" note.
-function SystemSettings({ oidcEnabled }: { oidcEnabled: boolean }) {
+// SPEC-v26 §8.1 — friendly labels for the allowlisted env vars. The raw var name
+// is always shown too (mono sub-label); this is just the human-readable primary.
+// A key with no entry falls back to rendering the raw key as its own label.
+const ENV_LABELS: Record<string, string> = {
+  GATUS_BASE_URL: 'Gatus base URL',
+  COOKIE_SECURE: 'Secure cookies',
+  HOMEPAD_REGISTRATION: 'Registration mode',
+  PORT: 'Server port',
+  OIDC_ENABLED: 'OIDC sign-in',
+  OIDC_ISSUER: 'OIDC issuer',
+  OIDC_DISCOVERY_URL: 'OIDC discovery URL',
+  OIDC_REDIRECT_URL: 'OIDC redirect URL',
+  OIDC_CLIENT_ID: 'OIDC client ID',
+  OIDC_ADMIN_GROUP: 'OIDC admin group',
+};
+
+const SERVER_KEYS = new Set(['GATUS_BASE_URL', 'COOKIE_SECURE', 'HOMEPAD_REGISTRATION', 'PORT']);
+
+// SPEC-v26 §8.5 — presentation-only grouping derived by walking the ordered API
+// array; a caption is emitted whenever the group changes. Any future allowlisted
+// key with no home falls into "Other" rather than crashing or being dropped.
+function groupFor(key: string): string {
+  if (SERVER_KEYS.has(key)) return 'Server';
+  if (key.startsWith('OIDC_')) return 'Identity (OIDC)';
+  return 'Other';
+}
+
+type EnvLoad = 'loading' | 'ready' | 'error';
+
+// System settings. The first row is the WRITABLE "Show uptime display" toggle
+// (cap6); below it, SPEC-v26 replaces the two old hardcoded OIDC/registration
+// rows with a live read-only table of the allowlisted runtime env vars fetched
+// from GET /api/admin/env-config, grouped into Server / Identity (OIDC) (§8).
+function SystemSettings({
+  showUptimeDisplay,
+  onSaveSettings,
+}: {
+  showUptimeDisplay: boolean;
+  onSaveSettings: (patch: Partial<SystemConfig>) => Promise<void>;
+}) {
+  const [entries, setEntries] = useState<EnvConfigEntry[]>([]);
+  const [state, setState] = useState<EnvLoad>('loading');
+
+  // AC-010/AC-017 — fetch once on mount (i.e. when the admin opens the panel);
+  // no polling, no refetch. A page reload is the refresh path (§8.4).
+  useEffect(() => {
+    let live = true;
+    adminEnvConfig()
+      .then((rows) => { if (live) { setEntries(rows); setState('ready'); } })
+      .catch(() => { if (live) setState('error'); });
+    return () => { live = false; };
+  }, []);
+
   return (
     <section data-testid="settings-system" aria-labelledby="settings-system-h" className="settings-section">
       <h3 id="settings-system-h" className="settings-section-title">
         System
       </h3>
+      {/* The note no longer claims the whole section is read-only; the [env]
+          badges carry that signal per-row, leaving the toggle correctly writable. */}
       <p className="settings-section-note">
-        Read-only — set via environment variables and redeploy. These settings
-        apply globally to all accounts.
+        These settings apply globally to all accounts. Rows marked{' '}
+        <span className="settings-env-badge" aria-hidden="true">env</span> are
+        read-only — set via environment variables and redeploy.
       </p>
-      <dl className="settings-kv">
-        <div className="settings-kv-row">
-          <dt>OIDC sign-in</dt>
-          <dd>
-            {oidcEnabled ? 'Enabled' : 'Disabled'}
-            <span data-testid="settings-env-badge-oidc" className="settings-env-badge">env</span>
-          </dd>
-        </div>
-        <div className="settings-kv-row">
-          <dt>Self-registration</dt>
-          <dd>
-            Controlled by server environment
-            <span data-testid="settings-env-badge-registration" className="settings-env-badge">env</span>
-          </dd>
-        </div>
+      <dl className="settings-kv" data-testid="settings-env-list" aria-busy={state === 'loading'}>
+        <UptimeToggleRow value={showUptimeDisplay} onSave={onSaveSettings} />
+        {state === 'loading' && <EnvConfigSkeleton />}
+        {state === 'error' && <EnvConfigError />}
+        {state === 'ready' && <EnvConfigRows entries={entries} />}
       </dl>
     </section>
+  );
+}
+
+// §8.3 — skeleton rows keep the layout height stable while the fetch is in
+// flight; the shimmer is CSS-gated on prefers-reduced-motion. A visually-hidden
+// role="status" gives AT the cue the aria-hidden skeletons can't.
+function EnvConfigSkeleton() {
+  return (
+    <>
+      <span className="sr-only" role="status">Loading server configuration…</span>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="settings-kv-row settings-kv-row--env settings-kv-skeleton" aria-hidden="true">
+          <dt><span className="settings-skeleton-bar settings-skeleton-bar--dt" /></dt>
+          <dd><span className="settings-skeleton-bar settings-skeleton-bar--dd" /></dd>
+        </div>
+      ))}
+    </>
+  );
+}
+
+// §8.4 — in-place error where the rows would render; the uptime toggle above
+// stays live. Reload-guided copy (no retry button, per AC-017). A bare div child
+// of the <dl> (no dt/dd) keeps the list semantics clean.
+function EnvConfigError() {
+  return (
+    <div className="settings-env-error-cell" data-testid="settings-env-error">
+      <span className="settings-error" role="alert">Couldn't load server configuration.</span>
+      <span className="settings-env-error-hint">Reload the page to try again.</span>
+    </div>
+  );
+}
+
+// §8.1/§8.2/§8.5/§8.8 — the grouped read-only rows. Walks the ordered array,
+// emitting a full-width group caption whenever the group changes. Captions and
+// rows are flattened as direct children of the parent <dl> to keep the list
+// structure valid (div-wrapped dt/dd groups).
+function EnvConfigRows({ entries }: { entries: EnvConfigEntry[] }) {
+  let lastGroup = '';
+  const nodes: React.ReactNode[] = [];
+  for (const e of entries) {
+    const group = groupFor(e.key);
+    if (group !== lastGroup) {
+      // A div-wrapped dt/dd group keeps the <dl> structure valid; the caption is
+      // the term, the empty dd is a decorative definition (§8.5: captions are
+      // presentation-only, the dt/dd rows below carry the real semantics).
+      nodes.push(
+        <div key={`cap-${group}`} className="settings-kv-group-row">
+          <dt className="settings-kv-group-label">{group}</dt>
+          <dd className="settings-kv-group-dd" aria-hidden="true" />
+        </div>,
+      );
+      lastGroup = group;
+    }
+    nodes.push(
+      <div key={e.key} className="settings-kv-row settings-kv-row--env" data-testid={`env-row-${e.key}`}>
+        <dt>
+          <span className="settings-kv-label">{ENV_LABELS[e.key] ?? e.key}</span>
+          <code className="settings-kv-var">{e.key}</code>
+        </dt>
+        <dd>
+          {e.value === '' ? (
+            <>
+              <span className="settings-kv-value settings-kv-value--empty" aria-hidden="true">—</span>
+              <span className="sr-only">not set</span>
+            </>
+          ) : (
+            <span className="settings-kv-value">{e.value}</span>
+          )}
+          <span className="settings-env-badge" aria-hidden="true">env</span>
+        </dd>
+      </div>,
+    );
+  }
+  return <>{nodes}</>;
+}
+
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+
+// UptimeToggleRow — the writable pill switch (§9.1). It moves the thumb
+// optimistically on click, PATCHes via onSave, then shows a transient "Saved ✓"
+// (~1.6s) or reverts to the persisted value on error (§9.2). role="switch" +
+// aria-checked keep the state truthful to what is actually persisted.
+function UptimeToggleRow({
+  value,
+  onSave,
+}: {
+  value: boolean;
+  onSave: (patch: Partial<SystemConfig>) => Promise<void>;
+}) {
+  const [optimistic, setOptimistic] = useState(value);
+  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep the control in sync with the persisted prop when it changes elsewhere.
+  useEffect(() => setOptimistic(value), [value]);
+  useEffect(() => () => { if (savedTimer.current) clearTimeout(savedTimer.current); }, []);
+
+  async function toggle() {
+    if (saveState === 'saving') return;
+    const next = !optimistic;
+    setOptimistic(next); // optimistic thumb move (§9.6)
+    setSaveState('saving');
+    try {
+      await onSave({ showUptimeDisplay: next });
+      setSaveState('saved');
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setSaveState('idle'), 1600);
+    } catch {
+      setOptimistic(value); // revert to the last persisted value
+      setSaveState('error');
+    }
+  }
+
+  const flag =
+    saveState === 'saving' ? 'Saving…' :
+    saveState === 'saved' ? 'Saved ✓' :
+    saveState === 'error' ? "Couldn't save — try again." : '';
+
+  return (
+    <div className="settings-kv-row settings-kv-row--control">
+      <dt id="uptime-toggle-label">Show uptime display</dt>
+      <dd>
+        <span className="settings-save-flag" role="status" aria-live="polite" data-state={saveState}>
+          {flag}
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={optimistic}
+          aria-labelledby="uptime-toggle-label"
+          aria-busy={saveState === 'saving'}
+          disabled={saveState === 'saving'}
+          className="settings-switch"
+          data-testid="settings-switch-uptime"
+          onClick={toggle}
+        >
+          <span className="settings-switch-thumb" aria-hidden="true" />
+        </button>
+      </dd>
+    </div>
   );
 }
 

@@ -1,0 +1,101 @@
+# Homepad — full self-host stack for `docker compose up`.
+#
+#   cp .env.example .env      # then edit POSTGRES_PASSWORD (at minimum)
+#   docker compose up --build -d
+#   open http://localhost:8080
+#
+# Services: web (nginx + built Vite SPA), api (Go backend, migrates on boot),
+# postgres (data), gatus (status source the dashboard tiles read from).
+# See the "Self-hosting with Docker Compose" section of README.md for details.
+
+name: homepad
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-homepad}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (copy from .env.example)}
+      POSTGRES_DB: ${POSTGRES_DB:-homepad}
+    volumes:
+      # The ONLY stateful volume in the stack — Homepad keeps all persistent
+      # data (accounts, dashboards, services, icons) in Postgres. The api and
+      # web containers are stateless; nothing else needs a volume.
+      - homepad_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-homepad} -d ${POSTGRES_DB:-homepad}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  api:
+    # Built from the companion repo (the Go backend lives separately). Defaults
+    # to the public GitHub repo so a fresh clone of just this repo can build the
+    # whole stack; override HOMEPAD_API_CONTEXT in .env to point at a local
+    # checkout (e.g. ../homepad-api) or an in-cluster Git URL.
+    build:
+      context: ${HOMEPAD_API_CONTEXT:-https://github.com/finish06/homepad-api.git#main}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      gatus:
+        condition: service_started
+    environment:
+      PORT: "8080"
+      DATABASE_URL: postgres://${POSTGRES_USER:-homepad}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-homepad}?sslmode=disable
+      # Plain-HTTP localhost: the session cookie must NOT be Secure-only or the
+      # browser drops it and login silently fails. The api defaults this to true
+      # (prod runs behind TLS) — for http://localhost it MUST be false.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      HOMEPAD_REGISTRATION: ${HOMEPAD_REGISTRATION:-open}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      # Status tiles read from Gatus (compose service name `gatus`, port 8080).
+      GATUS_BASE_URL: ${GATUS_BASE_URL:-http://gatus:8080}
+      # --- OIDC / SSO (OPTIONAL) — leave OIDC_ENABLED=false to run with local
+      #     accounts only. Set it true and fill the rest to enable SSO. ---
+      OIDC_ENABLED: ${OIDC_ENABLED:-false}
+      OIDC_DISCOVERY_URL: ${OIDC_DISCOVERY_URL:-}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-}
+      OIDC_ADMIN_GROUP: ${OIDC_ADMIN_GROUP:-}
+    # No container healthcheck: the api image is distroless/static (no shell,
+    # no wget/curl) so it can't probe itself. Its readiness is gated end-to-end
+    # by the web healthcheck below, which proxies through to /api/system/config.
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "${HOMEPAD_WEB_PORT:-8080}:80"
+    volumes:
+      # Override the image's nginx.conf (which omits the /api proxy — prod does
+      # that at the ingress) with the compose conf that proxies /api → api:8080.
+      - ./deploy/compose/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      # End-to-end check: hits the SPA through nginx AND proxies to the api's
+      # public config endpoint, so `web` only reports healthy once web + proxy +
+      # api + db are all serving. (busybox wget: non-zero exit on any failure.)
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/api/system/config || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    restart: unless-stopped
+
+  gatus:
+    image: ${GATUS_IMAGE:-ghcr.io/twin/gatus:latest}
+    volumes:
+      - ./deploy/compose/gatus.yaml:/config/config.yaml:ro
+    restart: unless-stopped
+
+volumes:
+  homepad_pg:

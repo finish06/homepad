@@ -23,14 +23,28 @@ vi.mock('./api', () => ({
   deleteCategory: vi.fn(),
 }));
 
+// v23 — stub the real IframeOverlay so ToolLink's routing is tested in isolation
+// (the overlay's own behavior is IframeOverlay.test.tsx). It renders a marker +
+// the service name so we can assert the overlay opened for the right tile.
+vi.mock('./IframeOverlay', () => ({
+  default: ({ service, onClose }: { service: Service; onClose: () => void }) => (
+    <div data-testid="iframe-overlay-mock">
+      <span data-testid="iframe-overlay-mock-name">{service.name}</span>
+      <button type="button" data-testid="iframe-overlay-mock-close" onClick={onClose}>
+        close
+      </button>
+    </div>
+  ),
+}));
+
 const cat = (id: string, name: string, sortIndex: number, gridWidth: number): Category => ({
   id,
   name,
   sortIndex,
   gridWidth,
 });
-const svc = (id: string, name: string, categoryId: string | null): Service =>
-  ({ id, name, categoryId, slug: id, description: '', url: `https://${id}.test`, icon: '', status: 'UNKNOWN', favorite: false, iconLight: false, iconDark: false }) as Service;
+const svc = (id: string, name: string, categoryId: string | null, clickAction?: Service['clickAction']): Service =>
+  ({ id, name, categoryId, slug: id, description: '', url: `https://${id}.test`, icon: '', status: 'UNKNOWN', favorite: false, iconLight: false, iconDark: false, clickAction }) as Service;
 
 beforeEach(() => {
   // A1 D-3: the width selector disables a --w whose box would overflow the
@@ -85,6 +99,58 @@ describe('AppGrid rendering', () => {
     await renderGrid(true);
     const media = screen.getAllByTestId('app-grid-box')[0];
     expect(media.style.getPropertyValue('--w')).toBe('4');
+  });
+
+  // v23 — SPEC-tile-click-action §5: ToolLink routes on service.clickAction.
+  describe('click action routing (v23)', () => {
+    it('new_tab opens in a new tab with a safe rel (AC-003)', async () => {
+      vi.mocked(api.services).mockResolvedValue([svc('s1', 'Plex', 'c1', 'new_tab')]);
+      await renderGrid(true);
+      const link = screen.getAllByTestId('tool-link')[0] as HTMLAnchorElement;
+      expect(link).toHaveAttribute('href', 'https://s1.test');
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noreferrer noopener');
+    });
+
+    it('treats an absent clickAction as new_tab (AC-014)', async () => {
+      vi.mocked(api.services).mockResolvedValue([svc('s1', 'Plex', 'c1')]);
+      await renderGrid(true);
+      const link = screen.getAllByTestId('tool-link')[0] as HTMLAnchorElement;
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noreferrer noopener');
+    });
+
+    it('same_tab navigates the current tab: no target attribute (AC-004)', async () => {
+      vi.mocked(api.services).mockResolvedValue([svc('s1', 'Plex', 'c1', 'same_tab')]);
+      await renderGrid(true);
+      const link = screen.getAllByTestId('tool-link')[0] as HTMLAnchorElement;
+      expect(link).toHaveAttribute('href', 'https://s1.test');
+      expect(link).not.toHaveAttribute('target');
+    });
+
+    it('iframe keeps the href for right-click but opens the overlay on click (AC-005/007)', async () => {
+      const user = userEvent.setup();
+      vi.mocked(api.services).mockResolvedValue([svc('s1', 'Plex', 'c1', 'iframe')]);
+      await renderGrid(true);
+      const link = screen.getAllByTestId('tool-link')[0] as HTMLAnchorElement;
+      // href present so the native context menu still offers "open in new tab".
+      expect(link).toHaveAttribute('href', 'https://s1.test');
+      expect(screen.queryByTestId('iframe-overlay-mock')).not.toBeInTheDocument();
+
+      await user.click(link);
+      expect(screen.getByTestId('iframe-overlay-mock')).toBeInTheDocument();
+      expect(screen.getByTestId('iframe-overlay-mock-name')).toHaveTextContent('Plex');
+    });
+
+    it('closing the overlay removes it (AC-006 wiring)', async () => {
+      const user = userEvent.setup();
+      vi.mocked(api.services).mockResolvedValue([svc('s1', 'Plex', 'c1', 'iframe')]);
+      await renderGrid(true);
+      await user.click(screen.getAllByTestId('tool-link')[0]);
+      expect(screen.getByTestId('iframe-overlay-mock')).toBeInTheDocument();
+      await user.click(screen.getByTestId('iframe-overlay-mock-close'));
+      expect(screen.queryByTestId('iframe-overlay-mock')).not.toBeInTheDocument();
+    });
   });
 
   // SPEC-pane-fill-reflow (Phase 1, R3/R4) — the box exposes the grow model as

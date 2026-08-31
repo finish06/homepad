@@ -46,7 +46,22 @@ export type Service = {
   // fraction 0..1. Optional/absent/empty → no monitoring or no data; the tile
   // shows no long-window uptime line. Additive.
   uptimeWindows?: Record<string, number>;
+  // v23: how a tile's click is routed — 'new_tab' (open in a new browser tab —
+  // the hardcoded prior behavior), 'same_tab' (navigate this tab), or 'iframe'
+  // (open the in-app IframeOverlay). Optional so a pre-migration server that
+  // omits it (and hand-built fixtures) read as new_tab — ToolLink/TileEditModal
+  // treat absent/undefined as 'new_tab' (AC-014).
+  clickAction?: ClickAction;
+  // v25: the Gatus endpoint slug backing the tile's health meter (SPEC-v25). The
+  // server now returns it on every service ("" when unmonitored) so TileEditModal
+  // can prefill the current key. Optional so pre-v25 payloads and hand-built
+  // fixtures read as unmonitored — consumers normalize with `?? ''`.
+  gatus_key?: string;
 };
+
+// v23 — the per-tile click-action enum. Shared across api types, ToolLink, and
+// the TileEditModal selector so the three values stay in lockstep.
+export type ClickAction = 'new_tab' | 'same_tab' | 'iframe';
 
 // A v4 category: admin-managed shared-catalog metadata. `sortIndex` is the
 // admin-controlled order (not alphabetical). The layout fields (SPEC category
@@ -82,9 +97,10 @@ export type CategoryLayout = {
 export type Result = { ok: boolean; status: number; error?: string };
 
 // The admin-editable catalog fields for create/update (A6), keyed by their
-// snake_case wire names. The server never returns `gatus_key` (it stays
-// server-side, resolved into `status`), so the edit form can't prefill it —
-// see ServiceForm for how a blank key is omitted from a PATCH.
+// snake_case wire names. As of v25 the server DOES return `gatus_key` on the read
+// model (`Service.gatus_key`), so TileEditModal prefills it; the write shape below
+// still carries it for create/PATCH. See ServiceForm for how a blank key is
+// omitted from its PATCH.
 export type ServiceInput = {
   slug: string;
   name: string;
@@ -92,9 +108,23 @@ export type ServiceInput = {
   url: string;
   icon: string;
   gatus_key: string;
+  // v23: the tile's click behavior. Optional on input — omitting it lets the
+  // server apply its `new_tab` default (create) or leave the value unchanged
+  // (PATCH). Wire name is camelCase `clickAction`, matching the read model.
+  clickAction?: ClickAction;
 };
 
 export type AuthConfig = { oidcEnabled: boolean };
+
+// cap6 — the global System settings the client reads (GET /api/system/config) and
+// an admin writes (PATCH /api/admin/settings). Today it carries the single
+// app-grid uptime-display toggle; new settings add fields here.
+export type SystemConfig = { showUptimeDisplay: boolean };
+
+// SPEC-v26 — one allowlisted runtime env var surfaced by the admin env-config
+// viewer. The server returns an ordered array of these (Server vars then OIDC
+// vars); an unset var carries an empty-string value.
+export type EnvConfigEntry = { key: string; value: string };
 
 // v9.2/v9.3: a library offer — admin-curated catalog metadata any user can browse
 // (`GET /api/library`) and copy onto their own dashboard. `added` is the per-user
@@ -139,6 +169,46 @@ export async function authConfig(): Promise<AuthConfig> {
   } catch {
     return { oidcEnabled: false };
   }
+}
+
+// systemConfig reads the global System settings (cap6). Like authConfig, any
+// non-200 or failed request falls back to the safe default (ON) — the grid must
+// never hide uptime just because this fetch hiccuped (AC-008 default-ON). The
+// endpoint is public, so this is safe to call before login.
+export async function systemConfig(): Promise<SystemConfig> {
+  try {
+    const res = await fetch('/api/system/config', { credentials: 'include' });
+    if (res.status !== 200) return { showUptimeDisplay: true };
+    const data = (await res.json()) as { showUptimeDisplay?: boolean };
+    return { showUptimeDisplay: data.showUptimeDisplay !== false };
+  } catch {
+    return { showUptimeDisplay: true };
+  }
+}
+
+// saveSystemSettings PATCHes the admin System settings and returns the persisted
+// config. Unlike the reads, a non-200 THROWS so the caller (the settings toggle)
+// can revert its optimistic state and surface the error (§9.2 error path).
+export async function saveSystemSettings(patch: Partial<SystemConfig>): Promise<SystemConfig> {
+  const res = await fetch('/api/admin/settings', {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    credentials: 'include',
+    body: JSON.stringify(patch),
+  });
+  if (res.status !== 200) throw new Error(await errorText(res));
+  const data = (await res.json()) as { showUptimeDisplay?: boolean };
+  return { showUptimeDisplay: data.showUptimeDisplay !== false };
+}
+
+// SPEC-v26 §6.2 AC-015 — reads the allowlisted runtime env config for the admin
+// System panel. Unlike the tolerant reads above, this REJECTS on any non-200 (or
+// network error) so the caller can render its in-place error state (§8.4) rather
+// than silently showing an empty/misleading table.
+export async function adminEnvConfig(): Promise<EnvConfigEntry[]> {
+  const res = await fetch('/api/admin/env-config', { credentials: 'include' });
+  if (res.status !== 200) throw new Error(await errorText(res));
+  return (await res.json()) as EnvConfigEntry[];
 }
 
 export async function me(): Promise<User | null> {
@@ -260,7 +330,10 @@ export async function createService(input: ServiceInput): Promise<Result & { ser
 // reflect the change inline.
 export async function updateService(
   id: string,
-  patch: Partial<ServiceInput>,
+  // v21: categoryId rides in the SAME PATCH so a tile edit (text fields + a
+  // category move) is one request (§6.3). `null` clears to Uncategorized; the
+  // backend's optionalString leaves it unchanged when the key is absent.
+  patch: Partial<ServiceInput> & { categoryId?: string | null },
 ): Promise<Result & { service?: Service }> {
   const res = await fetch(`/api/services/${id}`, {
     method: 'PATCH',
@@ -269,6 +342,29 @@ export async function updateService(
     body: JSON.stringify(patch),
   });
   if (res.status === 200) return { ok: true, status: 200, service: (await res.json()) as Service };
+  return { ok: false, status: res.status, error: await errorText(res) };
+}
+
+// fetchIcon asks the backend to download the favicon from a service's own
+// registered url and store it under the given icon variant (v21 §7.4 + v22 §6.4;
+// admin-only — 403 non-admin, 404 unknown id, 422 when no usable favicon is
+// found). The `variant` query param is v22's per-tab addition; the server
+// defaults to 'light' when it is omitted or unrecognised, so this stays
+// backward-compatible with a pre-v22 backend. On 200 it returns the stored icon
+// url so the caller can bust the preview cache; on any failure it surfaces the
+// server's reason inline, like uploadIcon.
+export async function fetchIcon(
+  id: string,
+  variant: IconVariant = 'light',
+): Promise<Result & { iconUrl?: string }> {
+  const res = await fetch(`/api/services/${id}/fetch-icon?variant=${variant}`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (res.status === 200) {
+    const data = (await res.json()) as { iconUrl?: string };
+    return { ok: true, status: 200, iconUrl: data.iconUrl };
+  }
   return { ok: false, status: res.status, error: await errorText(res) };
 }
 

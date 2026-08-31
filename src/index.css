@@ -2,23 +2,216 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Glass v2 (SPEC-glass-v2-accent) — the user-selectable ACCENT pair the
+   .app-surface blobs paint from. Space-separated RGB triplets consumed as
+   `rgb(var(--accent-1) / <alpha>)`. Defaults are the brand indigo/purple pair
+   (byte-identical to the pre-v2 hardcoded blob colors); accent.ts overrides
+   them inline on <html> when the user picks a different ROYGBIV accent. Only
+   AMBIENT color rides these vars — never a text/icon/ring token, so accent
+   choice can not move any WCAG-measured contrast. */
+:root {
+  /* Type stacks (§3.1) — mono is used for numerics, status labels, counts, ⌘K. */
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+
+  /* Ambient-blob triplets the .app-surface reads (glass-v2 contract). Default =
+     blue; each [data-theme] block below overrides per accent. Consumed only as
+     ambient colour — never a text/status token, so accent is contrast-safe. */
+  --accent-1: 90 155 255;
+  --accent-2: 46 99 224;
+
+  /* ===== v15 glass design tokens (SPEC-v15-design-system) ===== */
+  /* Radii (§3.3) */
+  --r-panel: 24px;
+  --r-tile: 18px;
+  --r-ico: 12px;
+  --r-pill: 999px;
+  --r-chip: 14px;
+
+  /* LIGHT surface / glass / status tokens (§3.4–3.8). Consumed by the v15 chrome
+     (topbar pill, health panel, section heads, tiles). `--accent*` are the accent
+     CHROME hexes (personality only); `--accent-1/2` above stay the blob triplets. */
+  --v-txt: rgba(20, 23, 30, 0.92);
+  --v-muted: rgba(28, 32, 42, 0.62);
+  --v-faint: rgba(28, 32, 42, 0.44);
+  --v-up: #0e9e5c;
+  --v-up-strong: #0b7a46; /* §9.6 — LED label needs ≥4.5:1 in light */
+  --v-down: #d23a3d;
+  --v-degraded: #b7791f; /* §3.8 amber, ≈4.6:1 on light tile */
+  --v-unknown: rgba(28, 32, 42, 0.62);
+  --v-idle: rgba(22, 25, 32, 0.34);
+  --v-glass: rgba(255, 255, 255, 0.55);
+  --v-glass2: rgba(255, 255, 255, 0.5);
+  --v-brd: rgba(255, 255, 255, 0.65);
+  --v-hi: rgba(255, 255, 255, 0.9);
+  --v-hi2: rgba(255, 255, 255, 0.8);
+  --v-shadow: rgba(30, 42, 72, 0.14);
+  --v-shadow-tile: rgba(30, 42, 72, 0.1);
+  --v-hover: rgba(255, 255, 255, 0.78);
+  --v-rule: rgba(24, 30, 48, 0.14);
+  --v-kbdbrd: rgba(24, 30, 48, 0.2);
+  --v-btnhover: rgba(255, 255, 255, 0.72);
+  --v-sep: #ffffff;
+  --v-tick-idle: rgba(24, 30, 48, 0.16);
+  --v-legend-idle: rgba(24, 30, 48, 0.22);
+  --v-tile: rgba(255, 255, 255, 0.52);
+  --v-tilebrd: rgba(255, 255, 255, 0.62);
+  --v-tilehi: rgba(255, 255, 255, 0.85);
+  --v-ico-hi: rgba(255, 255, 255, 0.5);
+  --v-chip: rgba(255, 255, 255, 0.55);
+  --v-chipbrd: rgba(255, 255, 255, 0.6);
+  --v-focus-fill: rgba(255, 255, 255, 0.75);
+  /* v27 login-glass §4 — dedicated frosted input fill. Distinct from --v-tile
+     (panel glass) so a field reads as an input, but never the harsh UA-white
+     slab; text 14.26:1 / placeholder 4.60:1 on light. */
+  --v-field: rgba(255, 255, 255, 0.62);
+  /* Opaque approximation of the resting field used ONLY by the autofill override
+     (a translucent inset shadow can't hide the UA autofill background). */
+  --v-field-fill: #e9eef8;
+
+  /* Default accent (blue) chrome + light field — restated by [data-theme] blocks. */
+  --accent: #8fb8ff;
+  --accent-mid: #5a9bff;
+  --accent-3: #2e63e0;
+  --on-accent: #fff;
+  --amb: rgba(58, 108, 224, 0.16);
+  --bg-1: #eef3fb;
+  --bg-2: #e2eaf6;
+}
+
+.dark {
+  /* DARK surface / glass / status tokens (§3.4–3.8). */
+  --v-txt: rgba(255, 255, 255, 0.93);
+  --v-muted: rgba(255, 255, 255, 0.54);
+  --v-faint: rgba(255, 255, 255, 0.36);
+  --v-up: #43d18e;
+  --v-up-strong: #43d18e;
+  --v-down: #f0686b;
+  --v-degraded: #f5b34a; /* §3.8 amber, ≈8:1 on dark tile */
+  --v-unknown: rgba(255, 255, 255, 0.54);
+  --v-idle: rgba(255, 255, 255, 0.4);
+  --v-glass: rgba(255, 255, 255, 0.055);
+  --v-glass2: rgba(255, 255, 255, 0.05);
+  --v-brd: rgba(255, 255, 255, 0.09);
+  --v-hi: rgba(255, 255, 255, 0.14);
+  --v-hi2: rgba(255, 255, 255, 0.1);
+  --v-shadow: rgba(0, 0, 0, 0.34);
+  --v-shadow-tile: rgba(0, 0, 0, 0.28);
+  --v-hover: rgba(255, 255, 255, 0.085);
+  --v-rule: rgba(255, 255, 255, 0.14);
+  --v-kbdbrd: rgba(255, 255, 255, 0.16);
+  --v-btnhover: rgba(255, 255, 255, 0.12);
+  --v-sep: #0b0d16;
+  --v-tick-idle: rgba(255, 255, 255, 0.14);
+  --v-legend-idle: rgba(255, 255, 255, 0.18);
+  --v-tile: rgba(255, 255, 255, 0.055);
+  --v-tilebrd: rgba(255, 255, 255, 0.08);
+  --v-tilehi: rgba(255, 255, 255, 0.12);
+  --v-ico-hi: rgba(255, 255, 255, 0.14);
+  --v-chip: rgba(255, 255, 255, 0.06);
+  --v-chipbrd: rgba(255, 255, 255, 0.08);
+  --v-focus-fill: rgba(255, 255, 255, 0.09);
+  /* v27 login-glass §4/§5.2 — frosted input fill on dark. .07 is the sweet spot:
+     text 11.52:1, placeholder 4.98:1, soft (not the 19.8:1 white-slab). The 3:1
+     resting boundary is carried by the focus ring (§5.2), not this fill. */
+  --v-field: rgba(255, 255, 255, 0.07);
+  --v-field-fill: #171b24;
+  /* Default accent (blue) dark field — restated by .dark[data-theme] blocks. */
+  --amb: rgba(58, 108, 224, 0.26);
+  --bg-1: #0d1526;
+  --bg-2: #080b14;
+}
+
+/* ── Accent chrome (§3.6, mode-independent) + ambient-blob triplets per accent.
+   `--accent/-mid/-3/--on-accent` are the personality hexes; `--accent-1/2` are the
+   blob triplets the .app-surface reads. Field (`--amb/--bg-1/--bg-2`) is
+   mode-dependent → the .dark / :root:not(.dark) blocks that follow. ── */
+[data-theme="blue"] {
+  --accent: #8fb8ff; --accent-mid: #5a9bff; --accent-3: #2e63e0; --on-accent: #fff;
+  --accent-1: 90 155 255; --accent-2: 46 99 224;
+}
+[data-theme="teal"] {
+  --accent: #7fe3dc; --accent-mid: #2bc4bc; --accent-3: #0e938d; --on-accent: #04140f;
+  --accent-1: 43 196 188; --accent-2: 14 147 141;
+}
+[data-theme="green"] {
+  --accent: #63e6a6; --accent-mid: #22c67d; --accent-3: #0e9a5c; --on-accent: #05130d;
+  --accent-1: 34 198 125; --accent-2: 14 154 92;
+}
+[data-theme="yellow"] {
+  --accent: #ffdc7a; --accent-mid: #ffc72e; --accent-3: #c79310; --on-accent: #241b00;
+  --accent-1: 255 199 46; --accent-2: 199 147 16;
+}
+[data-theme="orange"] {
+  --accent: #ffc08f; --accent-mid: #ff8a3d; --accent-3: #e06a12; --on-accent: #2a1400;
+  --accent-1: 255 138 61; --accent-2: 224 106 18;
+}
+[data-theme="red"] {
+  --accent: #ff9a9c; --accent-mid: #ff5a5c; --accent-3: #d63437; --on-accent: #fff;
+  --accent-1: 255 90 92; --accent-2: 214 52 55;
+}
+[data-theme="pink"] {
+  --accent: #ff9ec8; --accent-mid: #ff5ca0; --accent-3: #d63a7c; --on-accent: #fff;
+  --accent-1: 255 92 160; --accent-2: 214 58 124;
+}
+[data-theme="purple"] {
+  --accent: #c4b4ff; --accent-mid: #9b7cff; --accent-3: #6a4fcf; --on-accent: #fff;
+  --accent-1: 155 124 255; --accent-2: 106 79 207;
+}
+
+/* Dark field per accent (§3.6 dark bases). */
+.dark[data-theme="blue"] { --amb: rgba(58, 108, 224, 0.26); --bg-1: #0d1526; --bg-2: #080b14; }
+.dark[data-theme="teal"] { --amb: rgba(30, 190, 180, 0.22); --bg-1: #08201f; --bg-2: #061413; }
+.dark[data-theme="green"] { --amb: rgba(28, 176, 118, 0.22); --bg-1: #0a1b15; --bg-2: #07110d; }
+.dark[data-theme="yellow"] { --amb: rgba(220, 176, 44, 0.2); --bg-1: #181407; --bg-2: #100c05; }
+.dark[data-theme="orange"] { --amb: rgba(230, 120, 48, 0.22); --bg-1: #1b1209; --bg-2: #120b06; }
+.dark[data-theme="red"] { --amb: rgba(220, 74, 84, 0.22); --bg-1: #1b0f13; --bg-2: #120a0c; }
+.dark[data-theme="pink"] { --amb: rgba(236, 80, 150, 0.22); --bg-1: #210e1a; --bg-2: #150a11; }
+.dark[data-theme="purple"] { --amb: rgba(150, 110, 246, 0.24); --bg-1: #150e26; --bg-2: #0d0916; }
+
+/* Light field per accent (§3.6 pale washes). */
+:root:not(.dark)[data-theme="blue"] { --amb: rgba(58, 108, 224, 0.16); --bg-1: #eef3fb; --bg-2: #e2eaf6; }
+:root:not(.dark)[data-theme="teal"] { --amb: rgba(30, 190, 180, 0.15); --bg-1: #e9f6f6; --bg-2: #d9eeee; }
+:root:not(.dark)[data-theme="green"] { --amb: rgba(28, 176, 118, 0.15); --bg-1: #ecf6f1; --bg-2: #deeee6; }
+:root:not(.dark)[data-theme="yellow"] { --amb: rgba(210, 168, 40, 0.16); --bg-1: #f9f4e3; --bg-2: #f2ebd1; }
+:root:not(.dark)[data-theme="orange"] { --amb: rgba(230, 120, 48, 0.15); --bg-1: #fbf1e8; --bg-2: #f5e5d6; }
+:root:not(.dark)[data-theme="red"] { --amb: rgba(214, 58, 62, 0.15); --bg-1: #fbeef0; --bg-2: #f5e1e5; }
+:root:not(.dark)[data-theme="pink"] { --amb: rgba(236, 80, 150, 0.15); --bg-1: #fbeef5; --bg-2: #f5dfeb; }
+:root:not(.dark)[data-theme="purple"] { --amb: rgba(150, 110, 246, 0.16); --bg-1: #f2eefb; --bg-2: #e7dff6; }
+
 /* v7 ux-redesign (specs/v7-ux-redesign.md §2–5). The gradients, soft shadows,
    status glow and accent chip are expressed as @layer component classes so the
    JSX keeps a single readable hook each (.tile, .tile-icon, .status-dot,
    .cat-head, .app-surface). Values are copied verbatim from the spec tokens. */
 @layer components {
-  /* §3 Global surface — radial indigo/violet accents over a light base. */
+  /* §3 Global surface, glass v2 — accent-hued ambient blobs over the base.
+     v1 anchored both blobs at the top corners, so everything below the first
+     screenful sat on a flat gradient and the boxes' backdrop-filter had nothing
+     to blur — the "glass reads as a solid slab" defect. v2 (a) drives the hues
+     from the user accent vars, (b) distributes two more blobs down the page so
+     scrolled rows still have atmosphere behind the glass, and (c) lays a tiled
+     SVG grain (feTurbulence, ~3% white) on top to stop the soft gradients
+     banding on large monitors. Blob alphas stay ≤0.12 over the same base
+     gradients, so text contrast floors are unchanged. */
   .app-surface {
     background:
-      radial-gradient(1100px 560px at 12% -12%, rgba(99, 102, 241, 0.12), transparent 60%),
-      radial-gradient(900px 520px at 102% -6%, rgba(168, 85, 247, 0.1), transparent 55%),
-      linear-gradient(180deg, #f6f8fd 0%, #eceffa 100%);
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E")
+        repeat,
+      radial-gradient(1100px 560px at 12% -12%, rgb(var(--accent-1) / 0.12), transparent 60%),
+      radial-gradient(900px 520px at 102% -6%, rgb(var(--accent-2) / 0.1), transparent 55%),
+      radial-gradient(1000px 600px at 55% 42%, rgb(var(--accent-1) / 0.07), transparent 60%),
+      radial-gradient(900px 560px at 8% 96%, rgb(var(--accent-2) / 0.08), transparent 60%),
+      linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
   }
   .dark .app-surface {
     background:
-      radial-gradient(1100px 560px at 12% -12%, rgba(99, 102, 241, 0.1), transparent 60%),
-      radial-gradient(900px 520px at 102% -6%, rgba(168, 85, 247, 0.1), transparent 55%),
-      linear-gradient(180deg, #0b0d12 0%, #0e1117 100%);
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")
+        repeat,
+      radial-gradient(1100px 560px at 12% -12%, rgb(var(--accent-1) / 0.14), transparent 60%),
+      radial-gradient(900px 520px at 102% -6%, rgb(var(--accent-2) / 0.12), transparent 55%),
+      radial-gradient(1000px 600px at 55% 42%, rgb(var(--accent-1) / 0.09), transparent 60%),
+      radial-gradient(900px 560px at 8% 96%, rgb(var(--accent-2) / 0.1), transparent 60%),
+      linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
   }
 
   /* #184 — app/dashboard loading state. Replaces the bare low-contrast
@@ -212,15 +405,226 @@
     background: rgba(255, 255, 255, 0.08);
   }
 
-  /* §6.1 Wordmark — indigo→violet gradient text via background-clip. */
+  /* ===== v15 health summary panel (design spec §4.2) =====
+     Glass verdict panel: a two-column grid (verdict | metrics) that collapses to
+     one column ≤720px. All chrome reads from the v15 --v-* glass/status tokens so
+     it is mode-aware and accent-independent (status color is never re-hued). */
+  .health {
+    display: grid;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+    align-items: center;
+    gap: 20px 40px;
+    padding: 24px 32px;
+    background: var(--v-glass);
+    backdrop-filter: blur(30px) saturate(112%);
+    border: 1px solid var(--v-brd);
+    border-radius: var(--r-panel);
+    box-shadow: 0 10px 34px var(--v-shadow), inset 0 1px 0 var(--v-hi);
+  }
+  @media (max-width: 720px) {
+    .health {
+      grid-template-columns: 1fr;
+      gap: 20px;
+      padding: 20px;
+    }
+  }
+
+  .health-verdict {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 14px;
+    row-gap: 4px;
+  }
+  /* The LED occupies the left rail across both text rows. */
+  .health-led {
+    grid-row: 1 / span 2;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: var(--v-unknown);
+  }
+  .health-led[data-variant='operational'] {
+    background: var(--v-up);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--v-up) 20%, transparent), 0 0 12px color-mix(in srgb, var(--v-up) 55%, transparent);
+  }
+  .health-led[data-variant='attention'][data-severity='down'] {
+    background: var(--v-down);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--v-down) 20%, transparent), 0 0 12px color-mix(in srgb, var(--v-down) 55%, transparent);
+    animation: health-led-pulse 1.4s ease-in-out infinite;
+  }
+  .health-led[data-variant='attention'][data-severity='degraded'] {
+    background: var(--v-degraded);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--v-degraded) 20%, transparent), 0 0 12px color-mix(in srgb, var(--v-degraded) 55%, transparent);
+  }
+  .health-led[data-variant='loading'] {
+    background: var(--v-muted);
+    animation: health-led-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes health-led-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  .health-headline {
+    grid-column: 2;
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    color: var(--v-txt);
+  }
+  .health-subline {
+    grid-column: 2;
+    font-size: 13px;
+    color: var(--v-muted);
+  }
+  @media (max-width: 480px) {
+    .health-headline { font-size: 24px; }
+  }
+
+  .health-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    justify-self: end;
+    align-items: stretch;
+    min-width: 0;
+  }
+  @media (max-width: 720px) {
+    .health-metrics { justify-self: stretch; }
+  }
+
+  /* #384 — equal-column grid so the two stat boxes are equal-width and their
+     outer edges sit flush with the .health-meter uptime bar (one unit). */
+  .health-chips {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  /* Quick-peek chip (v14 interactive → ≥44px). Big mono number + uppercase
+     label. Severity color on the number when >0 (§9 correction #3). */
+  .health-chip {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 64px;
+    padding: 8px 16px;
+    border-radius: var(--r-chip);
+    background: var(--v-chip);
+    border: 1px solid var(--v-chipbrd);
+    color: var(--v-muted);
+    cursor: pointer;
+    outline: none;
+    transition: transform 0.15s ease, border-color 0.18s ease;
+  }
+  .health-chip:hover { transform: translateY(-1px); }
+  .health-chip:focus-visible { box-shadow: 0 0 0 2px var(--accent-3); }
+  .health-chip-n {
+    font-family: var(--mono, ui-monospace, monospace);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--v-txt);
+  }
+  .health-chip-label {
+    font-family: var(--mono, ui-monospace, monospace);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--v-muted);
+  }
+  .health-chip[data-sev='up'] .health-chip-n { color: var(--v-up); }
+  .health-chip[data-sev='down'] .health-chip-n { color: var(--v-down); }
+  .health-chip[data-sev='degraded'] .health-chip-n { color: var(--v-degraded); }
+  /* #384 — the light chip fill was byte-identical to the panel (1.03:1); an
+     ink hairline + soft lift give the box a real edge. Dark fill lifted so it
+     separates from the panel too. */
+  :root:not(.dark) .health-chip {
+    background: rgba(255, 255, 255, 0.62);
+    border-color: rgba(20, 23, 30, 0.12);
+    box-shadow: 0 1px 2px rgba(30, 42, 72, 0.06);
+  }
+  .dark .health-chip {
+    background: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+  /* #384 — UP number is text, so use the text-grade green (5.35:1) not the
+     fill-grade --v-up (3.39:1). No-op in dark (--v-up-strong == --v-up). */
+  :root:not(.dark) .health-chip[data-sev='up'] .health-chip-n { color: var(--v-up-strong); }
+
+  /* Meter — one tick per service, colored by status. Decorative (aria-hidden). */
+  .health-meter {
+    display: flex;
+    gap: 3px;
+    height: 26px;
+    align-items: stretch;
+  }
+  .health-tick {
+    flex: 1 1 2px;
+    min-width: 2px;
+    border-radius: 999px;
+  }
+  .health-tick-up { background: var(--v-up); }
+  .health-tick-down { background: var(--v-down); }
+  .health-tick-idle { background: var(--v-tick-idle); }
+
+  .health-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--mono, ui-monospace, monospace);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--v-muted);
+  }
+  .health-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .health-legend-sw {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+  }
+  .health-updated {
+    margin-left: auto;
+    color: var(--v-muted);
+  }
+  .health-updated[data-stale='amber'] { color: var(--v-degraded); }
+  .health-updated[data-stale='red'] { color: var(--v-down); }
+
+  /* Reduced-motion / no-blur fallback — keep the panel legible without the
+     backdrop-filter (v14 glass-v2 contract) and freeze the LED pulse. */
+  @media (prefers-reduced-motion: reduce) {
+    .health-led { animation: none; }
+  }
+
+  /* §6.1 Wordmark — accent gradient text via background-clip (re-hues on accent
+     change, §4.1). Light mode uses the mid→deep accent stops; dark mode uses the
+     lighter light→mid stops so the text keeps its high contrast on the dark field
+     (the deep stop reads too dark on the dark canvas). */
   .wordmark {
-    font-size: 1.125rem;
-    font-weight: 800;
+    font-size: 1.25rem;
+    font-weight: 700;
     letter-spacing: -0.02em;
-    background: linear-gradient(135deg, #4f46e5, #a855f7);
+    background: linear-gradient(135deg, var(--accent-mid), var(--accent-3));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+    transition: background 0.4s ease;
+  }
+  .dark .wordmark {
+    background: linear-gradient(135deg, var(--accent), var(--accent-mid));
+    -webkit-background-clip: text;
+    background-clip: text;
   }
 
   /* §6.2 Avatar trigger — 34×34 gradient circle, white initials, auth ring. */
@@ -228,33 +632,34 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
     border-radius: 9999px;
-    background: linear-gradient(135deg, #4f46e5, #a855f7);
-    color: #fff;
+    background: linear-gradient(135deg, var(--accent-mid), var(--accent-3));
+    color: var(--on-accent);
     font-weight: 700;
-    font-size: 13px;
+    font-size: 14px;
     box-shadow:
       0 0 0 2px #fff,
-      0 0 0 4px rgba(99, 102, 241, 0.35),
-      0 4px 10px -2px rgba(79, 70, 229, 0.5);
+      0 0 0 4px color-mix(in srgb, var(--accent-3) 35%, transparent),
+      0 4px 10px -2px color-mix(in srgb, var(--accent-3) 50%, transparent);
     transition:
       transform 0.18s ease,
-      box-shadow 0.25s ease;
+      box-shadow 0.25s ease,
+      background 0.4s ease;
   }
   .user-avatar:hover {
     transform: translateY(-1px);
     box-shadow:
       0 0 0 2px #fff,
-      0 0 0 4px rgba(99, 102, 241, 0.5),
-      0 6px 14px -2px rgba(79, 70, 229, 0.6);
+      0 0 0 4px color-mix(in srgb, var(--accent-3) 50%, transparent),
+      0 6px 14px -2px color-mix(in srgb, var(--accent-3) 60%, transparent);
   }
   .dark .user-avatar {
     box-shadow:
       0 0 0 2px #0e1117,
-      0 0 0 4px rgba(99, 102, 241, 0.35),
-      0 4px 10px -2px rgba(79, 70, 229, 0.5);
+      0 0 0 4px color-mix(in srgb, var(--accent-3) 35%, transparent),
+      0 4px 10px -2px color-mix(in srgb, var(--accent-3) 50%, transparent);
   }
 
   /* §6.3 Dropdown — 248px, right-aligned under the avatar, menu shadow. */
@@ -488,6 +893,10 @@
   .dark .edit-mode-banner {
     background: rgba(99, 102, 241, 0.12);
     border-color: rgba(99, 102, 241, 0.25);
+    /* #163 — the light-mode label (indigo-600 #4f46e5) measured only 2.86:1 on
+       the dark banner ground (fails AA for 11px bold text). Lift to indigo-300,
+       matching the exit button's dark treatment — ~9:1 on the near-black glass. */
+    color: #a5b4fc;
   }
 
   .edit-mode-banner-label {
@@ -573,17 +982,22 @@
     }
   }
 
+  /* §4.5 — the ⌘K palette as a v15 glass modal: radius 24, frosted surface with a
+     backdrop blur. The surface stays fairly opaque so the grouped result rows keep
+     full text contrast over whatever's behind the scrim. */
   .launcher-panel {
     display: flex;
     flex-direction: column;
     width: min(640px, calc(100vw - 32px));
     max-height: min(60vh, 520px);
-    background: #fff;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.86);
+    -webkit-backdrop-filter: blur(30px) saturate(130%);
+    backdrop-filter: blur(30px) saturate(130%);
+    border: 1px solid var(--v-brd);
+    border-radius: var(--r-panel);
     box-shadow:
-      0 18px 40px -12px rgba(16, 24, 40, 0.28),
-      0 0 0 1px rgba(15, 23, 42, 0.03);
+      0 18px 40px -12px var(--v-shadow),
+      inset 0 1px 0 var(--v-hi);
     overflow: hidden;
     animation: launcher-panel-in 0.14s ease;
   }
@@ -618,11 +1032,12 @@
     outline: none;
     background: transparent;
     font-size: 15px;
-    color: #0f172a;
-    caret-color: #4f46e5;
+    color: var(--v-txt);
+    caret-color: var(--accent-3);
   }
+  /* §9 correction #2 — placeholder was --faint (≈2.7–3.3:1); --v-muted is AA. */
   .launcher-input::placeholder {
-    color: #9aa3b8;
+    color: var(--v-muted);
   }
   .launcher-clear {
     flex: none;
@@ -665,7 +1080,7 @@
     background: #f4f5fb;
   }
   .launcher-row[data-selected='true'] {
-    background: rgba(99, 102, 241, 0.1);
+    background: color-mix(in srgb, var(--accent-3) 12%, transparent);
   }
   /* §2/§8 — selection is signalled by a leading accent bar (NOT colour alone). */
   .launcher-row[data-selected='true']::before {
@@ -676,7 +1091,7 @@
     bottom: 8px;
     width: 2px;
     border-radius: 2px;
-    background: linear-gradient(135deg, #4f46e5, #a855f7);
+    background: linear-gradient(135deg, var(--accent-mid), var(--accent-3));
   }
   .launcher-row-icon {
     flex: none;
@@ -761,24 +1176,32 @@
   /* §4.2 — the header trigger. Pill on desktop (glyph + "Search…" + chord hint),
      icon-only on phones (the hint span is `hidden sm:flex`). Built from v7
      hairline/faint tokens; hover raises the hairline + a faint accent tint. */
+  /* §4.1 ⌘K trigger — a v15 glass control pill (≥44px hit area, §6.3). */
   .launcher-trigger {
     display: inline-flex;
     align-items: center;
     gap: 8px;
     min-height: 44px;
-    padding: 6px 8px;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 9999px;
-    color: #6e6e6e;
+    padding: 6px 12px;
+    border: 1px solid var(--v-brd);
+    border-radius: var(--r-pill);
+    background: var(--v-glass2);
+    -webkit-backdrop-filter: blur(20px) saturate(112%);
+    backdrop-filter: blur(20px) saturate(112%);
+    color: var(--v-muted);
     transition:
       border-color 0.18s ease,
       background 0.18s ease,
       color 0.18s ease;
   }
   .launcher-trigger:hover {
-    border-color: rgba(99, 102, 241, 0.35);
-    background: rgba(99, 102, 241, 0.06);
-    color: #475069;
+    border-color: color-mix(in srgb, var(--accent-3) 40%, var(--v-brd));
+    background: color-mix(in srgb, var(--accent-3) 8%, var(--v-glass2));
+    color: var(--v-txt);
+  }
+  .launcher-trigger:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent-3);
   }
   .launcher-trigger-glyph {
     flex: none;
@@ -815,8 +1238,8 @@
     background: rgba(2, 4, 10, 0.6);
   }
   .dark .launcher-panel {
-    background: #0e1117;
-    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(16, 19, 26, 0.9);
+    border-color: var(--v-brd);
   }
   .dark .launcher-input-row {
     border-bottom-color: rgba(255, 255, 255, 0.07);
@@ -1365,12 +1788,274 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     border-radius: 4px;
-    color: #9aa3b8;
+    /* SPEC-v26 §8.6 — light badge grey lifted #9aa3b8→#5b6472 (2.5:1→~5.0:1 on
+       the pale fill). This feature stamps the badge 10× down a column, so the
+       pre-existing light-mode contrast miss is fixed here. Dark already passes at
+       #9aa3b8, so it is preserved below. */
+    color: #5b6472;
     background: rgba(15, 23, 42, 0.05);
     vertical-align: middle;
   }
   .dark .settings-env-badge {
+    color: #9aa3b8;
     background: rgba(255, 255, 255, 0.07);
+  }
+  /* cap6 §9.5 — the one writable System row: a hairline separates it from the
+     [env] read-only block below. */
+  .settings-kv-row--control {
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    align-items: center;
+  }
+  .dark .settings-kv-row--control {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+  /* dd holds [ save-flag ][ switch ] right-aligned, matching the env-row cells. */
+  .settings-kv-row--control dd {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* SPEC-v26 §8 — the read-only Environment Configuration list. Each env row
+     stacks a friendly label over the raw var name in the dt; the dd carries the
+     value + [env] badge, right-aligned like the control row. */
+  .settings-kv-row--env dt {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+  .settings-kv-label {
+    color: #475069;
+    font-weight: 600;
+  }
+  .dark .settings-kv-label {
+    color: #aab2c5;
+  }
+  /* §8.1 — the exact env-var name, mono + muted, AA at 11px (light 4.77:1). */
+  .settings-kv-var {
+    font: 500 11px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
+    letter-spacing: 0.01em;
+    color: #64748b;
+  }
+  .dark .settings-kv-var {
+    color: #aab2c5;
+  }
+  .settings-kv-row--env dd {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+  }
+  .settings-kv-value {
+    color: #0f172a;
+  }
+  .dark .settings-kv-value {
+    color: #e6e9f2;
+  }
+  /* §8.2 — empty value renders as a visible (not ghosted) em-dash. */
+  .settings-kv-value--empty {
+    color: #475069;
+  }
+  .dark .settings-kv-value--empty {
+    color: #aab2c5;
+  }
+  /* §8.5 — full-width group caption; orients without competing with "System".
+     The caption row is a div-wrapped dt/dd group (valid <dl> structure); the
+     empty decorative dd is hidden and the dt spans the row. */
+  .settings-kv-group-row {
+    margin-top: 8px;
+  }
+  .settings-kv-group-row:first-child {
+    margin-top: 0;
+  }
+  .settings-kv-group-dd {
+    display: none;
+  }
+  .settings-kv-group-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #475069;
+  }
+  .dark .settings-kv-group-label {
+    color: #aab2c5;
+  }
+  /* §8.4 — in-place error cell (below the toggle), reload-guided second line. */
+  .settings-env-error-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .settings-env-error-hint {
+    font-size: 12px;
+    color: #475069;
+  }
+  .dark .settings-env-error-hint {
+    color: #aab2c5;
+  }
+  /* §8.3 — skeleton rows hold the layout height while the fetch is in flight. */
+  .settings-skeleton-bar {
+    display: block;
+    height: 12px;
+    border-radius: 4px;
+    background: rgba(15, 23, 42, 0.06);
+    background-image: linear-gradient(
+      90deg,
+      rgba(15, 23, 42, 0.06) 0%,
+      rgba(15, 23, 42, 0.12) 50%,
+      rgba(15, 23, 42, 0.06) 100%
+    );
+    background-size: 200% 100%;
+    animation: settings-skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+  .dark .settings-skeleton-bar {
+    background: rgba(255, 255, 255, 0.08);
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(255, 255, 255, 0.16) 50%,
+      rgba(255, 255, 255, 0.08) 100%
+    );
+    background-size: 200% 100%;
+  }
+  .settings-skeleton-bar--dt {
+    width: 40%;
+  }
+  .settings-skeleton-bar--dd {
+    width: 55%;
+    margin-left: auto;
+  }
+  @keyframes settings-skeleton-shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+  /* §8.3 — reduced-motion: static bars, no sweep. */
+  @media (prefers-reduced-motion: reduce) {
+    .settings-skeleton-bar {
+      animation: none;
+      background-image: none;
+    }
+  }
+  /* §8.7 — below 480px stack the row and hard-wrap long OIDC URLs; the [env]
+     badge stays glued to the end of the value. */
+  @media (max-width: 480px) {
+    .settings-kv-row--env {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+    }
+    .settings-kv-row--env dd {
+      text-align: left;
+      flex-wrap: wrap;
+    }
+    .settings-kv-value {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      min-width: 0;
+    }
+  }
+  /* Pill switch — 44×44 hit area, 44×24 visible track centered inside (≥44 touch
+     target; OFF track carries a 1.5px #767676 boundary so it clears the 3:1
+     UI-component rule instead of ghosting on a pale fill). */
+  .settings-switch {
+    position: relative;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    padding: 10px 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+  .settings-switch::before {
+    content: '';
+    display: block;
+    width: 44px;
+    height: 24px;
+    border-radius: 999px;
+    background: #e4e7ee;
+    border: 1.5px solid #767676;
+    transition: background 150ms ease-out, border-color 150ms ease-out;
+  }
+  .settings-switch-thumb {
+    position: absolute;
+    top: 12px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    transition: left 150ms ease-out;
+  }
+  .settings-switch[aria-checked='true']::before {
+    background: #4f46e5;
+    border-color: transparent;
+  }
+  .settings-switch[aria-checked='true'] .settings-switch-thumb {
+    left: 22px;
+  }
+  .settings-switch:focus-visible {
+    outline: 2px solid #4f46e5;
+    outline-offset: 2px;
+    border-radius: 999px;
+  }
+  .settings-switch[aria-busy='true'] {
+    opacity: 0.7;
+    cursor: progress;
+  }
+  /* Transient "Saving…" / "Saved ✓" / error flag — reserve width so the switch
+     never jumps as the flag appears and clears. */
+  .settings-save-flag {
+    min-width: 56px;
+    text-align: right;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4f46e5;
+    opacity: 0;
+    transition: opacity 150ms ease-out;
+  }
+  .settings-save-flag[data-state='saving'] {
+    color: #9aa3b8;
+    opacity: 1;
+  }
+  .settings-save-flag[data-state='saved'] {
+    opacity: 1;
+  }
+  .settings-save-flag[data-state='error'] {
+    color: #b42318;
+    opacity: 1;
+  }
+  .dark .settings-switch::before {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.45);
+  }
+  .dark .settings-switch[aria-checked='true']::before {
+    background: #6366f1;
+    border-color: transparent;
+  }
+  .dark .settings-switch-thumb {
+    background: #e6e9f2;
+  }
+  .dark .settings-save-flag {
+    color: #a5b4fc;
+  }
+  .dark .settings-save-flag[data-state='error'] {
+    color: #fca5a5;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .settings-switch::before,
+    .settings-switch-thumb,
+    .settings-save-flag {
+      transition: none;
+    }
   }
   .library-edit {
     margin-top: 10px;
@@ -1536,6 +2221,11 @@
   .dark .settings-kv-row dd,
   .dark .settings-row-name {
     color: #e6e9f2;
+  }
+  /* SPEC-v26 §8.4 — .settings-error is #be123c with no dark override (~3.0:1 on
+     the dark panel, under the 4.5:1 body-text bar). Lift it to #fda4af (~7.8:1). */
+  .dark .settings-error {
+    color: #fda4af;
   }
   .dark .settings-input {
     background: #11151c;
@@ -1977,9 +2667,22 @@
     align-items: flex-start;
     gap: 16px;
     /* No inner width cap: the flex row fills the outer CONTENT_WIDTH section
-       (the shared max-w-[1536px] px-4 mx-auto frame from App.tsx), so its left
-       and right edges align with the header and status-strip content at every
-       viewport (#196). */
+       (the shared max-w-[max(1536px,92vw)] px-4 mx-auto frame from App.tsx —
+       fluid above 1536px, SPEC-ultrawide-fluid-frame), so its left and right
+       edges align with the header and status-strip content at every viewport
+       (#196). */
+  }
+  /* R3 residual rule (SPEC-pane-fill-reflow §R3), active only in the fluid
+     band (92vw > 1536px, i.e. ≥1671px viewports — below that the frame and
+     layout are byte-identical to shipped Phase 1): when every box in a row is
+     already at its content-max and row space still remains (few apps + very
+     wide monitor), the packed cluster CENTERS — a deliberate "this is how much
+     content there is" read, not a ragged left-pack. Rows that can still grow
+     are filled by flex-grow before justify-content ever shows. */
+  @media (min-width: 1671px) {
+    .app-grid {
+      justify-content: center;
+    }
   }
   .app-grid-box {
     /* SPEC-pane-fill-reflow (Phase 1, R3/R4) — the box GROWS to fill row slack.
@@ -2001,22 +2704,46 @@
     min-height: 120px;
     padding: 16px;
     border-radius: 22px;
-    background: rgba(255, 255, 255, 0.72);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
+    /* Glass v2 (SPEC-glass-v2-accent): alpha drops 0.72→0.65 (0.68→0.60 dark)
+       so the accent blobs actually show through, and saturate(1.5) joins the
+       blur so the color that comes through reads RICHER, not grayer — the
+       material effect. Worst-case composited text contrast stays above the
+       shipped floors (blobs are ≤0.14 alpha over near-extreme bases; titles
+       measure ≥12:1 both modes — spec §4). */
+    background: rgba(255, 255, 255, 0.65);
+    -webkit-backdrop-filter: blur(14px) saturate(1.5);
+    backdrop-filter: blur(14px) saturate(1.5);
     /* The glass edge is an INSET box-shadow ring, not a `border`: a 1px border
        (2px total) would shrink the content box to 806px, and auto-fill needs the
        full 808px (4×190 + 3×16) to pack a width-4 box's 4th column — the border
        silently dropped the last tile to a second row. The inset ring reads the
        same but leaves the content width exactly N-tiles wide, so auto-fill packs
-       exactly --w columns (AC-004–008). */
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), 0 2px 8px rgba(0, 0, 0, 0.06),
+       exactly --w columns (AC-004–008).
+       Glass v2 adds a second inset — a 1px TOP-EDGE bevel highlight (light
+       catches the top of real glass; a uniform ring reads flat). Still a
+       shadow, so the 808px content-box math above is untouched. */
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 8px rgba(0, 0, 0, 0.06),
       0 8px 24px rgba(0, 0, 0, 0.04);
   }
   .dark .app-grid-box {
-    background: rgba(30, 30, 40, 0.68);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 2px 8px rgba(0, 0, 0, 0.32),
+    background: rgba(30, 30, 40, 0.6);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 2px 8px rgba(0, 0, 0, 0.32),
       0 8px 24px rgba(0, 0, 0, 0.24);
+  }
+  /* Glass v2 a11y fallback — users who ask the OS to reduce transparency get
+     near-solid boxes and no backdrop-filter (the reduced-motion pattern applied
+     to the glass). The bevel/ring/elevation shadows stay. */
+  @media (prefers-reduced-transparency: reduce) {
+    .app-grid-box {
+      background: rgba(255, 255, 255, 0.96);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+    .dark .app-grid-box {
+      background: rgba(30, 30, 40, 0.97);
+    }
   }
   .app-grid-box-header {
     display: flex;
@@ -2204,50 +2931,80 @@
     gap: 8px;
     min-height: 120px;
     box-sizing: border-box;
-    padding: 15px 15px 13px;
-    border-radius: 18px;
-    background: linear-gradient(180deg, #fff, #fbfcff);
-    border: 1px solid rgba(15, 23, 42, 0.06);
-    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 20px -10px rgba(16, 24, 40, 0.12);
+    padding: 16px;
+    border-radius: var(--r-tile);
+    background: var(--v-tile);
+    -webkit-backdrop-filter: blur(20px) saturate(112%);
+    backdrop-filter: blur(20px) saturate(112%);
+    border: 1px solid var(--v-tilebrd);
+    box-shadow: 0 6px 20px var(--v-shadow-tile), inset 0 1px 0 var(--v-tilehi);
     text-decoration: none;
     text-align: center;
     transition: transform 0.18s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   }
   .dark .app-grid-tool {
-    background: linear-gradient(180deg, #12161e, #0e1117);
-    border-color: rgba(255, 255, 255, 0.06);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 24px -12px rgba(0, 0, 0, 0.7),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    background: var(--v-tile);
+    border-color: var(--v-tilebrd);
+    box-shadow: 0 6px 20px var(--v-shadow-tile), inset 0 1px 0 var(--v-tilehi);
   }
+  /* Hover lifts 2px and the edge picks up the accent (§4.3, AC-V15-024). */
   .app-grid-tool:hover {
-    transform: translateY(-3px);
-    border-color: rgba(99, 102, 241, 0.45);
-    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 18px 34px -14px rgba(79, 70, 229, 0.3),
-      0 0 0 1px rgba(99, 102, 241, 0.12);
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--accent-3) 45%, var(--v-tilebrd));
+    box-shadow: 0 12px 30px var(--v-shadow),
+      0 0 0 1px color-mix(in srgb, var(--accent-3) 22%, transparent),
+      inset 0 1px 0 var(--v-tilehi);
   }
   .app-grid-tool:active {
     transform: translateY(0);
   }
   .app-grid-tool:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px #6366f1;
+    box-shadow: 0 0 0 2px var(--accent-3);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-grid-tool,
+    .app-grid-tool:hover,
+    .app-grid-tool:active {
+      transform: none;
+    }
+  }
+  /* Status tile treatments (AC-V15-021). DOWN/DEGRADED get a left status bar +
+     a status-tinted border; DOWN additionally tints its fill. Idle (not
+     monitored) gets a dashed ring. Text stays at full token contrast — no blanket
+     opacity (§9 correction #1). */
+  .app-grid-tool[data-status='DOWN'] {
+    border-color: color-mix(in srgb, var(--v-down) 45%, var(--v-tilebrd));
+    background: color-mix(in srgb, var(--v-down) 10%, var(--v-tile));
+    box-shadow: inset 3px 0 0 var(--v-down), 0 6px 20px var(--v-shadow-tile);
+  }
+  .app-grid-tool[data-status='DEGRADED'] {
+    border-color: color-mix(in srgb, var(--v-degraded) 42%, var(--v-tilebrd));
+    box-shadow: inset 3px 0 0 var(--v-degraded), 0 6px 20px var(--v-shadow-tile);
+  }
+  .app-grid-tool[data-status='NOT_MONITORED'] {
+    border-style: dashed;
+    border-color: var(--v-idle);
   }
   .app-grid-tool-icon {
     flex: none;
-    width: 46px;
-    height: 46px;
+    width: 44px;
+    height: 44px;
     padding: 7px;
     box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 13px;
+    border-radius: var(--r-ico);
     overflow: hidden;
-    background: linear-gradient(135deg, #f2f4fc, #e9edf9);
-    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+    background: var(--v-glass2);
+    box-shadow: inset 0 0 0 1px var(--v-ico-hi);
   }
   .dark .app-grid-tool-icon {
-    background: linear-gradient(135deg, #1b2130, #161b26);
+    background: var(--v-glass2);
+  }
+  .app-grid-tool[data-status='NOT_MONITORED'] .app-grid-tool-icon {
+    opacity: 0.82;
   }
   .app-grid-tool-icon img {
     width: 100%;
@@ -2286,7 +3043,13 @@
     margin-top: 2px;
     font-size: 11px;
     line-height: 1.3;
-    color: #737373;
+    /* #351 — over the DOWN tile's translucent pink fill the old neutral-500
+       #737373 dropped below AA (4.07 on Kare's rgb(249,234,236); as low as 3.69
+       on the darkest live composite — phone + purple accent); UP was a thin 4.70.
+       #5f5f5f clears 4.5 across every measured light composite (~4.97 on the
+       darkest DOWN pink, ~5.5 on Kare's; UP ≥5.2) while staying visibly muted
+       below the #262626 name. Dark (#a3a3a3, 4.95) is unaffected. */
+    color: #5f5f5f;
     text-align: center;
     overflow-wrap: anywhere;
   }
@@ -2308,12 +3071,26 @@
     border: none;
     border-radius: 999px;
     background: transparent;
-    color: #94a3b8;
+    color: #64748b;
     font-size: 16px;
     line-height: 1;
     cursor: pointer;
     opacity: 0.5;
+    touch-action: manipulation;
     transition: color 120ms ease, background 120ms ease, opacity 120ms ease;
+  }
+  /* v20 (#255, spec §8.1) — extend only the invisible hit area to 44×44,
+     centered on the painted 34×34 button so the glyph does not move (0px delta)
+     and the hover pill / focus ring stay 34px. A pointer event anywhere in this
+     transparent ::before fires the button's onClick (AC-001). */
+  .app-grid-tool-fav::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
   }
   .app-grid-tool-wrap:hover .app-grid-tool-fav,
   .app-grid-tool-fav:focus-visible {
@@ -2340,6 +3117,170 @@
   }
   .dark .app-grid-tool-fav.is-favorite {
     color: #fbbf24;
+  }
+  /* v21 §8.1 — per-tile pencil edit affordance. Mirrors the ★ construction (34×34
+     painted glyph + a transparent centered 44×44 ::before, zero layout shift) but
+     anchored BOTTOM-right and painted in the accent (indigo, theme-aware: #4f46e5
+     light / #818cf8 dark — the same theme-aware accent the modal uses, §8.6). It
+     rests at opacity 0.85 (more present than the ★'s 0.5 — in edit mode the pencil
+     IS the primary per-tile action) and lifts to 1 on tile hover / focus. The ★
+     (top-right) and pencil (bottom-right) share the right rail but never a row, so
+     neither steals the other's tap (34px measured gap, §8.1). */
+  .app-grid-tool-edit {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: #4f46e5;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.85;
+    touch-action: manipulation;
+    transition: color 120ms ease, background 120ms ease, opacity 120ms ease;
+  }
+  .app-grid-tool-edit::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+  }
+  .app-grid-tool-wrap:hover .app-grid-tool-edit,
+  .app-grid-tool-edit:focus-visible {
+    opacity: 1;
+  }
+  .app-grid-tool-edit:hover {
+    background: rgba(79, 70, 229, 0.1);
+    color: #4338ca;
+  }
+  .app-grid-tool-edit:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #4f46e5;
+  }
+  .dark .app-grid-tool-edit {
+    color: #818cf8;
+  }
+  .dark .app-grid-tool-edit:hover {
+    background: rgba(129, 140, 248, 0.16);
+    color: #a5b4fc;
+  }
+  .dark .app-grid-tool-edit:focus-visible {
+    box-shadow: 0 0 0 2px #818cf8;
+  }
+  /* Edit-mode tile treatment (§8.1): a 2px INSET accent ring marks each editable
+     tile — enough to read "tap to edit" without a dim/scrim that would fight the
+     icon or label (Walt's constraint). Only while the wrap is in edit mode. */
+  .app-grid-tool-wrap.is-editing .app-grid-tool {
+    outline: 2px solid #4f46e5;
+    outline-offset: -2px;
+  }
+  .dark .app-grid-tool-wrap.is-editing .app-grid-tool {
+    outline-color: #818cf8;
+  }
+  /* v28 §8.2 — the tile drag grip: a 34×34 painted braille glyph with an invisible
+     centred 44×44 ::before hit area (design-principle 3, 0px layout shift), built
+     like the pencil (.app-grid-tool-edit) but anchored BOTTOM-LEFT — the fourth
+     tile corner, mirror of the pencil (§8.1). Colour is the box-grip slate pair
+     SWAPPED BY THEME (§8.7): the glass tile is a brighter surface than the box
+     header, so light rest is slate-500 #64748b (4.72:1 on the composited glass)
+     and dark rest is slate-400 #94a3b8 (5.61:1) — both clear the 3:1 non-text
+     floor. Always visible at opacity 1 whenever editing (touch has no hover, and a
+     keyboard user must be able to Tab to a grip they can see — §8.2 note), calm via
+     the mid-slate colour, not a dimmed alpha. */
+  .app-grid-tool-grip {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: none;
+    background: transparent;
+    color: #64748b; /* LIGHT rest — slate-500, §8.7 */
+    font-size: 18px;
+    line-height: 1;
+    border-radius: 999px;
+    cursor: grab;
+    touch-action: none; /* a drag doesn't fight page scroll */
+    opacity: 1; /* NOT hover-gated — §8.2 note */
+    transition: color 120ms ease, background 120ms ease;
+  }
+  .app-grid-tool-grip::before {
+    /* invisible 44×44 hit area, centred on the 34px glyph */
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+  }
+  .app-grid-tool-grip:hover {
+    color: #475569;
+    background: rgba(15, 23, 42, 0.06);
+  }
+  .app-grid-tool-grip:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #4f46e5;
+  }
+  .app-grid-tool-grip[aria-pressed='true'] {
+    color: #4f46e5;
+    cursor: grabbing;
+  }
+  .dark .app-grid-tool-grip {
+    color: #94a3b8; /* DARK rest — slate-400 */
+  }
+  .dark .app-grid-tool-grip:hover {
+    color: #cbd5e1;
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .dark .app-grid-tool-grip:focus-visible {
+    box-shadow: 0 0 0 2px #818cf8;
+  }
+  .dark .app-grid-tool-grip[aria-pressed='true'] {
+    color: #818cf8;
+  }
+  /* v28 §8.3 — lifted / dragging tile. The scale is on the inner .app-grid-tool
+     (dnd-kit owns the wrapper's transform for translation, so scaling the child
+     avoids clobbering the drag translate); the wrapper only lifts its z-index.
+     Elevation + accent border read "picked up", never an error (no red). */
+  .app-grid-tool-wrap.is-grabbed {
+    z-index: 5;
+  }
+  .app-grid-tool-wrap.is-grabbed .app-grid-tool {
+    transform: scale(1.03);
+    box-shadow: 0 14px 32px var(--v-shadow), inset 0 1px 0 var(--v-tilehi);
+    border-color: #4f46e5;
+    cursor: grabbing;
+  }
+  .dark .app-grid-tool-wrap.is-grabbed .app-grid-tool {
+    border-color: #818cf8;
+  }
+  /* v28 §8.5 — reduced motion: drop the scale (a motion cue) but KEEP the
+     elevation + accent border (static cues), and snap siblings instead of sliding.
+     The grip, keyboard path, and persistence are untouched (AC-014). */
+  @media (prefers-reduced-motion: reduce) {
+    .app-grid-tool-wrap {
+      transition: none !important;
+    }
+    .app-grid-tool-wrap.is-grabbed .app-grid-tool {
+      transform: none;
+    }
+    .app-grid-tool-grip {
+      transition: none;
+    }
   }
   /* #242 — per-tile status pip on the App Grid tool tile (SPEC-242 §5, Kare).
      9px solid circle at top-LEFT (8/8) — mirrors the favorite ★ at top-right so
@@ -2408,6 +3349,21 @@
   }
   .dark .app-grid-tool-status[data-status='NOT_MONITORED'] {
     border-color: #a3a3a3;
+  }
+  /* §3.8/§3.9 — DOWN is the one state that draws the eye with a continuous pulse
+     (DEGRADED does not). Scoped :not(--pulse) so it yields to the single-shot
+     change-pulse below, and frozen under prefers-reduced-motion. */
+  .app-grid-tool-status[data-status='DOWN']:not(.app-grid-tool-status--pulse) {
+    animation: down-status-breathe 1.6s ease-in-out infinite;
+  }
+  @keyframes down-status-breathe {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-grid-tool-status[data-status='DOWN']:not(.app-grid-tool-status--pulse) {
+      animation: none;
+    }
   }
   /* D-4 — single-shot pulse fired only on the tile whose status changed (JS adds
      the class on a poll diff). scale(1→1.7→1), 0.6s, transform only (no reflow).
@@ -2556,6 +3512,548 @@
      fixed-190 invariant is a >640px property; on phones killing horizontal scroll
      outranks pixel-perfect width. Breakpoint is 640px, not v14's 767 — the desktop
      auto-fill track already wraps 190px tiles natively at 768 (§6.7). */
+
+  /* ============================================================
+     v21 — Tile Edit Modal (spec §8.2–8.6, Kare; every value measured @ iPad 768
+     light+dark). Scrim + centered card, sticky header/footer with only the field
+     region scrolling so Save is always reachable. Every input/button ≥44px
+     (§8.6). Three forced dark-mode token decisions are baked in:
+       1. primary CTA stays indigo-600 #4f46e5 + white in BOTH themes (dark must
+          NOT lighten to indigo-500 — that drops white-on-fill to 4.47:1, a fail).
+       2. accent (ghost label / ✕ / focus ring / edit ring / pencil) is theme-
+          aware: #4f46e5 light, #818cf8 dark (indigo-600 is only 4.47:1 on the
+          dark surface).
+       3. control border is theme-aware #8c8c8c light / #808080 dark (never the
+          2.52:1 neutral-400 #a3a3a3).
+     ============================================================ */
+  .tile-edit-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.5); /* scrim token */
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .tile-edit-overlay {
+      animation: tile-edit-scrim 160ms ease-out;
+    }
+    .tile-edit-modal {
+      animation: tile-edit-rise 160ms ease-out;
+    }
+  }
+  @keyframes tile-edit-scrim {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes tile-edit-rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .tile-edit-modal {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    background: #ffffff;
+    color: #171717;
+    border-radius: 16px;
+    box-shadow: 0 24px 60px -12px rgba(16, 24, 40, 0.35), 0 0 0 1px rgba(16, 24, 40, 0.05);
+    overflow: hidden;
+  }
+  .dark .tile-edit-modal {
+    background: #1c1c1e;
+    color: #f5f5f5;
+    box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  }
+  /* Sticky header (title + scope subtitle + ✕) — never scrolls away. */
+  .tile-edit-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 20px 12px;
+    background: inherit;
+  }
+  .tile-edit-title-h {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: #171717;
+  }
+  .dark .tile-edit-title-h {
+    color: #f5f5f5;
+  }
+  .tile-edit-subtitle {
+    margin: 2px 0 0;
+    font-size: 14px;
+    line-height: 1.3;
+    color: #616161; /* secondary — 4.74:1 on white */
+  }
+  .dark .tile-edit-subtitle {
+    color: #b3b3b3; /* 6.75:1 on #1c1c1e */
+  }
+  .tile-edit-close {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #404040; /* label token — 10.37:1 */
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .dark .tile-edit-close {
+    color: #e5e5e5; /* 13.51:1 */
+  }
+  .tile-edit-close:hover {
+    background: rgba(15, 23, 42, 0.06);
+  }
+  .dark .tile-edit-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .tile-edit-close:focus-visible {
+    outline: 2px solid #4f46e5;
+    outline-offset: 2px;
+  }
+  .dark .tile-edit-close:focus-visible {
+    outline-color: #818cf8;
+  }
+  /* Only the field region scrolls (§8.2). */
+  .tile-edit-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 8px 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .tile-edit-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .tile-edit-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #404040; /* 10.37:1 */
+  }
+  .dark .tile-edit-label {
+    color: #e5e5e5; /* 13.51:1 */
+  }
+  .tile-edit-input {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 44px; /* §8.6 — fixes the DS §3.3 38px input miss */
+    padding: 10px 12px;
+    font-size: 15px;
+    color: #171717;
+    background: #ffffff;
+    border: 1px solid #8c8c8c; /* control-border light — 3.36:1 */
+    border-radius: 8px;
+  }
+  .dark .tile-edit-input {
+    color: #f5f5f5;
+    background: #141416;
+    border-color: #808080; /* control-border dark — 4.31:1 */
+  }
+  .tile-edit-input:focus-visible {
+    outline: 2px solid #4f46e5;
+    outline-offset: 1px;
+    border-color: #4f46e5;
+  }
+  .dark .tile-edit-input:focus-visible {
+    outline-color: #818cf8;
+    border-color: #818cf8;
+  }
+  /* v25 §8.4 — the UA-default placeholder (~3.4:1) misses AA; pin the modal input
+     token so the new Gatus-key placeholder AND the pre-existing URL-fallback
+     placeholder both clear 4.5:1. Documented modal-input token evolution. */
+  .tile-edit-input::placeholder {
+    color: #525252; /* 7.81:1 on #fff */
+    opacity: 1; /* Firefox lowers placeholder opacity by default */
+  }
+  .dark .tile-edit-input::placeholder {
+    color: #a3a3a3; /* ≥4.5:1 on #141416 */
+  }
+  .tile-edit-textarea {
+    min-height: 76px; /* §8.6 — the one multi-line field */
+    resize: vertical;
+    font-family: inherit;
+    line-height: 1.4;
+  }
+  .tile-edit-help {
+    margin: 2px 0 0;
+    font-size: 13px;
+    line-height: 1.35;
+    color: #525252; /* helper — 7.81:1 */
+  }
+  .dark .tile-edit-help {
+    color: #d4d4d4; /* 11.48:1 */
+  }
+  /* Icon compound panel (§8.3). */
+  .tile-icon-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 12px;
+  }
+  .dark .tile-icon-panel {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+  /* v22 §8.1 — segmented control (a WAI-ARIA tablist styled as a segment). The
+     `--seg-track` well holds two equal 50% segments; the active one is a raised
+     thumb with an accent border + accent label (the ≥3:1 indicator per §6.4),
+     never color alone. Both segments carry a 1.5px transparent border so the
+     active↔inactive swap causes zero layout shift. */
+  .tile-icon-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: #e5e5e5; /* --seg-track light */
+    border-radius: 12px;
+  }
+  .dark .tile-icon-tabs {
+    background: #101012; /* --seg-track dark */
+  }
+  .tile-icon-tab {
+    flex: 1 1 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 48px; /* §8.8 — 179×48 each on the iPad-768 panel */
+    padding: 0 12px;
+    font-size: 15px;
+    font-weight: 500;
+    color: #525252; /* inactive: helper — 6.20:1 */
+    background: transparent;
+    border: 1.5px solid transparent; /* zero-shift placeholder */
+    border-radius: 9px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .dark .tile-icon-tab {
+    color: #d4d4d4; /* inactive: helper — 12.82:1 */
+  }
+  .tile-icon-tab.is-active {
+    background: #ffffff; /* raised thumb (elevation cue only) */
+    color: #4f46e5; /* accent label — 6.29:1, weight 600 */
+    font-weight: 600;
+    border-color: #4f46e5; /* accent indicator — 4.99:1 vs inactive track */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  }
+  .dark .tile-icon-tab.is-active {
+    background: #26262a;
+    color: #818cf8; /* accent label — 5.05:1 */
+    border-color: #818cf8; /* accent indicator — 6.37:1 vs inactive track */
+  }
+  .tile-icon-tab:focus-visible {
+    outline: 2px solid #4f46e5;
+    outline-offset: 2px;
+  }
+  .dark .tile-icon-tab:focus-visible {
+    outline-color: #818cf8;
+  }
+  /* Leading status dot — a filled secondary cue; dimmed when inactive. */
+  .tile-icon-tab-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.4;
+    flex: none;
+  }
+  .tile-icon-tab.is-active .tile-icon-tab-dot {
+    opacity: 1;
+  }
+  .tile-icon-tabpanel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  /* §8.3 state 2 — inheriting a fallback: render it at reduced emphasis. */
+  .tile-icon-preview.is-inherited img {
+    opacity: 0.7;
+  }
+  .tile-icon-inherit {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.35;
+    color: #666666; /* secondary — 5.74:1 (≥4.5) */
+  }
+  .dark .tile-icon-inherit {
+    color: #a3a3a3; /* secondary — 6.75:1 */
+  }
+  /* §8.3 state 3 — explicit empty state: a dashed box + "No icon set". */
+  .tile-icon-preview.is-empty {
+    flex-direction: column;
+    gap: 3px;
+    border-style: dashed;
+    border-width: 1.5px; /* dashed border — 3.36:1 light / 4.31:1 dark */
+    background: transparent;
+  }
+  .tile-icon-empty-glyph {
+    font-size: 20px;
+    line-height: 1;
+    color: #8c8c8c;
+  }
+  .dark .tile-icon-empty-glyph {
+    color: #808080;
+  }
+  .tile-icon-empty-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #525252; /* helper — 7.81:1 */
+  }
+  .dark .tile-icon-empty-label {
+    color: #d4d4d4; /* 11.48:1 */
+  }
+  .tile-icon-empty-hint {
+    margin: 0;
+  }
+  /* §8.4 — the shared URL fallback, set OUTSIDE the tabpanel by a full-width
+     divider so it visibly applies to both modes, not to the active tab. */
+  .tile-icon-url-field {
+    border-top: 1px solid rgba(15, 23, 42, 0.1);
+    padding-top: 16px;
+  }
+  .dark .tile-icon-url-field {
+    border-top-color: rgba(255, 255, 255, 0.12);
+  }
+  .tile-icon-url-labelrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  /* Scope badge — a lightweight accent-outline pill making the shared scope
+     legible at a glance (§8.4). */
+  .tile-icon-scope-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: #4f46e5; /* accent — 6.29:1 */
+    border: 1px solid #4f46e5;
+    border-radius: 999px;
+  }
+  .dark .tile-icon-scope-pill {
+    color: #818cf8; /* 5.70:1 */
+    border-color: #818cf8;
+  }
+  .tile-icon-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .tile-icon-preview {
+    position: relative;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px; /* exceeds the ≥48 floor (§8.3) */
+    height: 64px;
+    border-radius: 12px;
+    background: #f5f5f5; /* preview-bg light */
+    border: 1px solid #8c8c8c; /* definition ring — 3.08:1 */
+    overflow: hidden;
+  }
+  .dark .tile-icon-preview {
+    background: #2a2a2c; /* preview-bg dark */
+    border-color: #808080; /* 3.63:1 */
+  }
+  .tile-icon-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .tile-icon-preview.is-busy img {
+    opacity: 0.35;
+  }
+  .tile-icon-spinner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.35);
+    text-align: center;
+  }
+  .tile-icon-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 140px;
+  }
+  .tile-icon-url-field {
+    width: 100%;
+  }
+  .tile-icon-remove-confirm {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  /* Buttons — all ≥44 (§8.6, fixing the DS §3.2 36px miss). */
+  .tile-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .tile-edit-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .tile-edit-btn:focus-visible {
+    outline: 2px solid #4f46e5;
+    outline-offset: 2px;
+  }
+  .dark .tile-edit-btn:focus-visible {
+    outline-color: #818cf8;
+  }
+  .tile-edit-btn-primary {
+    background: #4f46e5; /* indigo-600 — white-on-fill 6.29:1 in BOTH themes */
+    color: #ffffff;
+  }
+  .dark .tile-edit-btn-primary {
+    background: #4f46e5; /* decision 1 — do NOT lighten in dark */
+    color: #ffffff;
+  }
+  .tile-edit-btn-primary:hover:not(:disabled) {
+    background: #4338ca;
+  }
+  .tile-edit-btn-secondary {
+    background: #f0f0f0;
+    color: #171717; /* 16.44:1 */
+  }
+  .dark .tile-edit-btn-secondary {
+    background: #2f2f31;
+    color: #f5f5f5; /* 13.14:1 */
+  }
+  .tile-edit-btn-ghost {
+    background: transparent;
+    color: #4f46e5; /* accent light — 6.29:1 */
+    border-color: #8c8c8c;
+  }
+  .dark .tile-edit-btn-ghost {
+    color: #818cf8; /* accent dark — 5.70:1 (decision 2) */
+    border-color: #808080;
+  }
+  .tile-edit-btn-danger-outline {
+    background: transparent;
+    color: #b42318; /* danger — 6.47:1 */
+    border-color: #b42318;
+  }
+  .dark .tile-edit-btn-danger-outline {
+    color: #f87171; /* 6.15:1 */
+    border-color: #f87171;
+  }
+  /* Low-emphasis text buttons (Remove / Keep). */
+  .tile-edit-btn-text {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 4px;
+    font-size: 14px;
+    font-weight: 600;
+    background: transparent;
+    border: none;
+    color: #525252;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .tile-edit-btn-text.is-danger {
+    color: #b42318; /* 6.47:1 */
+  }
+  .dark .tile-edit-btn-text {
+    color: #d4d4d4;
+  }
+  .dark .tile-edit-btn-text.is-danger {
+    color: #f87171; /* 6.15:1 */
+  }
+  .tile-edit-btn-text:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .tile-edit-icon-error,
+  .tile-edit-error {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: #b42318; /* danger — ≥4.5:1 both themes */
+  }
+  .dark .tile-edit-icon-error,
+  .dark .tile-edit-error {
+    color: #f87171;
+  }
+  /* Sticky action bar (§8.2) — always reachable; morphs into the discard strip. */
+  .tile-edit-actions {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 12px 20px 16px;
+    background: inherit;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+  }
+  .dark .tile-edit-actions {
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+  .tile-edit-discard {
+    justify-content: space-between;
+  }
+  .tile-edit-discard-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #171717;
+  }
+  .dark .tile-edit-discard-text {
+    color: #f5f5f5;
+  }
   @media (max-width: 640px) {
     /* Guardrail AC-G1 (unchanged behavior) — below 640px boxes stack full-width.
        The Phase-1 grow model sets an explicit flex-basis (--floor), which wins over
@@ -2567,6 +4065,447 @@
     }
     .app-grid-tools {
       grid-template-columns: repeat(2, minmax(0, 190px));
+    }
+  }
+
+  /* v23 §4.2 — the Inline-overlay embed caveat under the click-action selector.
+     A touch stronger than a plain help line so the "some sites block embedding"
+     honesty is not missed, without shouting like an error. */
+  .tile-click-action-caveat {
+    font-style: italic;
+    opacity: 0.85;
+  }
+
+  /* ============================================================
+     v23 — IframeOverlay (SPEC-tile-click-action §5.4-5.5). Same scrim + centered
+     panel + sticky ✕ header as the tile-edit modal family, but a "host" container
+     for an embedded service: the panel fills ≥90% of the viewport so the embed
+     gets maximum real estate, and goes edge-to-edge below 640px. Kare §8 was not
+     yet recorded when this was built, so values follow the launcher/tile-edit
+     tokens already in this layer; a Kare pass can retune spacing/opacity without
+     touching the component contract.
+     ============================================================ */
+  .iframe-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 70; /* above the tile-edit modal family (60) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3vh 3vw;
+    background: rgba(0, 0, 0, 0.6);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .iframe-overlay {
+      animation: tile-edit-scrim 160ms ease-out;
+    }
+    .iframe-overlay-panel {
+      animation: tile-edit-rise 160ms ease-out;
+    }
+  }
+  .iframe-overlay-panel {
+    display: flex;
+    flex-direction: column;
+    width: 94vw;
+    height: 94vh;
+    background: #ffffff;
+    color: #171717;
+    border-radius: 14px;
+    box-shadow: 0 24px 60px -12px rgba(16, 24, 40, 0.45), 0 0 0 1px rgba(16, 24, 40, 0.06);
+    overflow: hidden;
+  }
+  .dark .iframe-overlay-panel {
+    background: #1c1c1e;
+    color: #f5f5f5;
+    box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  }
+  .iframe-overlay-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 0 0 auto;
+    min-height: 52px;
+    padding: 8px 8px 8px 16px;
+    border-bottom: 1px solid rgba(16, 24, 40, 0.1);
+    background: #f7f7f8;
+  }
+  .dark .iframe-overlay-header {
+    background: #262629;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+  .iframe-overlay-title {
+    flex: 1 1 auto;
+    font-weight: 600;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .iframe-overlay-close {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .iframe-overlay-close:hover {
+    background: rgba(16, 24, 40, 0.06);
+  }
+  .dark .iframe-overlay-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .iframe-overlay-close:focus-visible {
+    outline: 2px solid #4f46e5;
+    outline-offset: 2px;
+  }
+  .dark .iframe-overlay-close:focus-visible {
+    outline-color: #818cf8;
+  }
+  .iframe-overlay-body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    background: #ffffff;
+  }
+  .dark .iframe-overlay-body {
+    background: #0f0f10;
+  }
+  .iframe-overlay-frame {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+  }
+  .iframe-overlay-spinner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .iframe-overlay-spinner-ring {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 3px solid rgba(16, 24, 40, 0.15);
+    border-top-color: #4f46e5;
+  }
+  .dark .iframe-overlay-spinner-ring {
+    border-color: rgba(255, 255, 255, 0.15);
+    border-top-color: #818cf8;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .iframe-overlay-spinner-ring {
+      animation: iframe-overlay-spin 700ms linear infinite;
+    }
+  }
+  @keyframes iframe-overlay-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .iframe-overlay-fallback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+    padding: 24px;
+  }
+  .iframe-overlay-fallback-title {
+    font-weight: 600;
+    font-size: 1.05rem;
+  }
+  .iframe-overlay-fallback-text {
+    font-size: 0.9rem;
+    opacity: 0.75;
+    max-width: 32ch;
+  }
+  .iframe-overlay-fallback-open {
+    margin-top: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 20px;
+    border-radius: 10px;
+    background: #4f46e5;
+    color: #ffffff;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .iframe-overlay-fallback-open:hover {
+    background: #4338ca;
+  }
+  .iframe-overlay-fallback-open:focus-visible {
+    outline: 2px solid #4f46e5;
+    outline-offset: 2px;
+  }
+  @media (max-width: 640px) {
+    .iframe-overlay {
+      padding: 0;
+    }
+    .iframe-overlay-panel {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      border-radius: 0;
+    }
+  }
+
+  /* ===== v27 login / sign-in glass restyle (DESIGN-login-glass-2026-07-17) =====
+     The sign-in card is "the first glass tile you touch": same .app-surface
+     atmosphere, same --v-* glass tokens, same --accent as the dashboard. Every
+     color reads from a token (one new: --v-field), so it is mode-aware and
+     accent-aware. Retires the pre-v15 flat-white slabs + off-token neutrals. */
+  .auth-main {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 24px;
+    /* Bloom alphas kept deliberately low so the tint behind the glass card never
+       drags the card's text contrast below AA (measured on the real surface, not
+       white). Restated fainter in light mode where a blue tint costs the most. */
+    --auth-bloom-size: 460px 380px;
+    --auth-bloom-1: 0.11;
+    --auth-bloom-2: 0.055;
+  }
+  html:not(.dark) .auth-main {
+    --auth-bloom-1: 0.055;
+    --auth-bloom-2: 0.028;
+  }
+  @media (min-width: 900px) {
+    .auth-main {
+      --auth-bloom-size: 720px 560px;
+    }
+  }
+  /* Decorative brand-gradient bloom behind the card. No text sits over it, so it
+     carries no contrast floor (§4) — but it DOES sit behind the glass card, so
+     its alpha is bounded by the card's contrast budget (above). */
+  .auth-main::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      var(--auth-bloom-size) at 50% 40%,
+      rgb(var(--accent-1) / var(--auth-bloom-1)),
+      rgb(var(--accent-2) / var(--auth-bloom-2)) 46%,
+      transparent 72%
+    );
+  }
+
+  .auth-card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 400px;
+    padding: 24px;
+    /* Dark uses the panel glass (--v-glass). Light needs a whiter frost than
+       --v-glass (.55 over the tinted surface lands as a blue-grey that pushes
+       --v-muted + the red error UNDER AA on the real card — measured, not
+       assumed): a 0.78 white keeps it clearly frosted while restoring AA. */
+    --auth-card-fill: var(--v-glass);
+    /* #8 iPad-first fallback: a solid card background FIRST, so engines without
+       backdrop-filter (older iOS Safari) render an opaque card, never an
+       invisible transparent pane. @supports swaps in the translucent glass when
+       the blur is available. */
+    background: var(--bg-1);
+    -webkit-backdrop-filter: blur(30px) saturate(112%);
+    backdrop-filter: blur(30px) saturate(112%);
+    border: 1px solid var(--v-brd);
+    border-radius: var(--r-panel);
+    box-shadow: 0 10px 34px var(--v-shadow), inset 0 1px 0 var(--v-hi);
+    color: var(--v-txt);
+  }
+  html:not(.dark) .auth-card {
+    --auth-card-fill: rgba(255, 255, 255, 0.83);
+  }
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .auth-card {
+      background: var(--auth-card-fill);
+    }
+  }
+
+  .auth-logo {
+    /* the gradient house-logo kept as the brand hook, seated in a glass chip. */
+    padding: 8px;
+    border-radius: var(--r-chip);
+    background: var(--v-glass);
+    border: 1px solid var(--v-brd);
+    box-shadow: inset 0 1px 0 var(--v-hi), 0 0 26px rgb(var(--accent-1) / 0.25);
+  }
+
+  .auth-title {
+    color: var(--v-txt);
+  }
+  .auth-subtitle {
+    color: var(--v-muted);
+  }
+  .auth-label {
+    color: var(--v-txt);
+  }
+
+  .auth-field {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 14px;
+    /* 16px kills iOS focus-zoom on the field (see fleet-feed iPhone fix). */
+    font-size: 16px;
+    color: var(--v-txt);
+    background: var(--v-field);
+    border: 1px solid var(--v-kbdbrd);
+    border-radius: var(--r-tile);
+    box-shadow: inset 0 1px 0 var(--v-hi2);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .auth-field::placeholder {
+    color: var(--v-muted);
+  }
+  /* Focus carries the 1.4.11-compliant >=3:1 indicator (4.69:1, §5.2). */
+  .auth-field:focus {
+    border-color: var(--accent);
+    box-shadow: inset 0 1px 0 var(--v-hi2), 0 0 0 2px var(--accent-mid);
+  }
+  /* #5 autofill — Chrome/Safari/Bitwarden paint background-color !important over
+     the field; the inset box-shadow trick (opaque --v-field-fill) hides it and
+     -webkit-text-fill-color keeps the text on the glass. Without this the field
+     flashes UA-white/yellow, re-introducing the slab we removed. */
+  .auth-field:-webkit-autofill,
+  .auth-field:-webkit-autofill:hover,
+  .auth-field:-webkit-autofill:focus {
+    -webkit-box-shadow: inset 0 0 0 1000px var(--v-field-fill), inset 0 1px 0 var(--v-hi2);
+    -webkit-text-fill-color: var(--v-txt);
+    caret-color: var(--v-txt);
+    /* delay the UA background swap effectively forever */
+    transition: background-color 9999s ease-out;
+  }
+  .auth-field:-webkit-autofill:focus {
+    -webkit-box-shadow: inset 0 0 0 1000px var(--v-field-fill), 0 0 0 2px var(--accent-mid);
+  }
+
+  .auth-cta {
+    /* #3 solid --accent-3 (the brand gradient fails AA at its purple end). */
+    background: var(--accent-3);
+    color: var(--on-accent);
+    border: none;
+    border-radius: var(--r-tile);
+    font-weight: 600;
+  }
+  .auth-cta:hover:not(:disabled) {
+    filter: brightness(1.06);
+  }
+  .auth-cta:disabled {
+    filter: saturate(0.85) brightness(0.9);
+    cursor: default;
+  }
+  .auth-cta:focus-visible {
+    outline: 2px solid var(--accent-mid);
+    outline-offset: 2px;
+  }
+
+  .auth-secondary {
+    color: var(--v-muted);
+    background: transparent;
+    border: none;
+  }
+  .auth-secondary:hover {
+    color: var(--v-txt);
+  }
+  .auth-secondary:focus-visible {
+    outline: 2px solid var(--accent-mid);
+    outline-offset: 2px;
+    border-radius: var(--r-chip);
+  }
+
+  .auth-divider {
+    color: var(--v-muted);
+  }
+  .auth-divider-rule {
+    background: var(--v-rule);
+  }
+
+  .auth-oidc {
+    background: var(--v-glass);
+    border: 1px solid var(--v-brd);
+    color: var(--v-txt);
+    border-radius: var(--r-tile);
+    font-weight: 500;
+  }
+  .auth-oidc:hover:not(:disabled) {
+    background: var(--v-hover);
+  }
+  .auth-oidc:disabled {
+    color: var(--v-muted);
+    cursor: default;
+  }
+  .auth-oidc:focus-visible {
+    outline: 2px solid var(--accent-mid);
+    outline-offset: 2px;
+  }
+
+  .auth-error {
+    color: var(--v-down);
+  }
+
+  /* Busy affordance inside the CTA / PocketID button — inherits the button's
+     text color so one class works on both (white on --accent-3, --v-txt on
+     glass). Pairs with the "Signing in…" label, not a bare "…". */
+  .auth-spin {
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+    border-top-color: currentColor;
+    animation: app-spin 0.7s linear infinite;
+    flex: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .auth-spin {
+      animation: none;
+    }
+  }
+
+  .auth-footer {
+    position: absolute;
+    bottom: 16px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 12px;
+    color: var(--v-faint);
+  }
+
+  /* Motion restraint (§5.4): the card fades in; no transform that could trap a
+     child. Honored off entirely under reduced-motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    .auth-card {
+      animation: auth-fade-in 0.28s ease both;
+    }
+  }
+  @keyframes auth-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
     }
   }
 }

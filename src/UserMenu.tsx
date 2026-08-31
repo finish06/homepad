@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { User } from './api';
 import ThemeControl from './ThemeControl';
+import AccentControl from './AccentControl';
 import { userInitials } from './initials';
 
 // v7 §6 — the single account affordance that replaces the old six-control bar.
@@ -122,6 +123,11 @@ export default function UserMenu({
           <div className="px-2 pb-1">
             <ThemeControl />
           </div>
+          {/* Glass v2 — the ROYGBIV accent picker re-hues the backdrop blobs.
+              Client-only (localStorage), applies instantly; see accent.ts. */}
+          <div className="px-2 pb-1">
+            <AccentControl />
+          </div>
 
           <div className="menu-sep" />
 
@@ -149,8 +155,9 @@ export default function UserMenu({
           </button>
           {!isAdmin && (
             <p data-testid="menu-dashboard-note" className="menu-dashboard-note">
-              Your tiles, categories, and icons are your personal dashboard —
-              manage them directly on the home screen.
+              These tiles and categories are the shared homelab catalog, managed
+              by your admin. Favorite the ones you use most and arrange them on
+              your home screen.
             </p>
           )}
 
