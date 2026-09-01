@@ -79,7 +79,13 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
-    include: ['src/**/*.test.{ts,tsx}'],
+    // src/ holds behavior tests colocated with their modules. tests/infra/
+    // quarantines the SOURCE-CONTRACT suites — readFileSync greps over the
+    // Dockerfile / index.css / configs (P1.4 in the 2026-08-30 review). They
+    // are brittle against textual refactors by design, so they live apart:
+    // a stylesheet or build-file change knows exactly which suite it must
+    // update, and component test runs stay free of infra archaeology.
+    include: ['src/**/*.test.{ts,tsx}', 'tests/infra/**/*.test.{ts,tsx}'],
     css: false,
   },
 });

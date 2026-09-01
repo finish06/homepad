@@ -48,7 +48,6 @@ function installFetch() {
       });
     }
     if (url.includes('/api/categories')) return new Response(JSON.stringify({ categories: [] }), { status: 200 });
-    if (url.includes('/collapsed-categories')) return new Response(JSON.stringify({ collapsed: [] }), { status: 200 });
     return new Response('{}', { status: 200 });
   });
   vi.stubGlobal('fetch', fn);

@@ -62,7 +62,7 @@ describe('#157 — the baked GIT_SHA is condensed to a 7-char short sha', () => 
     const full = 'abcdef0123456789abcdef0123456789abcdef01';
     process.env.GIT_SHA = full;
     vi.resetModules();
-    const config = (await import('../vite.config')).default as {
+    const config = (await import('../../vite.config')).default as {
       define: Record<string, string>;
     };
     expect(config.define.__GIT_SHA__).toBe(JSON.stringify(full.slice(0, 7)));
