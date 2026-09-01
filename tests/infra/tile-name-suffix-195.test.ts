@@ -16,7 +16,7 @@ import { describe, it, expect } from 'vitest';
 
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
 const css = read('src/index.css');
-const appGrid = read('src/AppGrid.tsx');
+const appGrid = read('src/grid/AppGrid.tsx');
 
 // The body of the `.app-grid-tool-name` rule (not the `.dark` variant).
 function toolNameRule(): string {

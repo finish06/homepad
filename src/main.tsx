@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
-import { initAccent } from './accent';
+import App from './app/App';
+import { initAccent } from './theme/accent';
 import './index.css';
 
 // Glass v2 — apply the cached accent before first render so the backdrop blobs

@@ -23,12 +23,12 @@ function read(file: string): string {
 
 describe('code-splitting — on-demand overlays are lazy chunks', () => {
   it('App.tsx lazy-loads Settings, Library, and the custom-app form', () => {
-    const src = read('App.tsx');
+    const src = read('app/App.tsx');
     expect(src).toMatch(/import\s*\{[^}]*\blazy\b[^}]*\}\s*from ['"]react['"]/);
     expect(src).toMatch(/import\s*\{[^}]*\bSuspense\b[^}]*\}\s*from ['"]react['"]/);
-    expect(src).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"]\.\/SettingsPanel['"]\)\s*\)/);
-    expect(src).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"]\.\/LibraryBrowse['"]\)\s*\)/);
-    expect(src).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"]\.\/ServiceForm['"]\)\s*\)/);
+    expect(src).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"][./a-z]*\/SettingsPanel['"]\)\s*\)/);
+    expect(src).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"][./a-z]*\/LibraryBrowse['"]\)\s*\)/);
+    expect(src).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"][./a-z]*\/ServiceForm['"]\)\s*\)/);
     // No lingering static default-imports of the split modules.
     expect(src).not.toMatch(/^import SettingsPanel from/m);
     expect(src).not.toMatch(/^import LibraryBrowse from/m);
@@ -36,11 +36,11 @@ describe('code-splitting — on-demand overlays are lazy chunks', () => {
   });
 
   it('AppGrid.tsx lazy-loads the tile-edit modal and the inline iframe overlay', () => {
-    const src = read('AppGrid.tsx');
+    const src = read('grid/AppGrid.tsx');
     expect(src).toMatch(/import\s*\{[^}]*\blazy\b[^}]*\}\s*from ['"]react['"]/);
     expect(src).toMatch(/import\s*\{[^}]*\bSuspense\b[^}]*\}\s*from ['"]react['"]/);
-    expect(src).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"]\.\/TileEditModal['"]\)\s*\)/);
-    expect(src).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"]\.\/IframeOverlay['"]\)\s*\)/);
+    expect(src).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"][./a-z]*\/TileEditModal['"]\)\s*\)/);
+    expect(src).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"][./a-z]*\/IframeOverlay['"]\)\s*\)/);
     expect(src).not.toMatch(/^import TileEditModal from/m);
     expect(src).not.toMatch(/^import IframeOverlay from/m);
   });

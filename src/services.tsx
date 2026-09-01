@@ -11,7 +11,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { servicesWithStatus, type Service, type ServiceStatus } from './api';
-import { useAlertHistory } from './alerts';
+import { useAlertHistory } from './alerts/alerts';
 
 // How often to re-poll while visible (AC-001, ±10s tolerance).
 const POLL_MS = 60_000;
