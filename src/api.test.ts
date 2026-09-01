@@ -704,3 +704,34 @@ describe('createLibraryApp / updateLibraryApp / deleteLibraryApp / setLibraryOrd
     expect(JSON.parse(opts!.body as string)).toEqual({ order: ['L2', 'L1'] });
   });
 });
+
+// 2026-08-31 request() consolidation — a NETWORK failure (fetch rejects) must
+// resolve to the failure shape of each convention, never escape as a rejected
+// promise: previously most mutations let the TypeError propagate, so callers'
+// optimistic-rollback paths (`if (!ok) revert()`) silently never ran on a
+// dropped connection.
+describe('network failures resolve to failure values (never reject)', () => {
+  function killFetch() {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new TypeError('network down');
+    }));
+  }
+
+  it('boolean mutations return false (setFavorite, setLayout)', async () => {
+    killFetch();
+    await expect(setFavorite('s1', true)).resolves.toBe(false);
+    await expect(setLayout(['a', 'b'])).resolves.toBe(false);
+  });
+
+  it('Result mutations return ok:false with the status-0 network convention', async () => {
+    killFetch();
+    await expect(createService({
+      slug: 's', name: 'n', description: '', url: 'https://x', icon: '', gatus_key: '',
+    })).resolves.toEqual({ ok: false, status: 0, error: 'network error' });
+  });
+
+  it('me() resolves null so boot shows the login screen instead of wedging', async () => {
+    killFetch();
+    await expect(me()).resolves.toBeNull();
+  });
+});
