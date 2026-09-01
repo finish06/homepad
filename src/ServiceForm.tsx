@@ -8,6 +8,7 @@ import {
   type ServiceInput,
 } from './api';
 import { isSafeUrl } from './safeUrl';
+import Modal from './ui/Modal';
 
 // Mirror of the backend slugify (homepad-api internal/storage/library.go):
 // lowercase, runs of non-alphanumeric collapse to a single dash, no leading or
@@ -131,14 +132,10 @@ export default function ServiceForm({
 
   const title = editing ? 'Edit app' : 'Add app';
 
+  // Modal adds what this form always lacked: Escape now dismisses like every
+  // other overlay (it previously only closed via ✕ / scrim / Cancel).
   return (
-    <div
-      data-testid="service-form-overlay"
-      className="launcher-overlay"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <Modal onDismiss={onClose} overlayClassName="launcher-overlay" overlayTestId="service-form-overlay">
       <form
         data-testid="service-form"
         onSubmit={handleSubmit}
@@ -273,6 +270,6 @@ export default function ServiceForm({
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }

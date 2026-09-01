@@ -1,3 +1,4 @@
+import Modal from './ui/Modal';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { addFromLibrary, listLibrary, type LibraryOffer, type Service } from './api';
 import { initialBadge } from './icons';
@@ -54,13 +55,8 @@ export default function LibraryBrowse({
     };
   }, []);
 
-  // Esc closes (§9). Bound at the panel so it doesn't fight the page below.
+  // Esc + scrim dismiss live in Modal (§9); this handler keeps the focus trap.
   function onPanelKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      onClose();
-      return;
-    }
     if (e.key !== 'Tab' || !panelRef.current) return;
     // Focus trap — Tab/Shift+Tab cycle only within the dialog.
     const focusables = Array.from(
@@ -108,13 +104,7 @@ export default function LibraryBrowse({
   }, [offers, query]);
 
   return (
-    <div
-      data-testid="library-browse-overlay"
-      className="launcher-overlay"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <Modal onDismiss={onClose} overlayClassName="launcher-overlay" overlayTestId="library-browse-overlay">
       <div
         ref={panelRef}
         data-testid="library-browse"
@@ -269,6 +259,6 @@ export default function LibraryBrowse({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

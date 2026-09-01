@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Service } from './api';
 import { safeHref } from './safeUrl';
+import Modal from './ui/Modal';
 
 // v23 — IframeOverlay (SPEC-tile-click-action §5.4-5.5). A tile whose
 // clickAction='iframe' opens this backdrop modal instead of navigating: the
@@ -33,21 +34,11 @@ export default function IframeOverlay({
   const closeRef = useRef<HTMLButtonElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Esc anywhere closes (a document-level listener, torn down on unmount) — the
-  // overlay owns the whole viewport so it need not be focused first (AC-006).
+  // Esc-anywhere + the scrim live in Modal (AC-006). Land focus on the close
+  // button so keyboard users have an obvious exit and Tab starts inside.
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    // Land focus on the close button so keyboard users have an obvious exit and
-    // Tab starts inside the overlay.
     closeRef.current?.focus();
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
 
   // Arm the blocked-embed deadline once, on open. onFrameLoad clears it (§5.5),
   // so a frame that loads in time never trips the fallback.
@@ -70,10 +61,11 @@ export default function IframeOverlay({
   const showSpinner = !loaded && !blocked;
 
   return (
-    <div
-      className="iframe-overlay"
-      data-testid="iframe-overlay"
-      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    <Modal
+      onDismiss={onClose}
+      overlayClassName="iframe-overlay"
+      overlayTestId="iframe-overlay"
+      dismissOn="mousedown"
     >
       <div
         className="iframe-overlay-panel"
@@ -142,6 +134,6 @@ export default function IframeOverlay({
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

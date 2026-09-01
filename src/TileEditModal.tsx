@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import Modal from './ui/Modal';
 import {
   deleteIcon,
   fetchIcon,
@@ -313,12 +314,18 @@ export default function TileEditModal({
     (next === 'light' ? lightTabRef : darkTabRef).current?.focus();
   }
 
+  // Modal owns the scrim (mousedown so a drag ending on the scrim isn't a
+  // click-away). escapeDismisses=false: Escape stays in onKeyDown above because
+  // it is STATEFUL here — with the discard strip up it means "keep editing",
+  // not dismiss — and the same handler runs the Tab trap.
   return (
-    <div
-      className="tile-edit-overlay"
-      data-testid="tile-edit-overlay"
-      onMouseDown={(e) => e.target === e.currentTarget && attemptDismiss()}
-      onKeyDown={onKeyDown}
+    <Modal
+      onDismiss={attemptDismiss}
+      overlayClassName="tile-edit-overlay"
+      overlayTestId="tile-edit-overlay"
+      dismissOn="mousedown"
+      escapeDismisses={false}
+      overlayKeyDown={onKeyDown}
     >
       <form
         ref={modalRef}
@@ -720,6 +727,6 @@ export default function TileEditModal({
           </div>
         )}
       </form>
-    </div>
+    </Modal>
   );
 }

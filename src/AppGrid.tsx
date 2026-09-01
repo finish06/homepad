@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { safeHref } from './safeUrl';
+import Modal from './ui/Modal';
 import {
   DndContext,
   KeyboardSensor,
@@ -1186,12 +1187,10 @@ function AddBoxModal({
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Escape + scrim dismiss live in Modal; keep first-field focus here.
   useEffect(() => {
     inputRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
 
   const submit = async () => {
     const t = title.trim();
@@ -1205,10 +1204,11 @@ function AddBoxModal({
   };
 
   return (
-    <div
-      className="launcher-overlay add-offer-overlay"
-      data-testid="add-box-modal"
-      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    <Modal
+      onDismiss={onClose}
+      overlayClassName="launcher-overlay add-offer-overlay"
+      overlayTestId="add-box-modal"
+      dismissOn="mousedown"
     >
       <div className="add-offer-panel" role="dialog" aria-modal="true" aria-label="Add box">
         <h2 className="add-offer-title">Add box</h2>
@@ -1248,6 +1248,6 @@ function AddBoxModal({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

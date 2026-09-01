@@ -5,6 +5,7 @@
 // AlertHistoryProvider via Home.
 import { useEffect, useRef } from 'react';
 import { safeHref } from './safeUrl';
+import Modal from './ui/Modal';
 import type { AlertEvent } from './alerts';
 import { statusDotClass } from './alerts';
 import type { ServiceStatus } from './api';
@@ -78,32 +79,16 @@ export default function AlertHistoryPanel({
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // AC-006/AC-009 — Escape closes from anywhere in the dialog; move focus into
-  // the panel on open so keyboard users land inside and Tab cycles its controls.
+  // AC-009 — move focus into the panel on open so keyboard users land inside
+  // and Tab cycles its controls. Escape + scrim dismiss live in Modal (AC-006).
   useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
-      }
-    }
-    document.addEventListener('keydown', onKey);
-    panelRef.current?.focus();
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    if (open) panelRef.current?.focus();
+  }, [open]);
 
   if (!open) return null;
 
   return (
-    <div
-      data-testid="alert-overlay"
-      className="launcher-overlay"
-      onClick={(e) => {
-        // Close only on a scrim click, not a click bubbling out of the panel.
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <Modal onDismiss={onClose} overlayClassName="launcher-overlay" overlayTestId="alert-overlay">
       <div
         ref={panelRef}
         tabIndex={-1}
@@ -137,6 +122,6 @@ export default function AlertHistoryPanel({
           </ul>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }

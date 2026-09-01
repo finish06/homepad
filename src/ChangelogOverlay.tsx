@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import changelog from './changelog.json';
+import Modal from './ui/Modal';
 
 // v15 — changelog overlay. Modeled on fleet-feed's Option B+ design: a two-panel
 // dialog (version list + change detail) with a fixed 88px chip gutter so every
@@ -118,29 +119,22 @@ export default function ChangelogOverlay({
 
   if (!open) return null;
 
-  function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      onClose();
-    }
-  }
-
   const activeVersion = selected === null ? null : data.versions.find((v) => v.version === selected);
 
+  // Scrim + Escape live in Modal; focus/scroll stay in the open-keyed effect
+  // above because this component stays MOUNTED while closed (open=false renders
+  // null), so unmount-based restore in the shell would never fire on close.
   return (
-    <div
-      className="changelog-overlay"
-      data-testid="changelog-overlay"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <Modal
+      onDismiss={onClose}
+      overlayClassName="changelog-overlay"
+      overlayTestId="changelog-overlay"
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Changelog"
         className="changelog-dialog"
-        onKeyDown={onKeyDown}
       >
         <header className="changelog-head">
           <h2 className="changelog-title">Changelog</h2>
@@ -197,6 +191,6 @@ export default function ChangelogOverlay({
           </section>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

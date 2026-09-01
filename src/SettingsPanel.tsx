@@ -1,3 +1,4 @@
+import Modal from './ui/Modal';
 import { useEffect, useRef, useState } from 'react';
 import {
   adminEnvConfig,
@@ -43,21 +44,12 @@ export default function SettingsPanel({
     };
   }, []);
 
-  function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      onClose();
-    }
-  }
-
+  // Escape + scrim dismiss live in Modal. The nested AddOfferModal keeps its
+  // OWN dialog-level Escape with stopPropagation, so with the inner dialog
+  // focused one Escape press closes only the inner layer (the stop prevents
+  // this Modal's document listener from seeing the event).
   return (
-    <div
-      data-testid="settings-overlay"
-      className="launcher-overlay"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <Modal onDismiss={onClose} overlayClassName="launcher-overlay" overlayTestId="settings-overlay">
       <div
         ref={panelRef}
         data-testid="settings-panel"
@@ -65,7 +57,6 @@ export default function SettingsPanel({
         aria-modal="true"
         aria-label="Admin Panel"
         className="launcher-panel library-panel"
-        onKeyDown={onKeyDown}
       >
         <div className="library-head">
           {/* v11 §4.2 D3 — "Admin Panel" (not "Settings") + a global-scope
@@ -105,7 +96,7 @@ export default function SettingsPanel({
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -590,13 +581,15 @@ function AddOfferModal({
     firstRef.current?.focus();
   }, []);
 
+  // escapeDismisses=false: the form's own Escape (with stopPropagation) owns
+  // key dismissal so the OUTER Admin Panel's document listener stays blind to
+  // it — one press, one layer.
   return (
-    <div
-      data-testid="add-offer-overlay"
-      className="launcher-overlay add-offer-overlay"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <Modal
+      onDismiss={onClose}
+      overlayClassName="launcher-overlay add-offer-overlay"
+      overlayTestId="add-offer-overlay"
+      escapeDismisses={false}
     >
       <form
         role="dialog"
@@ -672,6 +665,6 @@ function AddOfferModal({
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }

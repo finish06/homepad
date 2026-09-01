@@ -3,6 +3,7 @@ import { safeHref } from './safeUrl';
 import type { Service, ServiceStatus } from './api';
 import { iconSrc, initialBadge } from './icons';
 import { rankServices } from './ranker';
+import Modal from './ui/Modal';
 import { useLauncher } from './launcher';
 import { useResolvedTheme } from './theme';
 
@@ -190,17 +191,10 @@ export default function CommandLauncher({ services }: { services: Service[] }) {
   // its global 0-based data-rank (test ordering hook, §5.5).
   let globalIndex = -1;
 
+  // Scrim + Escape dismissal live in Modal (§4.3); Escape now closes from
+  // anywhere in the dialog, not only while the search input holds focus.
   return (
-    <div
-      data-testid="launcher-overlay"
-      className="launcher-overlay"
-      onClick={(e) => {
-        // Close only when the click lands on the scrim itself, not bubbling up
-        // from the panel (§4.3): a click inside the panel has e.target !== the
-        // overlay, so it is left open.
-        if (e.target === e.currentTarget) closeLauncher();
-      }}
-    >
+    <Modal onDismiss={closeLauncher} overlayClassName="launcher-overlay" overlayTestId="launcher-overlay">
       <div
         ref={modalRef}
         data-testid="launcher-modal"
@@ -295,7 +289,7 @@ export default function CommandLauncher({ services }: { services: Service[] }) {
           <span>Esc to close</span>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
