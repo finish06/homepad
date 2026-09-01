@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 // decision to an uncapped full-width, AC5's intent (drop the narrow 6xl cap,
 // use the wide container) is satisfied by CONTENT_WIDTH. Source-guard: jsdom
 // has no layout, so we assert the container tokens instead of a measured width.
-const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+const app = readFileSync(resolve(process.cwd(), 'src/app/App.tsx'), 'utf8');
 
 describe('Home container (AC5)', () => {
   it('AC5 no narrow max-w-6xl content cap remains', () => {

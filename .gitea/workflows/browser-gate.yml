@@ -42,7 +42,9 @@ jobs:
           # this gate's own harness, or the gate's own workflow/config — so a
           # change to the gate itself is validated by a REAL browser run rather
           # than silently no-op-passing.
-          PATTERN='^src/App(Grid|Header)?\.tsx$|^tests/browser-gate/|^playwright\.gate\.config\.ts$|^\.gitea/workflows/browser-gate\.yml$|^src/.*([Tt]ile|[Mm]enu|[Dd]nd|[Dd]rag|[Ss]ortable)|^package(-lock)?\.json$'
+          # Paths updated for the 2026-08-31 feature-folder restructure
+          # (App/AppHeader → src/app/, AppGrid → src/grid/).
+          PATTERN='^src/(app/App|app/AppHeader|grid/AppGrid)\.tsx$|^tests/browser-gate/|^playwright\.gate\.config\.ts$|^\.gitea/workflows/browser-gate\.yml$|^src/.*([Tt]ile|[Mm]enu|[Dd]nd|[Dd]rag|[Ss]ortable)|^package(-lock)?\.json$'
           if git diff --name-only "${{ github.event.pull_request.base.sha }}...HEAD" | grep -qE "$PATTERN"; then
             echo "run=true" >> "$GITHUB_OUTPUT"
             echo "tile/menu/dnd files changed — running browser gate"

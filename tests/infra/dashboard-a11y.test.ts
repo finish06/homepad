@@ -12,9 +12,9 @@ import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
-const app = read('src/App.tsx');
-const userMenu = read('src/UserMenu.tsx');
-const themeControl = read('src/ThemeControl.tsx');
+const app = read('src/app/App.tsx');
+const userMenu = read('src/app/UserMenu.tsx');
+const themeControl = read('src/theme/ThemeControl.tsx');
 const css = read('src/index.css');
 
 // Pull the className string of the element carrying a given data-testid, so a

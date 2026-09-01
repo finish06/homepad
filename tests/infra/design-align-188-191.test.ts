@@ -12,8 +12,8 @@ import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
-const appHeader = read('src/AppHeader.tsx');
-const statusBar = read('src/StatusBar.tsx');
+const appHeader = read('src/app/AppHeader.tsx');
+const statusBar = read('src/app/StatusBar.tsx');
 const css = read('src/index.css');
 
 // Grab the className string of the element carrying a given data-testid (mirrors
