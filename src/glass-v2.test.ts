@@ -65,7 +65,7 @@ describe('the glass material (.app-grid-box)', () => {
 describe('a11y fallback', () => {
   it('prefers-reduced-transparency gets near-solid boxes and no backdrop-filter', () => {
     const block =
-      css.match(/@media\s*\(prefers-reduced-transparency:\s*reduce\)\s*\{([\s\S]*?)\n  \}/)?.[1] ??
+      css.match(/@media\s*\(prefers-reduced-transparency:\s*reduce\)\s*\{([\s\S]*?)\n {2}\}/)?.[1] ??
       '';
     expect(block).toMatch(/\.app-grid-box\s*\{[^}]*backdrop-filter:\s*none/);
     expect(block).toMatch(/rgba\(255, 255, 255, 0\.9\d\)/);
