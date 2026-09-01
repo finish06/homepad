@@ -16,12 +16,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // cdp.js is CommonJS (qa-kit is scoped to CJS) and ships no .d.ts; import it
 // through the module namespace so we get its module.exports regardless of
 // interop shape.
-// @ts-ignore — untyped CJS helper, shape asserted below.
+// @ts-expect-error — untyped CJS helper, shape asserted below.
 import * as cdpNs from '../qa-kit/cdp.js';
-const cdp = (cdpNs as any).default ?? cdpNs;
+const cdp = (cdpNs as { default?: unknown }).default ?? cdpNs;
 const { resolveWsEndpoint, connect } = cdp as {
   resolveWsEndpoint: (url: string, opts?: { fetchImpl?: typeof fetch }) => Promise<string>;
-  connect: (opts?: any) => Promise<any>;
+  connect: (opts?: unknown) => Promise<unknown>;
 };
 
 const WS = 'ws://127.0.0.1:9222/devtools/browser/abc-123';

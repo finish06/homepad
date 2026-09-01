@@ -31,7 +31,7 @@ jobs:
           node-version: "22"
           cache: "npm"
       - run: npm ci
-      # NOTE: package.json has a `lint` script but eslint is not installed and
-      # no config exists — wire up eslint (flat config) before gating on it here.
+      # Errors gate; react-hooks/exhaustive-deps warnings don't (see eslint.config.js).
+      - run: npm run lint
       - run: npm run build
       - run: npx vitest run

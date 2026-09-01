@@ -158,12 +158,80 @@ async function errorText(res: Response): Promise<string> {
   return text || `request failed (${res.status})`;
 }
 
+// ---------------------------------------------------------------------------
+// request() — the one fetch wrapper every endpoint goes through (2026-08-31
+// consolidation; docs/reviews/2026-08-30-maintainability-review.md P2.4).
+// Always sends credentials:'include'; `json` adds the JSON headers + body. A
+// NETWORK failure resolves { status: 0, res: null } instead of rejecting —
+// previously most mutations let the TypeError escape, so a dropped connection
+// mid-toggle rejected instead of returning false and every caller's optimistic
+// rollback path silently never ran. status 0 is the same "network/throw"
+// convention servicesWithStatus already documented.
+// ---------------------------------------------------------------------------
+type RequestOpts = {
+  method?: string;
+  json?: unknown;
+  headers?: Record<string, string>;
+  body?: BodyInit;
+};
+
+async function request(
+  path: string,
+  opts: RequestOpts = {},
+): Promise<{ status: number; res: Response | null }> {
+  const init: RequestInit = { credentials: 'include' };
+  if (opts.method) init.method = opts.method;
+  if (opts.json !== undefined) {
+    init.headers = jsonHeaders;
+    init.body = JSON.stringify(opts.json);
+  }
+  if (opts.headers) init.headers = opts.headers;
+  if (opts.body !== undefined) init.body = opts.body;
+  try {
+    const res = await fetch(path, init);
+    return { status: res.status, res };
+  } catch {
+    return { status: 0, res: null };
+  }
+}
+
+// boolRequest — the boolean-mutation convention: true only on the expected
+// success status, false on anything else INCLUDING a network failure, so the
+// caller's optimistic rollback always runs.
+async function boolRequest(path: string, success: number, opts: RequestOpts = {}): Promise<boolean> {
+  return (await request(path, opts)).status === success;
+}
+
+// resultRequest — the Result convention: { ok, status, error? } plus the parsed
+// success body handed to `withData` so each endpoint attaches its named entity
+// ({ user }, { service }, ...). Network failure → { ok:false, status:0 }.
+async function resultRequest<T extends object = Record<never, never>>(
+  path: string,
+  success: number,
+  opts: RequestOpts = {},
+  withData?: (data: unknown) => T,
+): Promise<Result & Partial<T>> {
+  const { status, res } = await request(path, opts);
+  if (res && status === success) {
+    const extra = withData ? withData(await res.json()) : ({} as T);
+    return { ok: true, status, ...extra };
+  }
+  const failure: Result = {
+    ok: false,
+    status,
+    error: res ? await errorText(res) : 'network error',
+  };
+  // A failure carries none of T's optional entity keys — Partial<T> is satisfied
+  // vacuously, but tsc can't prove that for an arbitrary T, hence the cast.
+  return failure as Result & Partial<T>;
+}
+
 // authConfig reports which login methods the API offers. A non-200 or failed
 // request is treated as "OIDC off" so the PocketID button stays hidden.
 export async function authConfig(): Promise<AuthConfig> {
+  const { status, res } = await request('/api/auth/config');
+  if (!res || status !== 200) return { oidcEnabled: false };
   try {
-    const res = await fetch('/api/auth/config', { credentials: 'include' });
-    if (res.status !== 200) return { oidcEnabled: false };
     const data = (await res.json()) as { oidcEnabled?: boolean };
     return { oidcEnabled: data.oidcEnabled === true };
   } catch {
@@ -176,9 +244,9 @@ export async function authConfig(): Promise<AuthConfig> {
 // never hide uptime just because this fetch hiccuped (AC-008 default-ON). The
 // endpoint is public, so this is safe to call before login.
 export async function systemConfig(): Promise<SystemConfig> {
+  const { status, res } = await request('/api/system/config');
+  if (!res || status !== 200) return { showUptimeDisplay: true };
   try {
-    const res = await fetch('/api/system/config', { credentials: 'include' });
-    if (res.status !== 200) return { showUptimeDisplay: true };
     const data = (await res.json()) as { showUptimeDisplay?: boolean };
     return { showUptimeDisplay: data.showUptimeDisplay !== false };
   } catch {
@@ -187,16 +255,13 @@ export async function systemConfig(): Promise<SystemConfig> {
 }
 
 // saveSystemSettings PATCHes the admin System settings and returns the persisted
-// config. Unlike the reads, a non-200 THROWS so the caller (the settings toggle)
-// can revert its optimistic state and surface the error (§9.2 error path).
+// config. Unlike the reads, a non-200 (or network failure) THROWS so the caller
+// (the settings toggle) can revert its optimistic state and surface the error
+// (§9.2 error path).
 export async function saveSystemSettings(patch: Partial<SystemConfig>): Promise<SystemConfig> {
-  const res = await fetch('/api/admin/settings', {
-    method: 'PATCH',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify(patch),
-  });
-  if (res.status !== 200) throw new Error(await errorText(res));
+  const { status, res } = await request('/api/admin/settings', { method: 'PATCH', json: patch });
+  if (!res) throw new Error('network error');
+  if (status !== 200) throw new Error(await errorText(res));
   const data = (await res.json()) as { showUptimeDisplay?: boolean };
   return { showUptimeDisplay: data.showUptimeDisplay !== false };
 }
@@ -206,40 +271,31 @@ export async function saveSystemSettings(patch: Partial<SystemConfig>): Promise<
 // network error) so the caller can render its in-place error state (§8.4) rather
 // than silently showing an empty/misleading table.
 export async function adminEnvConfig(): Promise<EnvConfigEntry[]> {
-  const res = await fetch('/api/admin/env-config', { credentials: 'include' });
-  if (res.status !== 200) throw new Error(await errorText(res));
+  const { status, res } = await request('/api/admin/env-config');
+  if (!res) throw new Error('network error');
+  if (status !== 200) throw new Error(await errorText(res));
   return (await res.json()) as EnvConfigEntry[];
 }
 
+// me answers "who is signed in?". null on 401/any failure — a network blip at
+// boot shows the login screen rather than wedging the app on a rejected promise.
 export async function me(): Promise<User | null> {
-  const res = await fetch('/api/me', { credentials: 'include' });
-  return res.status === 200 ? ((await res.json()) as User) : null;
+  const { status, res } = await request('/api/me');
+  return res && status === 200 ? ((await res.json()) as User) : null;
 }
 
 export async function login(email: string, password: string): Promise<Result & { user?: User }> {
-  const res = await fetch('/api/login', {
-    method: 'POST',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify({ email, password }),
-  });
-  if (res.status === 200) return { ok: true, status: 200, user: (await res.json()) as User };
-  return { ok: false, status: res.status, error: await errorText(res) };
+  return resultRequest('/api/login', 200, { method: 'POST', json: { email, password } }, (d) => ({
+    user: d as User,
+  }));
 }
 
 export async function register(email: string, password: string): Promise<Result> {
-  const res = await fetch('/api/register', {
-    method: 'POST',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify({ email, password }),
-  });
-  if (res.status === 201) return { ok: true, status: 201 };
-  return { ok: false, status: res.status, error: await errorText(res) };
+  return resultRequest('/api/register', 201, { method: 'POST', json: { email, password } });
 }
 
 export async function logout(): Promise<void> {
-  await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+  await request('/api/logout', { method: 'POST' });
 }
 
 // servicesWithStatus is the richer form used by the v13 auto-refresh poll: it
@@ -248,9 +304,9 @@ export async function logout(): Promise<void> {
 // AC-011). `status: 0` signals a network/throw. A non-200 yields an empty list,
 // which the poller never applies — it only merges on a 200.
 export async function servicesWithStatus(): Promise<{ status: number; services: Service[] }> {
+  const { status, res } = await request('/api/services');
+  if (!res || status !== 200) return { status, services: [] };
   try {
-    const res = await fetch('/api/services', { credentials: 'include' });
-    if (res.status !== 200) return { status: res.status, services: [] };
     const data = (await res.json()) as { services: Service[] };
     return { status: 200, services: data.services ?? [] };
   } catch {
@@ -265,11 +321,7 @@ export async function services(): Promise<Service[]> {
 // setFavorite marks (on) or unmarks (off) a service for the current user.
 // Returns true on success so the caller can roll back an optimistic update.
 export async function setFavorite(id: string, on: boolean): Promise<boolean> {
-  const res = await fetch(`/api/favorites/${id}`, {
-    method: on ? 'POST' : 'DELETE',
-    credentials: 'include',
-  });
-  return res.status === 204;
+  return boolRequest(`/api/favorites/${id}`, 204, { method: on ? 'POST' : 'DELETE' });
 }
 
 // uploadIcon PUTs a raw PNG for a service's light/dark variant (admin-only;
@@ -277,24 +329,17 @@ export async function setFavorite(id: string, on: boolean): Promise<boolean> {
 // base64. Same idempotent upsert covers first upload and replace. Returns the
 // Result so the caller can surface the server's validation error inline.
 export async function uploadIcon(id: string, variant: IconVariant, png: Blob): Promise<Result> {
-  const res = await fetch(`/api/services/${id}/icon/${variant}`, {
+  return resultRequest(`/api/services/${id}/icon/${variant}`, 204, {
     method: 'PUT',
     headers: { 'Content-Type': 'image/png' },
-    credentials: 'include',
     body: png,
   });
-  if (res.status === 204) return { ok: true, status: 204 };
-  return { ok: false, status: res.status, error: await errorText(res) };
 }
 
 // deleteIcon removes a service's uploaded variant (admin-only; idempotent 204).
 // The tile then falls back per the precedence chain. Returns true on success.
 export async function deleteIcon(id: string, variant: IconVariant): Promise<boolean> {
-  const res = await fetch(`/api/services/${id}/icon/${variant}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-  return res.status === 204;
+  return boolRequest(`/api/services/${id}/icon/${variant}`, 204, { method: 'DELETE' });
 }
 
 // deleteService removes one of the caller's OWN dashboard services (v9 owner-
@@ -302,11 +347,7 @@ export async function deleteIcon(id: string, variant: IconVariant): Promise<bool
 // id 404s). Its uploaded icons cascade away server-side. Returns true on success
 // so the caller can roll back an optimistic removal.
 export async function deleteService(id: string): Promise<boolean> {
-  const res = await fetch(`/api/services/${id}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-  return res.status === 204;
+  return boolRequest(`/api/services/${id}`, 204, { method: 'DELETE' });
 }
 
 // createService adds a new entry to the shared catalog (admin-only; the server
@@ -314,14 +355,9 @@ export async function deleteService(id: string): Promise<boolean> {
 // success it returns the created service so the caller can append it without a
 // refetch; on failure it surfaces the server's message inline, like uploadIcon.
 export async function createService(input: ServiceInput): Promise<Result & { service?: Service }> {
-  const res = await fetch('/api/services', {
-    method: 'POST',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify(input),
-  });
-  if (res.status === 201) return { ok: true, status: 201, service: (await res.json()) as Service };
-  return { ok: false, status: res.status, error: await errorText(res) };
+  return resultRequest('/api/services', 201, { method: 'POST', json: input }, (d) => ({
+    service: d as Service,
+  }));
 }
 
 // updateService patches an existing catalog entry (admin-only; same 403/409 as
@@ -335,14 +371,9 @@ export async function updateService(
   // backend's optionalString leaves it unchanged when the key is absent.
   patch: Partial<ServiceInput> & { categoryId?: string | null },
 ): Promise<Result & { service?: Service }> {
-  const res = await fetch(`/api/services/${id}`, {
-    method: 'PATCH',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify(patch),
-  });
-  if (res.status === 200) return { ok: true, status: 200, service: (await res.json()) as Service };
-  return { ok: false, status: res.status, error: await errorText(res) };
+  return resultRequest(`/api/services/${id}`, 200, { method: 'PATCH', json: patch }, (d) => ({
+    service: d as Service,
+  }));
 }
 
 // fetchIcon asks the backend to download the favicon from a service's own
@@ -357,23 +388,17 @@ export async function fetchIcon(
   id: string,
   variant: IconVariant = 'light',
 ): Promise<Result & { iconUrl?: string }> {
-  const res = await fetch(`/api/services/${id}/fetch-icon?variant=${variant}`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-  if (res.status === 200) {
-    const data = (await res.json()) as { iconUrl?: string };
-    return { ok: true, status: 200, iconUrl: data.iconUrl };
-  }
-  return { ok: false, status: res.status, error: await errorText(res) };
+  return resultRequest(`/api/services/${id}/fetch-icon?variant=${variant}`, 200, { method: 'POST' }, (d) => ({
+    iconUrl: (d as { iconUrl?: string }).iconUrl,
+  }));
 }
 
 // categories lists the shared catalog's categories in admin sort_index order
-// (v4). Session-gated server-side; a non-200 yields [] so the catalog falls back
-// to the flat v1 render rather than erroring.
+// (v4). Session-gated server-side; a non-200 (or network failure) yields [] so
+// the grid falls back to the flat render rather than erroring.
 export async function categories(): Promise<Category[]> {
-  const res = await fetch('/api/categories', { credentials: 'include' });
-  if (res.status !== 200) return [];
+  const { status, res } = await request('/api/categories');
+  if (!res || status !== 200) return [];
   const data = (await res.json()) as { categories: Partial<Category>[] };
   // Default the layout fields so a pre-migration server (no layout columns)
   // renders identically to before: each category on its own row (row=sortIndex),
@@ -393,26 +418,14 @@ export async function categories(): Promise<Category[]> {
 // endpoint (SPEC-app-grid §3B — the server validates 1–6 and admin/owner scope).
 // Returns true on 200 so the caller can roll back an optimistic width change.
 export async function saveCategoryWidth(id: string, gridWidth: number): Promise<boolean> {
-  const res = await fetch(`/api/categories/${id}`, {
-    method: 'PATCH',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify({ gridWidth }),
-  });
-  return res.status === 200;
+  return boolRequest(`/api/categories/${id}`, 200, { method: 'PATCH', json: { gridWidth } });
 }
 
 // saveCategoryLayout persists a batch of category layout assignments via the
 // atomic bulk endpoint (all-or-nothing server-side — AC10). Returns true on 200
 // so the caller can roll back an optimistic drag/resize on failure.
 export async function saveCategoryLayout(layout: CategoryLayout[]): Promise<boolean> {
-  const res = await fetch('/api/categories/layout', {
-    method: 'PUT',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify({ layout }),
-  });
-  return res.status === 200;
+  return boolRequest('/api/categories/layout', 200, { method: 'PUT', json: { layout } });
 }
 
 // createCategory adds a category to the shared catalog (v4; admin-only — the
@@ -422,14 +435,9 @@ export async function saveCategoryLayout(layout: CategoryLayout[]): Promise<bool
 export async function createCategory(
   name: string,
 ): Promise<Result & { category?: Category }> {
-  const res = await fetch('/api/categories', {
-    method: 'POST',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify({ name }),
-  });
-  if (res.status === 201) return { ok: true, status: 201, category: (await res.json()) as Category };
-  return { ok: false, status: res.status, error: await errorText(res) };
+  return resultRequest('/api/categories', 201, { method: 'POST', json: { name } }, (d) => ({
+    category: d as Category,
+  }));
 }
 
 // renameCategory changes a category's name (v4; admin-only — 403 non-admin, 409
@@ -439,25 +447,16 @@ export async function renameCategory(
   id: string,
   name: string,
 ): Promise<Result & { category?: Category }> {
-  const res = await fetch(`/api/categories/${id}`, {
-    method: 'PATCH',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify({ name }),
-  });
-  if (res.status === 200) return { ok: true, status: 200, category: (await res.json()) as Category };
-  return { ok: false, status: res.status, error: await errorText(res) };
+  return resultRequest(`/api/categories/${id}`, 200, { method: 'PATCH', json: { name } }, (d) => ({
+    category: d as Category,
+  }));
 }
 
 // deleteCategory removes a category (v4; admin-only; idempotent 204). The FK is
 // ON DELETE SET NULL, so its apps fall back to Uncategorized — none are deleted.
 // Returns true on success so the caller can roll back an optimistic removal.
 export async function deleteCategory(id: string): Promise<boolean> {
-  const res = await fetch(`/api/categories/${id}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-  return res.status === 204;
+  return boolRequest(`/api/categories/${id}`, 204, { method: 'DELETE' });
 }
 
 // setCategoryOrder persists the admin category order (v4) — the same whole-array
@@ -465,13 +464,7 @@ export async function deleteCategory(id: string): Promise<boolean> {
 // the server rewrites each `sort_index`. Returns true on 204 so the caller can
 // roll back an optimistic reorder.
 export async function setCategoryOrder(order: string[]): Promise<boolean> {
-  const res = await fetch('/api/categories/order', {
-    method: 'PUT',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify({ order }),
-  });
-  return res.status === 204;
+  return boolRequest('/api/categories/order', 204, { method: 'PUT', json: { order } });
 }
 
 // assignCategory sets (or clears) a service's category via the v4-extended
@@ -483,66 +476,25 @@ export async function assignCategory(
   serviceId: string,
   categoryId: string | null,
 ): Promise<Result & { service?: Service }> {
-  const res = await fetch(`/api/services/${serviceId}`, {
-    method: 'PATCH',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify({ categoryId }),
-  });
-  if (res.status === 200) return { ok: true, status: 200, service: (await res.json()) as Service };
-  return { ok: false, status: res.status, error: await errorText(res) };
-}
-
-// getCollapsedCategories reads the current user's collapsed category-id set (v5;
-// session-gated server-side). A row means "this user folded this category";
-// absence = expanded, the default. Any non-200 (incl. 401) or a parse failure
-// yields [] so the catalog renders fully expanded — identical to v4 — rather
-// than erroring. This is also the first-paint fallback when no backend answers.
-export async function getCollapsedCategories(): Promise<string[]> {
-  try {
-    const res = await fetch('/api/me/collapsed-categories', { credentials: 'include' });
-    if (res.status !== 200) return [];
-    const data = (await res.json()) as { collapsed?: string[] };
-    return data.collapsed ?? [];
-  } catch {
-    return [];
-  }
-}
-
-// setCollapsedCategories replaces the user's collapsed set with exactly `ids`
-// (v5; whole-set PUT, same contract as setLayout/setCategoryOrder). The server
-// silently drops unknown/stale ids (a category deleted between read and write),
-// so this only fails on a real error. Returns true on 204 so the caller can roll
-// back an optimistic toggle.
-export async function setCollapsedCategories(ids: string[]): Promise<boolean> {
-  const res = await fetch('/api/me/collapsed-categories', {
-    method: 'PUT',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify({ collapsed: ids }),
-  });
-  return res.status === 204;
+  return resultRequest(`/api/services/${serviceId}`, 200, { method: 'PATCH', json: { categoryId } }, (d) => ({
+    service: d as Service,
+  }));
 }
 
 // setLayout persists the current user's personal tile order (A5). `order` is the
 // list of service ids, position 0 first. Returns true on success so the caller
 // can roll back an optimistic reorder.
 export async function setLayout(order: string[]): Promise<boolean> {
-  const res = await fetch('/api/layout', {
-    method: 'PUT',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify({ order }),
-  });
-  return res.status === 204;
+  return boolRequest('/api/layout', 204, { method: 'PUT', json: { order } });
 }
 
 // listLibrary browses the App Library — every offer in sort_index order, each
 // tagged with the caller's `added` hint (A9). Any authenticated user; a non-200
-// yields [] so the browse surface shows the empty state rather than erroring.
+// (or network failure) yields [] so the browse surface shows the empty state
+// rather than erroring.
 export async function listLibrary(): Promise<LibraryOffer[]> {
-  const res = await fetch('/api/library', { credentials: 'include' });
-  if (res.status !== 200) return [];
+  const { status, res } = await request('/api/library');
+  if (!res || status !== 200) return [];
   const data = (await res.json()) as { library?: LibraryOffer[] };
   return data.library ?? [];
 }
@@ -555,15 +507,12 @@ export async function addFromLibrary(
   id: string,
   categoryId?: string,
 ): Promise<Result & { service?: Service }> {
-  const res = await fetch(`/api/library/${id}/add`, {
-    method: 'POST',
-    credentials: 'include',
-    ...(categoryId !== undefined
-      ? { headers: jsonHeaders, body: JSON.stringify({ categoryId }) }
-      : {}),
-  });
-  if (res.status === 201) return { ok: true, status: 201, service: (await res.json()) as Service };
-  return { ok: false, status: res.status, error: await errorText(res) };
+  return resultRequest(
+    `/api/library/${id}/add`,
+    201,
+    { method: 'POST', ...(categoryId !== undefined ? { json: { categoryId } } : {}) },
+    (d) => ({ service: d as Service }),
+  );
 }
 
 // createLibraryApp adds a new offer to the App Library (admin only — 403 non-admin,
@@ -572,14 +521,9 @@ export async function addFromLibrary(
 export async function createLibraryApp(
   input: LibraryAppInput,
 ): Promise<Result & { offer?: LibraryOffer }> {
-  const res = await fetch('/api/library', {
-    method: 'POST',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify(input),
-  });
-  if (res.status === 201) return { ok: true, status: 201, offer: (await res.json()) as LibraryOffer };
-  return { ok: false, status: res.status, error: await errorText(res) };
+  return resultRequest('/api/library', 201, { method: 'POST', json: input }, (d) => ({
+    offer: d as LibraryOffer,
+  }));
 }
 
 // updateLibraryApp edits an offer (admin only — 403 non-admin, 404 unknown id).
@@ -589,38 +533,23 @@ export async function updateLibraryApp(
   id: string,
   patch: Partial<LibraryAppInput>,
 ): Promise<Result & { offer?: LibraryOffer }> {
-  const res = await fetch(`/api/library/${id}`, {
-    method: 'PATCH',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify(patch),
-  });
-  if (res.status === 200) return { ok: true, status: 200, offer: (await res.json()) as LibraryOffer };
-  return { ok: false, status: res.status, error: await errorText(res) };
+  return resultRequest(`/api/library/${id}`, 200, { method: 'PATCH', json: patch }, (d) => ({
+    offer: d as LibraryOffer,
+  }));
 }
 
 // deleteLibraryApp removes an offer (admin only; idempotent 204). Existing copies
 // are untouched — their source_library_id goes NULL via the FK (C1/OQ5). Returns
 // true on 204 so the manager can roll back an optimistic removal.
 export async function deleteLibraryApp(id: string): Promise<boolean> {
-  const res = await fetch(`/api/library/${id}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-  return res.status === 204;
+  return boolRequest(`/api/library/${id}`, 204, { method: 'DELETE' });
 }
 
 // setLibraryOrder persists the admin browse order (admin only) — the same
 // whole-array contract as setCategoryOrder/setLayout. `order` is the list of offer
 // ids, position 0 first. Returns true on 204 so the manager can roll back.
 export async function setLibraryOrder(order: string[]): Promise<boolean> {
-  const res = await fetch('/api/library/order', {
-    method: 'PUT',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify({ order }),
-  });
-  return res.status === 204;
+  return boolRequest('/api/library/order', 204, { method: 'PUT', json: { order } });
 }
 
 // setThemePref persists the current user's theme choice (v3) via PATCH /api/me.
@@ -628,11 +557,5 @@ export async function setLibraryOrder(order: string[]): Promise<boolean> {
 // is rejected 400. Returns true on 200 so the caller can roll back an optimistic
 // update — same shape as setFavorite/setLayout.
 export async function setThemePref(pref: ThemePref): Promise<boolean> {
-  const res = await fetch('/api/me', {
-    method: 'PATCH',
-    headers: jsonHeaders,
-    credentials: 'include',
-    body: JSON.stringify({ themePref: pref }),
-  });
-  return res.status === 200;
+  return boolRequest('/api/me', 200, { method: 'PATCH', json: { themePref: pref } });
 }
