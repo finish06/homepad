@@ -290,9 +290,32 @@ will be dispatched separately.
 
 ---
 
-## 9. Revision history
+## 9. v16 artboard notice — 190px tile-width invariant (HOLD on R2 pending OQ-1)
+
+**Added 2026-09-11 by Walt, following review of v16 UI artboards (PR #418).**
+
+**R2 is currently HELD pending a product decision.** The v16 Tile artboard
+(docs/design/v16-ui/Tile.dc.html) proposes compact tiles at **236px** (not 190px). The
+artboard is Caleb's own design direction; the 190px width was also Caleb's ("standing
+invariant," confirmed 2026-07-02). These cannot both be right.
+
+If Caleb confirms 236px compact tiles (OQ-1 in the spec review, 2026-09-11):
+- R2 ("tiles stay a uniform 190px") changes to "tiles are 236px in compact density, 190px
+  in large density" (or a single new standard if Large is also rethought)
+- The `boxWidthPx()` / `contentMaxPx()` formulas (built on 190+16) change
+- The SPEC-ultrawide-fluid-frame `frameContentPx()` mirror changes
+- The `PANE_MIN = 176px` floor in SPEC-category-pane-width-layout changes
+
+Until OQ-1 is resolved by Caleb, **do not amend R2 or any formula derived from the 190px
+tile width.** The existing 190px tile build is the current production spec. The 236px
+direction is artboard direction only, not a build contract.
+
+---
+
+## 10. Revision history
 
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
 | 2026-07-02 | 0.1 | Kare | Design direction — re-anchored onto live App Grid (#281) |
 | 2026-07-02 | 1.0 | Walt | Formalized into product spec with ACs, build contract, test cases; product go given |
+| 2026-09-11 | 1.1 | Walt | §9 added: v16 artboard contradicts R2 (190px invariant); R2 held pending OQ-1 |

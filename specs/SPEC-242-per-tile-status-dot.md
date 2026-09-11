@@ -41,17 +41,41 @@ The `ServicesContext` polls every ~60 seconds while the tab is visible (v13 `ser
 
 ## 4. Status states and product semantics
 
-| `ServiceStatus` value | Meaning | Product signal to user |
-|---|---|---|
-| `UP` | Gatus reports the service healthy | Normal, all good |
-| `DOWN` | Gatus reports the service unhealthy | Action likely needed |
-| `DEGRADED` | Gatus reports partial failure | Attention warranted |
-| `UNKNOWN` | Monitoring infrastructure issue — Gatus responded but no status resolved | Transient; not actionable |
-| `NOT_MONITORED` | No `gatus_key` configured for this service | Admin has not wired monitoring; normal for some tiles |
+| `ServiceStatus` value | Meaning | Product signal to user | Display text (compact tile — see §4.1) |
+|---|---|---|---|
+| `UP` | Gatus reports the service healthy | Normal, all good | "Online · Xms" |
+| `DOWN` | Gatus reports the service unhealthy | Action likely needed | "Offline · X min" |
+| `DEGRADED` | Gatus reports partial failure | Attention warranted | "Slow · X.X s" |
+| `UNKNOWN` | Monitoring infrastructure issue — Gatus responded but no status resolved | Transient; not actionable | (gray dot only — no text) |
+| `NOT_MONITORED` | No `gatus_key` configured for this service | Admin has not wired monitoring; normal for some tiles | "Not monitored" |
 
 **Critical semantic distinction:** `NOT_MONITORED` is not a failure — it means the admin chose not to (or hasn't yet) configured Gatus monitoring for this tile. Its visual treatment must be visually distinct from `UNKNOWN` (monitoring infra problem) and `DOWN` (service failure). Historically: `NOT_MONITORED` uses a dashed ring rather than a solid dot, and carries no glow — signaling "absence of monitoring" not "error." Kare should confirm or revise this treatment in §5.
 
 `UNKNOWN` is a monitoring-infra signal (Gatus down or key not resolved), NOT a per-service health reading. The aggregate StatusBar already excludes `UNKNOWN` from its counts for this reason. The per-tile dot still renders it (the tile's gray dot is the right surfacing for infra noise), but it carries NO alarm coloring.
+
+### 4.1 — Human-readable status text (v16 artboard direction — HOLD pending OQ-1 and OQ-2)
+
+**⚠ This section describes the v16 artboard design direction. It is NOT cleared for Stitch. Two product decisions must be made first (see below).**
+
+The v16 UI artboards (docs/design/v16-ui/Tile.dc.html, PR #418, 2026-09-10) propose that in Compact and List density modes, each tile carries a **status text line** below the name:
+
+- `UP` → `"Online · 41 ms"` (response time from last Gatus check)
+- `DEGRADED` → `"Slow · 2.4 s"` (response time that triggered the DEGRADED threshold)
+- `DOWN` → `"Offline · 6 min"` (time since service went down)
+- `NOT_MONITORED` → `"Not monitored"` (text)
+- `UNKNOWN` → dot only, no text line
+
+The artboard anatomy: "The name drops from 15px/600 centred with two lines reserved to 13.5px/600 left-aligned on one, which is what buys the status line. That second line is the whole point: it is the only place a user learns a service is slow before they click it."
+
+**DEGRADED display label:** The artboard shows DEGRADED tiles as "Slow · X.X s" (not "DEGRADED"). The `aria-label` should remain `"status: DEGRADED"` for screen readers; the *visible* text on the tile changes to the human-readable form. Whether the toast text (cap5) and other surfaces also change from "DEGRADED" to "Slow" is OQ-8 (open question in the spec review).
+
+**Blocking product decisions before §4.1 can be built:**
+
+- **OQ-1 (tile width):** The artboard proposes Compact tiles at **236px** (not 190px). The 190px width is Caleb's standing invariant (SPEC-pane-fill-reflow R2; SPEC-ultrawide-fluid-frame §2). If Caleb confirms 236px, SPEC-pane-fill-reflow and SPEC-ultrawide-fluid-frame need amendments before this spec can proceed.
+- **OQ-2 (dot position):** The artboard places the dot on the **right rail** ("The dot holds a fixed right rail so a column of tiles scans as a column of dots"). This contradicts Kare's D-1 (top-LEFT at 8px/8px), which was based on a measured collision with the favorite ★ at top-right. In the new compact layout the ★ may coexist differently. Caleb and Kare must confirm the dot position before SPEC-242 §5 can be amended.
+- **OQ-6/7 (response time source):** No existing spec defines which API field carries per-service response time, or what to show when it is unknown. These must be answered before the "Online · 41 ms" format can be built.
+
+Stitch: do not implement §4.1 until all three decisions are recorded here.
 
 ---
 

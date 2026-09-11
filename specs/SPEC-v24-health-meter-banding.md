@@ -399,7 +399,126 @@ are NOT_MONITORED.
 
 ---
 
-## 12. Co-sign (records the gate — NOT cleared for build until both signed)
+## 12. v16 artboard extensions — new health panel states (HOLD — open questions)
+
+**Added 2026-09-11 by Walt, following review of v16 UI artboards (PR #418).** The v16
+HealthPanel artboard (docs/design/v16-ui/HealthPanel.dc.html) adds two new health panel
+states and extends the existing ATTENTION state. None of these is cleared for Stitch — open
+questions are recorded at the end of each sub-section.
+
+---
+
+### 12.1 ATTENTION state extension — inline named-service pills
+
+**Current state:** The ATTENTION panel shows a count ("N services need attention"), a
+sub-line ("N services across N groups · N monitored"), and count chips (interactive buttons
+that open a popover listing named services).
+
+**v16 proposes:** In addition to the count chips, the panel body shows **inline named pills**
+directly in the panel — up to 3, with a "+N more" overflow label if more than 3 services are
+in the attention state. Each pill names the service and its state: "Sonarr down 6m",
+"Zigbee2MQTT down 14m", "Immich slow 2.4s".
+
+This makes the "which services are down" answer immediately visible without clicking the chip.
+The existing chip popovers remain for the full list.
+
+**Data source:** Same `ctx.items` already loaded; no new fetch. Services in ATTENTION =
+`status === 'DOWN' || status === 'DEGRADED'`. Time label ("6 min", "14 min") requires a
+`downtimeSince` or `lastSeenUp` timestamp — it is unclear if this is currently in
+`GET /api/services`. This is **OQ-8** (see spec review doc).
+
+**Clarification needed before building:** Does "slow 2.4s" on the pill show the DEGRADED
+service's response time? If so, this ties into the same response-time data question as the
+compact tile (OQ-6/OQ-7 in the review doc).
+
+**Product ACs (draft — blocked on OQ-8 and response-time questions):**
+
+| AC | Criterion |
+|---|---|
+| AC-V24-A1 | In the ATTENTION variant, the panel body lists up to 3 service pills by name, each labeled with its state and duration (e.g., "Sonarr down 6m"). |
+| AC-V24-A2 | If more than 3 services are in the attention state, the panel shows 3 named pills followed by "+N more" where N = total attention count minus 3. |
+| AC-V24-A3 | The existing count chips and their popovers are unchanged. The inline pills are additive. |
+
+---
+
+### 12.2 NEW STATE: NOT MONITORED (panel level)
+
+**Problem:** When no services have a `gatus_key` configured, `GET /api/services` returns all
+services with `status === 'NOT_MONITORED'`. Today the health panel renders "All systems
+operational" with a green LED. This is factually false — it is asserting health over zero
+evidence. The artboard calls this out explicitly: "Today it renders a green light and the
+words 'All systems operational' over zero evidence."
+
+**v16 proposes:** When the monitored-service count is zero (all services are
+`NOT_MONITORED`), the health panel switches to a NOT MONITORED variant:
+
+- **LED:** neutral gray (no green or red claim — honest absence, not failure)
+- **Headline:** "Status is not being checked"
+- **Sub-line:** "N services, none of them monitored · tiles will launch, but they cannot report"
+- **No meter** (nothing to show — all ticks would be gray)
+- **CTA:** "Connect a status source" (primary button) + "Not now" (secondary dismiss)
+
+**Trigger:** `monitored count === 0` — i.e., no service has `status !== 'NOT_MONITORED'`.
+Derived from `ctx.items`; no new API call.
+
+**Product ACs (draft — blocked on OQ-4):**
+
+| AC | Criterion |
+|---|---|
+| AC-V24-NM1 | When all services in `ctx.items` have `status === 'NOT_MONITORED'`, the panel renders the NOT MONITORED variant (neutral LED, "Status is not being checked" headline). |
+| AC-V24-NM2 | The NOT MONITORED panel does not show the meter strip (no ticks to show). |
+| AC-V24-NM3 | A "Connect a status source" primary CTA and "Not now" secondary appear. "Not now" dismisses the panel to the OPERATIONAL variant (showing honest zero-monitored state) until the page reloads or a service gains monitoring. |
+| AC-V24-NM4 | When any service gains `status !== 'NOT_MONITORED'` (e.g., admin sets a `gatus_key` and the next poll returns UP), the panel transitions out of NOT MONITORED to the appropriate variant. |
+
+**Open questions blocking this state:**
+
+- **OQ-4 (CTA target):** What does "Connect a status source" navigate to? This must be resolved before AC-V24-NM3 can be written with a target.
+- **OQ-10 (trigger threshold):** Should the NOT MONITORED panel state show when ALL services are unmonitored, or when ANY services are? The artboard shows "30 services, none of them monitored," implying ALL. Confirm with Caleb.
+
+---
+
+### 12.3 NEW STATE: STALE
+
+**Problem:** After 15 minutes without a fresh Gatus snapshot, the health panel headline
+("All systems operational" / "N services need attention") is asserting a verdict based on
+stale data. The LED and headline do not reflect that the underlying evidence is old. The
+artboard notes: "Past the red threshold the verdict itself should stand down and the meter
+should dim to last-known."
+
+**Current code:** `StatusBar.tsx:71` already computes `staleness(ageMs)` with thresholds:
+amber at 5 min, red at 15 min. Currently staleness only changes the `data-stale` attribute
+on the freshness label (`data-stale="amber"` / `"red"`). The headline is never affected.
+
+**v16 proposes:** When `staleness === 'red'` (>15 min since last successful fetch), the
+health panel switches to a STALE variant:
+
+- **LED:** dims to neutral (removes the green/red claim — the data cannot support one)
+- **Headline:** "Status is N minutes old" (exact age: `Math.round(ageMs / 60000)` minutes)
+- **Sub-line:** "Last successful check HH:MM · showing the last state that was confirmed"
+- **Meter:** displayed but visually dimmed/faded — showing last-known band distribution,
+  not asserting it as current truth
+- **Action:** "Retry now" button
+
+**Trigger:** `staleness(Date.now() - lastUpdatedAt) === 'red'`. The 15-minute threshold is
+already in the code; no new threshold value needed.
+
+**Product ACs (draft — blocked on OQ-5):**
+
+| AC | Criterion |
+|---|---|
+| AC-V24-ST1 | When the age of the last successful `GET /api/services` response exceeds 15 minutes, the panel renders the STALE variant (dimmed LED, "Status is N minutes old" headline, "Retry now" button). |
+| AC-V24-ST2 | The STALE headline shows the age in whole minutes, updated every tick of the existing age counter. |
+| AC-V24-ST3 | The meter strip is still rendered but visually dimmed (reduced opacity or desaturated). It shows the last-known band distribution. It does not imply the distribution is current. |
+| AC-V24-ST4 | "Retry now" triggers an immediate re-fetch attempt. If the attempt succeeds and returns data younger than 15 minutes, the panel transitions out of STALE. If the attempt fails, the panel remains STALE. |
+| AC-V24-ST5 | After a successful "Retry now" fetch, the age counter resets to zero and the panel shows the appropriate variant (OPERATIONAL or ATTENTION) based on the fresh data. |
+
+**Open question blocking this state:**
+
+- **OQ-5 (retry mechanic):** Does "Retry now" call `fetchServices()` on the frontend, or does it prod the backend Gatus poller via a new API endpoint? If the staleness is because Gatus itself is unreachable, a frontend re-fetch returns the same old data. The spec review doc (2026-09-11) discusses this in detail. Caleb / Joe must confirm before AC-V24-ST4 can be implemented.
+
+---
+
+## 13. Co-sign (records the gate — NOT cleared for build until both signed)
 
 - [x] **Walt** — product go. *(2026-07-14. Caleb's 3-band decision recorded in §3.3. Kare's §8 design section reviewed and requirements folded into spec. Feature shipped as v15.1.0 PR #361 and already passed QA on staging — this spec closeout is documentation hygiene. PASS.)*
 - [x] **Kare** — design go. *(§8 authored 2026-07-14. Design GO on the banding model with three

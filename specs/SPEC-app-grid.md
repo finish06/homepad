@@ -425,6 +425,65 @@ _Walt pre-sign: ACs and product decisions are solid pending Caleb's confirmation
 
 ---
 
+## 10. v16 artboard extensions — Group box header (design direction, HOLD)
+
+**Added 2026-09-11 by Walt, following review of v16 UI artboards (PR #418).** The v16 Groups
+artboard (docs/design/v16-ui/Groups.dc.html) proposes three additions to the group box header
+and a change to the underlying grid model. None of these is cleared for Stitch.
+
+### 10.1 Chevron collapse
+
+A chevron control in the box header collapses the tile grid. Collapsed state is per-user,
+persisted via the existing `PUT /api/me/collapsed-categories` endpoint (SPEC-245-224 §2).
+In collapsed state: the box header (title, count badge, error badge, health strip) remains
+visible; the tile grid is hidden. This gives users a way to hide categories they rarely
+visit without removing them from the admin's shared catalog.
+
+The collapse API endpoint already exists; this is a frontend affordance to use it. No backend
+changes needed.
+
+### 10.2 Error badge on group header
+
+A red pill ("• 1 down") appears in the box header when any service in the group has
+`status === 'DOWN' || status === 'DEGRADED'`. The artboard reuses the `.cat-count` pill
+style. The badge disappears when all services in the group are UP or NOT_MONITORED.
+
+Data source: derived from `ctx.items` filtered by `categoryId`. Same data already loaded
+for the tile grid; no additional fetch.
+
+### 10.3 Health mini-strip in group header
+
+A row of small ticks — one per service in the group — appears in the box header, using the
+same GREEN/GRAY/RED band color-coding as the health panel meter (SPEC-v24). The artboard
+shows 6 ticks for a 6-service group. In collapsed state, this is the only visible summary
+of the group's health.
+
+The artboard explicitly states: "The six-tick strip is the health meter at group scale, one
+tick per app." This is NOT the full health panel meter — it is a per-group instance of the
+same tick-strip concept.
+
+Design treatment needed from Kare before this can be built. The mini-strip is a UI-bearing
+addition to a UI-bearing spec.
+
+### 10.4 12-column grid proposal (CONTRADICTS current spec — explicit hold)
+
+The Groups artboard proposes snapping boxes to a **12-column grid** (spans of 3, 4, 6, or
+12), replacing the current 1–8 integer `grid_width` model. This would require:
+
+- DB migration: `grid_width` values remapped to 12-column spans
+- Updated WidthSelector (4 options instead of 8)
+- Updated `boxWidthPx()` formula in `src/grid/appGridLayout.ts`
+- Reconciliation with SPEC-pane-fill-reflow R3 grow logic (which uses `--w` floors)
+- Decision on SPEC-category-pane-width-layout Phase 2 (currently HELD — the two specs
+  pursue the same goal via different models; only one should ship)
+
+**This is OQ-3 from the spec review doc (2026-09-11).** Caleb must confirm whether the
+12-column grid replaces the current `grid_width` model and whether it supersedes
+SPEC-category-pane-width-layout before any work proceeds. SPEC-category-pane-width-layout
+remains on HOLD until OQ-3 is resolved.
+
+---
+
 ## DECISION LOG — §4A + build gate (Joe, 2026-07-01)
 - **§4A Width persistence: DECIDED = PERSIST.** Caleb confirmed: "Persistence is needed now. Walt is right." Box `grid_width` persists as an admin-set property: one new DB column `grid_width` on the category, one new accepted field on `PATCH /api/categories/:id`, width selector writes through. This supersedes the intake's 'out of scope' note.
 - **§9 co-sign gate: OPENED.** §6 (Kare's design) is merged, Kare co-signed, §4A is resolved (persist), Caleb + Walt + Joe all aligned. Joe authorizes the build to proceed. Stitch: the start-gate is satisfied — BUILD.
