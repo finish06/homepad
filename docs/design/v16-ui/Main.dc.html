@@ -1,0 +1,250 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif; }
+    a { color: #2e63e0; text-decoration: none; }
+    a:hover { color: #1e4bb8; }
+    .mono { font-family: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace; }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 1440px; min-height: 1010px; overflow: hidden; background: linear-gradient(180deg, #eef3fb 0%, #e2eaf6 100%);">
+
+  <div style="position: absolute; top: -180px; left: -60px; width: 900px; height: 520px; border-radius: 999px; background: radial-gradient(closest-side, {{blobA}}, rgba(255,255,255,0));"></div>
+  <div style="position: absolute; top: -120px; right: -120px; width: 820px; height: 480px; border-radius: 999px; background: radial-gradient(closest-side, {{blobB}}, rgba(255,255,255,0));"></div>
+  <div style="position: absolute; top: 520px; left: 380px; width: 900px; height: 560px; border-radius: 999px; background: radial-gradient(closest-side, {{blobC}}, rgba(255,255,255,0));"></div>
+
+  <div style="position: relative;">
+
+    <div style="display: flex; align-items: center; gap: 24px; height: 64px; padding: 0 32px; box-sizing: border-box; background: rgba(255,255,255,0.55); backdrop-filter: blur(30px) saturate(112%); box-shadow: inset 0 -1px 0 rgba(24,30,48,0.10);">
+      <div style="font-size: 24px; font-weight: 800; letter-spacing: -0.02em; background: linear-gradient(135deg, #5a9bff, #2e63e0); -webkit-background-clip: text; background-clip: text; color: transparent;">homepad</div>
+      <div style="flex-grow: 1; display: flex; justify-content: center;">
+        <div style="display: flex; align-items: center; gap: 10px; width: 360px; height: 38px; padding: 0 14px; box-sizing: border-box; border-radius: 999px; background: rgba(255,255,255,0.62); border: 1px solid rgba(24,30,48,0.12); box-shadow: 0 1px 2px rgba(30,42,72,0.06);">
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="rgba(28,32,42,0.62)" stroke-width="1.6" stroke-linecap="round"><circle cx="9" cy="9" r="5.5"></circle><path d="M13.2 13.2 17 17"></path></svg>
+          <span style="flex-grow: 1; font-size: 13.5px; color: rgba(28,32,42,0.62);">Search apps, groups, status…</span>
+          <span class="mono" style="font-size: 11px; padding: 3px 7px; border-radius: 6px; color: rgba(28,32,42,0.62); border: 1px solid rgba(24,30,48,0.20);">Ctrl K</span>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <span style="font-size: 12px; color: rgba(28,32,42,0.62);">Updated 6s ago</span>
+        <svg viewBox="0 0 20 20" width="19" height="19" fill="none" stroke="rgba(28,32,42,0.62)" stroke-width="1.5"><circle cx="10" cy="10" r="2.6"></circle><path d="M10 2.4v2M10 15.6v2M2.4 10h2M15.6 10h2M4.6 4.6l1.4 1.4M14 14l1.4 1.4M15.4 4.6 14 6M6 14l-1.4 1.4"></path></svg>
+        <div style="position: relative; display: flex;">
+          <svg viewBox="0 0 20 20" width="19" height="19" fill="rgba(28,32,42,0.62)"><path d="M10 2a5 5 0 00-5 5v2.6l-1.1 2.2A1 1 0 004.8 14h10.4a1 1 0 00.9-1.4L15 9.6V7a5 5 0 00-5-5zm0 16a2.5 2.5 0 002.45-2h-4.9A2.5 2.5 0 0010 18z"></path></svg>
+          <span class="mono" style="position: absolute; top: -5px; right: -7px; min-width: 15px; height: 15px; padding: 0 3px; box-sizing: border-box; border-radius: 999px; background: #d23a3d; color: #fff; font-size: 10px; font-weight: 600; line-height: 15px; text-align: center;">3</span>
+        </div>
+        <div style="width: 34px; height: 34px; border-radius: 999px; background: linear-gradient(135deg, #5a9bff, #2e63e0); color: #fff; font-size: 12.5px; font-weight: 700; display: flex; align-items: center; justify-content: center;">HO</div>
+      </div>
+    </div>
+
+    <div style="padding: 20px 32px 28px; display: flex; flex-direction: column; gap: 18px;">
+
+      <div style="display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); align-items: center; gap: 20px 40px; padding: 24px 32px; box-sizing: border-box; background: rgba(255,255,255,0.55); backdrop-filter: blur(30px) saturate(112%); border: 1px solid rgba(255,255,255,0.65); border-radius: 24px; box-shadow: 0 10px 34px rgba(30,42,72,0.14), inset 0 1px 0 rgba(255,255,255,0.9);">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: grid; grid-template-columns: auto 1fr; column-gap: 14px; row-gap: 4px; align-items: center;">
+            <div style="grid-row: 1 / span 2; width: 14px; height: 14px; border-radius: 999px; background: #d23a3d; box-shadow: 0 0 0 4px rgba(210,58,61,0.20), 0 0 12px rgba(210,58,61,0.55);"></div>
+            <div style="grid-column: 2; font-size: 30px; font-weight: 600; line-height: 1.05; letter-spacing: -0.03em; color: rgba(20,23,30,0.92);">3 services need attention</div>
+            <div style="grid-column: 2; font-size: 13px; color: rgba(28,32,42,0.62);">27 services across 6 groups · 24 monitored · 3 unmonitored</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; padding-left: 28px;">
+            <sc-for list="{{attention}}" as="a" hint-placeholder-count="3">
+              <div style="display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 11px; box-sizing: border-box; border-radius: 999px; background: rgba(255,255,255,0.72); border: 1px solid {{a.edge}};">
+                <span style="width: 7px; height: 7px; border-radius: 999px; background: {{a.color}};"></span>
+                <span style="font-size: 12.5px; font-weight: 600; color: rgba(20,23,30,0.92);">{{a.name}}</span>
+                <span class="mono" style="font-size: 11px; color: {{a.color}};">{{a.detail}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 12px; justify-self: end; min-width: 0; width: 520px;">
+          <div style="display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px;">
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 44px; padding: 8px 16px; box-sizing: border-box; border-radius: 14px; background: rgba(255,255,255,0.62); border: 1px solid rgba(20,23,30,0.12); box-shadow: 0 1px 2px rgba(30,42,72,0.06);">
+              <span class="mono" style="font-size: 22px; font-weight: 600; line-height: 1; color: #0b7a46;">21</span>
+              <span class="mono" style="font-size: 11px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(28,32,42,0.62);">up</span>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 44px; padding: 8px 16px; box-sizing: border-box; border-radius: 14px; background: rgba(255,255,255,0.62); border: 1px solid rgba(20,23,30,0.12); box-shadow: 0 1px 2px rgba(30,42,72,0.06);">
+              <span class="mono" style="font-size: 22px; font-weight: 600; line-height: 1; color: #d23a3d;">3</span>
+              <span class="mono" style="font-size: 11px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(28,32,42,0.62);">down</span>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 44px; padding: 8px 16px; box-sizing: border-box; border-radius: 14px; background: rgba(255,255,255,0.62); border: 1px solid rgba(20,23,30,0.12); box-shadow: 0 1px 2px rgba(30,42,72,0.06);">
+              <span class="mono" style="font-size: 22px; font-weight: 600; line-height: 1; color: rgba(20,23,30,0.92);">3</span>
+              <span class="mono" style="font-size: 11px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(28,32,42,0.62);">not monitored</span>
+            </div>
+          </div>
+          <div style="display: flex; gap: 3px; height: 26px; align-items: stretch;">
+            <sc-for list="{{meter}}" as="t" hint-placeholder-count="27">
+              <div style="flex-grow: 1; min-width: 2px; border-radius: 999px; background: {{t.color}};"></div>
+            </sc-for>
+          </div>
+          <div class="mono" style="display: flex; align-items: center; gap: 12px; font-size: 11px; letter-spacing: 0.06em; color: rgba(28,32,42,0.62);">
+            <span style="display: inline-flex; align-items: center; gap: 5px;"><span style="width: 8px; height: 8px; border-radius: 999px; background: #0e9e5c;"></span>Online</span>
+            <span style="display: inline-flex; align-items: center; gap: 5px;"><span style="width: 8px; height: 8px; border-radius: 999px; background: #d23a3d;"></span>Offline</span>
+            <span style="display: inline-flex; align-items: center; gap: 5px;"><span style="width: 8px; height: 8px; border-radius: 999px; background: rgba(24,30,48,0.16);"></span>Not monitored</span>
+            <span style="margin-left: auto;">updated 6s ago</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.10em; text-transform: uppercase; color: rgba(28,32,42,0.62);">Your dashboard</div>
+        <div style="flex-grow: 1; height: 1px; background: rgba(24,30,48,0.10);"></div>
+        <div style="display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,0.62); border: 1px solid rgba(24,30,48,0.12);">
+          <div style="display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; box-sizing: border-box; border-radius: 999px; color: rgba(28,32,42,0.62); font-size: 12.5px;">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.4"></rect><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.4"></rect><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.4"></rect><rect x="9" y="9" width="5.5" height="5.5" rx="1.4"></rect></svg>
+            Large
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; box-sizing: border-box; border-radius: 999px; background: #fff; color: rgba(20,23,30,0.92); font-size: 12.5px; font-weight: 600; box-shadow: 0 1px 2px rgba(30,42,72,0.10);">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="4.5" rx="1.4"></rect><rect x="1.5" y="9" width="13" height="4.5" rx="1.4"></rect></svg>
+            Compact
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; box-sizing: border-box; border-radius: 999px; color: rgba(28,32,42,0.62); font-size: 12.5px;">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h12"></path></svg>
+            List
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; box-sizing: border-box; border-radius: 999px; background: rgba(255,255,255,0.62); border: 1px solid rgba(24,30,48,0.12); font-size: 12.5px; font-weight: 600; color: rgba(20,23,30,0.92);">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M11.2 2.3a1.6 1.6 0 0 1 2.3 2.3L5.8 12.3l-3 .9.9-3z"></path></svg>
+          Edit dashboard
+        </div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; align-items: stretch; gap: 16px;">
+        <sc-for list="{{groups}}" as="g" hint-placeholder-count="4">
+          <div style="width: {{g.w}}; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 22px; background: rgba(255,255,255,0.65); backdrop-filter: blur(14px) saturate(1.5); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6), inset 0 1px 0 rgba(255,255,255,0.9), 0 2px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);">
+
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="rgba(28,32,42,0.44)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5 8 10.5l4-4"></path></svg>
+              <div style="font-size: 16px; font-weight: 700; color: #0f172a;">{{g.title}}</div>
+              <div class="mono" style="font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 999px; color: rgba(28,32,42,0.62); background: rgba(15,23,42,0.06);">{{g.count}}</div>
+              <div style="flex-grow: 1;"></div>
+              <div style="display: flex; gap: 2px; width: 64px; height: 5px;">
+                <sc-for list="{{g.bar}}" as="b" hint-placeholder-count="6">
+                  <div style="flex-grow: 1; border-radius: 999px; background: {{b.color}};"></div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+              <sc-for list="{{g.apps}}" as="app" hint-placeholder-count="6">
+                <div style="display: flex; align-items: center; gap: 11px; width: 200px; height: 68px; box-sizing: border-box; padding: 0 12px 0 11px; border-radius: 18px; border: 1px solid {{app.edge}}; background: {{app.fill}}; box-shadow: {{app.shadow}};">
+                  <div class="mono" style="flex-shrink: 0; width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; color: {{app.tint}}; background: {{app.plate}}; box-shadow: inset 0 0 0 1px rgba(15,23,42,0.05);">{{app.mono}}</div>
+                  <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+                    <div style="font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{app.name}}</div>
+                    <div class="mono" style="font-size: 10.5px; letter-spacing: 0.02em; color: {{app.subColor}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{app.sub}}</div>
+                  </div>
+                  <div style="flex-shrink: 0; width: 9px; height: 9px; border-radius: 999px; background: {{app.dot}}; border: {{app.dotBorder}}; box-shadow: {{app.glow}};"></div>
+                </div>
+              </sc-for>
+            </div>
+
+          </div>
+        </sc-for>
+      </div>
+
+      <div class="mono" style="display: flex; justify-content: center; padding-top: 4px; font-size: 11px; color: rgba(28,32,42,0.44);">homepad v15.6.0 · 51c124a</div>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#5a9bff","options":["#5a9bff","#2bc4bc","#22c67d","#9b6ef3"]},"$preview":{"width":1440,"height":1010}}'>
+class Component extends DCLogic {
+  rgba(hex, a) {
+    const h = (hex || '#5a9bff').replace('#', '');
+    const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+  tile(name, mono, tint, plate, status, sub) {
+    const UP = '#0e9e5c', DOWN = '#d23a3d', AMB = '#b7791f';
+    const EDGE = 'rgba(15,23,42,0.06)';
+    const FILL = 'linear-gradient(180deg, #fff, #fbfcff)';
+    const LIFT = '0 1px 2px rgba(16,24,40,0.04), 0 8px 20px -10px rgba(16,24,40,0.12)';
+    const FILL_DOWN = 'linear-gradient(180deg, #fff7f7, #fdeff1)';
+    const map = {
+      up: { dot: UP, dotBorder: 'none', glow: '0 0 0 3px rgba(16,185,129,0.16), 0 0 9px rgba(16,185,129,0.55)', subColor: 'rgba(28,32,42,0.62)', edge: EDGE, fill: FILL, shadow: LIFT },
+      down: { dot: DOWN, dotBorder: 'none', glow: '0 0 0 3px rgba(244,63,94,0.16), 0 0 9px rgba(244,63,94,0.5)', subColor: DOWN, edge: 'rgba(210,58,61,0.45)', fill: FILL_DOWN, shadow: 'inset 3px 0 0 ' + DOWN + ', ' + LIFT },
+      degraded: { dot: AMB, dotBorder: 'none', glow: '0 0 0 3px rgba(183,121,31,0.16), 0 0 9px rgba(183,121,31,0.45)', subColor: AMB, edge: 'rgba(183,121,31,0.42)', fill: FILL, shadow: 'inset 3px 0 0 ' + AMB + ', ' + LIFT },
+      idle: { dot: 'transparent', dotBorder: '1.5px solid rgba(24,30,48,0.26)', glow: 'none', subColor: 'rgba(28,32,42,0.44)', edge: EDGE, fill: FILL, shadow: LIFT },
+    };
+    return Object.assign({ name: name, mono: mono, tint: tint, plate: plate, sub: sub }, map[status]);
+  }
+  renderVals() {
+    const accent = this.props.accent ?? '#5a9bff';
+    const T = this.tile.bind(this);
+    const P = { blue: 'linear-gradient(135deg,#eaf1ff,#dde8fd)', warm: 'linear-gradient(135deg,#fdf0e8,#fae3d6)', green: 'linear-gradient(135deg,#e8f7ee,#d9f0e4)', violet: 'linear-gradient(135deg,#f1ecfd,#e6dcfa)', rose: 'linear-gradient(135deg,#fdecef,#f9dde3)', slate: 'linear-gradient(135deg,#f2f4fc,#e9edf9)' };
+    const groups = [
+      { title: 'Monitoring', w: '448px', apps: [
+        T('Grafana', 'Gr', '#b5511f', P.warm, 'up', 'Online · 41 ms'),
+        T('Prometheus', 'Pr', '#b5511f', P.warm, 'up', 'Online · 63 ms'),
+        T('Netdata', 'Nd', '#0b7a46', P.green, 'up', 'Online · 22 ms'),
+        T('Uptime Kuma', 'Uk', '#0b7a46', P.green, 'up', 'Online · 30 ms'),
+        T('Beszel', 'Bz', '#2e63e0', P.blue, 'up', 'Online · 55 ms'),
+        T('Dozzle', 'Dz', '#8a6d1f', P.warm, 'up', 'Online · 48 ms'),
+      ] },
+      { title: 'Media', w: '448px', apps: [
+        T('Plex', 'Px', '#8a6d1f', P.warm, 'up', 'Online · 77 ms'),
+        T('Jellyfin', 'Jf', '#6d43c9', P.violet, 'up', 'Online · 64 ms'),
+        T('Emby', 'Em', '#0b7a46', P.green, 'up', 'Online · 91 ms'),
+        T('Navidrome', 'Nv', '#2e63e0', P.blue, 'up', 'Online · 35 ms'),
+        T('Audiobookshelf', 'Ab', '#8a6d1f', P.warm, 'up', 'Online · 58 ms'),
+        T('Sonarr', 'Sn', '#2e63e0', P.blue, 'down', 'Offline · 6 min'),
+      ] },
+      { title: 'Dashboards', w: '448px', apps: [
+        T('Dashy', 'Dy', '#0b7a46', P.green, 'up', 'Online · 29 ms'),
+        T('Homarr', 'Hm', '#c2394a', P.rose, 'up', 'Online · 44 ms'),
+        T('Homepage', 'Hp', '#2e63e0', P.blue, 'up', 'Online · 26 ms'),
+        T('Heimdall', 'Hd', '#5b647a', P.slate, 'idle', 'Not monitored'),
+      ] },
+      { title: 'Photos', w: '448px', apps: [
+        T('Immich', 'Im', '#c2394a', P.rose, 'degraded', 'Slow · 2.4 s'),
+        T('PhotoPrism', 'Pp', '#6d43c9', P.violet, 'up', 'Online · 71 ms'),
+        T('Ente', 'En', '#5b647a', P.slate, 'idle', 'Not monitored'),
+      ] },
+      { title: 'Network', w: '448px', apps: [
+        T('Pi-hole', 'Ph', '#c2394a', P.rose, 'up', 'Online · 8 ms'),
+        T('OPNsense', 'Op', '#b5511f', P.warm, 'up', 'Online · 12 ms'),
+        T('Traefik', 'Tk', '#2e63e0', P.blue, 'up', 'Online · 19 ms'),
+        T('Tailscale', 'Ts', '#5b647a', P.slate, 'up', 'Online · 24 ms'),
+      ] },
+      { title: 'Home', w: '448px', apps: [
+        T('Home Assistant', 'Ha', '#2e63e0', P.blue, 'up', 'Online · 21 ms'),
+        T('Zigbee2MQTT', 'Zb', '#6d43c9', P.violet, 'down', 'Offline · 14 min'),
+        T('Node-RED', 'Nr', '#c2394a', P.rose, 'up', 'Online · 27 ms'),
+        T('ESPHome', 'Es', '#5b647a', P.slate, 'idle', 'Not monitored'),
+      ] },
+    ];
+    const barColor = { up: '#0e9e5c', down: '#d23a3d', degraded: '#b7791f', idle: 'rgba(24,30,48,0.16)' };
+    const withMeta = groups.map((g) => Object.assign({}, g, {
+      count: String(g.apps.length),
+      bar: g.apps.map((a) => ({ color: a.dot === 'transparent' ? barColor.idle : a.dot })),
+    }));
+    const meter = [];
+    withMeta.forEach((g) => g.apps.forEach((a) => meter.push({ color: a.dot === 'transparent' ? barColor.idle : a.dot })));
+    meter.sort((x, y) => (x.color === '#0e9e5c' ? 0 : x.color === barColor.idle ? 1 : 2) - (y.color === '#0e9e5c' ? 0 : y.color === barColor.idle ? 1 : 2));
+    return {
+      blobA: this.rgba(accent, 0.22),
+      blobB: this.rgba(accent, 0.16),
+      blobC: this.rgba(accent, 0.12),
+      groups: withMeta,
+      meter: meter,
+      attention: [
+        { name: 'Sonarr', detail: 'down 6m', color: '#d23a3d', edge: 'rgba(210,58,61,0.35)' },
+        { name: 'Zigbee2MQTT', detail: 'down 14m', color: '#d23a3d', edge: 'rgba(210,58,61,0.35)' },
+        { name: 'Immich', detail: 'slow 2.4s', color: '#b7791f', edge: 'rgba(183,121,31,0.35)' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
