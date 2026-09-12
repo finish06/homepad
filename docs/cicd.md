@@ -41,6 +41,16 @@ rolls the image → every open tab notices within 5 minutes (or on next focus).
 ## Toolchain
 
 CI runs Node 22 (`actions/setup-node`). Local dev should match — `.nvmrc`
-pins 22, `package.json#engines` declares `>=20 <23`. (Node 26 + vitest 2's
-jsdom environment is known-broken: `localStorage` never lands on the test
-globals and much of the suite fails for environment reasons.)
+pins 22, `package.json#engines` declares `>=20 <23`.
+
+**Node 26 local runs work as of 2026-09-12.** They previously failed ~49 tests
+across two files. Node 26 defines a native `localStorage` accessor on the global
+object that returns `undefined` without `--localstorage-file`, and because
+vitest's jsdom environment shares one global object with the Node realm, that
+accessor shadowed jsdom's own implementation. The first throw landed inside a
+setup/teardown hook, which aborted it, so `cleanup()` never ran and rendered
+trees accumulated — surfacing as unrelated "Found multiple elements" failures
+elsewhere. `src/test/setup.ts` now installs a Map-backed `Storage` when none is
+present; it is inert on CI's Node 22, where jsdom supplies one. The engines
+range is unchanged: the shim makes the *suite* runnable on 26, it does not make
+26 a supported build target.
