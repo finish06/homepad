@@ -1,5 +1,20 @@
 # homepad v28 — Tile Drag-and-Drop Reorder in Edit Mode
 
+> **⚠ MEASURED GEOMETRY INVALIDATED 2026-09-12 — re-measure before relying on this spec.**
+>
+> This spec's drag affordance geometry was measured against a **190px** tile body
+> (190×124). Tile width changed to **236px** on 2026-09-12 (OQ-1; see
+> `docs/decisions/2026-09-12-v16-artboard-open-questions.md` and SPEC-pane-fill-reflow §9).
+>
+> Every hard-coded horizontal measurement below is now wrong, including the grip offset
+> `x ≈ right−21`, the two 44px hit-box spans, and the 190×124 drag placeholder footprint.
+> The vertical measurements (124px height) are unaffected.
+>
+> The numbers are deliberately **left as measured** rather than arithmetically shifted —
+> they came from measurement against a live build and should be re-measured the same way,
+> not adjusted on paper. This is follow-on work to the OQ-1 decision and is not done here.
+
+
 **Spec ID:** SPEC-v28-tile-drag-reorder
 **Created:** 2026-07-25
 **Author:** Walt (product lead)

@@ -21,7 +21,7 @@ dispatched.
 > is the **App Grid** (`SPEC-app-grid` Amendment A1, restored on `main` at commit `4c7dce2`):
 > glass **boxes** = categories, each sized by an admin **WidthSelector** that writes `--w`
 > (`grid_width` column, migration 0009, range 1–8), packed left→right by `flex-wrap`, with
-> a fixed-190px `auto-fill` tile track inside. **All class names below are the live App Grid
+> a fixed-236px `auto-fill` tile track inside (was 190px until 2026-09-12, see §9). **All class names below are the live App Grid
 > selectors.** Do not reference `.tile-field` or `.panel-tiles` — those are gone.
 
 ---
@@ -32,9 +32,9 @@ The live App Grid lays each category out as a **content-sized glass box**:
 
 ```css
 .app-grid       { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
-.app-grid-box   { width: calc(var(--w) * 190px + (var(--w) - 1) * 16px + 32px);
+.app-grid-box   { width: calc(var(--w) * 236px + (var(--w) - 1) * 16px + 32px);
                   max-width:100%; }     /* FIXED to --w — the cause of the dead space */
-.app-grid-tools { grid-template-columns: repeat(auto-fill, 190px); }  /* shipped, R2 below */
+.app-grid-tools { grid-template-columns: repeat(auto-fill, 236px); }  /* R2 below — CHANGED 2026-09-12 */
 ```
 
 `.app-grid` already spans the shared `CONTENT_WIDTH` frame (`mx-auto max-w-[1536px] px-4`,
@@ -67,13 +67,20 @@ The dead v14 `1392px` cap is gone. **R1 requires no new code** — Stitch must c
 re-introduced inner cap and that horizontal padding matches the header frame. If a cap is
 found, remove it; otherwise close the verify task.
 
-### R2 — Tiles stay a uniform 190px (shipped, verify)
+### R2 — Tiles stay a uniform 236px (amended 2026-09-12, was 190px)
 
-`.app-grid-tools` is already `grid-template-columns: repeat(auto-fill, 190px)` (Amendment A1,
-AC-001-A1). Tiles are **exactly 190px** in every box at every viewport. This is Caleb's
-standing invariant — **do not break it.** When a box grows wider under R3, its `auto-fill`
-tile track reveals **more columns of 190px tiles** rather than stretching existing tiles. R2
-requires no new code.
+> **Amended by OQ-1 (Caleb, 2026-09-12).** The width was 190px from 2026-07-02 until
+> 2026-09-12. It is now **236px at every density**. See §9. The invariant is unchanged in
+> kind — tiles are uniform and boxes reveal columns rather than stretching tiles — only the
+> number moved.
+
+`.app-grid-tools` is `grid-template-columns: repeat(auto-fill, 236px)`. Tiles are **exactly
+236px** in every box at every viewport. When a box grows wider under R3, its `auto-fill` tile
+track reveals **more columns of 236px tiles** rather than stretching existing tiles.
+
+**R2 now requires code.** It was a verify-only rule while the shipped value matched the spec.
+Changing the track value, and every formula built on the 190+16 unit, is real work — see the
+table in §9.1.
 
 ### R3 — Boxes grow above their `--w` floor, weighted, capped (build)
 
@@ -87,9 +94,9 @@ the box's **floor / target** and the box grows above it:
 - **Grow weighted by app count.** Boxes `flex-grow` to fill the row's remaining width; the
   grow factor is **proportional to `box.tools.length`** so a box with more apps claims more
   of the available space. A box with 0 apps has grow = 0 (stays at floor). The intent: a box
-  that can *use* the width (more 190px columns) earns more of it.
+  that can *use* the width (more 236px columns) earns more of it.
 - **Cap at content-max.** Each box is capped at the width it needs to show all its apps in a
-  single row: `boxWidthPx(box.tools.length)` = `tools.length × 190 + (tools.length − 1) × 16
+  single row: `boxWidthPx(box.tools.length)` = `tools.length × 236 + (tools.length − 1) × 16
   + 32`. A box **never grows into empty glass** past its own content.
 
 > The cap is the non-obvious constraint. The naïve "just `flex:1`" cure removes the outer
@@ -131,8 +138,8 @@ The `--w` floor still applies as the minimum; alone in the row it grows to 100%.
 
 | ID | Criterion | Priority |
 |----|-----------|----------|
-| AC-R2-1 | Every tool tile in every box renders at exactly 190px wide, at all viewports and all box widths (1–8 configured, or wider from R3 grow). No tile stretches or compresses from 190px. | Must |
-| AC-R2-2 | When a box is grown wider by R3, additional 190px tiles flow into the row rather than existing tiles stretching. | Must |
+| AC-R2-1 | Every tool tile in every box renders at exactly 236px wide, at all viewports and all box widths (1–8 configured, or wider from R3 grow). No tile stretches or compresses from 236px. | Must |
+| AC-R2-2 | When a box is grown wider by R3, additional 236px tiles flow into the row rather than existing tiles stretching. | Must |
 
 ### Box grow (R3)
 
@@ -140,7 +147,7 @@ The `--w` floor still applies as the minimum; alone in the row it grows to 100%.
 |----|-----------|----------|
 | AC-R3-1 | At viewports ≥1024px, boxes in the same flex-wrap row grow to fill the row's available frame width. No horizontal dead-space gap between the rightmost box and the right frame edge on any row containing two or more boxes. | Must |
 | AC-R3-2 | When two boxes share a row and one has more apps than the other, the more-populated box claims a proportionally larger share of the available growth. | Must |
-| AC-R3-3 | No box grows beyond its content-max: the width to display all its apps in one row (`tools.length × 190 + (tools.length − 1) × 16 + 32`). A box with 1 app does not stretch beyond ~222px of content. | Must |
+| AC-R3-3 | No box grows beyond its content-max: the width to display all its apps in one row (`tools.length × 236 + (tools.length − 1) × 16 + 32`). A box with 1 app does not stretch beyond ~268px of content. | Must |
 | AC-R3-4 | No box shrinks below its configured `--w` floor. An admin-set width-4 box renders at ≥812px at all times. | Must |
 | AC-R3-5 | An empty box (0 apps) stays at its `--w` floor width; it does not grow to consume row space. | Should |
 
@@ -167,7 +174,7 @@ The `--w` floor still applies as the minimum; alone in the row it grows to 100%.
 **R1 — verify first, no new code expected.** Check `.app-grid` in `src/index.css` has no
 inner `max-width` or `width` cap. If clean, mark done. If a cap exists, remove it.
 
-**R2 — no new code.** `.app-grid-tools { grid-template-columns: repeat(auto-fill, 190px) }`
+**R2 — now requires code (changed 2026-09-12).** `.app-grid-tools { grid-template-columns: repeat(auto-fill, 236px) }`
 is shipped. Confirm it's intact on `main`.
 
 **R3 — the box grow logic.** Mechanism: per-box JS-computed CSS variables exposed as inline
@@ -216,7 +223,7 @@ No API changes. No test fixtures change. No backend changes. No migration.
 
 - Manual admin drag, row assignment, or width% — `SPEC-category-pane-width-layout.md` is Phase
   2, stays HELD. Do not build.
-- Tile size changes (tiles stay 190px — any stretch/scale is a regression).
+- Tile size changes beyond the 236px standard (tiles stay 236px — any stretch/scale is a regression).
 - Any changes at viewports <640px or ≤1024px.
 - Any change to the WidthSelector control UI or its persistence.
 - Ultra-wide (5K / 8K) viewports beyond 2560px.
@@ -258,8 +265,8 @@ WidthSelector control reads width-6. Persists on reload.
 
 **Setup:** A box that has grown wider under R3 (more space than its `--w` floor).
 **Viewport:** any ≥1024px.
-**Expected:** All tiles are exactly 190px wide. Inspect tile elements — no tile stretches
-beyond 190px. Additional tiles may have appeared (auto-fill), but each is 190px.
+**Expected:** All tiles are exactly 236px wide. Inspect tile elements — no tile stretches
+beyond 236px. Additional tiles may have appeared (auto-fill), but each is 236px.
 
 ### TC-006: Mobile / small-desktop unchanged (guardrails)
 
@@ -290,9 +297,58 @@ will be dispatched separately.
 
 ---
 
-## 9. Revision history
+## 9. v16 artboard — tile width RESOLVED to 236px (R2 amended, 2026-09-12)
+
+**Raised 2026-09-11 by Walt. Resolved 2026-09-12 by Caleb.**
+
+**OQ-1 is decided: tiles are 236px at every density.** Not 236px in compact and 190px in
+large — a single new uniform width. The 190px standing invariant is retired and replaced,
+so R2 keeps its *shape* (tiles are uniform, boxes reveal more columns rather than stretching
+tiles) and changes only its *number*.
+
+See `docs/decisions/2026-09-12-v16-artboard-open-questions.md`.
+
+### 9.1 What changes
+
+| Item | Was | Now |
+|---|---|---|
+| R2 tile width | 190px | **236px** |
+| `.app-grid-tools` track | `repeat(auto-fill, 190px)` | `repeat(auto-fill, 236px)` |
+| Tile + gutter unit | 190 + 16 = 206 | **236 + 16 = 252** |
+| `boxWidthPx()` | derived from 206 | derived from **252** |
+| `contentMaxPx()` | derived from 206 | derived from **252** |
+| SPEC-ultrawide-fluid-frame `frameContentPx()` | mirrors 206 | mirrors **252** |
+| SPEC-category-pane-width-layout `PANE_MIN` | 176px | **incoherent — now below one tile.** See 9.3. |
+
+### 9.2 Consequences to expect
+
+Every tile gets 46px wider, which is a 24% increase. At a fixed viewport this means **fewer
+columns per row.** A box that fit four 190px tiles in 840px fits three 236px tiles in the
+same space. This is the intended trade — the width is what buys the status line in SPEC-242
+§4.1 — but it is a visible density reduction on every existing dashboard, not a neutral
+change. Nobody has reviewed what that does to a populated install.
+
+**Before build:** render a populated dashboard at 236px at 1280, 1440 and 1920 widths and
+confirm the column counts are acceptable. If they are not, the decision to revisit is OQ-1,
+not the formulas.
+
+### 9.3 `PANE_MIN` is now broken
+
+`PANE_MIN = 176px` in SPEC-category-pane-width-layout was a floor set below the old 190px
+tile. At 236px a pane can now be narrower than a single tile it must contain. That floor
+needs a new value — at minimum 236px, and realistically 252px to include the gutter.
+
+This is not optional cleanup. A pane narrower than its tile will clip or overflow. Note that
+SPEC-category-pane-width-layout is separately superseded by the 12-column grid decision
+(OQ-3), so this floor may be resolved by that retirement rather than by a new number.
+
+---
+
+## 10. Revision history
 
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
 | 2026-07-02 | 0.1 | Kare | Design direction — re-anchored onto live App Grid (#281) |
 | 2026-07-02 | 1.0 | Walt | Formalized into product spec with ACs, build contract, test cases; product go given |
+| 2026-09-11 | 1.1 | Walt | §9 added: v16 artboard contradicts R2 (190px invariant); R2 held pending OQ-1 |
+| 2026-09-12 | 1.2 | Caleb | OQ-1 resolved: R2 amended 190px → 236px at every density; §9 rewritten as the resolution; PANE_MIN flagged incoherent |

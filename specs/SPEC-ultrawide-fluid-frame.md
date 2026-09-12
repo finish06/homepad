@@ -60,7 +60,7 @@ Rows that can still grow are filled by flex-grow before centering ever shows.
 
 ### Unchanged (all Phase 1 invariants)
 
-- Tiles stay **exactly 190px** (R2, Caleb's standing invariant).
+- Tiles stay **exactly 236px** (R2). *Amended 2026-09-12 by OQ-1 — was 190px, described as Caleb's standing invariant, from 2026-07-02 until 2026-09-12. The invariant is retired and replaced by a uniform 236px. See SPEC-pane-fill-reflow §9 and `docs/decisions/2026-09-12-v16-artboard-open-questions.md`.*
 - `--w` floors, weighted grow, content-max caps, lone-box 100% (R3/R4).
 - WidthSelector + `fitsViewport` D-3 (raw-viewport compare, unaffected).
 - **Everything below 1671px** — phone, tablet, desktop: no rule fires.
@@ -92,7 +92,7 @@ Rows that can still grow are filled by flex-grow before centering ever shows.
 
 ## 5. Out of scope
 
-- Tile size / density changes at any viewport (190px invariant).
+- Tile size / density changes at any viewport beyond the 236px standard (236px invariant, amended 2026-09-12).
 - Any change below the 1671px crossover.
 - Phase 2 admin drag/row/width% (`SPEC-category-pane-width-layout.md`) — still HELD.
 - Root-font / typographic upscaling at 4K (possible follow-up, separate decision).

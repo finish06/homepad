@@ -1,11 +1,35 @@
 # SPEC: Category Pane Width Layout — Horizontal Screen Utilization
 
 **Issue:** TBD (to be filed)
-**Status:** APPROVED for implementation (Walt product go, 2026-07-01) — dispatched to Stitch
+**Status:** ⛔ **SUPERSEDED 2026-09-12 — DO NOT BUILD.** *(was: APPROVED for implementation, Walt product go 2026-07-01 — dispatched to Stitch; subsequently held as Phase 2 and never built)*
 **Author:** Walt (product)
 **Co-author:** Kare (design — see Design section, required before implementation)
 **Scope:** `src/Catalog.tsx`, `src/App.tsx`, `src/api.ts`, `homepad-api` (DB migration + API), `src/index.css`
 **Effort estimate:** M–L (data model + render logic + edit-mode drag UX)
+
+
+> ## ⛔ Superseded by the 12-column grid
+>
+> **Decided 2026-09-12 by Caleb (OQ-3).** See
+> `docs/decisions/2026-09-12-v16-artboard-open-questions.md` and SPEC-app-grid §10.4.
+>
+> This spec and the v16 Groups artboard's 12-column grid pursue the same goal — stop wasting
+> horizontal space — through two incompatible models. This spec uses a width-percentage drag
+> model; the artboard snaps boxes to spans of 3, 4, 6 or 12. Only one can ship. Caleb chose
+> the 12-column grid.
+>
+> **Nothing here is dispatched.** The drag-to-resize UX, the `layoutWidthPct` data model, and
+> the `PANE_MIN = 176px` floor are all retired. The `PANE_MIN` incoherence flagged in
+> SPEC-pane-fill-reflow §9.3 (a 176px floor beneath a 236px tile) is resolved by this
+> retirement rather than by a new value.
+>
+> **What survives:** the problem statement below is still accurate and still worth reading.
+> It is the clearest existing write-up of why the wasted-margin problem matters, and the
+> 12-column work should satisfy it. Kept for that reason.
+>
+> **Note on the data model:** `layoutRow`, `layoutColOrder` and `layoutWidthPct` already
+> exist as fields in `src/api.ts`. Whether the 12-column work reuses `layoutWidthPct` or
+> replaces it is an open implementation question that SPEC-app-grid §10.4 does not answer.
 
 ---
 

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import StatusBar from './StatusBar';
 import { useServicesContext } from '../services';
 import type { Service, ServiceStatus } from '../api';
@@ -184,5 +185,132 @@ describe('v24 health-meter status banding', () => {
     render(<StatusBar />);
     const ticks = [...screen.getByTestId('health-meter').querySelectorAll('[data-tick]')];
     expect(ticks.map(bandOf)).toEqual(['green', 'green', 'green']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SPEC-v24 §12.2 — NOT MONITORED panel state (v16 artboard extension).
+//
+// The bug this fixes: when no service has monitoring configured, every service
+// reports NOT_MONITORED, `attention` is 0, and the panel falls through to the
+// operational branch — a green LED over the words "All systems operational"
+// with zero evidence behind them. The panel must not assert a verdict it has
+// no basis for.
+//
+// OQ-10 (resolved 2026-09-12): the trigger is the monitored count reaching
+// zero, not "any service unmonitored". A fleet with one monitored service is
+// still being checked and keeps its normal verdict.
+// ---------------------------------------------------------------------------
+describe('SPEC-v24 §12.2 — NOT MONITORED panel state', () => {
+  // AC-V24-NM1 — trigger + headline + honest neutral LED.
+  it('AC-V24-NM1 — renders the not-monitored variant when no service is monitored', () => {
+    setCtx([svc('NOT_MONITORED', 'n1'), svc('NOT_MONITORED', 'n2', 'Develop')]);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-headline')).toHaveTextContent('Status is not being checked');
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'not-monitored');
+  });
+
+  // AC-V24-NM1 — the LED must not make a green claim.
+  it('AC-V24-NM1 — does not show the operational headline over an unmonitored fleet', () => {
+    setCtx([svc('NOT_MONITORED', 'n1'), svc('NOT_MONITORED', 'n2')]);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-headline')).not.toHaveTextContent('All systems operational');
+  });
+
+  // AC-V24-NM1 — sub-line names the count and says what still works.
+  it('AC-V24-NM1 — sub-line reports the count and that tiles still launch', () => {
+    setCtx([svc('NOT_MONITORED', 'n1'), svc('NOT_MONITORED', 'n2'), svc('NOT_MONITORED', 'n3')]);
+    render(<StatusBar />);
+    const sub = screen.getByTestId('health-subline');
+    expect(sub).toHaveTextContent('3 services, none of them monitored');
+    expect(sub).toHaveTextContent('tiles will launch, but they cannot report');
+  });
+
+  // AC-V24-NM1 — singular wording for a one-service fleet.
+  it('AC-V24-NM1 — uses singular wording for a single unmonitored service', () => {
+    setCtx([svc('NOT_MONITORED', 'only')]);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-subline')).toHaveTextContent('1 service, none of them monitored');
+  });
+
+  // AC-V24-NM2 — nothing to plot, so no meter.
+  it('AC-V24-NM2 — does not render the meter strip', () => {
+    setCtx([svc('NOT_MONITORED', 'n1'), svc('NOT_MONITORED', 'n2')]);
+    render(<StatusBar />);
+    expect(screen.queryByTestId('health-meter')).toBeNull();
+  });
+
+  // AC-V24-NM4 — one monitored service is enough to restore the normal verdict.
+  it('AC-V24-NM4 — leaves the not-monitored variant when any service is monitored', () => {
+    setCtx([svc('NOT_MONITORED', 'n1'), svc('UP', 'u1')]);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-headline')).toHaveTextContent('All systems operational');
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'operational');
+  });
+
+  // AC-V24-NM4 — a down service outranks the unmonitored majority.
+  it('AC-V24-NM4 — an attention state still wins over mostly-unmonitored', () => {
+    setCtx([svc('NOT_MONITORED', 'n1'), svc('NOT_MONITORED', 'n2'), svc('DOWN', 'd1')]);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-headline')).toHaveTextContent('needs attention');
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'attention');
+  });
+
+  // Guard — an empty catalog is a different state and must not be hijacked.
+  it('keeps the empty-catalog state distinct from not-monitored', () => {
+    setCtx([]);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-headline')).toHaveTextContent('No services yet');
+  });
+
+  // Guard — loading must not flash the not-monitored verdict.
+  it('does not show not-monitored while still loading', () => {
+    setCtx(null);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-headline')).toHaveTextContent('Checking services…');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SPEC-v24 §12.2 — "Not now" dismiss (AC-V24-NM3a).
+//
+// NM3 is split. The dismiss half is buildable and lives here. The
+// "Connect a status source" CTA (NM3b) is deferred: OQ-4 resolved it to "link
+// to documentation", but no documentation target exists yet, and shipping a
+// dead link is worse than shipping no link.
+//
+// OQ-4b (resolved 2026-09-12, DEFAULT): the dismiss is session-scoped. It holds
+// for the life of the mounted panel and does not persist anywhere, so a user
+// who dismisses by accident is never permanently stuck without the warning.
+// ---------------------------------------------------------------------------
+describe('SPEC-v24 §12.2 — "Not now" dismiss', () => {
+  it('AC-V24-NM3a — offers a "Not now" dismiss in the not-monitored state', () => {
+    setCtx([svc('NOT_MONITORED', 'n1')]);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-dismiss')).toBeInTheDocument();
+  });
+
+  it('AC-V24-NM3a — dismissing falls back to the operational variant', async () => {
+    const user = userEvent.setup();
+    setCtx([svc('NOT_MONITORED', 'n1'), svc('NOT_MONITORED', 'n2')]);
+    render(<StatusBar />);
+    await user.click(screen.getByTestId('health-dismiss'));
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'operational');
+    expect(screen.queryByTestId('health-dismiss')).toBeNull();
+  });
+
+  // The dismissed panel must stay honest — it may not claim all is well.
+  it('AC-V24-NM3a — the dismissed panel still reports zero monitored', async () => {
+    const user = userEvent.setup();
+    setCtx([svc('NOT_MONITORED', 'n1'), svc('NOT_MONITORED', 'n2')]);
+    render(<StatusBar />);
+    await user.click(screen.getByTestId('health-dismiss'));
+    expect(screen.getByTestId('health-subline')).toHaveTextContent('0 monitored');
+  });
+
+  it('AC-V24-NM3a — no dismiss button appears when the fleet is monitored', () => {
+    setCtx([svc('UP', 'u1')]);
+    render(<StatusBar />);
+    expect(screen.queryByTestId('health-dismiss')).toBeNull();
   });
 });

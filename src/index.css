@@ -462,9 +462,43 @@
     background: var(--v-muted);
     animation: health-led-pulse 1.4s ease-in-out infinite;
   }
+  /* SPEC-v24 §12.2 — NOT MONITORED. An honest neutral light: no colour claim and
+     no glow, because the panel has no evidence to make one. This inherits the
+     base .health-led background already, but is stated explicitly so a future
+     change to the base cannot silently give this state a verdict colour. */
+  .health-led[data-variant='not-monitored'] {
+    background: var(--v-unknown);
+    box-shadow: none;
+    animation: none;
+  }
   @keyframes health-led-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.35; }
+  }
+
+  /* SPEC-v24 §12.2 — action row under the NOT MONITORED sub-line. Sits in the
+     verdict column, so it indents with the text rather than the LED rail. */
+  .health-notice-actions {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .health-notice-dismiss {
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--v-muted);
+    background: transparent;
+    border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+    cursor: pointer;
+  }
+  .health-notice-dismiss:hover {
+    color: inherit;
+    border-color: color-mix(in srgb, currentColor 45%, transparent);
   }
 
   .health-headline {

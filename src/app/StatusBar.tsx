@@ -86,6 +86,12 @@ function formatAgo(ageMs: number): string {
 export default function StatusBar() {
   const ctx = useServicesContext();
   const [peek, setPeek] = useState<PeekStatus | null>(null);
+  // SPEC-v24 §12.2 — "Not now" on the NOT MONITORED state. Deliberately component
+  // state and nothing more: the dismiss is session-scoped (OQ-4b), so it holds
+  // while the panel stays mounted and is gone on the next load. Persisting it
+  // would need both a storage decision and a way to undo it, and would let a
+  // stray click permanently hide the fact that nothing is being checked.
+  const [monitoringNoticeDismissed, setMonitoringNoticeDismissed] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRefs = useRef<Partial<Record<PeekStatus, HTMLButtonElement | null>>>({});
 
@@ -140,7 +146,24 @@ export default function StatusBar() {
   const groups = loading || empty ? 0 : new Set((items ?? []).map((s) => s.categoryName ?? '·uncategorized')).size;
 
   const attention = down + degraded;
-  const variant = loading ? 'loading' : attention > 0 ? 'attention' : 'operational';
+
+  // SPEC-v24 §12.2 — the fleet is present but nothing is being checked. Trigger is
+  // the monitored count reaching zero (OQ-10), not "some service is unmonitored":
+  // one monitored service means the panel still has evidence to report on.
+  //
+  // Note this can only be true when `attention` is 0 — DOWN and DEGRADED are
+  // monitored statuses, so any attention at all implies monitored > 0. The
+  // ordering below is still explicit so the precedence does not rest on that.
+  const fleetUnmonitored = !loading && !empty && monitored === 0;
+  const showMonitoringNotice = fleetUnmonitored && !monitoringNoticeDismissed;
+
+  const variant = loading
+    ? 'loading'
+    : attention > 0
+      ? 'attention'
+      : showMonitoringNotice
+        ? 'not-monitored'
+        : 'operational';
   const severity = down > 0 ? 'down' : degraded > 0 ? 'degraded' : 'none';
 
   let headline: string;
@@ -154,6 +177,12 @@ export default function StatusBar() {
   } else if (attention > 0) {
     headline = `${attention} service${attention === 1 ? '' : 's'} need${attention === 1 ? 's' : ''} attention`;
     subline = `${total} service${total === 1 ? '' : 's'} across ${groups} group${groups === 1 ? '' : 's'} · ${monitored} monitored`;
+  } else if (showMonitoringNotice) {
+    // The panel has no evidence, so it states that instead of a verdict. The
+    // sub-line is careful to say what still works: the tiles are not broken,
+    // they simply cannot report.
+    headline = 'Status is not being checked';
+    subline = `${total} service${total === 1 ? '' : 's'}, none of them monitored · tiles will launch, but they cannot report`;
   } else {
     headline = 'All systems operational';
     subline = `${total} service${total === 1 ? '' : 's'} across ${groups} group${groups === 1 ? '' : 's'} · ${monitored} monitored`;
@@ -203,6 +232,23 @@ export default function StatusBar() {
             <p data-testid="health-subline" className="health-subline">
               {subline}
             </p>
+            {showMonitoringNotice && (
+              <div className="health-notice-actions">
+                {/* SPEC-v24 §12.2, AC-V24-NM3a. The "Connect a status source"
+                    primary CTA (NM3b) is deliberately absent: OQ-4 resolved its
+                    target to "link to documentation", but no documentation page
+                    exists yet and a dead link is worse than no link. Add it here
+                    once there is a real URL to point at. */}
+                <button
+                  type="button"
+                  data-testid="health-dismiss"
+                  className="health-notice-dismiss"
+                  onClick={() => setMonitoringNoticeDismissed(true)}
+                >
+                  Not now
+                </button>
+              </div>
+            )}
           </div>
 
           {showMetrics && (
@@ -234,19 +280,24 @@ export default function StatusBar() {
                   layout order within a band — sort by band, then layout index.
                   Decorative — the chips carry the accessible numbers, so the
                   meter is aria-hidden. */}
-              <div data-testid="health-meter" className="health-meter" aria-hidden="true">
-                {(items ?? [])
-                  .map((s, i) => ({ s, i }))
-                  .sort((a, b) => statusBand[a.s.status] - statusBand[b.s.status] || a.i - b.i)
-                  .map(({ s }) => (
-                    <span
-                      key={s.id}
-                      data-tick
-                      data-status={s.status}
-                      className={`health-tick ${tickClass[s.status] ?? 'health-tick-idle'}`}
-                    />
-                  ))}
-              </div>
+              {/* AC-V24-NM2 — every tick would be gray in the not-monitored
+                  state, so the meter is omitted rather than drawn empty. The
+                  chips stay; only the meter goes. */}
+              {!showMonitoringNotice && (
+                <div data-testid="health-meter" className="health-meter" aria-hidden="true">
+                  {(items ?? [])
+                    .map((s, i) => ({ s, i }))
+                    .sort((a, b) => statusBand[a.s.status] - statusBand[b.s.status] || a.i - b.i)
+                    .map(({ s }) => (
+                      <span
+                        key={s.id}
+                        data-tick
+                        data-status={s.status}
+                        className={`health-tick ${tickClass[s.status] ?? 'health-tick-idle'}`}
+                      />
+                    ))}
+                </div>
+              )}
 
               <div className="health-legend">
                 <span className="health-legend-item">
