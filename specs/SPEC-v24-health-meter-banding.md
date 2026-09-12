@@ -411,7 +411,7 @@ existing ATTENTION state.
 | Sub-section | Status |
 |---|---|
 | 12.1 ATTENTION inline pills | **Partially blocked** — names and durations are buildable, latency pills are not (no API field) |
-| 12.2 NOT MONITORED | **Cleared to build** — no new backend needed |
+| 12.2 NOT MONITORED | **Built 2026-09-12** — NM1, NM2, NM3a, NM4 implemented and tested; NM3b deferred for want of a docs URL |
 | 12.3 STALE | **Blocked** — needs a new backend refresh endpoint |
 
 ---
@@ -498,7 +498,8 @@ configure monitoring must be written, and the CTA needs its URL, before AC-V24-N
 |---|---|
 | AC-V24-NM1 | When all services in `ctx.items` have `status === 'NOT_MONITORED'`, the panel renders the NOT MONITORED variant (neutral LED, "Status is not being checked" headline). |
 | AC-V24-NM2 | The NOT MONITORED panel does not show the meter strip (no ticks to show). |
-| AC-V24-NM3 | A "Connect a status source" primary CTA and "Not now" secondary appear. The CTA opens the monitoring setup documentation in a new tab. "Not now" dismisses the panel to the OPERATIONAL variant (showing honest zero-monitored state) until the page reloads or a service gains monitoring. |
+| AC-V24-NM3a | **Implemented 2026-09-12.** A "Not now" secondary action appears in the NOT MONITORED state and dismisses the panel to the OPERATIONAL variant (showing the honest zero-monitored sub-line) for the life of the mounted panel. The dismiss does not persist across a reload, by design — see OQ-4b. |
+| AC-V24-NM3b | **Deferred — no target exists.** A "Connect a status source" primary CTA opens the monitoring setup documentation. OQ-4 resolved the target to "link to documentation", but no such documentation page exists yet. The CTA is deliberately not rendered rather than pointing at a dead link. Write the setup page, then add the CTA. |
 | AC-V24-NM4 | When any service gains `status !== 'NOT_MONITORED'` (e.g., admin sets a `gatus_key` and the next poll returns UP), the panel transitions out of NOT MONITORED to the appropriate variant. |
 
 **Why this one is worth building first:** it needs no backend change, and it fixes a real
