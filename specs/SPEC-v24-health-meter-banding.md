@@ -399,12 +399,20 @@ are NOT_MONITORED.
 
 ---
 
-## 12. v16 artboard extensions — new health panel states (HOLD — open questions)
+## 12. v16 artboard extensions — new health panel states (RESOLVED 2026-09-12)
 
-**Added 2026-09-11 by Walt, following review of v16 UI artboards (PR #418).** The v16
-HealthPanel artboard (docs/design/v16-ui/HealthPanel.dc.html) adds two new health panel
-states and extends the existing ATTENTION state. None of these is cleared for Stitch — open
-questions are recorded at the end of each sub-section.
+**Added 2026-09-11 by Walt. Open questions resolved 2026-09-12 by Caleb** — see
+`docs/decisions/2026-09-12-v16-artboard-open-questions.md`. The v16 HealthPanel artboard
+(docs/design/v16-ui/HealthPanel.dc.html) adds two new health panel states and extends the
+existing ATTENTION state.
+
+**Build status per sub-section:**
+
+| Sub-section | Status |
+|---|---|
+| 12.1 ATTENTION inline pills | **Partially blocked** — names and durations are buildable, latency pills are not (no API field) |
+| 12.2 NOT MONITORED | **Cleared to build** — no new backend needed |
+| 12.3 STALE | **Blocked** — needs a new backend refresh endpoint |
 
 ---
 
@@ -423,19 +431,25 @@ This makes the "which services are down" answer immediately visible without clic
 The existing chip popovers remain for the full list.
 
 **Data source:** Same `ctx.items` already loaded; no new fetch. Services in ATTENTION =
-`status === 'DOWN' || status === 'DEGRADED'`. Time label ("6 min", "14 min") requires a
-`downtimeSince` or `lastSeenUp` timestamp — it is unclear if this is currently in
-`GET /api/services`. This is **OQ-8** (see spec review doc).
+`status === 'DOWN' || status === 'DEGRADED'`.
 
-**Clarification needed before building:** Does "slow 2.4s" on the pill show the DEGRADED
-service's response time? If so, this ties into the same response-time data question as the
-compact tile (OQ-6/OQ-7 in the review doc).
+**Resolved 2026-09-12 — the duration label is buildable, the latency label is not:**
 
-**Product ACs (draft — blocked on OQ-8 and response-time questions):**
+- **"Sonarr down 6m"** — buildable today. The elapsed time is derived from the newest
+  `uptimeChecks` entry with `success: true`. No new field, no new fetch.
+- **"Immich slow 2.4s"** — **not buildable.** Verified against `src/api.ts`: `UptimeCheck` is
+  `{ success, timestamp }` and carries no duration. `Service` carries no latency either.
+  A response-time field must be added to the services payload first. That is backend work
+  outside this spec.
+- **The word "Slow"** — OQ-8 resolved to **tile status line only**. On this panel the pill
+  may name the state, but `aria-label`, tooltips and cap5 toasts keep "DEGRADED".
+
+**Product ACs — AC-V24-A1 is split, since half of it is blocked:**
 
 | AC | Criterion |
 |---|---|
-| AC-V24-A1 | In the ATTENTION variant, the panel body lists up to 3 service pills by name, each labeled with its state and duration (e.g., "Sonarr down 6m"). |
+| AC-V24-A1a | **Buildable.** In the ATTENTION variant, the panel body lists up to 3 service pills by name, each labeled with its state and duration (e.g., "Sonarr down 6m"), duration derived from the last successful check timestamp. |
+| AC-V24-A1b | **Blocked on the response-time field.** A DEGRADED service's pill shows its latency (e.g., "Immich slow 2.4s"). Do not implement until the API carries response time. |
 | AC-V24-A2 | If more than 3 services are in the attention state, the panel shows 3 named pills followed by "+N more" where N = total attention count minus 3. |
 | AC-V24-A3 | The existing count chips and their popovers are unchanged. The inline pills are additive. |
 
@@ -461,19 +475,36 @@ words 'All systems operational' over zero evidence."
 **Trigger:** `monitored count === 0` — i.e., no service has `status !== 'NOT_MONITORED'`.
 Derived from `ctx.items`; no new API call.
 
-**Product ACs (draft — blocked on OQ-4):**
+**Resolved 2026-09-12 (Caleb):**
+
+- **OQ-10 (trigger) → only when the monitored count is zero.** The state does not appear on a
+  fleet where some services are monitored and some are not. The trigger in the draft below was
+  already written this way and is confirmed, not changed.
+- **OQ-4 (CTA target) → link to documentation.** "Connect a status source" opens setup
+  documentation. It does not navigate anywhere in the app. This deliberately avoids the
+  fragile cases Walt identified — there may be no service to open a form for, and the
+  monitoring base URL is an environment variable rather than a setting.
+- **OQ-4b (dismiss persistence) → session-scoped, DEFAULT.** "Not now" suppresses the state
+  until the page reloads. No storage, no per-user field, and no way to permanently trap a
+  user who dismissed by accident. Marked DEFAULT in the decision record; a persisted dismiss
+  would need both a storage decision and an undo path.
+
+**Open item:** the documentation target does not exist yet. A setup page explaining how to
+configure monitoring must be written, and the CTA needs its URL, before AC-V24-NM3 ships.
+
+**Product ACs — cleared to build:**
 
 | AC | Criterion |
 |---|---|
 | AC-V24-NM1 | When all services in `ctx.items` have `status === 'NOT_MONITORED'`, the panel renders the NOT MONITORED variant (neutral LED, "Status is not being checked" headline). |
 | AC-V24-NM2 | The NOT MONITORED panel does not show the meter strip (no ticks to show). |
-| AC-V24-NM3 | A "Connect a status source" primary CTA and "Not now" secondary appear. "Not now" dismisses the panel to the OPERATIONAL variant (showing honest zero-monitored state) until the page reloads or a service gains monitoring. |
+| AC-V24-NM3 | A "Connect a status source" primary CTA and "Not now" secondary appear. The CTA opens the monitoring setup documentation in a new tab. "Not now" dismisses the panel to the OPERATIONAL variant (showing honest zero-monitored state) until the page reloads or a service gains monitoring. |
 | AC-V24-NM4 | When any service gains `status !== 'NOT_MONITORED'` (e.g., admin sets a `gatus_key` and the next poll returns UP), the panel transitions out of NOT MONITORED to the appropriate variant. |
 
-**Open questions blocking this state:**
-
-- **OQ-4 (CTA target):** What does "Connect a status source" navigate to? This must be resolved before AC-V24-NM3 can be written with a target.
-- **OQ-10 (trigger threshold):** Should the NOT MONITORED panel state show when ALL services are unmonitored, or when ANY services are? The artboard shows "30 services, none of them monitored," implying ALL. Confirm with Caleb.
+**Why this one is worth building first:** it needs no backend change, and it fixes a real
+correctness bug. Today a fresh install with no monitoring configured shows a green light and
+the words "All systems operational" over zero evidence. That is the panel asserting a verdict
+it has no basis for.
 
 ---
 
@@ -502,19 +533,35 @@ health panel switches to a STALE variant:
 **Trigger:** `staleness(Date.now() - lastUpdatedAt) === 'red'`. The 15-minute threshold is
 already in the code; no new threshold value needed.
 
-**Product ACs (draft — blocked on OQ-5):**
+**Resolved 2026-09-12 (Caleb) — OQ-5: "Retry now" prods the backend, it is not a client refetch.**
+
+Walt's analysis was that a client-side refetch is the wrong mechanic, because staleness
+usually means the backend poller has not gotten fresh data from Gatus. Refetching the same
+stale payload would reset the age counter while showing identical data — actively misleading.
+Caleb confirmed the backend route.
+
+**This makes 12.3 blocked on backend work.** A new endpoint (shape unspecified; Walt's
+suggestion was `POST /api/status/refresh`) must exist to prod the poller and report whether
+the re-poll succeeded. Until it does, the STALE state can be built **without** the retry
+button, but AC-V24-ST4 and AC-V24-ST5 cannot ship.
+
+**Unresolved, and it matters:** if Gatus itself is unreachable, the re-poll fails too. The
+endpoint has to distinguish "re-polled, still old" from "could not reach Gatus", and the panel
+has to say something useful in each case. Neither the artboard nor this spec covers that
+failure message.
+
+**Product ACs — ST1 to ST3 buildable now, ST4 and ST5 blocked:**
 
 | AC | Criterion |
 |---|---|
 | AC-V24-ST1 | When the age of the last successful `GET /api/services` response exceeds 15 minutes, the panel renders the STALE variant (dimmed LED, "Status is N minutes old" headline, "Retry now" button). |
 | AC-V24-ST2 | The STALE headline shows the age in whole minutes, updated every tick of the existing age counter. |
 | AC-V24-ST3 | The meter strip is still rendered but visually dimmed (reduced opacity or desaturated). It shows the last-known band distribution. It does not imply the distribution is current. |
-| AC-V24-ST4 | "Retry now" triggers an immediate re-fetch attempt. If the attempt succeeds and returns data younger than 15 minutes, the panel transitions out of STALE. If the attempt fails, the panel remains STALE. |
-| AC-V24-ST5 | After a successful "Retry now" fetch, the age counter resets to zero and the panel shows the appropriate variant (OPERATIONAL or ATTENTION) based on the fresh data. |
+| AC-V24-ST4 | **Blocked on the refresh endpoint.** "Retry now" calls the backend refresh endpoint, which prods the Gatus poller. If the re-poll succeeds and returns data younger than 15 minutes, the panel transitions out of STALE. If it fails, the panel remains STALE and reports why. |
+| AC-V24-ST5 | **Blocked on the refresh endpoint.** After a successful re-poll, the age counter resets to zero and the panel shows the appropriate variant (OPERATIONAL or ATTENTION) based on the fresh data. The counter must NOT reset if the re-poll returned the same stale snapshot. |
 
-**Open question blocking this state:**
-
-- **OQ-5 (retry mechanic):** Does "Retry now" call `fetchServices()` on the frontend, or does it prod the backend Gatus poller via a new API endpoint? If the staleness is because Gatus itself is unreachable, a frontend re-fetch returns the same old data. The spec review doc (2026-09-11) discusses this in detail. Caleb / Joe must confirm before AC-V24-ST4 can be implemented.
+**Threshold confirmed:** the headline stands down at the existing `staleness === 'red'`
+threshold (>15 min), already computed at `StatusBar.tsx:71`. No new magic number.
 
 ---
 

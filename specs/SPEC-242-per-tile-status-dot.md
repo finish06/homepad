@@ -53,29 +53,38 @@ The `ServicesContext` polls every ~60 seconds while the tab is visible (v13 `ser
 
 `UNKNOWN` is a monitoring-infra signal (Gatus down or key not resolved), NOT a per-service health reading. The aggregate StatusBar already excludes `UNKNOWN` from its counts for this reason. The per-tile dot still renders it (the tile's gray dot is the right surfacing for infra noise), but it carries NO alarm coloring.
 
-### 4.1 — Human-readable status text (v16 artboard direction — HOLD pending OQ-1 and OQ-2)
+### 4.1 — Human-readable status text (v16 artboard direction — RESOLVED 2026-09-12)
 
-**⚠ This section describes the v16 artboard design direction. It is NOT cleared for Stitch. Two product decisions must be made first (see below).**
+**Product decisions recorded. See `docs/decisions/2026-09-12-v16-artboard-open-questions.md`. This section is cleared for spec work but NOT yet buildable — it depends on a response-time API field that does not exist (see "Remaining blocker" below).**
 
 The v16 UI artboards (docs/design/v16-ui/Tile.dc.html, PR #418, 2026-09-10) propose that in Compact and List density modes, each tile carries a **status text line** below the name:
 
-- `UP` → `"Online · 41 ms"` (response time from last Gatus check)
+- `UP` → `"Online · 41 ms"` (response time from the most recent Gatus check)
 - `DEGRADED` → `"Slow · 2.4 s"` (response time that triggered the DEGRADED threshold)
-- `DOWN` → `"Offline · 6 min"` (time since service went down)
+- `DOWN` → `"Offline · 6 min"` (time since the service went down)
 - `NOT_MONITORED` → `"Not monitored"` (text)
 - `UNKNOWN` → dot only, no text line
 
 The artboard anatomy: "The name drops from 15px/600 centred with two lines reserved to 13.5px/600 left-aligned on one, which is what buys the status line. That second line is the whole point: it is the only place a user learns a service is slow before they click it."
 
-**DEGRADED display label:** The artboard shows DEGRADED tiles as "Slow · X.X s" (not "DEGRADED"). The `aria-label` should remain `"status: DEGRADED"` for screen readers; the *visible* text on the tile changes to the human-readable form. Whether the toast text (cap5) and other surfaces also change from "DEGRADED" to "Slow" is OQ-8 (open question in the spec review).
+**Resolved decisions (Caleb, 2026-09-12):**
 
-**Blocking product decisions before §4.1 can be built:**
+- **OQ-1 (tile width) → 236px at every density.** The 190px invariant is retired. It is replaced by a uniform 236px, not a density-dependent rule. SPEC-pane-fill-reflow §R2 and SPEC-ultrawide-fluid-frame §2 are amended accordingly.
+- **OQ-2 (dot position) → right rail, fixed.** This **overrides D-1** below. See the D-1 override note in §5.
+- **OQ-7 (which response time) → the most recent check**, successful or not. Chosen so a service that has just begun degrading shows it immediately; a rolling average would mask that. Marked DEFAULT in the decision record — reversible before build.
+- **OQ-7b (unknown latency) → the state word alone.** A tile that is UP with no latency yet reads `"Online"` with no number and no placeholder. Marked DEFAULT.
+- **OQ-8 (the "Slow" label) → tile status line only.** The visible tile text reads "Slow". The `aria-label` stays `"status: DEGRADED"` (AC-014–017 in D-6 are unchanged), and tooltips plus cap5 toasts keep "DEGRADED". Marked DEFAULT. This keeps the change inside this spec and leaves cap5-status-change-toasts untouched.
 
-- **OQ-1 (tile width):** The artboard proposes Compact tiles at **236px** (not 190px). The 190px width is Caleb's standing invariant (SPEC-pane-fill-reflow R2; SPEC-ultrawide-fluid-frame §2). If Caleb confirms 236px, SPEC-pane-fill-reflow and SPEC-ultrawide-fluid-frame need amendments before this spec can proceed.
-- **OQ-2 (dot position):** The artboard places the dot on the **right rail** ("The dot holds a fixed right rail so a column of tiles scans as a column of dots"). This contradicts Kare's D-1 (top-LEFT at 8px/8px), which was based on a measured collision with the favorite ★ at top-right. In the new compact layout the ★ may coexist differently. Caleb and Kare must confirm the dot position before SPEC-242 §5 can be amended.
-- **OQ-6/7 (response time source):** No existing spec defines which API field carries per-service response time, or what to show when it is unknown. These must be answered before the "Online · 41 ms" format can be built.
+**Remaining blocker — response-time field does not exist (OQ-6, finding of fact):**
 
-Stitch: do not implement §4.1 until all three decisions are recorded here.
+`GET /api/services` carries no per-service latency. `UptimeCheck` in `src/api.ts` is `{ success, timestamp }` only. Therefore:
+
+- `"Online · 41 ms"` and `"Slow · 2.4 s"` **cannot be built** until a response-time field is added to the services payload. That is backend work and is not scoped by this spec.
+- `"Offline · 6 min"` **can** be built today — it is the elapsed time since the newest `uptimeChecks` entry with `success: true`.
+- `"Not monitored"` can be built today — it is driven by `status` alone.
+- The DEGRADED "slow" threshold is Gatus's own and homepad does not expose it. Displaying "Slow" needs either that threshold surfaced or a homepad-defined one. Follow-on work.
+
+**Dispatch note:** the `Offline` and `Not monitored` lines are independently buildable. The two latency lines are blocked on the API field. Do not let the blocked pair hold the buildable pair.
 
 ---
 
@@ -96,7 +105,7 @@ the existing token set.
 The product requirement is a small status indicator on each `.app-grid-tool` tile showing one
 of five states (UP / DOWN / DEGRADED / UNKNOWN / NOT_MONITORED) that: (1) is immediately
 readable without a legend, (2) aligns to the App Grid visual language, (3) does not break the
-fixed 190px tile width or the uniform 120px tile height (Amendment A1), and (4) meets WCAG-AA
+fixed 236px tile width (amended 2026-09-12 by OQ-1, was 190px) or the uniform 120px tile height (Amendment A1), and (4) meets WCAG-AA
 contrast against the tile background in both themes.
 
 > **Grounding note — the tool tile is NOT glass.** In App Grid the *box* is the glass panel
@@ -107,6 +116,28 @@ contrast against the tile background in both themes.
 > on glass. Measurements below are against this solid tile surface.
 
 ### D-1 — Size and position — 9px, **top-LEFT** at 8px/8px (NOT top-right)
+
+> **⚠ OVERRIDDEN 2026-09-12 by Caleb (OQ-2). The dot moves to a fixed RIGHT RAIL.**
+>
+> The v16 Tile artboard places the dot on a fixed right rail so that a column of tiles
+> scans as a column of dots. Caleb confirmed the right rail over the top-left placement
+> below. D-1's *size* (9px), *layout impact* (absolute, `pointer-events: none`), *DOM
+> placement* (a `.app-grid-tool-status` sibling inside `.app-grid-tool-wrap`, outside the
+> `<a>`), and *consistency* requirement all still stand — only the corner changes.
+>
+> **What this costs, stated plainly:** the top-left placement was not a preference. Kare
+> chose it on a measured collision — the favorite ★ (`.app-grid-tool-fav`, index.css:2276)
+> owns top-right at `top:4px; right:4px`, 34×34. Moving the dot to the right rail puts it
+> back into the star's territory. At the new 236px tile width (OQ-1) with a right-aligned
+> status line, the artboard shows the two coexisting, but **that coexistence has not been
+> measured against the shipped star geometry.**
+>
+> **Required before build:** Kare re-measures the star/dot collision at 236px and records
+> the resolved geometry as a D-1a amendment. If they do not clear, the right rail does not
+> ship. See `docs/decisions/2026-09-12-v16-artboard-open-questions.md`.
+
+**Original D-1 (superseded on position only):**
+
 
 | Property | Value | Grounding |
 |---|---|---|

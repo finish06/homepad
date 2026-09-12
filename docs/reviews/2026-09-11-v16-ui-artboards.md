@@ -6,6 +6,17 @@
 **Screenshots:** `docs/design/v16-ui/screenshot-{Main,Dark,Tile,Groups,HealthPanel}.png`  
 **Verdict:** `changes` — five spec edits included in this PR; three open product questions must be resolved before anything is dispatched to Stitch.
 
+> **✅ RESOLVED 2026-09-12.** All ten open questions in the table below have been answered by
+> Caleb. See `docs/decisions/2026-09-12-v16-artboard-open-questions.md` for the decisions and
+> their cost. The specs named in this review have been amended accordingly. This review is
+> retained unchanged as the record of the analysis that produced the questions.
+>
+> Summary of what changed against Walt's expectations: the 190px tile invariant was retired
+> in favour of 236px **at every density** (not density-dependent), the dot moved to the right
+> rail, and the 12-column grid was approved as a full replacement — which retires
+> SPEC-category-pane-width-layout. Three of the ten were answered by default rather than by
+> explicit preference and are marked as such in the decision record.
+
 ---
 
 ## What I actually saw (correcting Caleb's summary where needed)

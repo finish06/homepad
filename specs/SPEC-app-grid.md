@@ -45,7 +45,7 @@ A **box** in App Grid maps directly to a `Category` in the existing shared catal
 |------------------|-----------------------------|-----------------------------------------------|
 | `box.title`      | `category.name`             | Admin-editable, unchanged                     |
 | `box.tools[]`    | `services[]` per user, filtered by `categoryId` | Per-user, sourced from `GET /api/services`; the App Grid reads tools from the existing services call — no new endpoint |
-| `box.width`      | NEW `category.grid_width`   | Integer 1–6, admin-set, shared, default 3     |
+| `box.width`      | NEW `category.grid_width`   | Integer 1–6, admin-set, shared, default 3 — **superseded 2026-09-12, see §10.4** |
 | box order        | `category.sortIndex`        | Admin-set via existing `PUT /api/categories/order` |
 | "+ Add box"      | `POST /api/categories`      | Admin-only; creates category with gridWidth=3 |
 
@@ -53,7 +53,7 @@ The data for "tools inside a box" is the authenticated user's own services (`GET
 
 ### 3B. New backend field: `category.grid_width`
 
-Add `grid_width INTEGER NOT NULL DEFAULT 3` to the `categories` table.
+Add `grid_width INTEGER NOT NULL DEFAULT 3` to the `categories` table. **Superseded 2026-09-12 — the value space becomes 12-column spans (3/4/6/12). See §10.4 for the migration.**
 - Range: 1–6. Invalid values are rejected by the API (400).
 - API surface: `PATCH /api/categories/:id` — add `gridWidth` as an optional field. Existing endpoint, new accepted field.
 - Admin-only to write. Any authenticated user may read (it rides with the existing `GET /api/categories` response).
@@ -465,22 +465,70 @@ same tick-strip concept.
 Design treatment needed from Kare before this can be built. The mini-strip is a UI-bearing
 addition to a UI-bearing spec.
 
-### 10.4 12-column grid proposal (CONTRADICTS current spec — explicit hold)
+### 10.4 12-column grid — APPROVED, replaces the 1–6 `grid_width` model (2026-09-12)
 
-The Groups artboard proposes snapping boxes to a **12-column grid** (spans of 3, 4, 6, or
-12), replacing the current 1–8 integer `grid_width` model. This would require:
+**Raised 2026-09-11 by Walt. Resolved 2026-09-12 by Caleb: the 12-column grid REPLACES the
+current model and SUPERSEDES SPEC-category-pane-width-layout.**
 
-- DB migration: `grid_width` values remapped to 12-column spans
-- Updated WidthSelector (4 options instead of 8)
-- Updated `boxWidthPx()` formula in `src/grid/appGridLayout.ts`
-- Reconciliation with SPEC-pane-fill-reflow R3 grow logic (which uses `--w` floors)
-- Decision on SPEC-category-pane-width-layout Phase 2 (currently HELD — the two specs
-  pursue the same goal via different models; only one should ship)
+See `docs/decisions/2026-09-12-v16-artboard-open-questions.md`.
 
-**This is OQ-3 from the spec review doc (2026-09-11).** Caleb must confirm whether the
-12-column grid replaces the current `grid_width` model and whether it supersedes
-SPEC-category-pane-width-layout before any work proceeds. SPEC-category-pane-width-layout
-remains on HOLD until OQ-3 is resolved.
+#### What replaces what
+
+Boxes snap to a **12-column grid** with spans of **3, 4, 6, or 12** — a quarter, a third, a
+half, or full width. This replaces the integer `grid_width` model of 1–6 described in §1 and
+§3B of this spec, and the 1–8 extension that SPEC-pane-fill-reflow added.
+
+**§1, §3B, §6.3 and AC-013/AC-017 of this spec are now superseded on the width model.** They
+are left in place as the record of what shipped; they are no longer the build contract.
+
+#### Migration — this is the expensive part
+
+`grid_width` currently holds 1–6 (extended to 1–8). Those values must be remapped onto
+12-column spans. The mapping is **not** a clean multiplication, because the old model was a
+span count out of 6 and the new one offers only four legal values:
+
+| Old `grid_width` | Old share | Nearest legal 12-col span | Result |
+|---|---|---|---|
+| 1 | 1/6 | 3 (quarter) | **wider than before** |
+| 2 | 2/6 = 1/3 | 4 (third) | exact |
+| 3 | 3/6 = 1/2 | 6 (half) | exact |
+| 4 | 4/6 = 2/3 | 6 or 12 | **no legal equivalent — lossy** |
+| 5 | 5/6 | 12 (full) | **wider than before** |
+| 6 | 6/6 | 12 (full) | exact |
+| 7–8 | over-wide (pane-fill extension) | 12 (full) | clamped |
+
+Three of eight existing values have no exact equivalent. **Any install with boxes at width
+1, 4, 5, 7 or 8 will see its layout change on migration.** That is a visible, unrequested
+change to a user's dashboard, and it is irreversible without a backup of the old column.
+
+**Required before the migration runs:**
+
+1. Preserve the old values in a new column (or a migration audit table) so the change can be
+   reversed. Do not drop the old data.
+2. Decide the width-4 case explicitly. Rounding down to 6/12 narrows the box; rounding up to
+   12/12 makes it full-width. Neither is obviously right and the spec does not yet say.
+3. Confirm whether admins should be notified that their layout was remapped.
+
+#### Downstream
+
+- **WidthSelector** — four options (3/4/6/12) instead of six buttons labeled 1–6. §6.3 and
+  AC-013 need rewriting.
+- **`boxWidthPx()`** in `src/grid/appGridLayout.ts` — the formula changes from a tile-count
+  basis to a 12-column fractional basis. It also has to absorb the 190px → 236px tile change
+  from OQ-1 at the same time. **Two independent changes land on one function.**
+- **SPEC-pane-fill-reflow R3** grow logic is built on `--w` floors, which no longer mean what
+  they meant. R3 needs reconciliation.
+- **SPEC-category-pane-width-layout is SUPERSEDED.** It pursued the same goal via a width-%
+  drag model. It does not ship. Its `PANE_MIN = 176px` question (flagged incoherent in
+  SPEC-pane-fill-reflow §9.3) dies with it.
+
+#### Sequencing warning
+
+This decision and OQ-1 both rewrite the layout engine, and they overlap in
+`appGridLayout.ts`. Landing them together makes a regression hard to attribute; landing the
+tile-width change first gives a smaller, verifiable step. Recommend OQ-1 first, then this.
+
+---
 
 ---
 
