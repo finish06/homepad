@@ -290,22 +290,41 @@ describe('SPEC-v24 §12.2 — "Not now" dismiss', () => {
     expect(screen.getByTestId('health-dismiss')).toBeInTheDocument();
   });
 
-  it('AC-V24-NM3a — dismissing falls back to the operational variant', async () => {
+  // REWRITTEN 2026-09-12. These two tests previously asserted that dismissing
+  // returned the panel to the OPERATIONAL variant, which is what the spec draft
+  // said. A browser pass showed what that actually looks like: a green light
+  // over the words "All systems operational" across a fleet where nothing is
+  // monitored — the exact false claim this whole state exists to remove, one
+  // click away. Caleb's call: the verdict keeps standing down and only the
+  // action row collapses.
+  it('AC-V24-NM3a — dismissing collapses the action row only', async () => {
     const user = userEvent.setup();
     setCtx([svc('NOT_MONITORED', 'n1'), svc('NOT_MONITORED', 'n2')]);
     render(<StatusBar />);
     await user.click(screen.getByTestId('health-dismiss'));
-    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'operational');
     expect(screen.queryByTestId('health-dismiss')).toBeNull();
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'not-monitored');
   });
 
-  // The dismissed panel must stay honest — it may not claim all is well.
-  it('AC-V24-NM3a — the dismissed panel still reports zero monitored', async () => {
+  // The dismissed panel must stay honest — it may never claim all is well.
+  it('AC-V24-NM3a — the dismissed panel does not claim the fleet is healthy', async () => {
     const user = userEvent.setup();
     setCtx([svc('NOT_MONITORED', 'n1'), svc('NOT_MONITORED', 'n2')]);
     render(<StatusBar />);
     await user.click(screen.getByTestId('health-dismiss'));
-    expect(screen.getByTestId('health-subline')).toHaveTextContent('0 monitored');
+    const headline = screen.getByTestId('health-headline');
+    expect(headline).not.toHaveTextContent('All systems operational');
+    expect(headline).toHaveTextContent('Status is not being checked');
+  });
+
+  // Dismissing must not quietly restore the meter either — every tick would
+  // still be gray, so there is still nothing to plot.
+  it('AC-V24-NM3a — the meter stays hidden after dismissing', async () => {
+    const user = userEvent.setup();
+    setCtx([svc('NOT_MONITORED', 'n1'), svc('NOT_MONITORED', 'n2')]);
+    render(<StatusBar />);
+    await user.click(screen.getByTestId('health-dismiss'));
+    expect(screen.queryByTestId('health-meter')).toBeNull();
   });
 
   it('AC-V24-NM3a — no dismiss button appears when the fleet is monitored', () => {
