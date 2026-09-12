@@ -3,7 +3,7 @@
 **Spec ID:** SPEC-tile-click-action-20260710
 **Created:** 2026-07-10
 **Author:** Walt (product lead)
-**Status:** Draft — awaiting Kare §8 design section
+**Status:** Draft — Kare §8 design section authored (design GO); awaiting Walt product go
 **Repos:** `Code/homepad` (UI) + `Code/homepad-api` (data model + API)
 **Estimate:** ~5–8 hours Stitch
 **Target version:** v13.12.0 (feature = minor; v21 → v13.10.0, v22 → v13.11.0)
@@ -372,32 +372,337 @@ treated as `'new_tab'` by the frontend. No crash or blank screen.
 
 ---
 
-## 8. §8 — Design Section (Kare — REQUIRED before build)
+## 8. §8 — Design Section (Kare)
 
-> **[AWAITING KARE §8]**
->
-> This spec has two UI surfaces requiring design sign-off before Stitch builds:
->
-> 1. **Click-action selector in TileEditModal** — segmented control vs. dropdown,
->    exact label/hint copy, spacing, keyboard/touch interaction, and how the inline
->    caveat ("some sites block embedding") is styled.
-> 2. **IframeOverlay component** — header bar layout (service name + close button),
->    overlay dimensions (desktop vs. mobile), backdrop opacity, loading spinner
->    treatment, fallback panel copy and button placement, Esc focus-trap behavior,
->    responsive breakpoints, and animation (open/close transition or none per
->    prefers-reduced-motion).
->
-> Kare: please read `Code/design-system` and produce a §8 design section covering
-> both surfaces. The iframe overlay is a net-new modal pattern — it should feel
-> consistent with the launcher/library modal family (same chrome as `launcher-panel`
-> if possible) while being clearly a "host" container for an embedded service, not a
-> navigation step.
+**Author:** Kare (design/UX) · **Date:** 2026-07-10 · **Status:** Design GO on both
+surfaces (see §8.5).
+
+Grounded in `Code/design-system/DESIGN-SYSTEM.md` and read off the **shipped**
+homepad chrome, not invented: the launcher-panel modal family
+(`src/index.css` `.launcher-overlay` / `.launcher-panel` / `.alert-history-header`),
+the shipped three-segment `ThemeControl` (`src/ThemeControl.tsx`), and the shipped
+`.app-spinner`. Every color/size below is either an existing token reused verbatim or
+a measured value with its contrast ratio stated. Two surfaces:
+
+- **8.1** Click-action selector inside `TileEditModal`.
+- **8.2** The net-new `IframeOverlay`, built on the launcher-panel family.
+
+Design rules in force (design-system §0–§9): AA contrast (≥4.5:1 body, ≥3:1 large /
+meaningful UI), touch targets **≥44×44** through the iPad range (drop to 36 only
+behind `lg:`/`hover:hover`, never `sm:` — §9.3), the 4/8pt grid, one primary per view,
+every state designed, motion respects `prefers-reduced-motion`.
+
+---
+
+### 8.1 Click-action selector — `TileEditModal`
+
+#### 8.1.1 Control type — **segmented control** (recommended, not a dropdown)
+
+Use a **three-segment control**, not a `<select>`. Justification against the system:
+
+1. **A shipped precedent already exists.** `ThemeControl` (System/Light/Dark) is a
+   three-segment control that already passes AA and 44px. Click-action is the *same
+   shape* — a small, fixed, mutually-exclusive set of 3 — so it reuses an approved
+   component instead of inventing a third input idiom (design-system principle #8,
+   consistency). A dropdown would be a new pattern for a 3-way choice.
+2. **All options stay visible.** The three behaviors are not obvious from their names
+   alone; a dropdown hides two of three behind a click and hides the per-option hint
+   copy entirely. Segments show all three at once with a live description line.
+3. **Touch-first.** Three ≥44px segments are three first-class tap targets; a native
+   `<select>` on iPad opens a system wheel and its trigger is easy to render <44px
+   (the exact class of miss we filed in #183/#185).
+
+If a future field needs >5 options this recommendation flips to a `<select>` — 3 is
+comfortably in segmented-control territory.
+
+#### 8.1.2 Copy (exact — labels, description line, caveat)
+
+| Value | Segment label | Description line (below control, reflects selection) |
+|---|---|---|
+| `new_tab` | **New tab** | `Opens in a new browser tab.` *(default)* |
+| `same_tab` | **Same tab** | `Navigates this tab to the service.` |
+| `iframe` | **Inline overlay** | `Embeds the service in an overlay panel. Some sites block embedding — a fallback link appears if that happens.` |
+
+- **One live description line** sits directly under the control and shows the copy for
+  the currently-selected segment (not three stacked sub-labels — that crowds the
+  segments and pushes the field tall). This keeps the segments to a single word/short
+  phrase each and keeps the hint legible.
+- The **iframe caveat is not hidden**: it *is* the iframe option's description line, so
+  the moment an admin selects "Inline overlay" the block-embedding caveat is on screen
+  (satisfies spec §4.2 + §5.5 "do not hide this"). No separate warning banner, no
+  tooltip, no on-save dialog.
+- Field label above the control: **"Click action"** (matches the sentence-case field
+  labels already in the form). Append the default marker only in the description, not
+  the label.
+
+#### 8.1.3 Layout, spacing & integration with the field stack
+
+Insert the field **after URL, before Description** (spec §4.1). Vertical rhythm matches
+the surrounding fields — the field is one item in the form's existing 16px (`space-y-4`)
+stack; inside the field, 8px between label → control → description:
+
+```
+Click action                     ← label: 14px / 600, secondary ink, mb-8px
+┌───────────┬───────────┬──────────────┐
+│  New tab  │ Same tab  │Inline overlay│  ← segmented control, 3 equal segments
+└───────────┴───────────┴──────────────┘     (flex-1 each), min-height 44px
+Opens in a new browser tab. (default)  ← description line: 13–14px, #475069 (8.0:1),
+                                          mt-8px, aria-live="polite"
+```
+
+- **Segments are equal-width and fill the field** (`flex-1` each) so the control spans
+  the form column at every width; at the phone modal width (panel `min(640px,100vw-32)`
+  → ~326px content) each segment is ~108px, enough for "Inline overlay" at 12–13px on
+  one line. Set `white-space: nowrap` on segment labels so they never wrap mid-word.
+- **Spacing lands on the 4/8 grid**: label→control 8, control→description 8, field
+  gap 16. Wrapper border `p-0.5` (2px) exactly as `ThemeControl`.
+
+#### 8.1.4 Segment styling — reuse `ThemeControl` verbatim
+
+Do not restyle. Reuse the shipped classes so light/dark and AA come for free:
+
+- **Group wrapper:** `role="group"` (aria-label "Click action"),
+  `inline-flex items-center rounded-lg border border-neutral-200 p-0.5 dark:border-neutral-700`,
+  plus `w-full` and `flex-1` per button so it spans the column.
+- **Segment button:** `min-h-[44px] rounded-md px-2.5 py-1 text-xs font-medium`
+  - **active:** `bg-indigo-600 text-white` — white on `#4f46e5` = **6.29:1** ✅
+  - **inactive:** `text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800`
+- **Radius** `rounded-md` inside `rounded-lg` wrapper = the 8/12 ramp; no new radius.
+
+#### 8.1.5 Keyboard & touch interaction
+
+Match the shipped `ThemeControl` behavior exactly (consistency, and it's already
+QA'd):
+
+- Each segment is a real `<button type="button">` with `aria-pressed={active}`; the
+  group is `role="group"`. Each segment is a **Tab stop**; `Enter`/`Space` selects.
+  (This is the shipped homepad idiom. A stricter `role="radiogroup"` with arrow-key
+  roving is an acceptable enhancement but is *not* required and should not diverge from
+  `ThemeControl` unless `ThemeControl` moves too.)
+- Selection is **local state only** — it does **not** PATCH on click (unlike
+  `ThemeControl`'s optimistic save). The value is committed with the modal's **Save**,
+  and `click_action` is included in the PATCH **only when changed** (spec §4.3).
+- **Focus ring:** inherit the modal's existing focus-visible treatment; the active
+  segment must remain distinguishable by more than color (the filled indigo pill +
+  `aria-pressed` both carry it, so it's not color-only).
+- **Touch:** each segment ≥44px tall and ≥~100px wide → passes 2.5.5/HIG at iPad
+  portrait and phone. No `sm:` shrink.
+
+---
+
+### 8.2 `IframeOverlay` — net-new host modal (built on the launcher-panel family)
+
+**Design intent:** a *host container* for an embedded service, not a navigation step.
+It reuses the launcher/alert-history chrome (backdrop, panel surface, header bar,
+focus-trap, scroll-lock, motion) so it reads as part of the same modal family, but it
+is deliberately **large** (fills the viewport) and has **one dismiss affordance set**,
+signalling "you're looking *through* a window at the service," not "you navigated
+somewhere with a back button."
+
+**Drop the `[←]` from the §5.4 wireframe.** Spec §7 already says it's cosmetic and
+close-identical; rendering a back arrow implies an in-overlay history stack that
+doesn't exist. Header = **service name (left) + close ✕ (right)** only. One clear way
+out, no false navigation signal.
+
+#### 8.2.1 Backdrop (reuse launcher scrim)
+
+- Light: `background: rgba(15, 23, 42, 0.45)` · Dark: `rgba(2, 4, 10, 0.6)` — the exact
+  `.launcher-overlay` / `.dark .launcher-overlay` values.
+- `backdrop-filter: blur(2px)` (launcher value).
+- `position: fixed; inset: 0;` · **`z-index: 80`** — above the launcher/alert overlay
+  (60) and the gear menu (70) so nothing bleeds over the embedded service.
+- Clicking/tapping the backdrop **outside the panel** closes (AC-006c) — same
+  `e.target === e.currentTarget` guard the launcher uses. (On mobile the panel is
+  full-bleed, so backdrop is edge-only; the close button + Esc are the real exits
+  there.)
+- **Scroll-lock** the page behind while open: `document.body.style.overflow='hidden'`
+  restored on unmount — the launcher's exact pattern (the grid behind must not scroll,
+  AC-005).
+
+#### 8.2.2 Panel surface & dimensions (measured)
+
+Panel surface reuses `.launcher-panel`: `background:#fff` / `.dark → #0e1117`, `border:
+1px solid rgba(15,23,42,.08)` (dark `rgba(255,255,255,.08)`), the launcher box-shadow,
+`overflow:hidden`, `display:flex; flex-direction:column`. Radius snaps to the **8/12/16/20
+ramp → `border-radius:16px`** (radius-lg; the launcher's off-ramp 14 is corrected here,
+not copied) — full-bleed mobile drops to radius 0.
+
+| Viewport | Width | Height | Radius | Notes |
+|---|---|---|---|---|
+| **Desktop ≥1025px** | `92vw`, **max 1600px** | `92vh` | 16px | centered; ≥90% each (spec §5.4). Cap keeps it from stretching to absurd line-lengths on 2560 while still maximizing embed real-estate. |
+| **Tablet 641–1024** | `94vw` | `94vh` | 16px | iPad portrait/landscape. |
+| **Mobile ≤640px** | `100vw` (full-bleed) | `100dvh` | 0 | uses `dvh` so iOS URL-bar collapse doesn't clip the header/footer; honors `env(safe-area-inset-*)` (see §8.2.4). |
+
+- Center with the overlay flexbox (`justify-content:center; align-items:center`) on
+  desktop/tablet; mobile the panel *is* the viewport.
+- Content (`iframe` / spinner / fallback) is `flex:1; min-height:0` so it fills all
+  space under the header and the iframe never overflows the rounded corners.
+
+#### 8.2.3 Header bar (height, layout, contrast)
+
+Modeled on `.alert-history-header` (flex, space-between, bottom border) but sized up so
+the close target is a full 44px:
+
+- **Bar:** `display:flex; align-items:center; justify-content:space-between; flex:none;`
+  `min-height:56px; padding:12px 16px;` (grid values; 44px button + 12 top/bottom = 56).
+  `border-bottom:1px solid rgba(15,23,42,.07)` (dark `rgba(255,255,255,.07)`) — family
+  divider.
+- **Title = service name:** 16px / 650, `#0f172a` = **17.85:1** ✅ (dark `#e6e9f2` =
+  **15.57:1** ✅). `white-space:nowrap; overflow:hidden; text-overflow:ellipsis` and
+  `min-width:0` so a long name truncates rather than colliding with the ✕ (avoids the
+  disney "…oana" overlap, design-system §3.4). Optionally prefix the tile's 20px favicon
+  for recognition — decorative, `aria-hidden`.
+- **Close ✕:** a real `<button aria-label="Close">`, **44×44** hit box,
+  `border-radius:9999px`, glyph 16–18px. **Color `#475069` = 8.02:1** ✅ (dark `#c7ccda`),
+  hover `background:#f4f5fb` / dark `rgba(255,255,255,.06)`. This deliberately upgrades
+  the `.alert-history-close` pattern, which ships at **28×28 / `#9aa3b8` (~2.8:1)** —
+  under both the 44px and the 3:1 rules; do **not** copy those two values here. (Flagging
+  `.alert-history-close` as a latent 44/contrast miss for a separate v-cleanup — noted,
+  not blocking this build.)
+
+#### 8.2.4 iframe & safe areas
+
+- `<iframe>` fills the content area: `width:100%; height:100%; border:0; display:block;`
+  `background:#fff` (so a transparent-bg app doesn't show our surface through it).
+  Attributes exactly as spec §5.4 (`title`, `loading="lazy"`, the `sandbox` list).
+- **Mobile safe areas** (iPad/phone-first): pad the header with
+  `padding-top:max(12px, env(safe-area-inset-top))` and
+  `padding-right:max(16px, env(safe-area-inset-right))` so the close ✕ never lands under
+  a notch/rounded corner; the panel uses `100dvh`. (Same safe-area lesson as the
+  fleet-feed mobile shell.)
+
+#### 8.2.5 Loading state (no blank white)
+
+From open until `onLoad` (or the 5s fallback, §5.5), the content area shows a **centered
+loading state on a neutral surface**, never a blank white rectangle (spec §5.4):
+
+- Surface behind: `#f8fafc` light / `#0e1117` dark (fills the content flex area).
+- **Reuse `.app-spinner` verbatim** — 32px ring, `border-top-color:#4f46e5` (dark
+  `#818cf8`), `app-spin 0.7s linear infinite`; it already `animation:none` under
+  `prefers-reduced-motion`. Under reduced motion the ring is still a visible
+  in-progress affordance (static ring), paired with the label below so "loading" is
+  never motion-only.
+- Caption under the spinner: `Loading <service name>…`, 14px, `#475069` (8.0:1) /
+  dark `#a3a3a3` (7.5:1), `aria-live="polite"` and centered (spinner + label as a
+  vertical stack, 12px gap).
+
+#### 8.2.6 Fallback panel (blocked embed, §5.5)
+
+When the 5s timer fires without `onLoad`, **replace the iframe area** (header stays) with
+a centered, single-primary panel — this is a designed "error/empty" state (principle #5):
+
+```
+        ⚠  (28px, amber #d97706 — decorative, aria-hidden)
+
+     This site can't be embedded            ← 16px / 650, #0f172a (17.9:1)
+  Some sites block display in an embedded    ← 14px / 400, #475069 (8.0:1),
+              frame.                            max-width ~40ch, centered
+
+          ┌──────────────────────┐
+          │  Open in new tab  ↗  │           ← primary: indigo-600, white
+          └──────────────────────┘             (6.29:1), min-h 44, radius 8,
+                                                px-4; 24px above it
+```
+
+- **Layout:** vertical stack, centered in the content area, `gap` 8 (icon→title→body) /
+  24 (body→button), on the same `#f8fafc`/`#0e1117` surface as the loading state.
+- **One primary button only** — "Open in new tab ↗" opens `service.url` with
+  `target="_blank" rel="noreferrer noopener"` (AC-008). No second button; the header ✕
+  is the dismiss (keeps "one primary per view"). The panel does **not** auto-close.
+- **Focus moves to the "Open in new tab" button** when the fallback appears, so a
+  keyboard user lands on the actionable control.
+- Copy is exactly the spec §5.5 strings.
+
+#### 8.2.7 Esc + focus-trap (reference the launcher-panel family)
+
+Reuse `CommandLauncher`'s trap and restore, one-for-one:
+
+- **On open:** move focus into the panel — to the **Close ✕** (or the panel container).
+  Capture the launching tile as the restore target (mirror `LauncherProvider.restoreRef`).
+- **Focus trap:** `role="dialog" aria-modal="true"`, `aria-label={service.name}` (or
+  `aria-labelledby` the header title). Tab/Shift+Tab cycle only within the panel using
+  the launcher's `onModalKeyDown` logic (query `a[href], button:not([disabled]), input,
+  [tabindex]:not([tabindex="-1"])`, wrap first↔last). Focus can never reach the grid
+  behind the scrim.
+  - Note: content inside the `<iframe>` is a separate document; browser Tab may enter it
+    (expected for an embedded app). The trap governs **our** chrome (close, and the
+    fallback button) — that's the right scope.
+- **Esc closes** (AC-006b): `keydown` listener attached on mount, removed on unmount
+  (spec §5.4), same as the launcher's `Escape` handling.
+- **On close** (✕ / Esc / backdrop): restore focus to the tile that opened the overlay.
+
+#### 8.2.8 Animation & `prefers-reduced-motion`
+
+Reuse the launcher motion so the family moves alike:
+
+- **Backdrop:** `launcher-scrim-in` (opacity 0→1, `0.14s ease`).
+- **Panel (desktop/tablet):** `launcher-panel-in` (opacity + `translateY(-6px)
+  scale(0.98)` → rest, `0.14s ease`).
+- **`prefers-reduced-motion: reduce`:** panel falls back to the **opacity-only** fade
+  (the launcher's exact reduced-motion rule) — no transform, no scale. The spinner is
+  already `animation:none` under reduced motion (§8.2.5).
+- **Close:** immediate unmount (matches the launcher — it does not animate out); no
+  janky exit. Keep it under ~150ms and purposeful (principle #6). Do **not** add a
+  mobile bottom-sheet slide — that's outside the family's motion vocabulary; keep the
+  shared fade.
+
+#### 8.2.9 Responsive breakpoints (summary)
+
+- **≤640px:** full-bleed `100vw × 100dvh`, radius 0, safe-area insets, header pinned
+  top, backdrop edge-only; exits = ✕ + Esc.
+- **641–1024px (iPad):** `94vw × 94vh`, radius 16, centered.
+- **≥1025px (desktop):** `92vw × 92vh` (max-width 1600), radius 16, centered.
+- Header, contrast, 44px close, focus-trap, and motion are **identical at all three** —
+  only panel size/radius/safe-area change (responsive is real, verified per breakpoint —
+  principle #7).
+
+---
+
+### 8.3 Design acceptance checklist (measurable gates for Stitch build + QA)
+
+These are the objective checks I'll verify on the built UI in-browser before the design
+co-sign is confirmed on the shipped code:
+
+1. Selector renders as a 3-segment control; each segment **≥44×44** at phone (390) and
+   iPad portrait (768); active segment white-on-indigo **≥4.5:1** (measured ~6.29).
+2. The iframe caveat sentence is **visible** in the description line whenever "Inline
+   overlay" is selected (not hidden behind hover/tooltip).
+3. Selector value round-trips: opens reflecting saved `click_action`; PATCH sent only
+   when changed (AC-010/011).
+4. IframeOverlay: backdrop + panel + header reuse the launcher tokens; header title
+   **≥4.5:1**, close ✕ **44×44** and glyph **≥4.5:1** (measured ~8.0).
+5. Panel fills ≥90% W/H desktop, full-bleed ≤640 with safe-area insets; header/close
+   never clipped by notch (AC-005).
+6. Loading shows the `.app-spinner` + label on a non-white surface (no blank rectangle);
+   fallback panel shows the exact §5.5 copy with a single ≥44px primary (AC-008).
+7. Close works via ✕, Esc, and backdrop; focus traps in-panel and restores to the tile
+   on close (AC-006); page behind does not scroll/navigate.
+8. `prefers-reduced-motion` disables the panel transform (opacity-only) and the spinner
+   spin; nothing conveys state by motion alone.
+
+### 8.4 What Stitch must NOT reinvent
+
+The launcher-panel family already ships all of the chrome. Reuse, don't reimplement:
+`.launcher-overlay` (backdrop/scroll-lock/scrim motion), `.launcher-panel` (surface/
+shadow/panel motion + reduced-motion rule), the `CommandLauncher` focus-trap +
+restore-focus logic, `.alert-history-header` (header layout), `.app-spinner` (loading),
+and `ThemeControl` (the segmented control). New CSS is limited to: overlay z-index 80,
+the large responsive panel sizing (§8.2.2), the 44px/`#475069` close upgrade, and the
+fallback-panel layout.
+
+### 8.5 Design co-sign
+
+**Design GO** on both surfaces, conditioned on the §8.3 checklist being verified on the
+built UI (my standing verify-on-shipped-code gate — a spec-time GO plus a confirm pass on
+what Stitch renders). No blockers in the design as specced here. — **Kare**, 2026-07-10
 
 ---
 
 ## 9. Product Sign-Off
 
-**Walt (product lead):** _awaiting Kare §8_
+**Kare (design):** GO on both surfaces (§8.5), conditioned on the §8.3 checklist verified on the built UI — 2026-07-10.
+
+**Walt (product lead):** _awaiting product go_
 
 Spec is **not cleared for build** until both sign-offs are recorded here.
 
