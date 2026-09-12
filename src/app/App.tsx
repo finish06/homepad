@@ -15,6 +15,8 @@ import {
 } from '../api';
 import AppHeader from './AppHeader';
 import AppGrid from '../grid/AppGrid';
+import TileDensityToggle from '../grid/TileDensityToggle';
+import { useTileDensity } from '../grid/tileDensity';
 import StatusBar from './StatusBar';
 import CommandLauncher from '../launcher/CommandLauncher';
 import { LauncherProvider, useLauncher } from '../launcher/launcher';
@@ -100,6 +102,9 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // independently admin-gated server-side, so this toggle is a convenience
   // surface, not the security boundary.
   const [editMode, setEditMode] = useState(false);
+  // SPEC-tile-density — the per-device tile density (Compact by default), read from
+  // and written to localStorage. The switch lives in the dashboard header below.
+  const [density, setDensity] = useTileDensity();
   // Library browse + add-custom-app remain (service management, not layout),
   // lifted here so the header Gear can trigger them and their result flows into
   // the shared services context that AppGrid renders from.
@@ -234,7 +239,14 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               </button>
             </div>
           )}
-          <AppGrid isAdmin={isAdmin} editMode={editMode} showUptimeDisplay={sysConfig.showUptimeDisplay} />
+          {/* SPEC-tile-density — the dashboard header: a label on the left, the
+              density switch on the right (matching the v16 artboard). The switch
+              lives here only (OQ-9), and its choice persists per device. */}
+          <div className="dashboard-toolbar" data-testid="dashboard-toolbar">
+            <span className="dashboard-toolbar-label">Your dashboard</span>
+            <TileDensityToggle density={density} onChange={setDensity} />
+          </div>
+          <AppGrid isAdmin={isAdmin} editMode={editMode} showUptimeDisplay={sysConfig.showUptimeDisplay} density={density} />
         </section>
 
         {/* SPEC-app-grid §7 — service management stays on the existing surfaces.

@@ -57,6 +57,13 @@ export type Service = {
   // can prefill the current key. Optional so pre-v25 payloads and hand-built
   // fixtures read as unmonitored — consumers normalize with `?? ''`.
   gatus_key?: string;
+  // SPEC-tile-density (OQ-6) — the most-recent Gatus check's response time in ms,
+  // shown on the compact/list tile status line ("Online · 41 ms"). NOT returned by
+  // GET /api/services today — this field is a FORWARD-COMPAT declaration: the
+  // status line degrades gracefully while it is absent (state word alone) and the
+  // latency appears with no other frontend change once the backend emits it. The
+  // backend field name must match `responseTimeMs` for that to hold.
+  responseTimeMs?: number;
 };
 
 // v23 — the per-tile click-action enum. Shared across api types, ToolLink, and

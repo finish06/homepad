@@ -39,6 +39,8 @@ import { boxesFromData, boxWidthPx, contentMaxPx, fitsViewport, frameContentPx, 
 import { iconSrc, initialBadge } from '../lib/icons';
 import { useServicesContext } from '../services';
 import { useResolvedTheme } from '../theme/theme';
+import { type TileDensity } from './tileDensity';
+import { tileStatusLine } from './tileStatus';
 
 // v14.0.1 optimize — both overlays mount only on a user action (open a tile's
 // Edit modal, or open a clickAction='iframe' tile), never during the grid's
@@ -82,12 +84,19 @@ export default function AppGrid({
   isAdmin,
   editMode = false,
   showUptimeDisplay = true,
+  density = 'large',
 }: {
   isAdmin: boolean;
   editMode?: boolean;
   // cap6 — the global admin toggle for the per-tile uptime line. Defaults to ON
   // (opt-out) so existing callers and the pre-fetch initial render are unchanged.
   showUptimeDisplay?: boolean;
+  // SPEC-tile-density — the active tile density. Defaults to 'large' (the legacy
+  // vertical tile) so an isolated render (tests) is unchanged; the real app passes
+  // the persisted value (Compact by default) from Home. Drives a data-density tag
+  // on the grid that the CSS keys the compact/list tile reshape off, and gates the
+  // per-tile status line (rendered only in compact/list).
+  density?: TileDensity;
 }) {
   // Services come from the shared provider (the SAME array the launcher + live
   // poll use — §3/A12); AppGrid self-fetches only when rendered without a
@@ -368,23 +377,24 @@ export default function AppGrid({
         className={`app-grid${editing ? ' is-editing' : ''}`}
         data-testid="app-grid"
         data-editing={editing || undefined}
+        data-density={density}
       >
         {editing ? (
           <>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext items={sortableBoxes.map((b) => b.id)} strategy={rectSortingStrategy}>
                 {sortableBoxes.map((box) => (
-                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} sensors={sensors} onTileDragEnd={onTileDragEnd} setAnnounce={setAnnounce} />
+                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} sensors={sensors} onTileDragEnd={onTileDragEnd} setAnnounce={setAnnounce} />
                 ))}
               </SortableContext>
             </DndContext>
             {uncatBox && (
-              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(uncatBox.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} sensors={sensors} onTileDragEnd={onTileDragEnd} setAnnounce={setAnnounce} />
+              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(uncatBox.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} sensors={sensors} onTileDragEnd={onTileDragEnd} setAnnounce={setAnnounce} />
             )}
           </>
         ) : (
           boxes.map((box) => (
-            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} />
+            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} />
           ))
         )}
         {addButton}
@@ -463,6 +473,7 @@ function BoxCard({
   onRename,
   onDelete,
   showUptimeDisplay,
+  density,
   sortable,
   sensors,
   onTileDragEnd,
@@ -480,6 +491,7 @@ function BoxCard({
   onRename: (id: string, name: string) => Promise<true | string>;
   onDelete: (id: string) => Promise<boolean>;
   showUptimeDisplay: boolean;
+  density: TileDensity;
   sortable?: BoxSortable;
   // v28 — tile drag-and-drop wiring, present only in edit mode: the shared sensor
   // recipe, the AppGrid-level reorder+persist handler, and the announce setter for
@@ -698,11 +710,12 @@ function BoxCard({
           onEdit={onEdit}
           onOpenIframe={onOpenIframe}
           showUptimeDisplay={showUptimeDisplay}
+          density={density}
         />
       ) : (
         <div className="app-grid-tools" data-testid="box-tools">
           {box.tools.map((s) => (
-            <ToolLink key={s.id} service={s} theme={theme} editing={editing} onToggleFavorite={onToggleFavorite} onEdit={onEdit} onOpenIframe={onOpenIframe} showUptimeDisplay={showUptimeDisplay} />
+            <ToolLink key={s.id} service={s} theme={theme} editing={editing} onToggleFavorite={onToggleFavorite} onEdit={onEdit} onOpenIframe={onOpenIframe} showUptimeDisplay={showUptimeDisplay} density={density} />
           ))}
         </div>
       )}
@@ -726,6 +739,7 @@ function TileDndGrid({
   onEdit,
   onOpenIframe,
   showUptimeDisplay,
+  density,
 }: {
   box: Box;
   theme: 'light' | 'dark';
@@ -737,6 +751,7 @@ function TileDndGrid({
   onEdit: (service: Service, opener: HTMLElement | null) => void;
   onOpenIframe: (service: Service) => void;
   showUptimeDisplay: boolean;
+  density: TileDensity;
 }) {
   const tileIds = box.tools.map((s) => s.id);
   const n = tileIds.length;
@@ -790,6 +805,7 @@ function TileDndGrid({
               onEdit={onEdit}
               onOpenIframe={onOpenIframe}
               showUptimeDisplay={showUptimeDisplay}
+              density={density}
             />
           ))}
         </div>
@@ -810,6 +826,7 @@ function SortableTile({
   onEdit,
   onOpenIframe,
   showUptimeDisplay,
+  density,
 }: {
   service: Service;
   theme: 'light' | 'dark';
@@ -818,6 +835,7 @@ function SortableTile({
   onEdit: (service: Service, opener: HTMLElement | null) => void;
   onOpenIframe: (service: Service) => void;
   showUptimeDisplay: boolean;
+  density: TileDensity;
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: service.id });
@@ -830,6 +848,7 @@ function SortableTile({
       onEdit={onEdit}
       onOpenIframe={onOpenIframe}
       showUptimeDisplay={showUptimeDisplay}
+      density={density}
       sortable={{ attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging }}
     />
   );
@@ -851,6 +870,7 @@ function SortableBox({
   onRename,
   onDelete,
   showUptimeDisplay,
+  density,
   sensors,
   onTileDragEnd,
   setAnnounce,
@@ -867,6 +887,7 @@ function SortableBox({
   onRename: (id: string, name: string) => Promise<true | string>;
   onDelete: (id: string) => Promise<boolean>;
   showUptimeDisplay: boolean;
+  density: TileDensity;
   // v28 — tile drag wiring, forwarded to BoxCard's per-box tile DndContext.
   sensors?: ReturnType<typeof useSensors>;
   onTileDragEnd?: (e: DragEndEvent) => void;
@@ -888,6 +909,7 @@ function SortableBox({
       onRename={onRename}
       onDelete={onDelete}
       showUptimeDisplay={showUptimeDisplay}
+      density={density}
       sortable={{ attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging }}
       sensors={sensors}
       onTileDragEnd={onTileDragEnd}
@@ -971,6 +993,7 @@ function ToolLink({
   onEdit,
   onOpenIframe,
   showUptimeDisplay,
+  density,
   sortable,
 }: {
   service: Service;
@@ -982,6 +1005,9 @@ function ToolLink({
   // v23 — open the in-app embed overlay for a clickAction='iframe' tile.
   onOpenIframe: (service: Service) => void;
   showUptimeDisplay: boolean;
+  // SPEC-tile-density — the active density. Large keeps the legacy name-only tile;
+  // compact/list add the status line and reshape (via CSS keyed on data-density).
+  density: TileDensity;
   // v28 — dnd-kit sortable wiring, present only when the tile is draggable (edit
   // mode, via SortableTile). Applied to the wrapper (node ref + lifted transform)
   // and the grip <button> (activator ref + listeners). Same shape as BoxSortable.
@@ -1050,11 +1076,31 @@ function ToolLink({
             onError={onIconError}
           />
         </span>
-        <span className="app-grid-tool-name">{service.name}</span>
-        {/* cap6 — the global admin toggle gates the uptime line here (D2, render
-            gate not data suppression). When off, the tile renders as if it had
-            no uptime data (AC-002/003); the status pip above is untouched. */}
-        {showUptimeDisplay && <UptimeWindowsLine windows={service.uptimeWindows} />}
+        {/* SPEC-tile-density — the name + (compact/list) status line share a text
+            block. In Large the block is `display:contents` (CSS), so the name and
+            uptime line lay out exactly as the legacy tile; in compact/list it is a
+            real flex column that stacks the name over the status line. */}
+        <span className="app-grid-tool-text">
+          <span className="app-grid-tool-name">{service.name}</span>
+          {/* The v16 status line: state word always, response time appended only
+              when Service.responseTimeMs is present (graceful degradation, OQ-6).
+              Rendered only in compact/list — Large is the legacy name-only tile.
+              The pip (above) still carries the a11y status; this line is the
+              human-readable "Slow"/"Offline · Nm"/latency read (OQ-8). */}
+          {density !== 'large' && (
+            <span
+              className="app-grid-tool-statusline"
+              data-testid="tile-statusline"
+              data-status={service.status}
+            >
+              {tileStatusLine(service, Date.now())}
+            </span>
+          )}
+          {/* cap6 — the global admin toggle gates the uptime line here (D2, render
+              gate not data suppression). When off, the tile renders as if it had
+              no uptime data (AC-002/003); the status pip above is untouched. */}
+          {showUptimeDisplay && <UptimeWindowsLine windows={service.uptimeWindows} />}
+        </span>
       </a>
       <button
         type="button"

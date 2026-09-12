@@ -136,6 +136,28 @@ contrast against the tile background in both themes.
 > the resolved geometry as a D-1a amendment. If they do not clear, the right rail does not
 > ship. See `docs/decisions/2026-09-12-v16-artboard-open-questions.md`.
 
+### D-1a — Right-rail geometry, AS BUILT (Stitch, 2026-09-12, Caleb's call OQ-2)
+
+The right rail shipped with the tile-density feature (`SPEC-tile-density.md`). The dot
+is the SAME `.app-grid-tool-status` pip; only its position changes, and only in the
+Compact/List densities (Large keeps the top-left D-1 placement). The move is pure CSS
+keyed on `.app-grid[data-density]` — the pip element, size (9px), colours, glow,
+`pointer-events: none`, and DOM placement are untouched.
+
+| Density | Dot position | ★ favorite position | Collision |
+|---|---|---|---|
+| Large | `top:8px; left:8px` (D-1, unchanged) | top-right `top:4px; right:4px` | none (opposite corners) |
+| Compact (236px, 68px tall) | right rail: `right:12px`, vertically centred (`top: calc(50% - 4.5px)`) | top-right corner (unchanged) | none — the star sits in the top-right corner, the dot on the centre-right rail; they separate vertically |
+| List (full-width, 44px tall) | right rail: `right:12px`, vertically centred | moved LEFT of the dot (`right:30px`, vertically centred) — the short row has no vertical room, so the star yields the far-right to the dot | none — 9px+ gap, both visible |
+
+**Coexistence verified in a real browser** (CDP sidecar, the #35 gate discipline — jsdom
+cannot prove this): at 1440×900, Compact dots measure `relX = 215` of a 236px tile (right
+quarter), `vCentreΔ = 0`, and hold the identical x down a column (0px spread). List dots
+measure `relX = 1355` of 1376px, star cleanly to their left. Screenshots in the PR. The
+change-pulse (D-4) still scales from centre because the vertical centring uses a `top`
+offset, not a `transform` (which the keyframe would override). Final design sign-off on the
+resolved geometry remains Kare's; this records what shipped.
+
 **Original D-1 (superseded on position only):**
 
 
