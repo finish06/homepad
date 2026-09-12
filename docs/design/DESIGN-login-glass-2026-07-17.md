@@ -1,8 +1,41 @@
 # DESIGN — Login / Sign-in, glass restyle (v15 alignment)
 
-**Author:** Kare (design/UX) · **Date:** 2026-07-17 · **Status:** proposal — Caleb picks the direction, then Walt+Stitch build
+**Author:** Kare (design/UX) · **Date:** 2026-07-17 · **Status:** ✅ **SHIPPED** as v15.4.0 (v27), 2026-07-17 — see the banner below
 **Scope:** `src/App.tsx` login/register form (the unauthenticated view) · **Repo:** Code/homepad
 **Task:** kare-homepad-login-redesign-da463f · **This is a proposal. No build.**
+
+> ## ⚠ Read this first — the status line in this document is historical
+>
+> **This was written as an undecided proposal. It is not one any more.** The direction
+> was approved and built the same day it was authored, and shipped as **v15.4.0 (v27),
+> 2026-07-17** — see the CHANGELOG entry "Login/sign-in glass restyle (v27)".
+>
+> The document is merged unchanged below, as the measured design rationale for code that
+> is already in production. Every sentence framing it as awaiting a decision ("This is a
+> proposal. No build.", "On direction approval it becomes the Design section…") describes
+> where it stood on 2026-07-17, not where it stands now.
+>
+> **Why it is worth having on main at all:** it is the only record of *why* the login
+> looks the way it does. The five dark-mode contrast failures in §2.2 are measured, with
+> numbers, against the real composited surface. Guards in `src/app/App.test.tsx` (`A177`,
+> `A178`, and the `v27 — login glass restyle` suite) enforce those decisions today; this
+> document is the reasoning behind them. Without it, the tests read as arbitrary.
+>
+> **Every open question in §8 has since been answered by what shipped:**
+>
+> | §8 open item | Resolution |
+> |---|---|
+> | Centered glass card vs desktop split-hero | Centered card, as recommended |
+> | "Create account" vs "Register" wording | "Create account" — shipped |
+> | New `--v-field` token needs Caleb's nod | Approved; the token is in `src/index.css` |
+>
+> **Why it sat unmerged for so long:** the branch was pushed on 2026-07-17 and no PR was
+> ever opened, so it was invisible to every consumer — the fleet's bots watch queues and
+> PRs, never branches. Joe's orphan-branch sweep raised it as #407 on 2026-07-27.
+>
+> *Banner added 2026-09-12 on merge. Nothing below this line is edited.*
+
+---
 
 > One-line: the login is the *only* screen a user sees before the glass UI, and it's the *only* screen still on
 > the pre-v15 generic Tailwind palette. It fails its own product's design language and — in dark mode — fails WCAG
