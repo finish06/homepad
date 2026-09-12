@@ -73,6 +73,10 @@ found, remove it; otherwise close the verify task.
 > 2026-09-12. It is now **236px at every density**. See §9. The invariant is unchanged in
 > kind — tiles are uniform and boxes reveal columns rather than stretching tiles — only the
 > number moved.
+>
+> **AS BUILT (see §9.4):** 236px shipped for the **Compact** density (the new default); Large
+> still renders the legacy 190px track, and the `boxWidthPx`/`frameContentPx` box model is
+> still 206-based, pending §9.2's populated-install review. Not yet uniform in code.
 
 `.app-grid-tools` is `grid-template-columns: repeat(auto-fill, 236px)`. Tiles are **exactly
 236px** in every box at every viewport. When a box grows wider under R3, its `auto-fill` tile
@@ -342,6 +346,34 @@ This is not optional cleanup. A pane narrower than its tile will clip or overflo
 SPEC-category-pane-width-layout is separately superseded by the 12-column grid decision
 (OQ-3), so this floor may be resolved by that retirement rather than by a new number.
 
+### 9.4 AS BUILT — 236px landed as the Compact density, NOT yet as the uniform box model (Stitch, 2026-09-12)
+
+The 236px width shipped via `SPEC-tile-density.md` (tile-density switch, this PR), but
+**scoped to the new densities, not as the whole-grid formula rewrite §9.1 lists.** What
+actually shipped:
+
+| §9.1 item | §9.1 target | AS BUILT |
+|---|---|---|
+| `.app-grid-tools` track | `repeat(auto-fill, 236px)` everywhere | **236px in the Compact density only** (`.app-grid[data-density='compact']`). List is one full-width column. **Large keeps `repeat(auto-fill, 190px)`.** |
+| `boxWidthPx()` / `contentMaxPx()` | derived from 252 | **unchanged — still 206-based** |
+| `frameContentPx()` (ultrawide) | mirrors 252 | **unchanged — still mirrors 206** |
+
+**Why the box-model math was left at 206.** Compact is the new default, so 236px is what a
+fresh dashboard shows — the product goal is met. But rewriting `boxWidthPx`/`contentMaxPx`/
+`frameContentPx` to 252 cascades into R3/R4 grow logic and the ultrawide frame mirror, and it
+would apply 236px to **every** existing dashboard including Large — which is exactly the
+"visible density reduction on every existing dashboard, nobody has reviewed" that **§9.2
+itself gates behind a populated-install column-count review that has not happened.** Shipping
+the density switch does not require that review; unifying the box model does. So the box model
+stays 206-based and the 236px tiles wrap within their (190-derived) box floors — tiles never
+overflow, a box just reveals fewer 236px columns than its `--w` nominal. That is a safe,
+visible imperfection, not a breakage.
+
+**Follow-on (not this PR):** once §9.2's populated-install review is done, unify the box model
+to 252 (or resolve it via the 12-column grid retirement, OQ-3) and re-point `frameContentPx`.
+Until then R2's "exactly 236px in every box at every viewport" holds for Compact/List; Large
+remains the legacy 190px tile.
+
 ---
 
 ## 10. Revision history
@@ -352,3 +384,4 @@ SPEC-category-pane-width-layout is separately superseded by the 12-column grid d
 | 2026-07-02 | 1.0 | Walt | Formalized into product spec with ACs, build contract, test cases; product go given |
 | 2026-09-11 | 1.1 | Walt | §9 added: v16 artboard contradicts R2 (190px invariant); R2 held pending OQ-1 |
 | 2026-09-12 | 1.2 | Caleb | OQ-1 resolved: R2 amended 190px → 236px at every density; §9 rewritten as the resolution; PANE_MIN flagged incoherent |
+| 2026-09-12 | 1.3 | Stitch | §9.4 AS BUILT: 236px shipped as the Compact density (SPEC-tile-density); box model kept 206-based / Large kept 190px, pending §9.2's populated-install review — the formula rewrite is deliberately out of the density-switch scope |

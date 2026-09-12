@@ -60,7 +60,7 @@ Rows that can still grow are filled by flex-grow before centering ever shows.
 
 ### Unchanged (all Phase 1 invariants)
 
-- Tiles stay **exactly 236px** (R2). *Amended 2026-09-12 by OQ-1 — was 190px, described as Caleb's standing invariant, from 2026-07-02 until 2026-09-12. The invariant is retired and replaced by a uniform 236px. See SPEC-pane-fill-reflow §9 and `docs/decisions/2026-09-12-v16-artboard-open-questions.md`.*
+- Tiles stay **exactly 236px** (R2). *Amended 2026-09-12 by OQ-1 — was 190px, described as Caleb's standing invariant, from 2026-07-02 until 2026-09-12. The invariant is retired and replaced by a uniform 236px. See SPEC-pane-fill-reflow §9 and `docs/decisions/2026-09-12-v16-artboard-open-questions.md`.* **AS BUILT (Stitch, 2026-09-12, SPEC-pane-fill-reflow §9.4):** 236px shipped for the Compact density (the new default) via `SPEC-tile-density.md`; the `frameContentPx()` mirror in `src/grid/appGridLayout.ts` still targets the 206 (190+16) unit, NOT 252 — the box-model rewrite is deliberately out of the density-switch scope, pending §9.2's populated-install column review. The ultrawide frame math is therefore unchanged by this PR.
 - `--w` floors, weighted grow, content-max caps, lone-box 100% (R3/R4).
 - WidthSelector + `fitsViewport` D-3 (raw-viewport compare, unaffected).
 - **Everything below 1671px** — phone, tablet, desktop: no rule fires.

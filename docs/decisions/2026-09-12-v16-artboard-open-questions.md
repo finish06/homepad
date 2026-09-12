@@ -101,3 +101,15 @@ preference. Each is cheap to change before build:
   output.
 - **OQ-4b (session dismiss)** — a persisted dismiss needs a storage decision and a
   way to undo it. Session scope avoids trapping a user who dismisses by accident.
+
+---
+
+## Build divergence — OQ-9 shipped as per-device localStorage (Joe's dispatch, 2026-09-12)
+
+The OQ-9 row above resolves persistence as **"per user, server-side."** The tile-density
+build (`specs/SPEC-tile-density.md`) instead shipped **per-device `localStorage`**, on
+Joe's dispatch: a dashboard's density is a property of the screen it is on, and
+localStorage needs no API field and no migration, so it does not pull backend work into a
+frontend-only task. This is recorded — not silent — in SPEC-tile-density §2. If the
+server-side model is still wanted, it is a clean follow-on (a `densityPref` on the user row
++ a swap inside `src/grid/tileDensity.ts`); nothing above that module changes.

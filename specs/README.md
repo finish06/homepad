@@ -11,6 +11,7 @@ Historical specs for shipped versions are in [`specs/archive/`](./archive/).
 
 | File | What it covers | Status |
 |------|---------------|--------|
+| [`SPEC-tile-density.md`](./SPEC-tile-density.md) | v16 tile density switch — Large / Compact (new default) / List — with the compact status line ("Online · 41 ms"). Per-device localStorage persistence (OQ-9, diverges from the decision record's server-side model). Status line degrades gracefully with no `responseTimeMs` in the API. Frontend only. | **Built — PR open, QA pending** |
 | [`v19-a11y-touch-pass.md`](./v19-a11y-touch-pass.md) | A11y + touch-target hardening: login inputs/button ≥44px, dashboard gear/launcher/avatar ≥44px, neutral-400→neutral-500 contrast sweep, edit-mode banner + UserMenu copy fixes. Frontend only. | **Spec draft — Walt signed 2026-07-05. Awaiting Kare §9 design section.** |
 | [`cap6-uptime-display-toggle.md`](./cap6-uptime-display-toggle.md) | Boolean admin System setting to show/hide the per-tile uptime sparkline display globally. Default ON. Adds `system_settings` DB table, `GET /api/system/config` + `PATCH /api/admin/settings` endpoints. | **Shipped — prod v13.5.0** |
 | [`v18-gear-edit-menu.md`](./v18-gear-edit-menu.md) | Gear becomes a dropdown menu with all edit-dashboard actions: Arrange tiles + Add apps (all users); Edit tiles + Add custom app (admins). Removes "Edit dashboard" from UserMenu. | **Ready for implementation** |
