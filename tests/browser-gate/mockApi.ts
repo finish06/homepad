@@ -101,7 +101,15 @@ export async function mockApi(
   // The App Grid width selector is admin-only; pass 'admin' when a gate needs it
   // in the contested row.
   role: 'user' | 'admin' = 'user',
+  // SPEC-tile-density — pin the per-device tile density (localStorage, OQ-9) before
+  // the app boots. Defaults to 'large' so the pre-density gates keep asserting the
+  // legacy vertical tile after the product default flipped to 'compact'. Pass null
+  // to seed nothing (test the fresh-device default).
+  density: 'large' | 'compact' | 'list' | null = 'large',
 ): Promise<void> {
+  if (density) {
+    await page.addInitScript((d) => localStorage.setItem('homepad:tile-density', d), density);
+  }
   // Catch-all registered FIRST so the specific handlers below (LIFO order) take
   // precedence — anything unmocked resolves empty instead of hanging the page.
   await page.route('**/api/**', (route) => route.fulfill({ status: 200, json: {} }));
