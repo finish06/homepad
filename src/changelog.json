@@ -1,6 +1,66 @@
 {
-  "pending": [],
+  "pending": [
+    { "type": "enhancement", "text": "The dashboard now tells you when a new homepad release is live. If an update ships while a tab is open, a quiet pill appears in the bottom-left corner — \"homepad vX.Y.Z is available\" — with a Refresh button that loads the new version in one tap. You can dismiss it; it only comes back if yet another release ships. Handy for wall-mounted or always-open dashboards that used to run stale builds for days." }
+  ],
   "versions": [
+    {
+      "version": "15.6.0",
+      "date": "2026-07-26",
+      "changes": [
+        {
+          "type": "feat",
+          "text": "You can now drag to rearrange the app tiles inside a box. Turn on \"Edit dashboard\" from the gear menu and each tile grows a grip handle in its bottom-left corner (next to the pencil) — drag a tile to a new spot within its box and it stays there. It works with touch (press and hold the grip) and with the keyboard too: Tab to a grip, press Space to pick the tile up, use the arrow keys to move it, and Space again to drop (Escape cancels). Your arrangement is saved to your own view — everyone keeps their own tile order. Tiles can only be reordered within their box; to move a tile to a different box, use its pencil to change the box."
+        }
+      ]
+    },
+    {
+      "version": "15.5.0",
+      "date": "2026-07-18",
+      "changes": [
+        {
+          "type": "feat",
+          "text": "You can now self-host the whole Homepad stack with one command. A new docker-compose setup stands up the dashboard, the API, its database, and a status monitor together — copy the example config, run \"docker compose up\", and open http://localhost:8080. It runs on local accounts out of the box, with single sign-on (OIDC) available as an opt-in. This is a packaging change only; nothing in the app itself changed."
+        }
+      ]
+    },
+    {
+      "version": "15.4.2",
+      "date": "2026-07-18",
+      "changes": [
+        {
+          "type": "fix",
+          "text": "Lined up the Health Summary card (the UP / NOT MONITORED status card at the top of the dashboard) with the app grid underneath it. The card used to sit slightly inset — about 12px narrower on each side — so its left and right edges didn't match the apps below, and the two stacked sections looked misaligned. The card now shares the exact same width and edges as the app grid and the header wordmark at every screen size."
+        }
+      ]
+    },
+    {
+      "version": "15.4.1",
+      "date": "2026-07-18",
+      "changes": [
+        {
+          "type": "fix",
+          "text": "Polished the Status Summary card's two stat boxes (the \"UP\" / \"NOT MONITORED\" quick-peek boxes). They're now equal width and line up flush with the uptime bar underneath instead of floating at unequal sizes off to one side. In light mode each box now has a real, visible edge (previously the box fill was the same color as the card behind it, so the boxes were nearly invisible), and the green \"UP\" number is a slightly deeper green that's easier to read on the light card. Dark mode gets a matching lift so the boxes separate cleanly from the panel."
+        }
+      ]
+    },
+    {
+      "version": "15.4.0",
+      "date": "2026-07-17",
+      "changes": [
+        {
+          "type": "feature",
+          "text": "The sign-in screen has been restyled to match the rest of homepad. It's now a frosted glass card floating on the same soft accent-blob background as your dashboard, instead of a flat panel with two harsh white input boxes. The email and password fields are soft tinted glass, the labels and helper text are all clearly readable in both light and dark mode, and the Sign in button uses the app's accent color. It's the same login, just finally wearing the same design as everything behind it."
+        },
+        {
+          "type": "fix",
+          "text": "Fixed five dark-mode contrast problems on the login: the field labels, the PocketID label, the subtitle, the secondary link and the \"or\" divider were all inheriting light-mode colors on the dark card and failing accessibility contrast (some barely visible). They now read from the theme-aware tokens and pass WCAG AA in both schemes, and the sign-in error message uses the readable glass \"down\" color (measured 4.72:1 dark / 4.59:1 light on the real glass card)."
+        },
+        {
+          "type": "enhancement",
+          "text": "Login polish: password-manager autofill no longer paints a harsh box over the glass field; the card has a solid fallback and vendor-prefixed backdrop blur so it never shows up blank on older iPad Safari; the \"Log in with PocketID\" button now shows a \"Signing in…\" state and resets after 30 seconds with a retry hint if the redirect stalls (instead of spinning forever); a faint version footer shows which build you're on; and the secondary action now reads \"Create account\"."
+        }
+      ]
+    },
     {
       "version": "15.3.0",
       "date": "2026-07-15",

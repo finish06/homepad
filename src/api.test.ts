@@ -12,7 +12,6 @@ import {
   deleteLibraryApp,
   deleteService,
   fetchIcon,
-  getCollapsedCategories,
   listLibrary,
   login,
   logout,
@@ -21,7 +20,6 @@ import {
   renameCategory,
   services,
   setCategoryOrder,
-  setCollapsedCategories,
   setFavorite,
   setLayout,
   setLibraryOrder,
@@ -557,44 +555,276 @@ describe('setThemePref (v3)', () => {
 
 // ── v5 collapsible categories (per-user collapse set) ────────────────────────
 
-describe('getCollapsedCategories (v5)', () => {
-  it('unwraps the collapsed id array on 200', async () => {
-    const fn = mockFetch(JSON.stringify({ collapsed: ['media', 'infra'] }), 200);
-    await expect(getCollapsedCategories()).resolves.toEqual(['media', 'infra']);
-    expect(fn).toHaveBeenCalledWith('/api/me/collapsed-categories', { credentials: 'include' });
-  });
-
-  it('returns [] when the payload has no collapsed key', async () => {
-    mockFetch(JSON.stringify({}), 200);
-    await expect(getCollapsedCategories()).resolves.toEqual([]);
-  });
-
-  it('returns [] on a non-200 (e.g. 401 no session) — catalog renders fully expanded', async () => {
-    mockFetch(null, 401);
-    await expect(getCollapsedCategories()).resolves.toEqual([]);
-  });
-
-  it('returns [] on a fetch/parse failure rather than throwing (first-paint fallback)', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline'); }));
-    await expect(getCollapsedCategories()).resolves.toEqual([]);
-  });
-});
-
-describe('setCollapsedCategories (v5)', () => {
-  it('PUTs /api/me/collapsed-categories with the whole set and returns true on 204', async () => {
+describe('setLayout', () => {
+  it('PUTs /api/layout with the order and returns true on 204', async () => {
     const fn = mockFetch(null, 204);
-    await expect(setCollapsedCategories(['media', 'infra'])).resolves.toBe(true);
+    await expect(setLayout(['a', 'b', 'c'])).resolves.toBe(true);
     const [url, opts] = fn.mock.calls[0];
-    expect(url).toBe('/api/me/collapsed-categories');
+    expect(url).toBe('/api/layout');
     expect(opts).toMatchObject({ method: 'PUT', credentials: 'include' });
-    expect(JSON.parse(opts!.body as string)).toEqual({ collapsed: ['media', 'infra'] });
+    expect(JSON.parse(opts!.body as string)).toEqual({ order: ['a', 'b', 'c'] });
   });
 
-  it('returns false on a non-204 (e.g. 401 no session)', async () => {
-    mockFetch(null, 401);
-    await expect(setCollapsedCategories(['media'])).resolves.toBe(false);
+  it('returns false on a non-204 (e.g. 404 unknown id)', async () => {
+    mockFetch('no such service in order', 404);
+    await expect(setLayout(['nope'])).resolves.toBe(false);
   });
 });
+
+describe('uploadIcon', () => {
+  it('PUTs raw PNG bytes with image/png and returns ok on 204', async () => {
+    const fn = mockFetch(null, 204);
+    const png = new Blob([new Uint8Array([0x89, 0x50])], { type: 'image/png' });
+    await expect(uploadIcon('s1', 'light', png)).resolves.toEqual({ ok: true, status: 204 });
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/services/s1/icon/light');
+    expect(opts).toMatchObject({ method: 'PUT', credentials: 'include' });
+    expect((opts!.headers as Record<string, string>)['Content-Type']).toBe('image/png');
+    expect(opts!.body).toBe(png);
+  });
+
+  it('surfaces the server validation error on a non-204 (e.g. 415)', async () => {
+    mockFetch('not a png', 415);
+    const png = new Blob([new Uint8Array([1])], { type: 'image/png' });
+    await expect(uploadIcon('s1', 'dark', png)).resolves.toEqual({
+      ok: false,
+      status: 415,
+      error: 'not a png',
+    });
+  });
+});
+
+describe('deleteIcon', () => {
+  it('DELETEs the variant and returns true on 204', async () => {
+    const fn = mockFetch(null, 204);
+    await expect(deleteIcon('s1', 'dark')).resolves.toBe(true);
+    expect(fn).toHaveBeenCalledWith('/api/services/s1/icon/dark', {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+  });
+
+  it('returns false on a non-204 (e.g. 403 non-admin)', async () => {
+    mockFetch(null, 403);
+    await expect(deleteIcon('s1', 'light')).resolves.toBe(false);
+  });
+});
+
+describe('deleteService', () => {
+  it('DELETEs the service and returns true on 204', async () => {
+    const fn = mockFetch(null, 204);
+    await expect(deleteService('s1')).resolves.toBe(true);
+    expect(fn).toHaveBeenCalledWith('/api/services/s1', {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+  });
+
+  it('returns false on a non-204 (e.g. 403 non-admin)', async () => {
+    mockFetch(null, 403);
+    await expect(deleteService('s1')).resolves.toBe(false);
+  });
+});
+
+// ── v4 categories ──────────────────────────────────────────────────────────
+
+describe('categories (v4)', () => {
+  it('unwraps the categories array on 200', async () => {
+    const list = [
+      { id: 'c1', name: 'Media', sortIndex: 0 },
+      { id: 'c2', name: 'Infra', sortIndex: 1 },
+    ];
+    const fn = mockFetch(JSON.stringify({ categories: list }), 200);
+    // categories() backfills the SPEC layout fields (row=sortIndex, col=0,
+    // width=100) and the App Grid box width (gridWidth=3, SPEC-app-grid §3B) so a
+    // pre-migration server still renders sensibly.
+    await expect(categories()).resolves.toEqual([
+      { id: 'c1', name: 'Media', sortIndex: 0, gridWidth: 3, layoutRow: 0, layoutColOrder: 0, layoutWidthPct: 100 },
+      { id: 'c2', name: 'Infra', sortIndex: 1, gridWidth: 3, layoutRow: 1, layoutColOrder: 0, layoutWidthPct: 100 },
+    ]);
+    expect(fn).toHaveBeenCalledWith('/api/categories', { credentials: 'include' });
+  });
+
+  it('passes through a server-provided gridWidth (SPEC-app-grid §3B)', async () => {
+    const list = [{ id: 'c1', name: 'Media', sortIndex: 0, gridWidth: 6 }];
+    mockFetch(JSON.stringify({ categories: list }), 200);
+    const got = await categories();
+    expect(got[0].gridWidth).toBe(6);
+  });
+
+  it('returns [] on a non-200 (falls back to flat render)', async () => {
+    mockFetch(null, 401);
+    await expect(categories()).resolves.toEqual([]);
+  });
+
+  it('returns [] when the payload has no categories key', async () => {
+    mockFetch(JSON.stringify({}), 200);
+    await expect(categories()).resolves.toEqual([]);
+  });
+});
+
+describe('createCategory (v4)', () => {
+  it('POSTs the name and returns the created category on 201', async () => {
+    const created = { id: 'c1', name: 'Media', sortIndex: 0 };
+    const fn = mockFetch(JSON.stringify(created), 201);
+    const r = await createCategory('Media');
+    expect(r).toEqual({ ok: true, status: 201, category: created });
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/categories');
+    expect(opts).toMatchObject({ method: 'POST', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ name: 'Media' });
+  });
+
+  it('surfaces a 409 duplicate-name error inline', async () => {
+    mockFetch('a category with that name already exists', 409);
+    await expect(createCategory('Media')).resolves.toEqual({
+      ok: false,
+      status: 409,
+      error: 'a category with that name already exists',
+    });
+  });
+
+  it('surfaces a 403 forbidden for a non-admin', async () => {
+    mockFetch('admin role required', 403);
+    const r = await createCategory('Media');
+    expect(r.ok).toBe(false);
+    expect(r.status).toBe(403);
+    expect(r.category).toBeUndefined();
+  });
+});
+
+describe('renameCategory (v4)', () => {
+  it('PATCHes the name and returns the updated category on 200', async () => {
+    const updated = { id: 'c1', name: 'Infra', sortIndex: 0 };
+    const fn = mockFetch(JSON.stringify(updated), 200);
+    const r = await renameCategory('c1', 'Infra');
+    expect(r).toEqual({ ok: true, status: 200, category: updated });
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/categories/c1');
+    expect(opts).toMatchObject({ method: 'PATCH', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ name: 'Infra' });
+  });
+
+  it('surfaces a 404 unknown id inline', async () => {
+    mockFetch('no such category', 404);
+    await expect(renameCategory('nope', 'Infra')).resolves.toEqual({
+      ok: false,
+      status: 404,
+      error: 'no such category',
+    });
+  });
+
+  it('surfaces a 409 duplicate-name inline', async () => {
+    mockFetch('a category with that name already exists', 409);
+    const r = await renameCategory('c1', 'Media');
+    expect(r.ok).toBe(false);
+    expect(r.status).toBe(409);
+  });
+});
+
+describe('saveCategoryWidth (SPEC-app-grid §3B)', () => {
+  it('PATCHes only { gridWidth } to the category and returns true on 200', async () => {
+    const fn = mockFetch(JSON.stringify({ id: 'c1', name: 'Media', sortIndex: 0, gridWidth: 5 }), 200);
+    await expect(saveCategoryWidth('c1', 5)).resolves.toBe(true);
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/categories/c1');
+    expect(opts).toMatchObject({ method: 'PATCH', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ gridWidth: 5 });
+  });
+
+  it('returns false on a non-200 (e.g. 403 non-admin / 400 out of range)', async () => {
+    mockFetch('gridWidth must be between 1 and 6', 400);
+    await expect(saveCategoryWidth('c1', 9)).resolves.toBe(false);
+  });
+});
+
+describe('deleteCategory (v4)', () => {
+  it('DELETEs the category and returns true on 204', async () => {
+    const fn = mockFetch(null, 204);
+    await expect(deleteCategory('c1')).resolves.toBe(true);
+    expect(fn).toHaveBeenCalledWith('/api/categories/c1', {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+  });
+
+  it('returns false on a non-204 (e.g. 403 non-admin)', async () => {
+    mockFetch(null, 403);
+    await expect(deleteCategory('c1')).resolves.toBe(false);
+  });
+});
+
+describe('setCategoryOrder (v4)', () => {
+  it('PUTs /api/categories/order with the order and returns true on 204', async () => {
+    const fn = mockFetch(null, 204);
+    await expect(setCategoryOrder(['c2', 'c1'])).resolves.toBe(true);
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/categories/order');
+    expect(opts).toMatchObject({ method: 'PUT', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ order: ['c2', 'c1'] });
+  });
+
+  it('returns false on a non-204 (e.g. 404 unknown id in order)', async () => {
+    mockFetch('no such category in order', 404);
+    await expect(setCategoryOrder(['nope'])).resolves.toBe(false);
+  });
+});
+
+describe('assignCategory (v4)', () => {
+  it('PATCHes the service categoryId and returns the updated service on 200', async () => {
+    const updated = {
+      id: 's1', slug: 'plex', name: 'Plex', description: 'd', url: 'https://plex.x',
+      icon: '', status: 'UP', favorite: false, iconLight: false, iconDark: false,
+      categoryId: 'c1', categoryName: 'Media',
+    };
+    const fn = mockFetch(JSON.stringify(updated), 200);
+    const r = await assignCategory('s1', 'c1');
+    expect(r).toEqual({ ok: true, status: 200, service: updated });
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/services/s1');
+    expect(opts).toMatchObject({ method: 'PATCH', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ categoryId: 'c1' });
+  });
+
+  it('sends categoryId:null to clear back to Uncategorized', async () => {
+    const fn = mockFetch(
+      JSON.stringify({ id: 's1', categoryId: null, categoryName: null }),
+      200,
+    );
+    await assignCategory('s1', null);
+    const [, opts] = fn.mock.calls[0];
+    expect(JSON.parse(opts!.body as string)).toEqual({ categoryId: null });
+  });
+
+  it('surfaces a 400 for a categoryId naming no category', async () => {
+    mockFetch('no such category', 400);
+    await expect(assignCategory('s1', 'bogus')).resolves.toEqual({
+      ok: false,
+      status: 400,
+      error: 'no such category',
+    });
+  });
+});
+
+describe('setThemePref (v3)', () => {
+  it('PATCHes /api/me with the themePref and returns true on 200', async () => {
+    const fn = mockFetch(JSON.stringify({ id: 'u1', themePref: 'dark' }), 200);
+    await expect(setThemePref('dark')).resolves.toBe(true);
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/me');
+    expect(opts).toMatchObject({ method: 'PATCH', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ themePref: 'dark' });
+  });
+
+  it('returns false on a non-200 (e.g. 400 invalid value / 401 no session)', async () => {
+    mockFetch('invalid themePref', 400);
+    await expect(setThemePref('system')).resolves.toBe(false);
+    mockFetch(null, 401);
+    await expect(setThemePref('light')).resolves.toBe(false);
+  });
+});
+
+// ── v5 collapsible categories (per-user collapse set) ────────────────────────
 
 // v9.3 App Library client (§7.2/§7.3) — browse + add-from-library for any user,
 // CRUD for admins. URL + body + status-mapping assertions, same shape as the
@@ -702,5 +932,36 @@ describe('createLibraryApp / updateLibraryApp / deleteLibraryApp / setLibraryOrd
     expect(url).toBe('/api/library/order');
     expect(opts).toMatchObject({ method: 'PUT', credentials: 'include' });
     expect(JSON.parse(opts!.body as string)).toEqual({ order: ['L2', 'L1'] });
+  });
+});
+
+// 2026-08-31 request() consolidation — a NETWORK failure (fetch rejects) must
+// resolve to the failure shape of each convention, never escape as a rejected
+// promise: previously most mutations let the TypeError propagate, so callers'
+// optimistic-rollback paths (`if (!ok) revert()`) silently never ran on a
+// dropped connection.
+describe('network failures resolve to failure values (never reject)', () => {
+  function killFetch() {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new TypeError('network down');
+    }));
+  }
+
+  it('boolean mutations return false (setFavorite, setLayout)', async () => {
+    killFetch();
+    await expect(setFavorite('s1', true)).resolves.toBe(false);
+    await expect(setLayout(['a', 'b'])).resolves.toBe(false);
+  });
+
+  it('Result mutations return ok:false with the status-0 network convention', async () => {
+    killFetch();
+    await expect(createService({
+      slug: 's', name: 'n', description: '', url: 'https://x', icon: '', gatus_key: '',
+    })).resolves.toEqual({ ok: false, status: 0, error: 'network error' });
+  });
+
+  it('me() resolves null so boot shows the login screen instead of wedging', async () => {
+    killFetch();
+    await expect(me()).resolves.toBeNull();
   });
 });

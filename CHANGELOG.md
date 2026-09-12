@@ -7,6 +7,136 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [15.6.0] — 2026-07-26 — Tile drag-and-drop reorder in edit mode (v28)
+
+Within-box tile reorder in the App Grid's "Edit dashboard" mode (SPEC-v28-tile-drag-reorder,
+closes #393). Frontend-only — reuses the existing `PUT /api/layout` per-user
+ordering contract; no API, DB, or dependency changes.
+
+- **Drag grip per tile.** In edit mode each tile grows a dedicated drag grip — a
+  real `<button>` in the bottom-left corner (the braille `⠿` glyph, mirroring the
+  bottom-right pencil), the *sole* drag origin so navigating vs. reordering never
+  collide. Absent from the DOM entirely outside edit mode. 44×44 hit target via a
+  transparent `::before`, glyph fixed at 34×34 (no layout shift). Colours are the
+  slate pair swapped by theme for ≥3:1 on the composited glass in both themes
+  (Kare §8.7) — no new design tokens.
+- **Within-box only.** Each box wraps its tile grid in its own dnd-kit
+  `DndContext`, so a drop cannot cross a box boundary — the isolation is
+  structural, not guard logic. To move a tile to a different box, use its pencil.
+- **Keyboard + touch.** Tab to a grip, Space/Enter to pick up, arrow keys to move
+  one slot, Space/Enter to drop, Escape to cancel — with `aria-live` position
+  announcements through the shared announce region. Touch lifts on a 200ms
+  long-press. Same sensor recipe as the shipped box reorder.
+- **Optimistic + reduced-motion.** The new order shows immediately on drop and
+  persists via `PUT /api/layout` (the whole ordered id list); a failed save
+  reverts the order and shows an error toast. Under `prefers-reduced-motion` the
+  lift drops its scale animation but keeps the static elevation + accent cues.
+
+## [15.5.0] — 2026-07-18 — One-command self-host (`docker compose up`)
+
+Packaging, no app/UI change. Closes the market-assessment self-host gap (R-2)
+and powers the gethomepad.dev "self-host" CTA: a fresh clone can stand up the
+entire stack — frontend, Go API, Postgres, and a Gatus status source — with
+`docker compose up --build`.
+
+- **`compose.yaml`.** Full stack, all from public images or repo Dockerfiles (no
+  private `dockerhub.calebdunn.tech` refs): `web` (built from this repo's
+  `Dockerfile`, nginx serving the SPA), `api` (built from the `homepad-api`
+  repo, migrates on boot), `postgres:16-alpine`, and `gatus`. `web` is published
+  on `http://localhost:8080`.
+- **`.env.example`.** Every knob with dev defaults + clear placeholders:
+  `POSTGRES_PASSWORD`, `DATABASE_URL` (assembled), `SESSION_SECRET`,
+  `HOMEPAD_REGISTRATION`, `GATUS_BASE_URL`, and the optional `OIDC_*` block —
+  Homepad runs on local accounts with `OIDC_ENABLED=false`.
+- **Web `/api` proxy.** `deploy/compose/nginx.conf` mirrors the platform
+  `homepad-web-nginx` ConfigMap so the web container proxies `/api` → `api:8080`
+  (prod does this at the ingress, so the image's own `nginx.conf` omits it).
+- **Gatus config.** `deploy/compose/gatus.yaml` ships two internal example
+  endpoints so the dashboard status tiles have data out of the box.
+- **Healthchecks + ordering.** `pg_isready` on Postgres; an end-to-end wget on
+  `web` that proxies through to the api (so `web` only reports healthy once
+  web + proxy + api + db are all serving); `api` waits for Postgres healthy.
+- **README.** New "Self-hosting with Docker Compose" section — prerequisites,
+  first-login/admin note, persistence, and how to enable OIDC.
+
+Notes for reviewers: (1) `COOKIE_SECURE` defaults to `false` in `.env.example`
+because the api defaults it to `true` (prod is behind TLS) and a Secure cookie
+is dropped over plain-HTTP localhost. (2) There is no separate homepad `/data`
+volume — all persistent state lives in Postgres (`homepad_pg`); the api/web
+containers are stateless. (3) The `api` service has no container healthcheck:
+its image is distroless/static (no shell) so it can't self-probe; the `web`
+healthcheck gates the whole chain instead.
+
+## [15.4.2] — 2026-07-18 — Health Summary card edge-alignment fix
+
+Patch, one-line TSX (`src/StatusBar.tsx`), no data/API/CSS/markup changes.
+Kare's live-measured design fix for the v15 Health Summary card (#386):
+
+- **Alignment.** The Health Summary glass card (`.health`) sat inset ~12px per
+  side relative to the App Grid and header below it, so the stacked cards didn't
+  form a clean vertical column. Root cause: the StatusBar wrapper wrapped the
+  shared `CONTENT_WIDTH` frame in a stray `px-3` (12px) on top of the frame's own
+  `px-4` (16px) → a 28px health inset vs the 16px used by the header
+  (`AppHeader.tsx`) and grid (`App.tsx`), which use `CONTENT_WIDTH` directly.
+  Dropping the `px-3` makes the wrapper structurally identical to the header, so
+  health, header, and grid share one inset at every viewport. Measured at 646px
+  (light + dark): health card `16 / 630 / 614`, pixel-identical to the app grid.
+  `relative` (peek-dropdown positioning) and `pt-3` (top spacing) are preserved;
+  the dropdown is absolute-positioned and unaffected.
+
+## [15.4.1] — 2026-07-18 — Status Summary stat-box alignment & contrast fix
+
+Patch, CSS-only (`src/index.css`), no data/API/markup changes. Kare's live-
+measured design fix for the v15 health summary at 646px (Caleb's prod phone
+width), light + dark (#384):
+
+- **Alignment.** The two quick-peek stat boxes (`.health-chips`) were
+  content-width flex items floating at the left over a full-width meter — the
+  `46 UP` box was 64px, `3 NOT MONITORED` was 143px, and neither edge aligned to
+  the other or to the uptime bar (314px of dead space to the right). They now lay
+  out as an equal-column grid (`grid-auto-columns: minmax(0, 1fr)`) so both boxes
+  are equal width and their outer edges sit flush with the meter (49 / 582 →
+  261px each). The old flex-end row and its `@media(max-width:720px)`
+  flex-start override are removed.
+- **Fill/edge.** The light box fill (`--v-chip`) was byte-identical to the panel
+  (`--v-glass`) at 1.03:1 — the box was invisible. Light chips now get an ink
+  hairline border (`rgba(20,23,30,0.12)`) plus a soft lift; the dark fill is
+  raised `0.06 → 0.10` so the box separates from the panel there too.
+- **Green.** The `UP` number used the fill-grade success token `--v-up` (3.39:1
+  as text on the light chip); it now uses the text-grade `--v-up-strong`
+  (5.35:1). No-op in dark, where the two tokens are identical.
+
+(Finding 3 from the rec — the tile/sparkline `emerald-500` vs `--v-up`
+design-system reconciliation — is a separate, larger task and is out of scope
+here.)
+
+## [15.4.0] — 2026-07-17 — Login/sign-in glass restyle (v27)
+
+Minor feature, no data or API changes. The sign-in screen — the one screen you
+see before the glass dashboard, and the last one still on the old flat palette —
+is re-skinned onto the v15 glass design system. The card is now a frosted glass
+panel floating on the same accent-blob atmosphere as the dashboard, the harsh
+pure-white input boxes become soft tinted glass fields, and the primary button
+uses the app's solid accent color.
+
+Accessibility: in dark mode five text elements (the field labels, the PocketID
+label, the subtitle, the secondary link and the "or" divider) were inheriting
+light-mode colors on the dark card and failing WCAG AA — some as low as 1.73:1.
+All five now read from the mode-aware glass tokens and clear AA in both light and
+dark. The sign-in error message moves to the glass "down" color, measured on the
+real glass card at **4.72:1 (dark)** and **4.59:1 (light)** — both clear of the
+4.5:1 floor. (Measured on the composited card surface, not on white: the card's
+light-mode frost was tuned up until every text element cleared AA there.)
+
+Also in this release: password-manager autofill no longer paints a harsh
+white/yellow box over the glass field; the card has a solid fallback and
+`-webkit-backdrop-filter` so it never renders invisible on older iPad Safari;
+the "Log in with PocketID" button now shows a "Signing in…" state that resets
+itself after 30 seconds with a retry hint if the redirect stalls (e.g. during a
+PocketBase restart) instead of spinning forever; a faint version footer shows
+which build you're signing in to; and the secondary action now reads "Create
+account". Touch targets stay ≥44px throughout.
+
 ## [15.3.0] — 2026-07-15 — Admin env-config viewer (v26)
 
 Minor feature, fully backward-compatible. Admins get a read-only **Environment

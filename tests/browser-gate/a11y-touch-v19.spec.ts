@@ -288,7 +288,7 @@ test.describe('v19 login @768 — touch targets & contrast', () => {
   });
 
   test('AC-003 mode-toggle presents a ≥44×44 tappable zone', async ({ page }) => {
-    const toggle = page.locator('button', { hasText: /need an account\? register/i });
+    const toggle = page.locator('button', { hasText: /create account/i });
     const box = await toggle.boundingBox();
     // eslint-disable-next-line no-console
     console.log(`[v19-measure] AC-003 | mode-toggle | ${box ? `${Math.round(box.width)}×${Math.round(box.height)}px` : 'NOT FOUND'} | need ≥${TOUCH_MIN}px both axes`);

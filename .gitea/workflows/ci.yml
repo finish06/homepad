@@ -1,7 +1,23 @@
+# Single source of truth for the unit-level gate (typecheck/build + vitest).
+# Runs ONCE per PR head sha, at PR time only.
+#
+# Test-dedup contract (each suite runs exactly once per change):
+#   - commit/push to a feat branch, no PR yet  -> nothing in CI (run locally)
+#   - PR opened/updated                        -> THIS workflow (required check)
+#                                                 + browser-gate (required check)
+#                                                 + mr-staging (image -> staging
+#                                                   deploy -> QA pool = e2e gate)
+#   - merge to main                            -> staging-release BUILDS ONLY;
+#                                                 no re-test (main is branch-
+#                                                 protected: the exact tested
+#                                                 sha is what merges)
+#
+# The old `push: [main, feat/**]` trigger ran this same suite on the branch
+# push AND the PR event AND again on the merge commit — three runs of one
+# suite. pull_request alone covers the only moment a result gates anything.
 name: CI
+
 on:
-  push:
-    branches: [main, "feat/**"]
   pull_request:
 
 jobs:
@@ -15,9 +31,7 @@ jobs:
           node-version: "22"
           cache: "npm"
       - run: npm ci
+      # Errors gate; react-hooks/exhaustive-deps warnings don't (see eslint.config.js).
+      - run: npm run lint
       - run: npm run build
       - run: npx vitest run
-
-  # Build & push + staging deploy + Gracie QA now live in release.yml via the
-  # Code/ci-shared@v1 composite. (The old in-line build-and-push job was removed
-  # when homepad became the first ci-shared adopter.)

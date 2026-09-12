@@ -61,6 +61,13 @@
   --v-chip: rgba(255, 255, 255, 0.55);
   --v-chipbrd: rgba(255, 255, 255, 0.6);
   --v-focus-fill: rgba(255, 255, 255, 0.75);
+  /* v27 login-glass §4 — dedicated frosted input fill. Distinct from --v-tile
+     (panel glass) so a field reads as an input, but never the harsh UA-white
+     slab; text 14.26:1 / placeholder 4.60:1 on light. */
+  --v-field: rgba(255, 255, 255, 0.62);
+  /* Opaque approximation of the resting field used ONLY by the autofill override
+     (a translucent inset shadow can't hide the UA autofill background). */
+  --v-field-fill: #e9eef8;
 
   /* Default accent (blue) chrome + light field — restated by [data-theme] blocks. */
   --accent: #8fb8ff;
@@ -104,6 +111,11 @@
   --v-chip: rgba(255, 255, 255, 0.06);
   --v-chipbrd: rgba(255, 255, 255, 0.08);
   --v-focus-fill: rgba(255, 255, 255, 0.09);
+  /* v27 login-glass §4/§5.2 — frosted input fill on dark. .07 is the sweet spot:
+     text 11.52:1, placeholder 4.98:1, soft (not the 19.8:1 white-slab). The 3:1
+     resting boundary is carried by the focus ring (§5.2), not this fill. */
+  --v-field: rgba(255, 255, 255, 0.07);
+  --v-field-fill: #171b24;
   /* Default accent (blue) dark field — restated by .dark[data-theme] blocks. */
   --amb: rgba(58, 108, 224, 0.26);
   --bg-1: #0d1526;
@@ -450,9 +462,43 @@
     background: var(--v-muted);
     animation: health-led-pulse 1.4s ease-in-out infinite;
   }
+  /* SPEC-v24 §12.2 — NOT MONITORED. An honest neutral light: no colour claim and
+     no glow, because the panel has no evidence to make one. This inherits the
+     base .health-led background already, but is stated explicitly so a future
+     change to the base cannot silently give this state a verdict colour. */
+  .health-led[data-variant='not-monitored'] {
+    background: var(--v-unknown);
+    box-shadow: none;
+    animation: none;
+  }
   @keyframes health-led-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.35; }
+  }
+
+  /* SPEC-v24 §12.2 — action row under the NOT MONITORED sub-line. Sits in the
+     verdict column, so it indents with the text rather than the LED rail. */
+  .health-notice-actions {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .health-notice-dismiss {
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--v-muted);
+    background: transparent;
+    border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+    cursor: pointer;
+  }
+  .health-notice-dismiss:hover {
+    color: inherit;
+    border-color: color-mix(in srgb, currentColor 45%, transparent);
   }
 
   .health-headline {
@@ -484,14 +530,13 @@
     .health-metrics { justify-self: stretch; }
   }
 
+  /* #384 — equal-column grid so the two stat boxes are equal-width and their
+     outer edges sit flush with the .health-meter uptime bar (one unit). */
   .health-chips {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     gap: 12px;
-    justify-content: flex-end;
-  }
-  @media (max-width: 720px) {
-    .health-chips { justify-content: flex-start; }
   }
   /* Quick-peek chip (v14 interactive → ≥44px). Big mono number + uppercase
      label. Severity color on the number when >0 (§9 correction #3). */
@@ -531,6 +576,21 @@
   .health-chip[data-sev='up'] .health-chip-n { color: var(--v-up); }
   .health-chip[data-sev='down'] .health-chip-n { color: var(--v-down); }
   .health-chip[data-sev='degraded'] .health-chip-n { color: var(--v-degraded); }
+  /* #384 — the light chip fill was byte-identical to the panel (1.03:1); an
+     ink hairline + soft lift give the box a real edge. Dark fill lifted so it
+     separates from the panel too. */
+  :root:not(.dark) .health-chip {
+    background: rgba(255, 255, 255, 0.62);
+    border-color: rgba(20, 23, 30, 0.12);
+    box-shadow: 0 1px 2px rgba(30, 42, 72, 0.06);
+  }
+  .dark .health-chip {
+    background: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+  /* #384 — UP number is text, so use the text-grade green (5.35:1) not the
+     fill-grade --v-up (3.39:1). No-op in dark (--v-up-strong == --v-up). */
+  :root:not(.dark) .health-chip[data-sev='up'] .health-chip-n { color: var(--v-up-strong); }
 
   /* Meter — one tick per service, colored by status. Decorative (aria-hidden). */
   .health-meter {
@@ -3161,6 +3221,101 @@
   .dark .app-grid-tool-wrap.is-editing .app-grid-tool {
     outline-color: #818cf8;
   }
+  /* v28 §8.2 — the tile drag grip: a 34×34 painted braille glyph with an invisible
+     centred 44×44 ::before hit area (design-principle 3, 0px layout shift), built
+     like the pencil (.app-grid-tool-edit) but anchored BOTTOM-LEFT — the fourth
+     tile corner, mirror of the pencil (§8.1). Colour is the box-grip slate pair
+     SWAPPED BY THEME (§8.7): the glass tile is a brighter surface than the box
+     header, so light rest is slate-500 #64748b (4.72:1 on the composited glass)
+     and dark rest is slate-400 #94a3b8 (5.61:1) — both clear the 3:1 non-text
+     floor. Always visible at opacity 1 whenever editing (touch has no hover, and a
+     keyboard user must be able to Tab to a grip they can see — §8.2 note), calm via
+     the mid-slate colour, not a dimmed alpha. */
+  .app-grid-tool-grip {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: none;
+    background: transparent;
+    color: #64748b; /* LIGHT rest — slate-500, §8.7 */
+    font-size: 18px;
+    line-height: 1;
+    border-radius: 999px;
+    cursor: grab;
+    touch-action: none; /* a drag doesn't fight page scroll */
+    opacity: 1; /* NOT hover-gated — §8.2 note */
+    transition: color 120ms ease, background 120ms ease;
+  }
+  .app-grid-tool-grip::before {
+    /* invisible 44×44 hit area, centred on the 34px glyph */
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+  }
+  .app-grid-tool-grip:hover {
+    color: #475569;
+    background: rgba(15, 23, 42, 0.06);
+  }
+  .app-grid-tool-grip:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #4f46e5;
+  }
+  .app-grid-tool-grip[aria-pressed='true'] {
+    color: #4f46e5;
+    cursor: grabbing;
+  }
+  .dark .app-grid-tool-grip {
+    color: #94a3b8; /* DARK rest — slate-400 */
+  }
+  .dark .app-grid-tool-grip:hover {
+    color: #cbd5e1;
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .dark .app-grid-tool-grip:focus-visible {
+    box-shadow: 0 0 0 2px #818cf8;
+  }
+  .dark .app-grid-tool-grip[aria-pressed='true'] {
+    color: #818cf8;
+  }
+  /* v28 §8.3 — lifted / dragging tile. The scale is on the inner .app-grid-tool
+     (dnd-kit owns the wrapper's transform for translation, so scaling the child
+     avoids clobbering the drag translate); the wrapper only lifts its z-index.
+     Elevation + accent border read "picked up", never an error (no red). */
+  .app-grid-tool-wrap.is-grabbed {
+    z-index: 5;
+  }
+  .app-grid-tool-wrap.is-grabbed .app-grid-tool {
+    transform: scale(1.03);
+    box-shadow: 0 14px 32px var(--v-shadow), inset 0 1px 0 var(--v-tilehi);
+    border-color: #4f46e5;
+    cursor: grabbing;
+  }
+  .dark .app-grid-tool-wrap.is-grabbed .app-grid-tool {
+    border-color: #818cf8;
+  }
+  /* v28 §8.5 — reduced motion: drop the scale (a motion cue) but KEEP the
+     elevation + accent border (static cues), and snap siblings instead of sliding.
+     The grip, keyboard path, and persistence are untouched (AC-014). */
+  @media (prefers-reduced-motion: reduce) {
+    .app-grid-tool-wrap {
+      transition: none !important;
+    }
+    .app-grid-tool-wrap.is-grabbed .app-grid-tool {
+      transform: none;
+    }
+    .app-grid-tool-grip {
+      transition: none;
+    }
+  }
   /* #242 — per-tile status pip on the App Grid tool tile (SPEC-242 §5, Kare).
      9px solid circle at top-LEFT (8/8) — mirrors the favorite ★ at top-right so
      the two corner affordances never collide (D-1). pointer-events:none + absolute
@@ -4141,6 +4296,250 @@
       height: 100vh;
       height: 100dvh;
       border-radius: 0;
+    }
+  }
+
+  /* ===== v27 login / sign-in glass restyle (DESIGN-login-glass-2026-07-17) =====
+     The sign-in card is "the first glass tile you touch": same .app-surface
+     atmosphere, same --v-* glass tokens, same --accent as the dashboard. Every
+     color reads from a token (one new: --v-field), so it is mode-aware and
+     accent-aware. Retires the pre-v15 flat-white slabs + off-token neutrals. */
+  .auth-main {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 24px;
+    /* Bloom alphas kept deliberately low so the tint behind the glass card never
+       drags the card's text contrast below AA (measured on the real surface, not
+       white). Restated fainter in light mode where a blue tint costs the most. */
+    --auth-bloom-size: 460px 380px;
+    --auth-bloom-1: 0.11;
+    --auth-bloom-2: 0.055;
+  }
+  html:not(.dark) .auth-main {
+    --auth-bloom-1: 0.055;
+    --auth-bloom-2: 0.028;
+  }
+  @media (min-width: 900px) {
+    .auth-main {
+      --auth-bloom-size: 720px 560px;
+    }
+  }
+  /* Decorative brand-gradient bloom behind the card. No text sits over it, so it
+     carries no contrast floor (§4) — but it DOES sit behind the glass card, so
+     its alpha is bounded by the card's contrast budget (above). */
+  .auth-main::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      var(--auth-bloom-size) at 50% 40%,
+      rgb(var(--accent-1) / var(--auth-bloom-1)),
+      rgb(var(--accent-2) / var(--auth-bloom-2)) 46%,
+      transparent 72%
+    );
+  }
+
+  .auth-card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 400px;
+    padding: 24px;
+    /* Dark uses the panel glass (--v-glass). Light needs a whiter frost than
+       --v-glass (.55 over the tinted surface lands as a blue-grey that pushes
+       --v-muted + the red error UNDER AA on the real card — measured, not
+       assumed): a 0.78 white keeps it clearly frosted while restoring AA. */
+    --auth-card-fill: var(--v-glass);
+    /* #8 iPad-first fallback: a solid card background FIRST, so engines without
+       backdrop-filter (older iOS Safari) render an opaque card, never an
+       invisible transparent pane. @supports swaps in the translucent glass when
+       the blur is available. */
+    background: var(--bg-1);
+    -webkit-backdrop-filter: blur(30px) saturate(112%);
+    backdrop-filter: blur(30px) saturate(112%);
+    border: 1px solid var(--v-brd);
+    border-radius: var(--r-panel);
+    box-shadow: 0 10px 34px var(--v-shadow), inset 0 1px 0 var(--v-hi);
+    color: var(--v-txt);
+  }
+  html:not(.dark) .auth-card {
+    --auth-card-fill: rgba(255, 255, 255, 0.83);
+  }
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .auth-card {
+      background: var(--auth-card-fill);
+    }
+  }
+
+  .auth-logo {
+    /* the gradient house-logo kept as the brand hook, seated in a glass chip. */
+    padding: 8px;
+    border-radius: var(--r-chip);
+    background: var(--v-glass);
+    border: 1px solid var(--v-brd);
+    box-shadow: inset 0 1px 0 var(--v-hi), 0 0 26px rgb(var(--accent-1) / 0.25);
+  }
+
+  .auth-title {
+    color: var(--v-txt);
+  }
+  .auth-subtitle {
+    color: var(--v-muted);
+  }
+  .auth-label {
+    color: var(--v-txt);
+  }
+
+  .auth-field {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 14px;
+    /* 16px kills iOS focus-zoom on the field (see fleet-feed iPhone fix). */
+    font-size: 16px;
+    color: var(--v-txt);
+    background: var(--v-field);
+    border: 1px solid var(--v-kbdbrd);
+    border-radius: var(--r-tile);
+    box-shadow: inset 0 1px 0 var(--v-hi2);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .auth-field::placeholder {
+    color: var(--v-muted);
+  }
+  /* Focus carries the 1.4.11-compliant >=3:1 indicator (4.69:1, §5.2). */
+  .auth-field:focus {
+    border-color: var(--accent);
+    box-shadow: inset 0 1px 0 var(--v-hi2), 0 0 0 2px var(--accent-mid);
+  }
+  /* #5 autofill — Chrome/Safari/Bitwarden paint background-color !important over
+     the field; the inset box-shadow trick (opaque --v-field-fill) hides it and
+     -webkit-text-fill-color keeps the text on the glass. Without this the field
+     flashes UA-white/yellow, re-introducing the slab we removed. */
+  .auth-field:-webkit-autofill,
+  .auth-field:-webkit-autofill:hover,
+  .auth-field:-webkit-autofill:focus {
+    -webkit-box-shadow: inset 0 0 0 1000px var(--v-field-fill), inset 0 1px 0 var(--v-hi2);
+    -webkit-text-fill-color: var(--v-txt);
+    caret-color: var(--v-txt);
+    /* delay the UA background swap effectively forever */
+    transition: background-color 9999s ease-out;
+  }
+  .auth-field:-webkit-autofill:focus {
+    -webkit-box-shadow: inset 0 0 0 1000px var(--v-field-fill), 0 0 0 2px var(--accent-mid);
+  }
+
+  .auth-cta {
+    /* #3 solid --accent-3 (the brand gradient fails AA at its purple end). */
+    background: var(--accent-3);
+    color: var(--on-accent);
+    border: none;
+    border-radius: var(--r-tile);
+    font-weight: 600;
+  }
+  .auth-cta:hover:not(:disabled) {
+    filter: brightness(1.06);
+  }
+  .auth-cta:disabled {
+    filter: saturate(0.85) brightness(0.9);
+    cursor: default;
+  }
+  .auth-cta:focus-visible {
+    outline: 2px solid var(--accent-mid);
+    outline-offset: 2px;
+  }
+
+  .auth-secondary {
+    color: var(--v-muted);
+    background: transparent;
+    border: none;
+  }
+  .auth-secondary:hover {
+    color: var(--v-txt);
+  }
+  .auth-secondary:focus-visible {
+    outline: 2px solid var(--accent-mid);
+    outline-offset: 2px;
+    border-radius: var(--r-chip);
+  }
+
+  .auth-divider {
+    color: var(--v-muted);
+  }
+  .auth-divider-rule {
+    background: var(--v-rule);
+  }
+
+  .auth-oidc {
+    background: var(--v-glass);
+    border: 1px solid var(--v-brd);
+    color: var(--v-txt);
+    border-radius: var(--r-tile);
+    font-weight: 500;
+  }
+  .auth-oidc:hover:not(:disabled) {
+    background: var(--v-hover);
+  }
+  .auth-oidc:disabled {
+    color: var(--v-muted);
+    cursor: default;
+  }
+  .auth-oidc:focus-visible {
+    outline: 2px solid var(--accent-mid);
+    outline-offset: 2px;
+  }
+
+  .auth-error {
+    color: var(--v-down);
+  }
+
+  /* Busy affordance inside the CTA / PocketID button — inherits the button's
+     text color so one class works on both (white on --accent-3, --v-txt on
+     glass). Pairs with the "Signing in…" label, not a bare "…". */
+  .auth-spin {
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+    border-top-color: currentColor;
+    animation: app-spin 0.7s linear infinite;
+    flex: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .auth-spin {
+      animation: none;
+    }
+  }
+
+  .auth-footer {
+    position: absolute;
+    bottom: 16px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 12px;
+    color: var(--v-faint);
+  }
+
+  /* Motion restraint (§5.4): the card fades in; no transform that could trap a
+     child. Honored off entirely under reduced-motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    .auth-card {
+      animation: auth-fade-in 0.28s ease both;
+    }
+  }
+  @keyframes auth-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
     }
   }
 }
