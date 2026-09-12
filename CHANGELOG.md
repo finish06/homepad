@@ -7,6 +7,57 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [16.0.0] — 2026-09-12 — Honest health reporting, release awareness (v16 foundation)
+
+Major version, no data or API changes. Nothing here breaks an existing install —
+the major bump marks the start of the v16 UI line, whose design record landed in
+this release. **Most of the v16 interface itself is not built yet** (see "What is
+not in this release" below); what ships now is the foundation plus two
+user-visible features that had accumulated on `main` without a release.
+
+**The health panel stops claiming things it cannot know.** Previously, a dashboard
+where no service had monitoring configured showed a green light and the words
+"All systems operational" — a verdict over zero evidence, and the first thing a
+fresh install saw. It now reads "Status is not being checked" behind a neutral
+light, names the service count, and says plainly that tiles will still launch but
+cannot report. The meter is hidden, because every mark on it would be grey. You
+can dismiss the notice; the panel stays honest afterwards rather than reverting to
+a green all-clear.
+
+**The dashboard tells you when a new release is live.** If an update ships while a
+tab is open, a quiet pill appears in the bottom-left — "homepad vX.Y.Z is
+available" — with a Refresh button. Dismissable, and it only returns if another
+release ships. Aimed at wall-mounted or always-open dashboards that used to run
+stale builds for days.
+
+**Also in this release:** services can now be deleted from the shared catalog
+(admin-only, confirmed first, and it removes the service for everyone); the
+security headers the app is served with are stricter; and the in-app changelog now
+colours every entry chip correctly — five older entries used type slugs the chip
+table did not recognise and had been rendering grey.
+
+**Under the hood**, with no user-visible effect: the source tree moved to shallow
+feature folders, the nine overlay surfaces now share one modal shell, ESLint runs
+for real in CI, the unit suite is no longer duplicated across pipeline stages, and
+the local test suite runs again on Node 26 (a native storage global was shadowing
+the one the tests rely on).
+
+### What is *not* in this release
+
+The v16 UI artboards and the spec review against them are documented here, and ten
+open product questions were resolved. But the interface changes themselves are
+blocked and deliberately unbuilt:
+
+- **Wider tiles with a status line** ("Online · 41 ms") need a response-time field
+  that `GET /api/services` does not currently return. The API carries only whether
+  each check succeeded and when.
+- **The "retry now" action** on a stale health panel needs a backend endpoint that
+  can prod the status poller. A client-side refetch would just redisplay the same
+  stale data.
+- **Density switching** needs a per-user preference field.
+- **The twelve-column group grid** needs a migration, and three of the eight
+  existing width values have no exact equivalent in the new model.
+
 ## [15.6.0] — 2026-07-26 — Tile drag-and-drop reorder in edit mode (v28)
 
 Within-box tile reorder in the App Grid's "Edit dashboard" mode (SPEC-v28-tile-drag-reorder,
