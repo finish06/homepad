@@ -23,10 +23,11 @@ name: Prod release (vX.Y.Z tag)
 # (not web/package.json) and changelog-gen-output=src/changelog.json.
 #
 # ── ACTION PIN ──────────────────────────────────────────────────────────────────
-# Pinned to the immutable merge COMMIT 1a61d2bdca8e9c8ee131e8b829d39a4e1d4af6bc
-# (ci-shared PR #29 — rc.N→prod tooling; the same SHA fleet-feed's prod-release.yml
-# pins), NOT a branch. A DELETED pinned branch caused a fleet-wide outage here once —
-# never use @v3 / @v4 / any branch name for this action.
+# Pinned to the immutable merge COMMIT 0e12d6ef90c5847afce20c783b6b798fe8f3bec8
+# (ci-shared PR #31 — the method-preserving 307 notify fix on top of the rc.N→prod
+# tooling; the same SHA fleet-feed's prod-release.yml pins today), NOT a branch. A
+# DELETED pinned branch caused a fleet-wide outage here once — never use @v3 / @v4 /
+# any branch name for this action.
 
 on:
   push:
@@ -45,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Production release (ci-shared @ pinned SHA)
-        uses: http://gitea-http.gitea.svc.cluster.local:3000/Code/ci-shared/prod@1a61d2bdca8e9c8ee131e8b829d39a4e1d4af6bc
+        uses: http://gitea-http.gitea.svc.cluster.local:3000/Code/ci-shared/prod@0e12d6ef90c5847afce20c783b6b798fe8f3bec8
         with:
           image-name: homepad
           # Alignment check: git tag == CHANGELOG.md top == package.json version.
