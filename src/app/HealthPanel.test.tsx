@@ -314,3 +314,29 @@ describe('SPEC-v24 §12.2 — "Not now" dismiss', () => {
     expect(screen.queryByTestId('health-dismiss')).toBeNull();
   });
 });
+
+// Found in a browser pass, not by the unit tests above: with the meter gone the
+// three colour swatches were still rendered, explaining a key for something no
+// longer on screen. The freshness label stays — when status was last read is
+// still meaningful even when nothing is being checked.
+describe('SPEC-v24 §12.2 — legend follows the meter', () => {
+  it('AC-V24-NM2 — hides the colour legend when the meter is hidden', () => {
+    setCtx([svc('NOT_MONITORED', 'n1'), svc('NOT_MONITORED', 'n2')]);
+    render(<StatusBar />);
+    expect(screen.queryByText('Online')).toBeNull();
+    expect(screen.queryByText('Offline')).toBeNull();
+  });
+
+  it('AC-V24-NM2 — keeps the freshness label in the not-monitored state', () => {
+    setCtx([svc('NOT_MONITORED', 'n1')], Date.now());
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-updated')).toBeInTheDocument();
+  });
+
+  it('keeps the colour legend whenever the meter is shown', () => {
+    setCtx([svc('UP', 'u1')]);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-meter')).toBeInTheDocument();
+    expect(screen.getByText('Online')).toBeInTheDocument();
+  });
+});

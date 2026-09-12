@@ -300,15 +300,23 @@ export default function StatusBar() {
               )}
 
               <div className="health-legend">
-                <span className="health-legend-item">
-                  <span className="health-legend-sw health-tick-up" /> Online
-                </span>
-                <span className="health-legend-item">
-                  <span className="health-legend-sw health-tick-down" /> Offline
-                </span>
-                <span className="health-legend-item">
-                  <span className="health-legend-sw health-tick-idle" /> Not monitored
-                </span>
+                {/* The swatches are a key for the meter. With the meter gone in
+                    the not-monitored state they would be explaining something
+                    that is not on screen, so they go with it. The freshness
+                    label stays — when the status was last read still matters. */}
+                {!showMonitoringNotice && (
+                  <>
+                    <span className="health-legend-item">
+                      <span className="health-legend-sw health-tick-up" /> Online
+                    </span>
+                    <span className="health-legend-item">
+                      <span className="health-legend-sw health-tick-down" /> Offline
+                    </span>
+                    <span className="health-legend-item">
+                      <span className="health-legend-sw health-tick-idle" /> Not monitored
+                    </span>
+                  </>
+                )}
                 {ageMs != null && (
                   <span
                     data-testid="health-updated"
