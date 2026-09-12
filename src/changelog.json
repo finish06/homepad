@@ -1,14 +1,34 @@
 {
-  "pending": [
-    { "type": "enhancement", "text": "The dashboard now tells you when a new homepad release is live. If an update ships while a tab is open, a quiet pill appears in the bottom-left corner — \"homepad vX.Y.Z is available\" — with a Refresh button that loads the new version in one tap. You can dismiss it; it only comes back if yet another release ships. Handy for wall-mounted or always-open dashboards that used to run stale builds for days." }
-  ],
+  "pending": [],
   "versions": [
+    {
+      "version": "16.0.0",
+      "date": "2026-09-12",
+      "changes": [
+        {
+          "type": "enhancement",
+          "text": "The dashboard now tells you when a new homepad release is live. If an update ships while a tab is open, a quiet pill appears in the bottom-left corner — \"homepad vX.Y.Z is available\" — with a Refresh button that loads the new version in one tap. You can dismiss it; it only comes back if yet another release ships. Handy for wall-mounted or always-open dashboards that used to run stale builds for days."
+        },
+        {
+          "type": "feature",
+          "text": "The health panel no longer claims everything is fine when nothing is being watched. If no service has monitoring set up, it now says “Status is not being checked” behind a neutral light instead of a green one, tells you how many services you have, and makes clear the tiles still open normally — they just can’t report. You can dismiss the notice, and the panel stays honest afterwards rather than flipping back to a green all-clear."
+        },
+        {
+          "type": "feature",
+          "text": "You can now delete a service from the shared catalog. Deleting removes it for everyone, so it is admin-only and asks you to confirm first."
+        },
+        {
+          "type": "security",
+          "text": "Hardened the security headers the app is served with, so the dashboard is stricter about what it will load and where it can be embedded. No visible change in day-to-day use."
+        }
+      ]
+    },
     {
       "version": "15.6.0",
       "date": "2026-07-26",
       "changes": [
         {
-          "type": "feat",
+          "type": "feature",
           "text": "You can now drag to rearrange the app tiles inside a box. Turn on \"Edit dashboard\" from the gear menu and each tile grows a grip handle in its bottom-left corner (next to the pencil) — drag a tile to a new spot within its box and it stays there. It works with touch (press and hold the grip) and with the keyboard too: Tab to a grip, press Space to pick the tile up, use the arrow keys to move it, and Space again to drop (Escape cancels). Your arrangement is saved to your own view — everyone keeps their own tile order. Tiles can only be reordered within their box; to move a tile to a different box, use its pencil to change the box."
         }
       ]
@@ -18,7 +38,7 @@
       "date": "2026-07-18",
       "changes": [
         {
-          "type": "feat",
+          "type": "feature",
           "text": "You can now self-host the whole Homepad stack with one command. A new docker-compose setup stands up the dashboard, the API, its database, and a status monitor together — copy the example config, run \"docker compose up\", and open http://localhost:8080. It runs on local accounts out of the box, with single sign-on (OIDC) available as an opt-in. This is a packaging change only; nothing in the app itself changed."
         }
       ]
@@ -28,7 +48,7 @@
       "date": "2026-07-18",
       "changes": [
         {
-          "type": "fix",
+          "type": "bug-fix",
           "text": "Lined up the Health Summary card (the UP / NOT MONITORED status card at the top of the dashboard) with the app grid underneath it. The card used to sit slightly inset — about 12px narrower on each side — so its left and right edges didn't match the apps below, and the two stacked sections looked misaligned. The card now shares the exact same width and edges as the app grid and the header wordmark at every screen size."
         }
       ]
@@ -38,7 +58,7 @@
       "date": "2026-07-18",
       "changes": [
         {
-          "type": "fix",
+          "type": "bug-fix",
           "text": "Polished the Status Summary card's two stat boxes (the \"UP\" / \"NOT MONITORED\" quick-peek boxes). They're now equal width and line up flush with the uptime bar underneath instead of floating at unequal sizes off to one side. In light mode each box now has a real, visible edge (previously the box fill was the same color as the card behind it, so the boxes were nearly invisible), and the green \"UP\" number is a slightly deeper green that's easier to read on the light card. Dark mode gets a matching lift so the boxes separate cleanly from the panel."
         }
       ]
@@ -52,7 +72,7 @@
           "text": "The sign-in screen has been restyled to match the rest of homepad. It's now a frosted glass card floating on the same soft accent-blob background as your dashboard, instead of a flat panel with two harsh white input boxes. The email and password fields are soft tinted glass, the labels and helper text are all clearly readable in both light and dark mode, and the Sign in button uses the app's accent color. It's the same login, just finally wearing the same design as everything behind it."
         },
         {
-          "type": "fix",
+          "type": "bug-fix",
           "text": "Fixed five dark-mode contrast problems on the login: the field labels, the PocketID label, the subtitle, the secondary link and the \"or\" divider were all inheriting light-mode colors on the dark card and failing accessibility contrast (some barely visible). They now read from the theme-aware tokens and pass WCAG AA in both schemes, and the sign-in error message uses the readable glass \"down\" color (measured 4.72:1 dark / 4.59:1 light on the real glass card)."
         },
         {
@@ -143,7 +163,7 @@
       "changes": [
         {
           "type": "feature",
-          "text": "You can now choose what happens when you open an app tile. Turn on Edit dashboard, open a tile's Edit window, and the new 'Click action' setting lets you pick: open the app in a new browser tab (the default \u2014 unchanged for every existing tile), open it in the current tab, or open it inside homepad in an overlay panel without leaving the dashboard."
+          "text": "You can now choose what happens when you open an app tile. Turn on Edit dashboard, open a tile's Edit window, and the new 'Click action' setting lets you pick: open the app in a new browser tab (the default — unchanged for every existing tile), open it in the current tab, or open it inside homepad in an overlay panel without leaving the dashboard."
         },
         {
           "type": "enhancement",
@@ -157,11 +177,11 @@
       "changes": [
         {
           "type": "feature",
-          "text": "Setting a tile's icon now has two clear tabs \u2014 Light Mode and Dark Mode \u2014 so you can give each theme its own icon. Open a tile's Edit window and the icon area shows a Light Mode / Dark Mode switch; each tab has its own preview, Upload PNG, Fetch from URL and Remove, all working only on that mode. Upload a dark PNG under Dark Mode and the dashboard shows it when you're in dark theme, with the light icon left untouched."
+          "text": "Setting a tile's icon now has two clear tabs — Light Mode and Dark Mode — so you can give each theme its own icon. Open a tile's Edit window and the icon area shows a Light Mode / Dark Mode switch; each tab has its own preview, Upload PNG, Fetch from URL and Remove, all working only on that mode. Upload a dark PNG under Dark Mode and the dashboard shows it when you're in dark theme, with the light icon left untouched."
         },
         {
           "type": "enhancement",
-          "text": "Each icon tab now honestly shows what a tile will actually display: a mode with no icon of its own shows the icon it falls back to (dimmed, with a note like 'No dark PNG \u2014 showing the light icon'), and a mode with nothing set shows an explicit 'No icon set' placeholder instead of a misleading badge."
+          "text": "Each icon tab now honestly shows what a tile will actually display: a mode with no icon of its own shows the icon it falls back to (dimmed, with a note like 'No dark PNG — showing the light icon'), and a mode with nothing set shows an explicit 'No icon set' placeholder instead of a misleading badge."
         },
         {
           "type": "enhancement",
@@ -169,7 +189,7 @@
         },
         {
           "type": "enhancement",
-          "text": "The new icon tabs are fully keyboard- and screen-reader accessible \u2014 a proper tab list you can move through with the left/right arrow keys \u2014 and every tab and button clears the 44px touch-target and contrast bars in both light and dark."
+          "text": "The new icon tabs are fully keyboard- and screen-reader accessible — a proper tab list you can move through with the left/right arrow keys — and every tab and button clears the 44px touch-target and contrast bars in both light and dark."
         }
       ]
     },
@@ -179,11 +199,11 @@
       "changes": [
         {
           "type": "feature",
-          "text": "Admins can now edit a tile straight from the dashboard. Turn on Edit dashboard and each app tile shows a pencil in its bottom-right corner; tap it to open an Edit tile window where you can change the tile's title, link, category, description and icon \u2014 no more digging through the admin panel. Changes save to the shared catalog everyone sees."
+          "text": "Admins can now edit a tile straight from the dashboard. Turn on Edit dashboard and each app tile shows a pencil in its bottom-right corner; tap it to open an Edit tile window where you can change the tile's title, link, category, description and icon — no more digging through the admin panel. Changes save to the shared catalog everyone sees."
         },
         {
           "type": "feature",
-          "text": "The Edit tile window gives the icon real options: upload a light (and optional dark) PNG, paste an icon URL, or tap 'Fetch from URL' to pull the site's favicon automatically \u2014 handy for the many tiles that never had an icon set and only showed initials. Uploads and fetches apply instantly with a live preview; Remove clears back to the initials badge."
+          "text": "The Edit tile window gives the icon real options: upload a light (and optional dark) PNG, paste an icon URL, or tap 'Fetch from URL' to pull the site's favicon automatically — handy for the many tiles that never had an icon set and only showed initials. Uploads and fetches apply instantly with a live preview; Remove clears back to the initials badge."
         },
         {
           "type": "enhancement",
@@ -197,7 +217,7 @@
       "changes": [
         {
           "type": "bug-fix",
-          "text": "The favorite star (\u2605) in the corner of each app tile is now easier to tap. Its invisible tap area was smaller than our 44px touch-target bar, so a thumb aimed at the corner could miss it and open the app instead; the star now catches a comfortable 44\u00d744px corner tap while looking exactly the same."
+          "text": "The favorite star (★) in the corner of each app tile is now easier to tap. Its invisible tap area was smaller than our 44px touch-target bar, so a thumb aimed at the corner could miss it and open the app instead; the star now catches a comfortable 44×44px corner tap while looking exactly the same."
         },
         {
           "type": "bug-fix",
@@ -211,7 +231,7 @@
       "changes": [
         {
           "type": "bug-fix",
-          "text": "The 'Editing the shared catalog \u2014 changes affect all users' banner is back. It had quietly disappeared from the live app when the dashboard switched over to the new App Grid, so admins in edit mode no longer had that heads-up; it now shows again at the top of the page while you're editing."
+          "text": "The 'Editing the shared catalog — changes affect all users' banner is back. It had quietly disappeared from the live app when the dashboard switched over to the new App Grid, so admins in edit mode no longer had that heads-up; it now shows again at the top of the page while you're editing."
         },
         {
           "type": "bug-fix",
@@ -219,11 +239,11 @@
         },
         {
           "type": "enhancement",
-          "text": "The account menu's note for non-admins now describes what you're actually looking at \u2014 the shared homelab catalog everyone sees \u2014 instead of calling it your 'personal dashboard'."
+          "text": "The account menu's note for non-admins now describes what you're actually looking at — the shared homelab catalog everyone sees — instead of calling it your 'personal dashboard'."
         },
         {
           "type": "enhancement",
-          "text": "Accessibility and touch pass: we re-measured tap targets and text contrast across the interface (phone width, light and dark) to confirm everything still meets our 44px touch-target and readability bars. No changes you'll notice \u2014 just verification, plus a fix to a flaky internal check that measures the login screen."
+          "text": "Accessibility and touch pass: we re-measured tap targets and text contrast across the interface (phone width, light and dark) to confirm everything still meets our 44px touch-target and readability bars. No changes you'll notice — just verification, plus a fix to a flaky internal check that measures the login screen."
         }
       ]
     },
@@ -233,7 +253,7 @@
       "changes": [
         {
           "type": "enhancement",
-          "text": "Admins can now hide the little uptime percentages under each app tile. There's a new 'Show uptime display' switch at the top of the Admin Panel's System section \u2014 flip it off and the 24h/7d/30d figures disappear from every tile across everyone's dashboard, leaving the tiles clean with no empty gap. It saves the moment you tap it (a quick 'Saved \u2713' confirms), no reload needed. This only hides the numbers \u2014 health monitoring keeps running and the colored status dot on each tile is untouched. It's on by default, so nothing changes until an admin turns it off."
+          "text": "Admins can now hide the little uptime percentages under each app tile. There's a new 'Show uptime display' switch at the top of the Admin Panel's System section — flip it off and the 24h/7d/30d figures disappear from every tile across everyone's dashboard, leaving the tiles clean with no empty gap. It saves the moment you tap it (a quick 'Saved ✓' confirms), no reload needed. This only hides the numbers — health monitoring keeps running and the colored status dot on each tile is untouched. It's on by default, so nothing changes until an admin turns it off."
         }
       ]
     },
@@ -243,7 +263,7 @@
       "changes": [
         {
           "type": "enhancement",
-          "text": "Pick your dashboard's accent color. In the account menu's Appearance section there's now a row of seven color dots \u2014 red, orange, yellow, green, blue, indigo, violet. Tap one and the soft color glow behind your app boxes changes to match, instantly. Your choice is remembered on this device; indigo is the classic homepad look. The colors only tint the background atmosphere \u2014 text and buttons stay exactly as readable as before."
+          "text": "Pick your dashboard's accent color. In the account menu's Appearance section there's now a row of seven color dots — red, orange, yellow, green, blue, indigo, violet. Tap one and the soft color glow behind your app boxes changes to match, instantly. Your choice is remembered on this device; indigo is the classic homepad look. The colors only tint the background atmosphere — text and buttons stay exactly as readable as before."
         },
         {
           "type": "enhancement",
@@ -257,7 +277,7 @@
       "changes": [
         {
           "type": "enhancement",
-          "text": "The dashboard now makes real use of big monitors. Before, no matter how wide your screen was, everything sat in a fixed-width column in the middle \u2014 on a 4K monitor more than half the screen was empty black margin. Now the layout grows with your screen (keeping a slim breathing margin at each side), so your category boxes spread out and show more app tiles per row. Tiles themselves stay the same size everywhere \u2014 you just see more of them at once. Phones, tablets, and regular desktops look exactly the same as before; and if you have only a few apps on a very wide screen, they sit neatly centered instead of bunched into the left corner."
+          "text": "The dashboard now makes real use of big monitors. Before, no matter how wide your screen was, everything sat in a fixed-width column in the middle — on a 4K monitor more than half the screen was empty black margin. Now the layout grows with your screen (keeping a slim breathing margin at each side), so your category boxes spread out and show more app tiles per row. Tiles themselves stay the same size everywhere — you just see more of them at once. Phones, tablets, and regular desktops look exactly the same as before; and if you have only a few apps on a very wide screen, they sit neatly centered instead of bunched into the left corner."
         }
       ]
     },
@@ -267,7 +287,7 @@
       "changes": [
         {
           "type": "enhancement",
-          "text": "On wide screens, category boxes now stretch to fill the row instead of leaving empty space on the right. The width you pick for a box is now a minimum \u2014 boxes never get narrower than that, they just grow to share whatever room is left in the row, so a half-full row no longer has a dead gap beside it. App tiles themselves stay the same size, and a box that's alone on its row fills the full width."
+          "text": "On wide screens, category boxes now stretch to fill the row instead of leaving empty space on the right. The width you pick for a box is now a minimum — boxes never get narrower than that, they just grow to share whatever room is left in the row, so a half-full row no longer has a dead gap beside it. App tiles themselves stay the same size, and a box that's alone on its row fills the full width."
         }
       ]
     },
@@ -277,7 +297,7 @@
       "changes": [
         {
           "type": "enhancement",
-          "text": "Every app tile now shows a small status dot in its top-left corner so you can see at a glance whether a service is up. Green means up, red means down, amber means degraded. A plain grey dot means the monitoring system itself couldn't get a reading (not a real outage), and a dashed hollow ring means that app just doesn't have monitoring set up \u2014 neither of those is shown as an alarm. The dot sits opposite the favorite star so they never overlap, it never gets in the way of tapping the app, and when a service's status changes it gives a brief one-time pulse (which is skipped if you've asked your device to reduce motion)."
+          "text": "Every app tile now shows a small status dot in its top-left corner so you can see at a glance whether a service is up. Green means up, red means down, amber means degraded. A plain grey dot means the monitoring system itself couldn't get a reading (not a real outage), and a dashed hollow ring means that app just doesn't have monitoring set up — neither of those is shown as an alarm. The dot sits opposite the favorite star so they never overlap, it never gets in the way of tapping the app, and when a service's status changes it gives a brief one-time pulse (which is skipped if you've asked your device to reduce motion)."
         }
       ]
     },
@@ -287,11 +307,11 @@
       "changes": [
         {
           "type": "enhancement",
-          "text": "App tiles are now a consistent size everywhere. Before, a tile in a narrow box and a tile in a wide box came out different widths (the box width was split into equal fractions). Now every app tile is the same fixed size no matter which box it's in \u2014 boxes hug their content and wrap to the next row when they don't fit, instead of stretching. Tiles show the icon above the name, and a one-line name and a two-line name take the same height so the grid never jumps."
+          "text": "App tiles are now a consistent size everywhere. Before, a tile in a narrow box and a tile in a wide box came out different widths (the box width was split into equal fractions). Now every app tile is the same fixed size no matter which box it's in — boxes hug their content and wrap to the next row when they don't fit, instead of stretching. Tiles show the icon above the name, and a one-line name and a two-line name take the same height so the grid never jumps."
         },
         {
           "type": "enhancement",
-          "text": "Box width now goes up to 8 (was 6). If a width would be wider than your screen, that button is shown disabled (\u201cWider than this screen\u201d) so you can't accidentally set a box off the edge. On phones each box fills the width and shows 2 tiles per row."
+          "text": "Box width now goes up to 8 (was 6). If a width would be wider than your screen, that button is shown disabled (“Wider than this screen”) so you can't accidentally set a box off the edge. On phones each box fills the width and shows 2 tiles per row."
         }
       ]
     },
@@ -301,7 +321,7 @@
       "changes": [
         {
           "type": "bug-fix",
-          "text": "The box width buttons now only appear in \u201cEdit dashboard\u201d mode. Before, admins saw the 1\u20136 width selector on every box during normal browsing; it now stays hidden until you turn on Edit dashboard from the header gear \u2014 matching the Rename and Delete controls \u2014 so the everyday view stays clean. Changing width still works exactly the same inside edit mode."
+          "text": "The box width buttons now only appear in “Edit dashboard” mode. Before, admins saw the 1–6 width selector on every box during normal browsing; it now stays hidden until you turn on Edit dashboard from the header gear — matching the Rename and Delete controls — so the everyday view stays clean. Changing width still works exactly the same inside edit mode."
         }
       ]
     },
@@ -311,11 +331,11 @@
       "changes": [
         {
           "type": "enhancement",
-          "text": "Pinning is back. Every app tile now has a \u2605 favorite toggle in its corner \u2014 tap it to pin an app to the top of your quick-launch Favorites (in the \u2318K launcher), tap again to unpin. It updates live and is personal to you. The control had been dropped when the App Grid replaced the old dashboard (#240)."
+          "text": "Pinning is back. Every app tile now has a ★ favorite toggle in its corner — tap it to pin an app to the top of your quick-launch Favorites (in the ⌘K launcher), tap again to unpin. It updates live and is personal to you. The control had been dropped when the App Grid replaced the old dashboard (#240)."
         },
         {
           "type": "enhancement",
-          "text": "Admins can rename and delete dashboard boxes again. Turn on \u201cEdit dashboard\u201d from the header gear and each box gets Rename and Delete buttons. Deleting a box doesn\u2019t delete its apps \u2014 they move to \u201cUncategorized\u201d so nothing disappears. Renaming and deleting were only possible in the old dashboard; the App Grid dropped them (#241)."
+          "text": "Admins can rename and delete dashboard boxes again. Turn on “Edit dashboard” from the header gear and each box gets Rename and Delete buttons. Deleting a box doesn’t delete its apps — they move to “Uncategorized” so nothing disappears. Renaming and deleting were only possible in the old dashboard; the App Grid dropped them (#241)."
         }
       ]
     },
@@ -325,7 +345,7 @@
       "changes": [
         {
           "type": "enhancement",
-          "text": "Edit Dashboard is back. Admins can open the header gear and turn on \u201cEdit dashboard\u201d, then drag the category boxes to rearrange them \u2014 the new order is saved and shared for everyone. Both features had been dropped when the App Grid replaced the old dashboard layout; this restores them. Turning edit mode off (or reloading) returns to the normal view. Box width, the width selector, and the mobile 2-column layout are unchanged."
+          "text": "Edit Dashboard is back. Admins can open the header gear and turn on “Edit dashboard”, then drag the category boxes to rearrange them — the new order is saved and shared for everyone. Both features had been dropped when the App Grid replaced the old dashboard layout; this restores them. Turning edit mode off (or reloading) returns to the normal view. Box width, the width selector, and the mobile 2-column layout are unchanged."
         }
       ]
     },
@@ -335,7 +355,7 @@
       "changes": [
         {
           "type": "bug-fix",
-          "text": "App tiles whose names share a prefix (e.g. \u201cArchiveTeam Warrior1\u201d and \u201cArchiveTeam Warrior2\u201d) no longer collapse to the same \u201cArchiveTeam \u2026\u201d on narrow tiles \u2014 the name now wraps to a second line so the distinguishing word stays visible, and the full name is still on hover (#195)."
+          "text": "App tiles whose names share a prefix (e.g. “ArchiveTeam Warrior1” and “ArchiveTeam Warrior2”) no longer collapse to the same “ArchiveTeam …” on narrow tiles — the name now wraps to a second line so the distinguishing word stays visible, and the full name is still on hover (#195)."
         }
       ]
     },
@@ -345,7 +365,7 @@
       "changes": [
         {
           "type": "bug-fix",
-          "text": "On wide monitors the dashboard now uses the full page width, so your app tiles grow to fill the extra space instead of staying the same size they were on a laptop. Before, a big external monitor showed the same-size tiles as a 1440px screen; now they get roomier (about 216px \u2192 235px at 2560px) and line up with the header and status bar. iPad and phone layouts are unchanged."
+          "text": "On wide monitors the dashboard now uses the full page width, so your app tiles grow to fill the extra space instead of staying the same size they were on a laptop. Before, a big external monitor showed the same-size tiles as a 1440px screen; now they get roomier (about 216px → 235px at 2560px) and line up with the header and status bar. iPad and phone layouts are unchanged."
         }
       ]
     },
@@ -355,7 +375,7 @@
       "changes": [
         {
           "type": "enhancement",
-          "text": "The dashboard category panels now show at most 4 columns of apps on wide monitors instead of 6 \u2014 six read sparse on a big screen, and four is the sweet spot for a quick glance (tiles stay a roomy 190px). Categories with fewer apps still hug their content, and phones and tablets are unchanged."
+          "text": "The dashboard category panels now show at most 4 columns of apps on wide monitors instead of 6 — six read sparse on a big screen, and four is the sweet spot for a quick glance (tiles stay a roomy 190px). Categories with fewer apps still hug their content, and phones and tablets are unchanged."
         }
       ]
     },
@@ -365,7 +385,7 @@
       "changes": [
         {
           "type": "bug-fix",
-          "text": "Fixed the v14 floating panels overflowing the screen on phones \u2014 the category panels no longer run past the right edge and the page no longer scrolls sideways. On small screens (<768px) the tiles now shrink to fit the width instead of staying a fixed 190px (a deliberate exception to the \u201ctiles never resize\u201d rule, mobile-only); desktop tiles are unchanged (#212)."
+          "text": "Fixed the v14 floating panels overflowing the screen on phones — the category panels no longer run past the right edge and the page no longer scrolls sideways. On small screens (<768px) the tiles now shrink to fit the width instead of staying a fixed 190px (a deliberate exception to the “tiles never resize” rule, mobile-only); desktop tiles are unchanged (#212)."
         }
       ]
     },
@@ -375,15 +395,15 @@
       "changes": [
         {
           "type": "feature",
-          "text": "New floating glass-panel dashboard \u2014 each category (plus Favorites and Uncategorized) is its own frosted-glass panel that hugs its apps and packs left-to-right, and tiles are now a fixed 190px so they never stretch (fixes the ~218px bloat at 1440px)."
+          "text": "New floating glass-panel dashboard — each category (plus Favorites and Uncategorized) is its own frosted-glass panel that hugs its apps and packs left-to-right, and tiles are now a fixed 190px so they never stretch (fixes the ~218px bloat at 1440px)."
         },
         {
           "type": "feature",
-          "text": "Categories now auto-sort by how often you open their apps (rolling 30-day window) so your most-used category sits top-left. Ordering is stable \u2014 it re-ranks at most once a day, on load, and only swaps categories on a decisive usage margin. An Arrange-mode \u201cSort: Auto / Custom\u201d toggle lets you pin a manual order instead, with \u201cReset to auto order\u201d to switch back."
+          "text": "Categories now auto-sort by how often you open their apps (rolling 30-day window) so your most-used category sits top-left. Ordering is stable — it re-ranks at most once a day, on load, and only swaps categories on a decisive usage margin. An Arrange-mode “Sort: Auto / Custom” toggle lets you pin a manual order instead, with “Reset to auto order” to switch back."
         },
         {
           "type": "enhancement",
-          "text": "The \u201cRecently opened\u201d row is restyled as compact name-only glass chips \u2014 44px tall tap targets with a 28\u00d728 app plate \u2014 and its label now meets AA contrast."
+          "text": "The “Recently opened” row is restyled as compact name-only glass chips — 44px tall tap targets with a 28×28 app plate — and its label now meets AA contrast."
         }
       ]
     },
@@ -403,7 +423,7 @@
       "changes": [
         {
           "type": "feature",
-          "text": "The header gear is now a unified edit-dashboard menu \u2014 one click surfaces every editing action in one place: Arrange tiles and Add apps for everyone, plus an admin-only \u201cEdit tiles\u201d toggle and \u201cAdd custom app\u201d under an Admin editing section. The gear highlights whenever an editing mode is active, and \u201cEdit dashboard\u201d has moved out of the avatar menu into this gear menu."
+          "text": "The header gear is now a unified edit-dashboard menu — one click surfaces every editing action in one place: Arrange tiles and Add apps for everyone, plus an admin-only “Edit tiles” toggle and “Add custom app” under an Admin editing section. The gear highlights whenever an editing mode is active, and “Edit dashboard” has moved out of the avatar menu into this gear menu."
         }
       ]
     },
@@ -413,7 +433,7 @@
       "changes": [
         {
           "type": "bug-fix",
-          "text": "Accessibility polish \u2014 the tile \u201c\u22ef\u201d menu glyph, quick-launcher placeholder, and header \u201cUpdated \u2026\u201d caption now meet AA contrast in light mode, and the quick-launcher bar, settings gear, and \u201c+ Add apps\u201d button are full 44px touch targets (#188\u2013#191, #185)"
+          "text": "Accessibility polish — the tile “⋯” menu glyph, quick-launcher placeholder, and header “Updated …” caption now meet AA contrast in light mode, and the quick-launcher bar, settings gear, and “+ Add apps” button are full 44px touch targets (#188–#191, #185)"
         }
       ]
     },
@@ -423,7 +443,7 @@
       "changes": [
         {
           "type": "enhancement",
-          "text": "App Library search now shows a \"No apps match \u2026\" hint instead of a blank list when your filter excludes every app"
+          "text": "App Library search now shows a \"No apps match …\" hint instead of a blank list when your filter excludes every app"
         }
       ]
     },
@@ -433,7 +453,7 @@
       "changes": [
         {
           "type": "feature",
-          "text": "Arrange mode \u2014 a settings gear in the header lets any user reveal per-tile reorder grips and drag dashboard tiles into a new order, then tuck the grips away again for a clean launcher (#166). Favorite and Remove still live in each tile\u2019s \u201c\u22ef\u201d menu."
+          "text": "Arrange mode — a settings gear in the header lets any user reveal per-tile reorder grips and drag dashboard tiles into a new order, then tuck the grips away again for a clean launcher (#166). Favorite and Remove still live in each tile’s “⋯” menu."
         }
       ]
     },
@@ -443,7 +463,7 @@
       "changes": [
         {
           "type": "feature",
-          "text": "Remove from dashboard \u2014 the per-tile \u201c\u22ef\u201d menu now offers \u201cRemove from dashboard\u201d (with a quick confirm) so any user can take a service off their own dashboard, not just admins in edit mode"
+          "text": "Remove from dashboard — the per-tile “⋯” menu now offers “Remove from dashboard” (with a quick confirm) so any user can take a service off their own dashboard, not just admins in edit mode"
         },
         {
           "type": "enhancement",
@@ -457,7 +477,7 @@
       "changes": [
         {
           "type": "feature",
-          "text": "Status alert history \u2014 a header bell with an unread badge opens a panel listing recent service status changes (with timestamps and a from\u2192to indicator) so you can review what changed while you were away (#165)"
+          "text": "Status alert history — a header bell with an unread badge opens a panel listing recent service status changes (with timestamps and a from→to indicator) so you can review what changed while you were away (#165)"
         }
       ]
     },
@@ -467,7 +487,7 @@
       "changes": [
         {
           "type": "bug-fix",
-          "text": "Status-change toasts no longer replay stale alerts \u2014 recentChanges is now reset after the ToastContainer consumes it, so remounts can't resurrect a prior poll's status flips (#147)"
+          "text": "Status-change toasts no longer replay stale alerts — recentChanges is now reset after the ToastContainer consumes it, so remounts can't resurrect a prior poll's status flips (#147)"
         }
       ]
     },
@@ -481,7 +501,7 @@
         },
         {
           "type": "bug-fix",
-          "text": "Edit-dashboard Categories section now honors dark mode \u2014 its inputs and buttons are no longer washed-out in the dark theme"
+          "text": "Edit-dashboard Categories section now honors dark mode — its inputs and buttons are no longer washed-out in the dark theme"
         }
       ]
     },
@@ -501,15 +521,15 @@
       "changes": [
         {
           "type": "feature",
-          "text": "Status bar quick-peek \u2014 click an up/down/not-monitored chip to open a popover listing the services in that state, each a link to its app"
+          "text": "Status bar quick-peek — click an up/down/not-monitored chip to open a popover listing the services in that state, each a link to its app"
         },
         {
           "type": "feature",
-          "text": "Version badge footer \u2014 the running app version and git SHA show in the footer"
+          "text": "Version badge footer — the running app version and git SHA show in the footer"
         },
         {
           "type": "feature",
-          "text": "Changelog overlay \u2014 click the version badge to browse what shipped in each release"
+          "text": "Changelog overlay — click the version badge to browse what shipped in each release"
         }
       ]
     },
@@ -519,11 +539,11 @@
       "changes": [
         {
           "type": "feature",
-          "text": "Dashboard status summary bar \u2014 at-a-glance up/down/unknown counts across all tiles"
+          "text": "Dashboard status summary bar — at-a-glance up/down/unknown counts across all tiles"
         },
         {
           "type": "feature",
-          "text": "Recently opened row \u2014 a localStorage-backed recency strip of the apps you last launched"
+          "text": "Recently opened row — a localStorage-backed recency strip of the apps you last launched"
         },
         {
           "type": "enhancement",
@@ -531,7 +551,7 @@
         },
         {
           "type": "feature",
-          "text": "Ambient status-change toasts \u2014 a quiet alert when a service flips up or down"
+          "text": "Ambient status-change toasts — a quiet alert when a service flips up or down"
         }
       ]
     },
@@ -541,7 +561,7 @@
       "changes": [
         {
           "type": "feature",
-          "text": "Live status auto-refresh with a 'last updated' indicator \u2014 tiles repoll without a page reload"
+          "text": "Live status auto-refresh with a 'last updated' indicator — tiles repoll without a page reload"
         }
       ]
     },
@@ -551,7 +571,7 @@
       "changes": [
         {
           "type": "enhancement",
-          "text": "Settings boundary clarity \u2014 the user menu splits into 'My Dashboard' (all users) and 'Administration' (admin only)"
+          "text": "Settings boundary clarity — the user menu splits into 'My Dashboard' (all users) and 'Administration' (admin only)"
         },
         {
           "type": "enhancement",
@@ -565,11 +585,11 @@
       "changes": [
         {
           "type": "enhancement",
-          "text": "Admin/personal scope clarity \u2014 admin items grouped under a labelled section, the Settings modal retitled 'Admin Panel' with a global-scope subtitle"
+          "text": "Admin/personal scope clarity — admin items grouped under a labelled section, the Settings modal retitled 'Admin Panel' with a global-scope subtitle"
         },
         {
           "type": "bug-fix",
-          "text": "UserMenu dropdown was painted over by the tile drag-grips \u2014 lifted the header stacking context so menu items are reachable"
+          "text": "UserMenu dropdown was painted over by the tile drag-grips — lifted the header stacking context so menu items are reachable"
         },
         {
           "type": "enhancement",
@@ -583,11 +603,11 @@
       "changes": [
         {
           "type": "feature",
-          "text": "Always-on tile drag-and-drop (dnd-kit) with a per-tile '\u22ef' overflow menu"
+          "text": "Always-on tile drag-and-drop (dnd-kit) with a per-tile '⋯' overflow menu"
         },
         {
           "type": "bug-fix",
-          "text": "'\u22ef' tile menu was unreachable by mouse/touch \u2014 open on pointerup, not the swallowed click"
+          "text": "'⋯' tile menu was unreachable by mouse/touch — open on pointerup, not the swallowed click"
         },
         {
           "type": "enhancement",
@@ -601,7 +621,7 @@
       "changes": [
         {
           "type": "feature",
-          "text": "Per-user dashboards \u2014 personal tile ordering, favorites, and an App Library to browse and add apps"
+          "text": "Per-user dashboards — personal tile ordering, favorites, and an App Library to browse and add apps"
         }
       ]
     },
@@ -611,7 +631,7 @@
       "changes": [
         {
           "type": "feature",
-          "text": "Command launcher \u2014 a \u2318K / '/' fuzzy-search palette to jump to any app"
+          "text": "Command launcher — a ⌘K / '/' fuzzy-search palette to jump to any app"
         }
       ]
     },
@@ -621,7 +641,7 @@
       "changes": [
         {
           "type": "feature",
-          "text": "UX redesign \u2014 refreshed tiles, headers, status glow, and surface; identity moved into an avatar UserMenu"
+          "text": "UX redesign — refreshed tiles, headers, status glow, and surface; identity moved into an avatar UserMenu"
         }
       ]
     }
