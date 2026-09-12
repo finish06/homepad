@@ -1,0 +1,177 @@
+name: Prod release (vX.Y.Z tag)
+# homepad's tagging automation — closes the gap where 15.4.0 and 15.6.0 shipped to
+# prod untagged and v16.0.0 had to be cut + released by hand. Modelled on
+# Code/fleet-feed/.gitea/workflows/prod-release.yml; uses the same reusable
+# composite Code/ci-shared/prod. The ci-shared/prod action, IN ORDER:
+#   1. Validates version alignment — git tag == CHANGELOG.md top == package.json
+#      version. Fails BEFORE any build if they disagree.
+#   2. Regenerates src/changelog.json from CHANGELOG.md so the release image bundles
+#      the current derived changelog (consumed by src/app/ChangelogOverlay.tsx).
+#   3. Builds & pushes the prod image :X.Y.Z + :X.Y.Z-<sha> + :latest, baking
+#      APP_VERSION=X.Y.Z as a build-arg so the footer shows the semver.
+#   4. Runs prod-deploy-cmd below — which, for homepad, DELIBERATELY DOES NOT DEPLOY
+#      (see the big comment on prod-deploy-cmd). It resolves + prints the release
+#      digest, paste-ready for the manual homelab pin.
+#   5. Notifies NATS joe.deploy.homepad.tag.X.Y.Z (fire-and-continue; skipped if
+#      NATS creds are unset).
+# Then a final step here creates the Gitea release object from the tag with the
+# matching CHANGELOG section as the body — ci-shared/prod does NOT create it.
+#
+# PATHS DIFFER FROM fleet-feed: homepad is NOT laid out under web/. package.json,
+# CHANGELOG.md and src/changelog.json all live at the repo ROOT, and the Dockerfile
+# + build context are the repo root defaults — hence version-source-path=package.json
+# (not web/package.json) and changelog-gen-output=src/changelog.json.
+#
+# ── ACTION PIN ──────────────────────────────────────────────────────────────────
+# Pinned to the immutable merge COMMIT 1a61d2bdca8e9c8ee131e8b829d39a4e1d4af6bc
+# (ci-shared PR #29 — rc.N→prod tooling; the same SHA fleet-feed's prod-release.yml
+# pins), NOT a branch. A DELETED pinned branch caused a fleet-wide outage here once —
+# never use @v3 / @v4 / any branch name for this action.
+
+on:
+  push:
+    tags:
+      - "v*"
+  # Manual fallback — NOT optional. Tag-push events intermittently fail to create a
+  # run in this Gitea Actions setup. When that happens, re-fire by dispatching THIS
+  # workflow ON THE TAG REF. The ref MUST be the full `refs/tags/vX.Y.Z` — a bare
+  # `vX.Y.Z` 404s. Dispatching on the tag ref keeps GITHUB_REF=refs/tags/vX.Y.Z so
+  # the version-alignment check (tag == CHANGELOG == package.json) resolves from the
+  # tagged commit exactly as a tag push would.
+  workflow_dispatch: {}
+
+jobs:
+  prod-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Production release (ci-shared @ pinned SHA)
+        uses: http://gitea-http.gitea.svc.cluster.local:3000/Code/ci-shared/prod@1a61d2bdca8e9c8ee131e8b829d39a4e1d4af6bc
+        with:
+          image-name: homepad
+          # Alignment check: git tag == CHANGELOG.md top == package.json version.
+          version-source: node-package-json
+          # ROOT package.json — homepad is not laid out under web/ like fleet-feed.
+          version-source-path: package.json
+          changelog-path: CHANGELOG.md
+          # Regenerate the derived changelog bundled into the release image.
+          changelog-gen-output: src/changelog.json
+          # dockerfile + context: repo-root defaults are correct for homepad.
+          prod-deploy-cmd: |
+            # ─── DELIBERATELY NOT A DEPLOY. This is not an unfinished TODO. ───────────
+            # homepad prod is manual-promote, and its image pins live in a DIFFERENT
+            # repo — Code/homelab (homepad/02-api.yaml, homepad/03-web.yaml), digest-
+            # pinned. Applying a manifest from here would REVERT prod to whatever digest
+            # homelab currently holds — the exact opposite of releasing. So this leg
+            # only RESOLVES + PRINTS the release digest, paste-ready for the homelab
+            # pin, and exits 0. DO NOT "fix" this by adding a kubectl apply/set-image.
+            set -uo pipefail
+            SHORT="${GITHUB_SHA:0:7}"
+            # Registry path (no host, no tag): dockerhub.calebdunn.tech/homepad:X.Y.Z -> homepad
+            NAME="${IMAGE_REF#${REGISTRY}/}"; NAME="${NAME%:*}"
+            IMMUTABLE="${REGISTRY}/${NAME}:${IMAGE_TAG}-${SHORT}"
+
+            # Resolve the manifest digest from the registry. Try basic auth first; if
+            # the registry answers with a Bearer challenge, do the token dance. Best-
+            # effort: the image is already built + pushed, so a digest-lookup blip must
+            # NOT fail the release — fall back to the immutable :X.Y.Z-<sha> tag.
+            ACCEPT='application/vnd.oci.image.index.v1+json,application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.docker.distribution.manifest.v2+json'
+            MURL="https://${REGISTRY}/v2/${NAME}/manifests/${IMAGE_TAG}"
+            digest_from_headers() { tr -d '\r' | awk -F': ' 'tolower($1)=="docker-content-digest"{print $2}' | tail -1; }
+
+            HDRS=$(curl -sSI -u "${REGISTRY_USERNAME:-}:${REGISTRY_PASSWORD:-}" -H "Accept: ${ACCEPT}" "$MURL" 2>/dev/null || true)
+            DIGEST=$(printf '%s' "$HDRS" | digest_from_headers)
+            if [ -z "$DIGEST" ] && printf '%s' "$HDRS" | tr -d '\r' | grep -qi '^www-authenticate: *bearer'; then
+              CH=$(printf '%s' "$HDRS" | tr -d '\r' | grep -i '^www-authenticate:' | head -1)
+              REALM=$(printf '%s' "$CH" | grep -oE 'realm="[^"]*"' | cut -d'"' -f2)
+              SERVICE=$(printf '%s' "$CH" | grep -oE 'service="[^"]*"' | cut -d'"' -f2)
+              SCOPE=$(printf '%s' "$CH" | grep -oE 'scope="[^"]*"' | cut -d'"' -f2)
+              [ -z "$SCOPE" ] && SCOPE="repository:${NAME}:pull"
+              TOKEN=$(curl -sS -u "${REGISTRY_USERNAME:-}:${REGISTRY_PASSWORD:-}" \
+                --data-urlencode "service=${SERVICE}" --data-urlencode "scope=${SCOPE}" -G "$REALM" 2>/dev/null \
+                | grep -oE '"token"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4)
+              if [ -n "$TOKEN" ]; then
+                HDRS=$(curl -sSI -H "Authorization: Bearer ${TOKEN}" -H "Accept: ${ACCEPT}" "$MURL" 2>/dev/null || true)
+                DIGEST=$(printf '%s' "$HDRS" | digest_from_headers)
+              fi
+            fi
+
+            echo "==================== homepad prod release — NOT DEPLOYED ===================="
+            echo "version : $APP_VERSION"
+            echo "tag     : $IMAGE_TAG"
+            echo "ref     : $IMAGE_REF"
+            echo "sha-ref : $IMMUTABLE   (immutable, always resolvable)"
+            echo "---------------------------------------------------------------------------"
+            if [ -n "$DIGEST" ]; then
+              echo "Paste this DIGEST PIN into Code/homelab homepad/03-web.yaml (and 02-api.yaml if the API rev is part of this release):"
+              echo ""
+              echo "    image: ${REGISTRY}/${NAME}@${DIGEST}"
+              echo ""
+              echo "digest  : $DIGEST"
+            else
+              echo "::warning::Could not resolve the manifest digest from ${REGISTRY} (auth/registry blip). The image is pushed and safe."
+              echo "Pin the immutable per-sha tag instead, or resolve the digest manually:"
+              echo ""
+              echo "    image: ${IMMUTABLE}"
+              echo ""
+              echo "  # to resolve the digest later:"
+              echo "  #   docker buildx imagetools inspect ${IMAGE_REF}   # prints 'Digest: sha256:...'"
+            fi
+            echo "==========================================================================="
+            exit 0
+        env:
+          REGISTRY_USERNAME:  ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD:  ${{ secrets.REGISTRY_PASSWORD }}
+          # Notify step skips itself cleanly if these are unset (same as fleet-feed).
+          NATS_PUBLISH_URL:   ${{ secrets.NATS_PUBLISH_URL }}
+          NATS_PUBLISH_TOKEN: ${{ secrets.NATS_PUBLISH_TOKEN }}
+
+      - name: Create Gitea release from tag
+        # ci-shared/prod builds/pushes/notifies but does NOT create the Gitea release
+        # object — so do it here, from the tag, with the matching CHANGELOG section as
+        # the body. Uses the runner-provided token (github.token) that the other
+        # workflows already use as GITEA_TOKEN — no new secret. Fail-soft: the release
+        # is already built + pushed; a release-API hiccup (or a re-dispatch where the
+        # release already exists) must not fail the run.
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        shell: bash
+        env:
+          GITEA_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -uo pipefail
+          API="http://gitea-http.gitea.svc.cluster.local:3000/api/v1"
+          VERSION="${TAG#v}"
+
+          # Extract the CHANGELOG section for this version: from `## [X.Y.Z]` up to
+          # (not including) the next `## [` heading.
+          BODY=$(awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" {grab=1; print; next}
+            grab && /^## \[/ {exit}
+            grab {print}
+          ' CHANGELOG.md)
+          [ -z "$BODY" ] && BODY="Release ${TAG}. See CHANGELOG.md."
+
+          # Build the JSON payload safely (multi-line markdown body) with python3.
+          # prerelease=True when the version part carries a `-` (e.g. v16.0.0-rc.1).
+          PAYLOAD=$(TAG="$TAG" BODY="$BODY" python3 -c 'import json,os; t=os.environ["TAG"]; print(json.dumps({"tag_name":t,"name":t,"body":os.environ["BODY"],"draft":False,"prerelease":"-" in t[1:]}))')
+
+          CODE=$(curl -sS -o /tmp/release-resp.json -w '%{http_code}' \
+            -X POST "${API}/repos/${GITHUB_REPOSITORY}/releases" \
+            -H "Authorization: token ${GITEA_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "$PAYLOAD" || echo "000")
+
+          case "$CODE" in
+            201)
+              echo "::notice::Created Gitea release ${TAG}."
+              ;;
+            409)
+              echo "::notice::Gitea release ${TAG} already exists — leaving it as-is (idempotent re-run)."
+              ;;
+            *)
+              echo "::warning::Release creation returned HTTP ${CODE} — image is built + pushed; create the release manually from tag ${TAG} if needed."
+              head -c 400 /tmp/release-resp.json 2>/dev/null || true
+              ;;
+          esac
+          exit 0
