@@ -54,9 +54,9 @@ test.describe('SPEC-tile-density — the density switch', () => {
       const pipMid = pip!.y + pip!.height / 2;
       const linkMid = link!.y + link!.height / 2;
       expect(Math.abs(pipMid - linkMid)).toBeLessThanOrEqual(6);
-      dotX.push(Math.round(pip!.x));
+      dotX.push(Math.round(pip!.x - link!.x));
     }
-    // The rail is FIXED: every dot shares the same x down the column (±2px).
+    // Within each tile, the pip sits at the same rail offset (±2 px) — right:12px is fixed.
     expect(Math.max(...dotX) - Math.min(...dotX)).toBeLessThanOrEqual(2);
   });
 
