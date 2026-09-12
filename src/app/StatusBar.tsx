@@ -155,13 +155,17 @@ export default function StatusBar() {
   // monitored statuses, so any attention at all implies monitored > 0. The
   // ordering below is still explicit so the precedence does not rest on that.
   const fleetUnmonitored = !loading && !empty && monitored === 0;
-  const showMonitoringNotice = fleetUnmonitored && !monitoringNoticeDismissed;
+  // "Not now" collapses the action row ONLY. The verdict itself keeps standing
+  // down, because dismissing a notice does not start monitoring anything — and
+  // a panel that answered the dismiss with a green "All systems operational"
+  // would re-introduce the exact false claim this state exists to remove.
+  const showMonitoringActions = fleetUnmonitored && !monitoringNoticeDismissed;
 
   const variant = loading
     ? 'loading'
     : attention > 0
       ? 'attention'
-      : showMonitoringNotice
+      : fleetUnmonitored
         ? 'not-monitored'
         : 'operational';
   const severity = down > 0 ? 'down' : degraded > 0 ? 'degraded' : 'none';
@@ -177,7 +181,7 @@ export default function StatusBar() {
   } else if (attention > 0) {
     headline = `${attention} service${attention === 1 ? '' : 's'} need${attention === 1 ? 's' : ''} attention`;
     subline = `${total} service${total === 1 ? '' : 's'} across ${groups} group${groups === 1 ? '' : 's'} · ${monitored} monitored`;
-  } else if (showMonitoringNotice) {
+  } else if (fleetUnmonitored) {
     // The panel has no evidence, so it states that instead of a verdict. The
     // sub-line is careful to say what still works: the tiles are not broken,
     // they simply cannot report.
@@ -232,7 +236,7 @@ export default function StatusBar() {
             <p data-testid="health-subline" className="health-subline">
               {subline}
             </p>
-            {showMonitoringNotice && (
+            {showMonitoringActions && (
               <div className="health-notice-actions">
                 {/* SPEC-v24 §12.2, AC-V24-NM3a. The "Connect a status source"
                     primary CTA (NM3b) is deliberately absent: OQ-4 resolved its
@@ -283,7 +287,7 @@ export default function StatusBar() {
               {/* AC-V24-NM2 — every tick would be gray in the not-monitored
                   state, so the meter is omitted rather than drawn empty. The
                   chips stay; only the meter goes. */}
-              {!showMonitoringNotice && (
+              {!fleetUnmonitored && (
                 <div data-testid="health-meter" className="health-meter" aria-hidden="true">
                   {(items ?? [])
                     .map((s, i) => ({ s, i }))
@@ -300,15 +304,23 @@ export default function StatusBar() {
               )}
 
               <div className="health-legend">
-                <span className="health-legend-item">
-                  <span className="health-legend-sw health-tick-up" /> Online
-                </span>
-                <span className="health-legend-item">
-                  <span className="health-legend-sw health-tick-down" /> Offline
-                </span>
-                <span className="health-legend-item">
-                  <span className="health-legend-sw health-tick-idle" /> Not monitored
-                </span>
+                {/* The swatches are a key for the meter. With the meter gone in
+                    the not-monitored state they would be explaining something
+                    that is not on screen, so they go with it. The freshness
+                    label stays — when the status was last read still matters. */}
+                {!fleetUnmonitored && (
+                  <>
+                    <span className="health-legend-item">
+                      <span className="health-legend-sw health-tick-up" /> Online
+                    </span>
+                    <span className="health-legend-item">
+                      <span className="health-legend-sw health-tick-down" /> Offline
+                    </span>
+                    <span className="health-legend-item">
+                      <span className="health-legend-sw health-tick-idle" /> Not monitored
+                    </span>
+                  </>
+                )}
                 {ageMs != null && (
                   <span
                     data-testid="health-updated"
