@@ -411,8 +411,8 @@ existing ATTENTION state.
 | Sub-section | Status |
 |---|---|
 | 12.1 ATTENTION inline pills | **Partially blocked** — names and durations are buildable, latency pills are not (no API field) |
-| 12.2 NOT MONITORED | **Built 2026-09-12** — NM1, NM2, NM3a, NM4 implemented and tested; NM3b deferred for want of a docs URL |
-| 12.3 STALE | **Blocked** — needs a new backend refresh endpoint |
+| 12.2 NOT MONITORED | **Built 2026-09-12** — NM1, NM2, NM3a, NM4 implemented and tested; **NM3b built 2026-09-13** once `docs/monitoring.md` existed to point at |
+| 12.3 STALE | **ST1–ST3 built 2026-09-13** (verdict stands down, age headline, dimmed meter). ST4/ST5 ("Retry now") still blocked on the backend refresh endpoint |
 
 ---
 
@@ -499,7 +499,7 @@ configure monitoring must be written, and the CTA needs its URL, before AC-V24-N
 | AC-V24-NM1 | When all services in `ctx.items` have `status === 'NOT_MONITORED'`, the panel renders the NOT MONITORED variant (neutral LED, "Status is not being checked" headline). |
 | AC-V24-NM2 | The NOT MONITORED panel does not show the meter strip (no ticks to show). |
 | AC-V24-NM3a | **Implemented 2026-09-12, amended same day after a browser pass.** A "Not now" secondary action appears in the NOT MONITORED state. Dismissing collapses **the action row only** — the neutral LED, the "Status is not being checked" headline and the hidden meter all persist. The dismiss does not survive a reload, by design (OQ-4b). **It must NOT return the panel to the OPERATIONAL variant**, which was the original draft wording: rendered, that produced a green LED and "All systems operational" over an unmonitored fleet, reinstating the precise false claim this state exists to remove. Dismissing a notice does not start monitoring anything, so the verdict has no new basis to stand on. |
-| AC-V24-NM3b | **Deferred — no target exists.** A "Connect a status source" primary CTA opens the monitoring setup documentation. OQ-4 resolved the target to "link to documentation", but no such documentation page exists yet. The CTA is deliberately not rendered rather than pointing at a dead link. Write the setup page, then add the CTA. |
+| AC-V24-NM3b | **Implemented 2026-09-13.** A "Connect a status source" primary CTA opens the monitoring setup documentation (`docs/monitoring.md`, linked via the public repo so it resolves from any install). Rendered as a real link (new tab, `noopener`) in the same action row as "Not now", so the dismiss collapses both. Label is dark ink on the green fill — white measured 1.9:1 on the dark-mode green. |
 | AC-V24-NM4 | When any service gains `status !== 'NOT_MONITORED'` (e.g., admin sets a `gatus_key` and the next poll returns UP), the panel transitions out of NOT MONITORED to the appropriate variant. |
 
 **Why this one is worth building first:** it needs no backend change, and it fixes a real
@@ -555,9 +555,9 @@ failure message.
 
 | AC | Criterion |
 |---|---|
-| AC-V24-ST1 | When the age of the last successful `GET /api/services` response exceeds 15 minutes, the panel renders the STALE variant (dimmed LED, "Status is N minutes old" headline, "Retry now" button). |
-| AC-V24-ST2 | The STALE headline shows the age in whole minutes, updated every tick of the existing age counter. |
-| AC-V24-ST3 | The meter strip is still rendered but visually dimmed (reduced opacity or desaturated). It shows the last-known band distribution. It does not imply the distribution is current. |
+| AC-V24-ST1 | **Implemented 2026-09-13 (without the button — see ST4).** When the age of the last successful `GET /api/services` response exceeds 15 minutes, the panel renders the STALE variant (neutral LED, "Status is N minutes old" headline, sub-line "Last successful check HH:MM · showing the last state that was confirmed"). Stale outranks OPERATIONAL and ATTENTION — the verdict stands down — but not NOT MONITORED, where there is no verdict to stand down. |
+| AC-V24-ST2 | **Implemented 2026-09-13.** The STALE headline shows the age in whole minutes, updated every tick of the existing age counter; the panel crosses into STALE on the tick with no new fetch. |
+| AC-V24-ST3 | **Implemented 2026-09-13.** The meter strip is still rendered, carries `data-stale="true"`, and is faded + desaturated (opacity .45, saturate .35). It shows the last-known band distribution. |
 | AC-V24-ST4 | **Blocked on the refresh endpoint.** "Retry now" calls the backend refresh endpoint, which prods the Gatus poller. If the re-poll succeeds and returns data younger than 15 minutes, the panel transitions out of STALE. If it fails, the panel remains STALE and reports why. |
 | AC-V24-ST5 | **Blocked on the refresh endpoint.** After a successful re-poll, the age counter resets to zero and the panel shows the appropriate variant (OPERATIONAL or ATTENTION) based on the fresh data. The counter must NOT reset if the re-poll returned the same stale snapshot. |
 

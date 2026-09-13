@@ -471,6 +471,13 @@
     box-shadow: none;
     animation: none;
   }
+  /* SPEC-v24 §12.3 — STALE. The verdict has stood down, so the light makes no
+     claim: neutral, no glow, no pulse — same honesty rule as not-monitored. */
+  .health-led[data-variant='stale'] {
+    background: var(--v-unknown);
+    box-shadow: none;
+    animation: none;
+  }
   @keyframes health-led-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.35; }
@@ -495,6 +502,27 @@
     background: transparent;
     border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
     cursor: pointer;
+  }
+  /* AC-V24-NM3b — the primary action. Same 44px hit target as the dismiss; the
+     accent fill is what makes it read as "the thing to do", the dismiss beside
+     it stays quiet. */
+  .health-notice-cta {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    /* Dark ink, not white: measured white-on-green is 3.6:1 in light mode and
+       1.9:1 on the brighter dark-mode green — both under AA. Near-black clears
+       4.5:1 on both greens (≈5.3:1 light, ≈9:1 dark). */
+    color: #0b1220;
+    background: var(--v-up);
+    text-decoration: none;
+  }
+  .health-notice-cta:hover {
+    filter: brightness(1.08);
   }
   .health-notice-dismiss:hover {
     color: inherit;
@@ -603,6 +631,12 @@
     flex: 1 1 2px;
     min-width: 2px;
     border-radius: 999px;
+  }
+  /* AC-V24-ST3 — last-known, not current: the strip stays so the distribution
+     is still readable, but faded and desaturated so it cannot pass for live. */
+  .health-meter[data-stale='true'] {
+    opacity: 0.45;
+    filter: saturate(0.35);
   }
   .health-tick-up { background: var(--v-up); }
   .health-tick-down { background: var(--v-down); }
