@@ -452,7 +452,7 @@ describe('AppGrid favorite toggle (#240)', () => {
       setItems,
       lastUpdatedAt: null,
       recentChanges: [],
-      clearRecentChanges: () => {},
+      clearRecentChanges: () => {}, refresh: async () => 'refreshed' as const,
     };
     const spy = vi.spyOn(services, 'useServicesContext').mockReturnValue(ctx);
     try {

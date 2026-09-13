@@ -97,6 +97,12 @@ export default function StatusBar() {
   // would need both a storage decision and a way to undo it, and would let a
   // stray click permanently hide the fact that nothing is being checked.
   const [monitoringNoticeDismissed, setMonitoringNoticeDismissed] = useState(false);
+  // SPEC-v24 §12.3 — "Retry now" state. `retrying` disables the button while the
+  // backend re-polls; `retryNote` is the honest outcome when the retry did NOT
+  // produce fresh evidence (unreachable / nothing newer). A successful retry
+  // needs no note: the context reloads and the panel leaves STALE on its own.
+  const [retrying, setRetrying] = useState(false);
+  const [retryNote, setRetryNote] = useState<string | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRefs = useRef<Partial<Record<PeekStatus, HTMLButtonElement | null>>>({});
 
@@ -167,6 +173,16 @@ export default function StatusBar() {
   // magic number). The not-monitored state is exempt — there is no verdict there
   // to stand down, and "not being checked" is the more specific truth.
   const stale = !loading && !empty && !fleetUnmonitored && ageMs != null && staleness(ageMs) === 'red';
+
+  async function retryNow() {
+    if (!ctx || retrying) return;
+    setRetrying(true);
+    setRetryNote(null);
+    const outcome = await ctx.refresh();
+    setRetrying(false);
+    if (outcome === 'unreachable') setRetryNote('Could not reach the status source — still showing the last confirmed state.');
+    else if (outcome === 'still-stale') setRetryNote('Re-checked, but the status source has nothing newer yet.');
+  }
   // "Not now" collapses the action row ONLY. The verdict itself keeps standing
   // down, because dismissing a notice does not start monitoring anything — and
   // a panel that answered the dismiss with a green "All systems operational"
@@ -256,6 +272,26 @@ export default function StatusBar() {
             <p data-testid="health-subline" className="health-subline">
               {subline}
             </p>
+            {stale && (
+              <div className="health-notice-actions">
+                {/* AC-V24-ST4 — prods the backend poller via the context; the
+                    words for a non-fresh outcome live in retryNote (ST5). */}
+                <button
+                  type="button"
+                  data-testid="health-retry"
+                  className="health-notice-cta health-notice-cta--button"
+                  disabled={retrying}
+                  onClick={() => void retryNow()}
+                >
+                  {retrying ? 'Retrying…' : 'Retry now'}
+                </button>
+                {retryNote && (
+                  <span data-testid="health-retry-note" className="health-retry-note" role="status">
+                    {retryNote}
+                  </span>
+                )}
+              </div>
+            )}
             {showMonitoringActions && (
               <div className="health-notice-actions">
                 {/* SPEC-v24 §12.2. AC-V24-NM3b — the primary CTA opens the

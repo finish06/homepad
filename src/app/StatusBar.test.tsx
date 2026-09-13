@@ -34,8 +34,8 @@ function svc(status: ServiceStatus, id: string): Service {
 function setItems(items: Service[] | null) {
   mockedCtx.mockReturnValue(
     items === null
-      ? { items: null, setItems: vi.fn(), lastUpdatedAt: null, recentChanges: [], clearRecentChanges: vi.fn() }
-      : { items, setItems: vi.fn(), lastUpdatedAt: null, recentChanges: [], clearRecentChanges: vi.fn() },
+      ? { items: null, setItems: vi.fn(), lastUpdatedAt: null, recentChanges: [], clearRecentChanges: vi.fn(), refresh: vi.fn(async () => 'refreshed' as const) }
+      : { items, setItems: vi.fn(), lastUpdatedAt: null, recentChanges: [], clearRecentChanges: vi.fn(), refresh: vi.fn(async () => 'refreshed' as const) },
   );
 }
 
