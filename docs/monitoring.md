@@ -51,7 +51,10 @@ docker run -d --name gatus -p 8081:8080 \
 
 Each entry under `endpoints` is one check. `conditions` decide pass or fail;
 `[STATUS] == 200` is enough for most services. Any failed condition — including
-a `[RESPONSE_TIME]` one — makes the check fail, so the tile reads *Offline*.
+a `[RESPONSE_TIME]` one — makes the check fail, so the tile reads *Offline*. A
+check that **passes but is slow** reads *Slow* instead: Homepad marks a
+successful check slower than `GATUS_DEGRADED_MS` (default 1000 ms) as degraded.
+Set it to `0` on the API to turn that off.
 The full condition reference is in the
 [Gatus documentation](https://gatus.io/docs).
 
@@ -101,6 +104,7 @@ working and simply reads *Not monitored*.
 | Tile reads | Meaning |
 |---|---|
 | **Online** | The most recent Gatus check passed. |
+| **Slow** | The most recent check passed but took longer than `GATUS_DEGRADED_MS` (default 1 s). |
 | **Offline** | The most recent check failed. |
 | **Unknown** | A key is set but Gatus has no result for it: the key is misspelt, the endpoint is not in Gatus's config, or Gatus itself is unreachable. |
 | **Not monitored** | No key is set. |

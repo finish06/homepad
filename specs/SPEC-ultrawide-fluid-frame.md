@@ -6,7 +6,7 @@ The mobile→1536px range is solid; the failing band is **>1536px**, which Phase
 (`SPEC-pane-fill-reflow`) explicitly left out of scope (§6: "Ultra-wide (5K / 8K)
 viewports beyond 2560px"; and its frame was the fixed 1536px island).
 **Version:** 1.0
-**Status:** BUILT on `feat/ultrawide-fluid-frame` — rides CI + browser-gate + QA; not self-merged.
+**Status:** SHIPPED — merged to `main` as #284 (`cb15eec`, 2026-07); `src/lib/layout.ts` carries `max-w-[max(1536px,92vw)]`, `frameContentPx` lives in `src/grid/appGridLayout.ts`, the R3 centring rule is in `index.css` (`@media (min-width: 1671px)`). The `feat/ultrawide-fluid-frame` branch is stale (65 commits behind) and superseded; safe to delete. *(Status line corrected 2026-09-13 — it still read "BUILT on branch".)*
 **Author:** Claude (on Caleb's direct dispatch)
 **Repo:** `Code/homepad` — **frontend only. No backend changes. No migration.**
 **Scope:** The shared CONTENT_WIDTH frame at viewports **>1536px**. Everything at

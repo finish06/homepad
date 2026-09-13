@@ -27,6 +27,17 @@ runtime and are not part of the design.
 | `Groups.dc.html` | Group layout. Argues today's hug-and-wrap boxes leave dead space, proposes snapping to a 12 column grid. |
 | `HealthPanel.dc.html` | Health panel states. Keeps Operational, and adds two new ones: Not monitored and Stale. |
 
+## Audit against the build (2026-09-13)
+
+Dark artboard vs the shipped dark theme at 1440px (mock data, Compact density):
+tile anatomy, right-rail dot, status line, header search, health panel headline
+and action row all match. The remaining differences are all items that are
+deliberately held or built elsewhere, not drift: the group-box header chrome
+(chevron, count badge, mini status strip — SPEC-app-grid §10, HOLD), the
+attention chips row under the headline (the existing UP/DOWN/NOT MONITORED chips
+serve that role), and the 12-column group snap (§10.4, in build). No dark-mode
+colour deviations were found.
+
 ## Why this is a product question, not only a visual one
 
 Two of these carry data-model consequences rather than styling:

@@ -4,7 +4,7 @@
 **Version:** 0.1.0 (draft — pending Kare design section)
 **Date:** 2026-07-01
 **Authors:** Walt (product lead) · Kare (design lead — co-owned, UI-bearing spec)
-**Status:** Draft — dispatched to Kare for design section; spec locked for Stitch after co-sign
+**Status:** Built and shipped (v15.x) — the App Grid is the live dashboard; §10.4 (12-column grid) is the open extension, in build 2026-09-13. *(Was: Draft — dispatched to Kare for design section; Kare's §8 design section landed via #406 on 2026-09-12. Status line corrected 2026-09-13.)*
 **Repo:** `Code/homepad`
 **Intake:** `docs/app-grid/SPEC-INTAKE.md` (Caleb, 2026-07-01)
 **Mockups:** `docs/app-grid/mockup-1.png`, `docs/app-grid/mockup-2.png`
