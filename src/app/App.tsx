@@ -119,7 +119,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   // cap6 — the global uptime-display toggle. Seeded ON so the first paint (before
   // the config resolves) matches today's behavior; systemConfig() then corrects it.
-  const [sysConfig, setSysConfig] = useState<SystemConfig>({ showUptimeDisplay: true });
+  const [sysConfig, setSysConfig] = useState<SystemConfig>({ showUptimeDisplay: true, statusDegradedMs: 1000 });
   // v15 — version badge in the footer opens the changelog overlay.
   const [changelogOpen, setChangelogOpen] = useState(false);
   // v17 — alert-history panel open-state + the bell ref (focus returns here on
@@ -294,6 +294,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             <SettingsPanel
               isAdmin={isAdmin}
               showUptimeDisplay={sysConfig.showUptimeDisplay}
+              statusDegradedMs={sysConfig.statusDegradedMs}
               onSaveSettings={onSaveSettings}
               onClose={() => setSettingsOpen(false)}
             />

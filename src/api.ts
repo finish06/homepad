@@ -135,7 +135,11 @@ export type AuthConfig = { oidcEnabled: boolean };
 // cap6 — the global System settings the client reads (GET /api/system/config) and
 // an admin writes (PATCH /api/admin/settings). Today it carries the single
 // app-grid uptime-display toggle; new settings add fields here.
-export type SystemConfig = { showUptimeDisplay: boolean };
+// statusDegradedMs — the "Slow" threshold: a check that succeeded but took longer
+// than this reads DEGRADED. Admin-set in the System panel; the server reports the
+// EFFECTIVE value (stored, else its env/default), so the field is always present.
+export type SystemConfig = { showUptimeDisplay: boolean; statusDegradedMs: number };
+export const DEFAULT_STATUS_DEGRADED_MS = 1000;
 
 // SPEC-v26 — one allowlisted runtime env var surfaced by the admin env-config
 // viewer. The server returns an ordered array of these (Server vars then OIDC
@@ -261,12 +265,12 @@ export async function authConfig(): Promise<AuthConfig> {
 // endpoint is public, so this is safe to call before login.
 export async function systemConfig(): Promise<SystemConfig> {
   const { status, res } = await request('/api/system/config');
-  if (!res || status !== 200) return { showUptimeDisplay: true };
+  if (!res || status !== 200) return { showUptimeDisplay: true, statusDegradedMs: DEFAULT_STATUS_DEGRADED_MS };
   try {
-    const data = (await res.json()) as { showUptimeDisplay?: boolean };
-    return { showUptimeDisplay: data.showUptimeDisplay !== false };
+    const data = (await res.json()) as { showUptimeDisplay?: boolean; statusDegradedMs?: number };
+    return parseSystemConfig(data);
   } catch {
-    return { showUptimeDisplay: true };
+    return { showUptimeDisplay: true, statusDegradedMs: DEFAULT_STATUS_DEGRADED_MS };
   }
 }
 
@@ -278,8 +282,17 @@ export async function saveSystemSettings(patch: Partial<SystemConfig>): Promise<
   const { status, res } = await request('/api/admin/settings', { method: 'PATCH', json: patch });
   if (!res) throw new Error('network error');
   if (status !== 200) throw new Error(await errorText(res));
-  const data = (await res.json()) as { showUptimeDisplay?: boolean };
-  return { showUptimeDisplay: data.showUptimeDisplay !== false };
+  const data = (await res.json()) as { showUptimeDisplay?: boolean; statusDegradedMs?: number };
+  return parseSystemConfig(data);
+}
+
+// parseSystemConfig — tolerant of an older backend that omits statusDegradedMs.
+function parseSystemConfig(data: { showUptimeDisplay?: boolean; statusDegradedMs?: number }): SystemConfig {
+  const ms = data.statusDegradedMs;
+  return {
+    showUptimeDisplay: data.showUptimeDisplay !== false,
+    statusDegradedMs: typeof ms === 'number' && Number.isFinite(ms) && ms >= 0 ? ms : DEFAULT_STATUS_DEGRADED_MS,
+  };
 }
 
 // SPEC-v26 §6.2 AC-015 — reads the allowlisted runtime env config for the admin

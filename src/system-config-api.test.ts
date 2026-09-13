@@ -23,23 +23,23 @@ afterEach(() => {
 describe('systemConfig', () => {
   it('reads showUptimeDisplay:false from /api/system/config', async () => {
     const fn = mockFetch(JSON.stringify({ showUptimeDisplay: false }), 200);
-    await expect(systemConfig()).resolves.toEqual({ showUptimeDisplay: false });
+    await expect(systemConfig()).resolves.toEqual({ showUptimeDisplay: false, statusDegradedMs: 1000 });
     expect(fn).toHaveBeenCalledWith('/api/system/config', { credentials: 'include' });
   });
 
   it('reads showUptimeDisplay:true', async () => {
     mockFetch(JSON.stringify({ showUptimeDisplay: true }), 200);
-    await expect(systemConfig()).resolves.toEqual({ showUptimeDisplay: true });
+    await expect(systemConfig()).resolves.toEqual({ showUptimeDisplay: true, statusDegradedMs: 1000 });
   });
 
   it('defaults to ON on a non-200 response (AC-008 safe default)', async () => {
     mockFetch('nope', 500);
-    await expect(systemConfig()).resolves.toEqual({ showUptimeDisplay: true });
+    await expect(systemConfig()).resolves.toEqual({ showUptimeDisplay: true, statusDegradedMs: 1000 });
   });
 
   it('defaults to ON when fetch throws', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('network'); }));
-    await expect(systemConfig()).resolves.toEqual({ showUptimeDisplay: true });
+    await expect(systemConfig()).resolves.toEqual({ showUptimeDisplay: true, statusDegradedMs: 1000 });
   });
 });
 
@@ -48,6 +48,7 @@ describe('saveSystemSettings', () => {
     const fn = mockFetch(JSON.stringify({ showUptimeDisplay: false }), 200);
     await expect(saveSystemSettings({ showUptimeDisplay: false })).resolves.toEqual({
       showUptimeDisplay: false,
+      statusDegradedMs: 1000, // v16 — an older backend omits it; the client fills the default
     });
     expect(fn).toHaveBeenCalledWith('/api/admin/settings', {
       method: 'PATCH',

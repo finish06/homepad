@@ -56,6 +56,7 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
     <SettingsPanel
       isAdmin={props.isAdmin ?? true}
       showUptimeDisplay={props.showUptimeDisplay ?? true}
+      statusDegradedMs={props.statusDegradedMs ?? 1000}
       onSaveSettings={props.onSaveSettings ?? vi.fn().mockResolvedValue(undefined)}
       onClose={props.onClose ?? vi.fn()}
     />,
@@ -336,5 +337,58 @@ describe('A17/A19 — a11y + dismissal', () => {
     await screen.findByTestId('settings-library');
     await screen.findByTestId('env-row-GATUS_BASE_URL');
     expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+// v16 — the "Slow" threshold is a System setting, editable here (Caleb,
+// 2026-09-13: v16 UI settings must be manageable in the UI). Number + explicit
+// Save: never PATCH on a keystroke; 0 turns the derivation off.
+describe('v16 — Slow threshold (statusDegradedMs)', () => {
+  it('shows the current threshold with Save disabled until it changes', async () => {
+    await renderPanel({ statusDegradedMs: 1500 });
+    const input = screen.getByTestId('degraded-threshold-input') as HTMLInputElement;
+    expect(input.value).toBe('1500');
+    expect(screen.getByTestId('degraded-threshold-save')).toBeDisabled();
+  });
+
+  it('saves a new threshold via onSaveSettings and shows Saved ✓', async () => {
+    const onSaveSettings = vi.fn().mockResolvedValue(undefined);
+    await renderPanel({ statusDegradedMs: 1000, onSaveSettings });
+    const user = userEvent.setup();
+    const input = screen.getByTestId('degraded-threshold-input');
+    await user.clear(input);
+    await user.type(input, '250');
+    expect(onSaveSettings).not.toHaveBeenCalled(); // no PATCH per keystroke
+    await user.click(screen.getByTestId('degraded-threshold-save'));
+    expect(onSaveSettings).toHaveBeenCalledWith({ statusDegradedMs: 250 });
+    expect(await screen.findByText('Saved ✓')).toBeInTheDocument();
+  });
+
+  it('accepts 0 (off) and rejects a negative or non-integer value without saving', async () => {
+    const onSaveSettings = vi.fn().mockResolvedValue(undefined);
+    await renderPanel({ statusDegradedMs: 1000, onSaveSettings });
+    const user = userEvent.setup();
+    const input = screen.getByTestId('degraded-threshold-input');
+    await user.clear(input);
+    await user.type(input, '-5');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByTestId('degraded-threshold-save')).toBeDisabled();
+    await user.clear(input);
+    await user.type(input, '0');
+    expect(screen.getByTestId('degraded-threshold-save')).not.toBeDisabled();
+    await user.click(screen.getByTestId('degraded-threshold-save'));
+    expect(onSaveSettings).toHaveBeenCalledWith({ statusDegradedMs: 0 });
+  });
+
+  it('reverts to the persisted value and says so when the save fails', async () => {
+    const onSaveSettings = vi.fn().mockRejectedValue(new Error('500'));
+    await renderPanel({ statusDegradedMs: 1000, onSaveSettings });
+    const user = userEvent.setup();
+    const input = screen.getByTestId('degraded-threshold-input') as HTMLInputElement;
+    await user.clear(input);
+    await user.type(input, '300');
+    await user.click(screen.getByTestId('degraded-threshold-save'));
+    expect(await screen.findByText("Couldn't save — try again.")).toBeInTheDocument();
+    expect(input.value).toBe('1000');
   });
 });
