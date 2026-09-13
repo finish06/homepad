@@ -8,21 +8,40 @@ import type { Category, Service } from '../api';
 export const TILE_PX = 190;
 export const GAP_PX = 16;
 export const PADDING_PX = 16;
-export const MAX_WIDTH = 8; // A1: range widens 1–6 → 1–8 (Caleb confirmed).
-export const DEFAULT_WIDTH = 3;
+// SPEC-app-grid §10.4 (Caleb, 2026-09-12, OQ-3) — boxes snap to a 12-COLUMN
+// GRID. A box's `gridWidth` is a SPAN: 3 (quarter), 4 (third), 6 (half) or 12
+// (full). This replaces the 1–8 tile-count model: a box's floor is now a
+// FRACTION of the frame, not N×190px, so it no longer depends on the tile size
+// (which is why the 190→236px compact tile did not have to land here too).
+export const COLUMNS = 12;
+export const SPANS = [3, 4, 6, 12] as const;
+export type Span = (typeof SPANS)[number];
+export const MAX_WIDTH = 12;
+// Half width — the same share of the row the old default (3 of 6) had.
+export const DEFAULT_WIDTH: Span = 6;
 
-// clampWidth constrains a configured box width to the valid 1–8 range (rounding
-// a stray float), so a bad stored value never breaks the layout.
-export function clampWidth(w: number): number {
-  return Math.max(1, Math.min(MAX_WIDTH, Math.round(w)));
+// clampWidth snaps a stored width to a legal span. A legal span passes through.
+// Anything else — a legacy 1–8 tile count from a backend that has not run
+// migration 0013 yet, or junk — snaps to the NEAREST span (ties go narrower), so
+// a bad stored value never breaks the layout. The backend migration is the
+// authoritative remap (SPEC-app-grid §10.4 table); this is only the safety net.
+export function clampWidth(w: number): Span {
+  if (!Number.isFinite(w)) return DEFAULT_WIDTH;
+  const r = Math.round(w);
+  if ((SPANS as readonly number[]).includes(r)) return r as Span;
+  let best: Span = SPANS[0];
+  for (const s of SPANS) if (Math.abs(s - r) < Math.abs(best - r)) best = s;
+  return best;
 }
 
-// boxWidthPx is the exact content-sized width of a box at width `w` (AC-002-A1):
-// w fixed 190px tiles + the (w-1) inner gaps + 2×16px padding. Identical to the
-// `.category-panel` calc() so App Grid and the v14 field share one box model.
-export function boxWidthPx(w: number): number {
-  const c = clampWidth(w);
-  return c * TILE_PX + (c - 1) * GAP_PX + 2 * PADDING_PX;
+// boxWidthPx is a box's FLOOR width in px for span `w` inside a frame whose
+// inner content width is `contentWidth`: the span's share of the frame, with
+// the flex gaps between boxes in a full row taken out so that 3+3+6 (or
+// 4+4+4, 6+6, 12) fills the row EXACTLY. That is the "snap" the artboard
+// asked for — no dead space to the right of a row of boxes.
+export function boxWidthPx(w: number, contentWidth: number): number {
+  const span = clampWidth(w);
+  return Math.floor(((contentWidth + GAP_PX) * span) / COLUMNS - GAP_PX);
 }
 
 // SPEC-pane-fill-reflow (Phase 1, R3) — contentMaxPx is a box's content-max GROW
@@ -78,15 +97,6 @@ export const FRAME_FLUID_VW = 0.92;
 export const FRAME_PAD_PX = 32;
 export function frameContentPx(vw: number): number {
   return Math.min(vw, Math.max(FRAME_MAX_PX, vw * FRAME_FLUID_VW)) - FRAME_PAD_PX;
-}
-
-// fitsViewport answers "does a box at width `w` fit `vw` px without overflowing?"
-// It drives the D-3 width-selector disable: a --w whose box would exceed the
-// admin's current viewport is offered disabled so they never set an off-screen
-// box on their own display. The structural max-width:100% + auto-fill wrap in CSS
-// is the real cross-viewport backstop; this is the set-time affordance.
-export function fitsViewport(w: number, vw: number): boolean {
-  return boxWidthPx(w) <= vw;
 }
 
 // A box is one App Grid container: a category plus the caller's own tools in it.

@@ -35,7 +35,7 @@ import {
   type Service,
   type ServiceStatus,
 } from '../api';
-import { boxesFromData, boxWidthPx, contentMaxPx, fitsViewport, frameContentPx, MAX_WIDTH, moveCategory, rowFillCounts, type Box } from './appGridLayout';
+import { boxesFromData, boxWidthPx, contentMaxPx, frameContentPx, DEFAULT_WIDTH, moveCategory, rowFillCounts, SPANS, type Box } from './appGridLayout';
 import { iconSrc, initialBadge } from '../lib/icons';
 import { useServicesContext } from '../services';
 import { useResolvedTheme } from '../theme/theme';
@@ -59,7 +59,15 @@ const IframeOverlay = lazy(() => import('./IframeOverlay'));
 // fetch, the admin width selector, and the "+ Add box" flow. It replaces the v14
 // floating-panel Catalog layout (§2).
 
-const WIDTHS = Array.from({ length: MAX_WIDTH }, (_, i) => i + 1); // [1..8]
+// SPEC-app-grid §10.4 — the four legal 12-column spans, with the label the
+// artboard uses for each (a fraction of the row, not a tile count).
+const WIDTHS = SPANS;
+const SPAN_LABEL: Record<(typeof SPANS)[number], { glyph: string; name: string }> = {
+  3: { glyph: '¼', name: 'Quarter width' },
+  4: { glyph: '⅓', name: 'Third width' },
+  6: { glyph: '½', name: 'Half width' },
+  12: { glyph: '1', name: 'Full width' },
+};
 
 // SPEC-pane-fill-reflow (Phase 1, R4) / SPEC-ultrawide-fluid-frame (Phase 1b) —
 // the shared CONTENT_WIDTH frame is `max-w-[max(1536px,92vw)] px-4` (layout.ts):
@@ -70,12 +78,40 @@ const WIDTHS = Array.from({ length: MAX_WIDTH }, (_, i) => i + 1); // [1..8]
 // useViewportWidth tracks window.innerWidth so the width selector can offer a
 // --w that would render off-screen as DISABLED (A1 D-3). The ≤640px mobile
 // behavior itself is pure CSS now (D-4) — no JS width cap is needed.
+function readViewportWidth(): number {
+  return document.documentElement.clientWidth || window.innerWidth || 1024;
+}
+
 function useViewportWidth(): number {
-  const [vw, setVw] = useState(() => window.innerWidth || 1024);
+  // Gitea #446 (Gracie, QA on the 12-col PR): the CSS frame is sized from the
+  // document's clientWidth — the viewport MINUS the vertical scrollbar — while
+  // window.innerWidth includes it. Sizing span floors from innerWidth made two
+  // half-span boxes 15px too wide for the row at 1440px whenever a scrollbar
+  // was present, so they wrapped one per row and keyboard DnD lost its
+  // neighbours. Read the same width the CSS gets. jsdom reports clientWidth 0,
+  // hence the innerWidth fallback (tests drive innerWidth).
+  const [vw, setVw] = useState(readViewportWidth);
   useEffect(() => {
-    const onResize = () => setVw(window.innerWidth);
+    const onResize = () => setVw(readViewportWidth());
     window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    // #446 part 2 — clientWidth alone is not enough: the vertical scrollbar (which
+    // is what makes clientWidth < innerWidth) appears AFTER mount — the boxes
+    // render, the page grows past one screen, the scrollbar claims its ~15px — and
+    // that fires NO window resize. So the mount-time sample is the PRE-scrollbar
+    // width, the boxes keep the too-wide floor, and each wraps to its own row (the
+    // exact symptom, verified in the real Chromium sidecar: floor stuck at 696 until
+    // a synthetic resize dropped it to 688). Observe the document element so the
+    // layout-driven clientWidth change re-floors the boxes; it also fires once on
+    // observe (reconciling the mount value) and covers plain window resizes.
+    let ro: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(onResize);
+      ro.observe(document.documentElement);
+    }
+    return () => {
+      window.removeEventListener('resize', onResize);
+      ro?.disconnect();
+    };
   }, []);
   return vw;
 }
@@ -217,7 +253,7 @@ export default function AppGrid({
       let prev = 3;
       setCats((cs) =>
         cs.map((c) => {
-          if (c.id === id) prev = c.gridWidth ?? 3;
+          if (c.id === id) prev = c.gridWidth ?? DEFAULT_WIDTH;
           return c.id === id ? { ...c, gridWidth: width } : c;
         }),
       );
@@ -330,7 +366,7 @@ export default function AppGrid({
   const onCreate = useCallback(async (title: string) => {
     const r = await createCategory(title);
     if (r.ok && r.category) {
-      setCats((cs) => [...cs, { ...r.category!, gridWidth: r.category!.gridWidth ?? 3 }]);
+      setCats((cs) => [...cs, { ...r.category!, gridWidth: r.category!.gridWidth ?? DEFAULT_WIDTH }]);
       setAddOpen(false);
       return true;
     }
@@ -351,7 +387,7 @@ export default function AppGrid({
   // of one is a lone box. Recomputes on viewportWidth + boxes changes (both already
   // drive re-render), so it tracks resizes and width-selector edits live.
   const contentWidth = frameContentPx(viewportWidth);
-  const rowCounts = rowFillCounts(boxes.map((b) => boxWidthPx(b.width)), contentWidth);
+  const rowCounts = rowFillCounts(boxes.map((b) => boxWidthPx(b.width, contentWidth)), contentWidth);
   const loneById = new Map(boxes.map((b, i) => [b.id, rowCounts[i] === 1]));
   // Edit Dashboard is admin-only + client-ephemeral (a reload returns to view
   // mode). Only REAL category boxes rearrange; the synthetic Uncategorized box
@@ -522,7 +558,9 @@ function BoxCard({
   //             A LONE box (alone in its row, R4) lifts this to 100% to fill the
   //             frame; an EMPTY box keeps grow 0 + floor cap so it never balloons.
   // The ≤640px mobile behavior (full-width box, 2-col shrink) is pure CSS (D-4).
-  const floorPx = boxWidthPx(box.width);
+  // §10.4 — the floor is the span's share of the CURRENT frame, so it tracks
+  // resizes; the grow/cap model on top of it is unchanged.
+  const floorPx = boxWidthPx(box.width, frameContentPx(viewportWidth));
   const hasApps = box.tools.length > 0;
   const capPx = Math.max(floorPx, contentMaxPx(box.tools.length));
   const style: React.CSSProperties = {
@@ -607,7 +645,6 @@ function BoxCard({
         {showSelector && (
           <WidthSelector
             width={box.width}
-            viewportWidth={viewportWidth}
             onPick={(w) => onWidth(box.id, w)}
           />
         )}
@@ -1180,14 +1217,13 @@ function onIconError(e: React.SyntheticEvent<HTMLImageElement>) {
 // full-width (D-4), so the fit check is skipped there — every width is selectable.
 function WidthSelector({
   width,
-  viewportWidth,
   onPick,
 }: {
   width: number;
-  viewportWidth: number;
   onPick: (w: number) => void;
 }) {
-  const mobile = viewportWidth <= 640;
+  // §10.4 — a span is a fraction of the row, so every option fits every screen;
+  // the old D-3 "wider than this screen" disable has nothing left to disable.
   return (
     <div className="app-grid-width" data-testid="width-selector" role="group" aria-label="Box width">
       <span className="app-grid-width-label" aria-hidden="true">
@@ -1195,9 +1231,6 @@ function WidthSelector({
       </span>
       {WIDTHS.map((n) => {
         const selected = n === width;
-        // Never disable the currently-selected width (it's already set) — only
-        // widths that would newly overflow this screen.
-        const disabled = !mobile && !selected && !fitsViewport(n, viewportWidth);
         return (
           <button
             key={n}
@@ -1205,12 +1238,11 @@ function WidthSelector({
             data-testid={`width-btn-${n}`}
             className={`app-grid-width-btn${selected ? ' is-selected' : ''}`}
             aria-pressed={selected}
-            aria-disabled={disabled || undefined}
-            aria-label={`Width ${n}`}
-            title={disabled ? 'Wider than this screen' : undefined}
-            onClick={() => !disabled && onPick(n)}
+            aria-label={SPAN_LABEL[n].name}
+            title={SPAN_LABEL[n].name}
+            onClick={() => onPick(n)}
           >
-            {n}
+            {SPAN_LABEL[n].glyph}
           </button>
         );
       })}

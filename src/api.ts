@@ -436,7 +436,7 @@ export async function categories(): Promise<Category[]> {
     id: c.id!,
     name: c.name!,
     sortIndex: c.sortIndex!,
-    gridWidth: c.gridWidth ?? 3,
+    gridWidth: c.gridWidth ?? 6, // §10.4 — half span is the default (was tile count 3)
     layoutRow: c.layoutRow ?? c.sortIndex!,
     layoutColOrder: c.layoutColOrder ?? 0,
     layoutWidthPct: c.layoutWidthPct ?? 100,

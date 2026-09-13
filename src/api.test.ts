@@ -368,11 +368,11 @@ describe('categories (v4)', () => {
     ];
     const fn = mockFetch(JSON.stringify({ categories: list }), 200);
     // categories() backfills the SPEC layout fields (row=sortIndex, col=0,
-    // width=100) and the App Grid box width (gridWidth=3, SPEC-app-grid §3B) so a
+    // width=100) and the App Grid box span (gridWidth=6, half — SPEC-app-grid §10.4) so a
     // pre-migration server still renders sensibly.
     await expect(categories()).resolves.toEqual([
-      { id: 'c1', name: 'Media', sortIndex: 0, gridWidth: 3, layoutRow: 0, layoutColOrder: 0, layoutWidthPct: 100 },
-      { id: 'c2', name: 'Infra', sortIndex: 1, gridWidth: 3, layoutRow: 1, layoutColOrder: 0, layoutWidthPct: 100 },
+      { id: 'c1', name: 'Media', sortIndex: 0, gridWidth: 6, layoutRow: 0, layoutColOrder: 0, layoutWidthPct: 100 },
+      { id: 'c2', name: 'Infra', sortIndex: 1, gridWidth: 6, layoutRow: 1, layoutColOrder: 0, layoutWidthPct: 100 },
     ]);
     expect(fn).toHaveBeenCalledWith('/api/categories', { credentials: 'include' });
   });
@@ -639,11 +639,11 @@ describe('categories (v4)', () => {
     ];
     const fn = mockFetch(JSON.stringify({ categories: list }), 200);
     // categories() backfills the SPEC layout fields (row=sortIndex, col=0,
-    // width=100) and the App Grid box width (gridWidth=3, SPEC-app-grid §3B) so a
+    // width=100) and the App Grid box span (gridWidth=6, half — SPEC-app-grid §10.4) so a
     // pre-migration server still renders sensibly.
     await expect(categories()).resolves.toEqual([
-      { id: 'c1', name: 'Media', sortIndex: 0, gridWidth: 3, layoutRow: 0, layoutColOrder: 0, layoutWidthPct: 100 },
-      { id: 'c2', name: 'Infra', sortIndex: 1, gridWidth: 3, layoutRow: 1, layoutColOrder: 0, layoutWidthPct: 100 },
+      { id: 'c1', name: 'Media', sortIndex: 0, gridWidth: 6, layoutRow: 0, layoutColOrder: 0, layoutWidthPct: 100 },
+      { id: 'c2', name: 'Infra', sortIndex: 1, gridWidth: 6, layoutRow: 1, layoutColOrder: 0, layoutWidthPct: 100 },
     ]);
     expect(fn).toHaveBeenCalledWith('/api/categories', { credentials: 'include' });
   });

@@ -465,7 +465,20 @@ same tick-strip concept.
 Design treatment needed from Kare before this can be built. The mini-strip is a UI-bearing
 addition to a UI-bearing spec.
 
-### 10.4 12-column grid — APPROVED, replaces the 1–6 `grid_width` model (2026-09-12)
+### 10.4 12-column grid — BUILT 2026-09-13, replaces the 1–6 `grid_width` model (approved 2026-09-12)
+
+> **Built 2026-09-13** — homepad-api PR #62 (migration `0013`, span validation) and the
+> matching homepad PR (layout engine, WidthSelector, gates). Decisions taken during the build,
+> all recorded below in place: width 4 → **6** (Caleb); old values preserved in
+> `grid_width_legacy`; admins are **not** notified of the remap (the change is visible on the
+> dashboard itself and reversible via the down migration — no notification surface exists);
+> `boxWidthPx` became `(frame + gap) × span / 12 − gap` so a row of spans fills the frame
+> exactly; **R3/R4 are unchanged on top of the new floor** (cap = max(floor, content-max),
+> lone box → 100%) — the floor just stopped depending on the tile size, which is why the
+> 190 → 236px tile change never had to land on the same function. The old D-3 "wider than
+> this screen" disable is retired: a span is a fraction of the row, so every option fits
+> every screen. The frontend's `clampWidth` snaps a legacy 1–8 value to the nearest span so
+> either PR can land first.
 
 **Raised 2026-09-11 by Walt. Resolved 2026-09-12 by Caleb: the 12-column grid REPLACES the
 current model and SUPERSEDES SPEC-category-pane-width-layout.**
@@ -512,12 +525,16 @@ change to a user's dashboard, and it is irreversible without a backup of the old
 #### Downstream
 
 - **WidthSelector** — four options (3/4/6/12) instead of six buttons labeled 1–6. §6.3 and
-  AC-013 need rewriting.
+  AC-013 need rewriting. *Built: buttons read ¼ · ⅓ · ½ · 1 with aria-labels "Quarter width" …
+  "Full width"; test ids `width-btn-{3,4,6,12}`.*
 - **`boxWidthPx()`** in `src/grid/appGridLayout.ts` — the formula changes from a tile-count
-  basis to a 12-column fractional basis. It also has to absorb the 190px → 236px tile change
-  from OQ-1 at the same time. **Two independent changes land on one function.**
+  basis to a 12-column fractional basis. ~~It also has to absorb the 190px → 236px tile change
+  from OQ-1 at the same time. Two independent changes land on one function.~~ *Built: the
+  fractional floor is independent of tile size, so the tile change did not touch it.*
 - **SPEC-pane-fill-reflow R3** grow logic is built on `--w` floors, which no longer mean what
-  they meant. R3 needs reconciliation.
+  they meant. R3 needs reconciliation. *Built: reconciled without a rule change — R3's floor is
+  now the span floor; grow weight, content-max cap and the R4 lone-box lift are untouched. The
+  pane-fill browser gate was re-fixtured from tile counts to spans.*
 - **SPEC-category-pane-width-layout is SUPERSEDED.** It pursued the same goal via a width-%
   drag model. It does not ship. Its `PANE_MIN = 176px` question (flagged incoherent in
   SPEC-pane-fill-reflow §9.3) dies with it.
