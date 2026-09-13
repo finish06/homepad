@@ -3,7 +3,7 @@
 **Spec ID:** SPEC-242-per-tile-status-dot
 **Date:** 2026-07-02
 **Author:** Walt (product lead) · Kare (design lead — §5 Design section is Kare's, co-owned)
-**Status:** Draft — dispatching to Kare for §5 (visual spec); locked for Stitch after both co-sign
+**Status:** Built — the dot shipped with v15.x (top-left, D-1) and moved to the right rail in the Compact/List densities with 16.1.0 (D-1a). The D-1 re-measurement at 236px is recorded in §5 (2026-09-13). *(Was: Draft — dispatching to Kare for §5; the design co-sign never landed before build.)*
 **Repo:** `Code/homepad` (frontend only — no backend changes)
 **Issue:** #242
 **Parent spec:** `SPEC-app-grid.md` + `SPEC-app-grid-fixed-tiles.md` (Amendment A1)
@@ -135,6 +135,16 @@ contrast against the tile background in both themes.
 > **Required before build:** Kare re-measures the star/dot collision at 236px and records
 > the resolved geometry as a D-1a amendment. If they do not clear, the right rail does not
 > ship. See `docs/decisions/2026-09-12-v16-artboard-open-questions.md`.
+>
+> **Measured 2026-09-13 (Claude, real Chromium, 236×68 compact tile, favorited UP service) —
+> they did NOT clear as shipped.** ★ (34×34 at top:4/right:4) spanned y 4–38; the centred 9px
+> dot spanned y 30–39: an **8px overlap** on the same rail (centres 4.5px apart). List was
+> clear (★ sits left of the rail there). Resolution, CSS-only: in Compact the ★ is 26×26 at
+> top:2/right:2 (y 2–28), **measured 2px clear** of the dot after the change, both still on
+> one rail (centres 1.5px apart) — star over dot. The 44px invisible hit area is unchanged.
+> Guarded by a browser-gate test for both densities (`tests/browser-gate/tile-density.spec.ts`).
+> Kare's re-measurement is therefore done by proxy; if Kare prefers the List treatment (★
+> left of the rail) in Compact too, that is a one-rule CSS change.
 
 ### D-1a — Right-rail geometry, AS BUILT (Stitch, 2026-09-12, Caleb's call OQ-2)
 

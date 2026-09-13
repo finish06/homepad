@@ -60,6 +60,32 @@ test.describe('SPEC-tile-density — the density switch', () => {
     expect(Math.max(...dotX) - Math.min(...dotX)).toBeLessThanOrEqual(2);
   });
 
+  // SPEC-242 D-1a (re-measured 2026-09-13): the favorite ★ and the right-rail dot
+  // must not overlap in the horizontal densities. Named for the symptom: before
+  // the fix the 34px star's disc sat 8px into the dot on a 68px compact tile.
+  for (const density of ['compact', 'list'] as const) {
+    test(`the favorite ★ does not overlap the status dot in ${density}`, async ({ page }) => {
+      const { services, categories } = makeStatusTiles(['UP']);
+      services[0].favorite = true;
+      await setDensity(page, density);
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await mockApi(page, services, categories, 'user', density);
+      await page.goto('/');
+      const wrap = page.locator('.app-grid-tool-wrap').first();
+      const star = await wrap.getByTestId('tile-favorite').boundingBox();
+      const pip = await wrap.getByTestId('tile-status').boundingBox();
+      expect(star).not.toBeNull();
+      expect(pip).not.toBeNull();
+      const overlap = !(
+        star!.x + star!.width <= pip!.x ||
+        pip!.x + pip!.width <= star!.x ||
+        star!.y + star!.height <= pip!.y ||
+        pip!.y + pip!.height <= star!.y
+      );
+      expect(overlap, `★ ${JSON.stringify(star)} overlaps dot ${JSON.stringify(pip)}`).toBe(false);
+    });
+  }
+
   test('the compact status line degrades gracefully with no response-time field', async ({ page }) => {
     // Fixture services carry no responseTimeMs → the line must read the state word
     // alone, never a fabricated "-- ms" placeholder (AC-DEN-009).
