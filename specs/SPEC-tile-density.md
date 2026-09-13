@@ -43,10 +43,17 @@ From the decision record unless noted:
 - **OQ-8 "Slow" label → tile status line only.** The pip's `aria-label`/`title` keep
   "DEGRADED".
 
-### OQ-9 persistence — DIVERGES from the decision record (recorded, not silent)
+### OQ-9 persistence — RE-ALIGNED with the decision record (2026-09-13)
 
 The decision record resolved OQ-9 as **"per user, server-side."** Joe's dispatch
-**overrode that to per-device `localStorage`** for this build, and this spec ships that.
+**overrode that to per-device `localStorage`** for the first build (16.1.0), and
+this spec shipped that. **As of 2026-09-13 the divergence is closed:** homepad-api
+carries `densityPref` on `GET`/`PATCH /api/me` (migration `0012_density_pref`), and
+`useTileDensity(serverPref)` resolves **server → device cache → default**, writing
+choices through to `PATCH /api/me`. localStorage is now only the per-device cache
+that stops the first paint flashing the default before `/api/me` answers. An
+older backend without the field (PATCH → 400) degrades to per-device — it never
+reverts a choice. The text below is kept as the record of the interim build.
 
 **Why per-device localStorage:** a dashboard's density is a property of the *screen it is
 on* (a 4K monitor and a phone want different densities for the same account), not of the
@@ -97,8 +104,9 @@ outage duration ("Offline · 6 min") when it can be computed from the check hist
 - **AC-DEN-002** — A device with nothing stored defaults to **Compact**.
 - **AC-DEN-003** — A stored preference is honoured on load; a junk stored value falls back
   to the default.
-- **AC-DEN-004** — Choosing a density persists it **per device** (localStorage) so it
-  survives a reload on that device.
+- **AC-DEN-004** — Choosing a density persists it **per user** (`PATCH /api/me`) and
+  caches it on the device, so it survives a reload on that device and follows the
+  account to another one. *(Was per-device only in 16.1.0; re-aligned 2026-09-13.)*
 - **AC-DEN-005** — The Compact tile is horizontal: name left on one line, a status line
   below it, the status dot on the fixed right rail.
 - **AC-DEN-006** — The status dot holds the right rail down a column (identical x, ±2px),
@@ -121,11 +129,18 @@ outage duration ("Offline · 6 min") when it can be computed from the check hist
 
 ## 5. Persistence model
 
-- Store: `localStorage['homepad:tile-density']`, one of `large | compact | list`.
-- Default: `compact` (empty / unknown / storage-unavailable → default).
-- Scope: per device / per browser. Not synced to the account (see §2 OQ-9 divergence).
-- API: none. No migration.
-- Module: `src/grid/tileDensity.ts` (`loadDensity`, `saveDensity`, `useTileDensity`).
+- Source of truth (2026-09-13): the account's `densityPref` from `GET /api/me`,
+  written via `PATCH /api/me { densityPref }` (`homepad-api` migration `0012`).
+- Cache: `localStorage['homepad:tile-density']`, one of `large | compact | list` —
+  per device, mirrors the last resolved value so the first paint does not flash.
+- Default: `compact` (no server field, empty / unknown cache, or storage
+  unavailable → default).
+- Resolution order: server preference (when present and valid) → device cache →
+  default. The server value is adopted whenever it changes (it arrives async).
+- Failure mode: a failed PATCH (older backend, network) keeps the choice on the
+  device; nothing is rolled back.
+- Module: `src/grid/tileDensity.ts` (`loadDensity`, `saveDensity`,
+  `useTileDensity(serverPref?)`); `src/api.ts` (`setDensityPref`, `User.densityPref`).
 
 ---
 

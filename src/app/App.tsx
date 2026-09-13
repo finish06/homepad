@@ -102,9 +102,11 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // independently admin-gated server-side, so this toggle is a convenience
   // surface, not the security boundary.
   const [editMode, setEditMode] = useState(false);
-  // SPEC-tile-density — the per-device tile density (Compact by default), read from
-  // and written to localStorage. The switch lives in the dashboard header below.
-  const [density, setDensity] = useTileDensity();
+  // SPEC-tile-density + OQ-9 — the tile density is a per-USER preference: the
+  // account's densityPref from /api/me seeds it (and wins), localStorage is only
+  // the per-device cache, choices write through to PATCH /api/me. The switch
+  // lives in the dashboard header below.
+  const [density, setDensity] = useTileDensity(user.densityPref);
   // Library browse + add-custom-app remain (service management, not layout),
   // lifted here so the header Gear can trigger them and their result flows into
   // the shared services context that AppGrid renders from.

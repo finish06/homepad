@@ -24,6 +24,7 @@ import {
   setLayout,
   setLibraryOrder,
   saveCategoryWidth,
+  setDensityPref,
   setThemePref,
   updateLibraryApp,
   updateService,
@@ -963,5 +964,21 @@ describe('network failures resolve to failure values (never reject)', () => {
   it('me() resolves null so boot shows the login screen instead of wedging', async () => {
     killFetch();
     await expect(me()).resolves.toBeNull();
+  });
+});
+
+describe('setDensityPref (v16, OQ-9)', () => {
+  it('PATCHes /api/me with the densityPref and returns true on 200', async () => {
+    const fn = mockFetch(JSON.stringify({ id: 'u1', densityPref: 'list' }), 200);
+    await expect(setDensityPref('list')).resolves.toBe(true);
+    const [url, init] = fn.mock.calls[0];
+    expect(url).toBe('/api/me');
+    expect(init?.method).toBe('PATCH');
+    expect(JSON.parse(String(init?.body))).toEqual({ densityPref: 'list' });
+  });
+
+  it('returns false on a non-200 (older backend without the field → 400)', async () => {
+    mockFetch('densityPref must be one of large, compact, list', 400);
+    await expect(setDensityPref('list')).resolves.toBe(false);
   });
 });
