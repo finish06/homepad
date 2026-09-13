@@ -11,8 +11,13 @@ import { mockApi, makeBoxes } from './mockApi';
 // Chromium proves them. jsdom covers the computed --floor/--grow/--cap vars; this
 // gate proves the pixels. Tests are named for the observed symptom (retro lesson).
 //
-// boxWidthPx(w) = w×190 + (w−1)×16 + 32 :  w1=222 · w2=428 · w3=634 · w4=840 · w6=1252
-// contentMaxPx(n) = same formula, unclamped (the grow cap).
+// SPEC-app-grid §10.4 (12-column grid): a box's FLOOR is its span's share of the
+// frame — boxWidthPx(span, frame) = (frame + 16) × span / 12 − 16, so 3+3+6 etc.
+// fill a row exactly. contentMaxPx(n) = n×190 + (n−1)×16 + 32 is the grow cap; the
+// effective cap is max(floor, contentMax), so a box never renders narrower than
+// its span even with few apps.
+const frameOf = (vw: number) => Math.min(vw, Math.max(1536, vw * 0.92)) - 32;
+const floorOf = (span: number, vw: number) => Math.floor(((frameOf(vw) + 16) * span) / 12 - 16);
 
 test.describe('pane-fill box grow (R1/R3/R4)', () => {
   // R1 + R3 + R3-2 — two populated boxes on a wide row grow to fill the frame with
@@ -27,8 +32,8 @@ test.describe('pane-fill box grow (R1/R3/R4)', () => {
       page,
     }) => {
       const { services, categories } = makeBoxes([
-        { width: 2, tools: ['Dev1', 'Dev2', 'Dev3', 'Dev4', 'Dev5', 'Dev6', 'Dev7', 'Dev8', 'Dev9', 'Dev10', 'Dev11', 'Dev12'] },
-        { width: 2, tools: ['Fr1', 'Fr2', 'Fr3', 'Fr4', 'Fr5', 'Fr6'] },
+        { width: 3, tools: ['Dev1', 'Dev2', 'Dev3', 'Dev4', 'Dev5', 'Dev6', 'Dev7', 'Dev8', 'Dev9', 'Dev10', 'Dev11', 'Dev12'] },
+        { width: 3, tools: ['Fr1', 'Fr2', 'Fr3', 'Fr4', 'Fr5', 'Fr6'] },
       ]);
       await page.setViewportSize({ width: vw, height: 1000 });
       await mockApi(page, services, categories, 'user');
@@ -67,10 +72,11 @@ test.describe('pane-fill box grow (R1/R3/R4)', () => {
     });
   }
 
-  // R3 AC-R3-4 / TC-003 — the admin --w is a FLOOR that always holds. A width-6 box
-  // (floor 1252px) renders at least that wide at 1440, and its tiles are still 190px
+  // R3 AC-R3-4 / TC-003 — the admin span is a FLOOR that always holds. A half (6)
+  // box with 2 apps is alone in its row, so R4 lifts it to 100% — but it must
+  // never render below its half-frame floor, and its tiles are still 190px
   // (grown boxes reveal more 190px columns, they don't stretch tiles).
-  test('a width-6 box never renders below its 1252px floor at 1440px', async ({ page }) => {
+  test('a half-span box never renders below its floor at 1440px', async ({ page }) => {
     const { services, categories } = makeBoxes([{ width: 6, tools: ['Wide1', 'Wide2'] }]);
     await page.setViewportSize({ width: 1440, height: 1000 });
     await mockApi(page, services, categories, 'user');
@@ -79,19 +85,20 @@ test.describe('pane-fill box grow (R1/R3/R4)', () => {
     const box = page.getByTestId('app-grid-box').first();
     const bb = await box.boundingBox();
     expect(bb).not.toBeNull();
-    // Floor honoured: never narrower than boxWidthPx(6) = 1252 (allow sub-px).
-    expect(bb!.width).toBeGreaterThanOrEqual(1251);
+    // Floor honoured: never narrower than half the frame (allow sub-px).
+    expect(bb!.width).toBeGreaterThanOrEqual(floorOf(6, 1440) - 1);
     // Tiles stay a fixed 190px even though the box is far wider than its 2 apps.
     const tile = await box.getByTestId('tool-link').first().boundingBox();
     expect(Math.round(tile!.width)).toBe(190);
   });
 
-  // R3 AC-R3-3 / TC-002 — a low-app box is capped at its content-max: no empty glass
-  // extends past its tiles. A width-1 box with 1 app, sharing a 2560 row with a big
-  // 6-app box, must stay ~one-tile wide (≤ ~240px), NOT balloon into a void.
-  test('a 1-app box stays at its content-max — no empty glass at 2560px', async ({ page }) => {
+  // R3 AC-R3-3 / TC-002 under §10.4 — a low-app box holds its SPAN, no more: the
+  // cap is max(floor, content-max), so a quarter (3) box with 1 app sharing a
+  // 2560 row with a big half (6) box renders exactly a quarter of the frame — it
+  // neither balloons into the row's slack nor shrinks to one tile.
+  test('a 1-app quarter box holds its quarter — no balloon into the row at 2560px', async ({ page }) => {
     const { services, categories } = makeBoxes([
-      { width: 1, tools: ['Solo'] },
+      { width: 3, tools: ['Solo'] },
       { width: 6, tools: ['B1', 'B2', 'B3', 'B4', 'B5', 'B6'] },
     ]);
     await page.setViewportSize({ width: 2560, height: 1000 });
@@ -101,19 +108,19 @@ test.describe('pane-fill box grow (R1/R3/R4)', () => {
     const boxes = page.getByTestId('app-grid-box');
     await expect(boxes).toHaveCount(2);
     const solo = await boxes.nth(0).boundingBox();
-    // content-max for 1 app is 222px; it must not stretch beyond a single tile + pad.
-    expect(solo!.width).toBeLessThanOrEqual(240);
+    expect(Math.abs(solo!.width - floorOf(3, 2560))).toBeLessThanOrEqual(3);
   });
 
   // R3 residual rule + SPEC-ultrawide-fluid-frame — when EVERY box in a row is
-  // already at its content-max and fluid-band row space still remains (few apps
-  // on a 4K monitor), the packed cluster CENTERS instead of left-packing against
-  // a ragged right void. Two capped boxes (1 app + 2 apps, ~666px together) on a
-  // ~3501px frame: equal gaps either side, boxes still content-max, no balloon.
+  // already at its cap and fluid-band row space still remains (few apps on a 4K
+  // monitor), the packed cluster CENTERS instead of left-packing against a
+  // ragged right void. Two quarter (3) boxes with 1 and 2 apps on a ~3501px
+  // frame: their caps are their quarter floors (content-max is smaller), so
+  // together they take half the row — equal gaps either side, no balloon.
   test('capped boxes center as a cluster in the fluid band at 3840px', async ({ page }) => {
     const { services, categories } = makeBoxes([
-      { width: 1, tools: ['Solo'] },
-      { width: 1, tools: ['PairA', 'PairB'] },
+      { width: 3, tools: ['Solo'] },
+      { width: 3, tools: ['PairA', 'PairB'] },
     ]);
     await page.setViewportSize({ width: 3840, height: 1200 });
     await mockApi(page, services, categories, 'user');
@@ -126,10 +133,10 @@ test.describe('pane-fill box grow (R1/R3/R4)', () => {
     const pair = await boxes.nth(1).boundingBox();
     expect(grid && solo && pair).toBeTruthy();
 
-    // Same row, both still content-max — centering must not re-balloon the glass.
+    // Same row, both still at their quarter cap — centering must not re-balloon the glass.
     expect(Math.abs(solo!.y - pair!.y)).toBeLessThanOrEqual(2);
-    expect(solo!.width).toBeLessThanOrEqual(240);
-    expect(pair!.width).toBeLessThanOrEqual(446);
+    expect(Math.abs(solo!.width - floorOf(3, 3840))).toBeLessThanOrEqual(3);
+    expect(Math.abs(pair!.width - floorOf(3, 3840))).toBeLessThanOrEqual(3);
     // The cluster is CENTERED: symmetric residual gaps (not a 0px left gap).
     const leftGap = solo!.x - grid!.x;
     const rightGap = grid!.x + grid!.width - (pair!.x + pair!.width);
@@ -137,7 +144,8 @@ test.describe('pane-fill box grow (R1/R3/R4)', () => {
     expect(Math.abs(leftGap - rightGap)).toBeLessThanOrEqual(2);
   });
 
-  // R4 AC-R4-1 — a box alone in its row fills 100% of the frame (tiles left-packed).
+  // R4 AC-R4-1 — a box alone in its row fills 100% of the frame (tiles left-packed),
+  // even from a quarter (3) floor.
   test('a lone box fills 100% of the frame at 1920px', async ({ page }) => {
     const { services, categories } = makeBoxes([{ width: 3, tools: ['One', 'Two', 'Three'] }]);
     await page.setViewportSize({ width: 1920, height: 1000 });

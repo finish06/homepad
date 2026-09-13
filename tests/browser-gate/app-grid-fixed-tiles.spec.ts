@@ -61,15 +61,17 @@ test.describe('A1 fixed-tile layout', () => {
     expect(b!.x).toBeGreaterThan(a!.x + a!.width - 1);
   });
 
-  // Gate 3 — at 1280px the second width-3 box wraps WHOLE to the next row (graceful
-  // auto-fill wrap, AC-003-A2) with NO horizontal page scroll (D-3: (b) is rejected
-  // outright). The box drops down; the document never scrolls sideways.
+  // Gate 3 — a box that does not fit the remaining row wraps WHOLE to the next
+  // row (graceful wrap, AC-003-A2) with NO horizontal page scroll (D-3: (b) is
+  // rejected outright). SPEC-app-grid §10.4: widths are 12-column spans, so a
+  // half (6) followed by a full-width (12) box is the wrap case at any viewport —
+  // 6 + 12 > 12. The box drops down; the document never scrolls sideways.
   test('at 1280px the second box wraps to the next row with no horizontal page scroll', async ({
     page,
   }) => {
     const { services, categories } = makeBoxes([
-      { width: 3, tools: ['Plex', 'Sonarr', 'Radarr'] },
-      { width: 3, tools: ['Grafana', 'Prometheus', 'Loki'] },
+      { width: 6, tools: ['Plex', 'Sonarr', 'Radarr'] },
+      { width: 12, tools: ['Grafana', 'Prometheus', 'Loki'] },
     ]);
     await page.setViewportSize({ width: 1280, height: 900 });
     await mockApi(page, services, categories, 'user');

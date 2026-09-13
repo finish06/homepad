@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { boxWidthPx, frameContentPx } from './appGridLayout';
 import AppGrid from './AppGrid';
 import type { Category, Service } from '../api';
 import * as api from '../api';
@@ -52,7 +53,7 @@ beforeEach(() => {
   // would disable the higher widths these tests pick. Set a wide viewport so the
   // full 1–8 range is selectable — the D-3 disable itself is covered separately.
   window.innerWidth = 1920;
-  vi.mocked(api.categories).mockResolvedValue([cat('c1', 'Media', 0, 4), cat('c2', 'Infra', 1, 2)]);
+  vi.mocked(api.categories).mockResolvedValue([cat('c1', 'Media', 0, 4), cat('c2', 'Infra', 1, 3)]);
   vi.mocked(api.services).mockResolvedValue([svc('s1', 'Plex', 'c1'), svc('s2', 'Grafana', 'c2')]);
   vi.mocked(api.saveCategoryWidth).mockResolvedValue(true);
   vi.mocked(api.createCategory).mockResolvedValue({ ok: true, status: 201, category: cat('c3', 'New', 2, 3) });
@@ -158,21 +159,26 @@ describe('AppGrid rendering', () => {
   // the ACTUAL fill/dead-space is browser-gate territory (app-grid-pane-fill.spec),
   // but the computed vars ARE deterministic JS (viewport + floors) and testable here.
   describe('pane fill grow model (R3/R4)', () => {
+    // §10.4 — floors are the span's share of the CURRENT frame, so the expected
+    // px are computed from the same helpers the component uses, at the viewport
+    // the test runs in, rather than hard-coded 190px multiples.
+    const floorFor = (span: number) => `${boxWidthPx(span, frameContentPx(window.innerWidth))}px`;
+
     it('exposes --floor, --grow, --cap on each box (R3)', async () => {
-      // Media = width-4, 1 app (Plex); shares the 1920 row with Infra (width-2, 1 app),
-      // so it is NOT lone: floor = boxWidthPx(4) = 840, grow = 1 app, cap = max(floor,
-      // contentMaxPx(1)=222) = 840 (floor wins — the admin width-4 is honoured).
+      // Media = span 4 (third), 1 app (Plex); shares the row with Infra (span 3),
+      // so it is NOT lone: floor = a third of the frame, grow = 1 app, cap =
+      // max(floor, contentMaxPx(1)=222) = floor (the admin span is honoured).
       await renderGrid(true);
       const media = screen.getAllByTestId('app-grid-box')[0];
-      expect(media.style.getPropertyValue('--floor')).toBe('840px');
+      expect(media.style.getPropertyValue('--floor')).toBe(floorFor(4));
       expect(media.style.getPropertyValue('--grow')).toBe('1');
-      expect(media.style.getPropertyValue('--cap')).toBe('840px');
+      expect(media.style.getPropertyValue('--cap')).toBe(floorFor(4));
     });
 
-    it('caps a many-app box at its content-max, above the --w floor (R3)', async () => {
-      // Media width-2 (floor boxWidthPx(2)=428) with 4 apps → cap grows to
-      // contentMaxPx(4)=840. A sibling Infra keeps it off a lone row (else R4 → 100%).
-      vi.mocked(api.categories).mockResolvedValue([cat('c1', 'Media', 0, 2), cat('c2', 'Infra', 1, 2)]);
+    it('caps a many-app box at its content-max, above the span floor (R3)', async () => {
+      // Media span 3 (a quarter) with 4 apps → cap grows to contentMaxPx(4)=840,
+      // above its quarter-frame floor. A sibling Infra keeps it off a lone row.
+      vi.mocked(api.categories).mockResolvedValue([cat('c1', 'Media', 0, 3), cat('c2', 'Infra', 1, 3)]);
       vi.mocked(api.services).mockResolvedValue([
         svc('s1', 'Plex', 'c1'),
         svc('s2', 'Sonarr', 'c1'),
@@ -182,7 +188,7 @@ describe('AppGrid rendering', () => {
       ]);
       await renderGrid(true);
       const media = screen.getAllByTestId('app-grid-box')[0];
-      expect(media.style.getPropertyValue('--floor')).toBe('428px');
+      expect(media.style.getPropertyValue('--floor')).toBe(floorFor(3));
       expect(media.style.getPropertyValue('--grow')).toBe('4');
       expect(media.style.getPropertyValue('--cap')).toBe('840px');
     });
@@ -190,11 +196,11 @@ describe('AppGrid rendering', () => {
     it('keeps an empty box at its floor with grow 0 (AC-R3-5)', async () => {
       vi.mocked(api.services).mockResolvedValue([]);
       await renderGrid(true);
-      const media = screen.getAllByTestId('app-grid-box')[0]; // Media width-4, no apps
+      const media = screen.getAllByTestId('app-grid-box')[0]; // Media span 4, no apps
       expect(media.style.getPropertyValue('--grow')).toBe('0');
-      expect(media.style.getPropertyValue('--floor')).toBe('840px');
+      expect(media.style.getPropertyValue('--floor')).toBe(floorFor(4));
       // cap never drops below the floor, so max-width can't shrink it under --w.
-      expect(media.style.getPropertyValue('--cap')).toBe('840px');
+      expect(media.style.getPropertyValue('--cap')).toBe(floorFor(4));
     });
 
     it('lifts a lone box (alone in its row) to a 100% cap so it fills the frame (R4)', async () => {
@@ -207,7 +213,7 @@ describe('AppGrid rendering', () => {
       expect(media.style.getPropertyValue('--cap')).toBe('100%');
       expect(media.style.getPropertyValue('--grow')).toBe('1');
       // The floor still applies as the minimum basis (AC-R4-2).
-      expect(media.style.getPropertyValue('--floor')).toBe('634px');
+      expect(media.style.getPropertyValue('--floor')).toBe(floorFor(3));
     });
 
     it('does NOT lift a lone EMPTY box to 100% — it stays at floor (AC-R3-5 over R4)', async () => {
@@ -216,7 +222,7 @@ describe('AppGrid rendering', () => {
       await renderGrid(true);
       const media = screen.getAllByTestId('app-grid-box')[0];
       expect(media.style.getPropertyValue('--grow')).toBe('0');
-      expect(media.style.getPropertyValue('--cap')).toBe('634px');
+      expect(media.style.getPropertyValue('--cap')).toBe(floorFor(3));
     });
   });
 
@@ -236,13 +242,14 @@ describe('AppGrid rendering', () => {
 });
 
 describe('width selector (AC-013/014/015)', () => {
-  it('renders 8 buttons and highlights the current width (AC-013-A1)', async () => {
+  it('renders the four spans and highlights the current one (§10.4)', async () => {
     await renderGridEdit(true, true);
     const media = screen.getAllByTestId('app-grid-box')[0];
     const sel = within(media).getByTestId('width-selector');
-    expect(within(sel).getAllByRole('button')).toHaveLength(8);
+    expect(within(sel).getAllByRole('button')).toHaveLength(4);
     expect(within(sel).getByTestId('width-btn-4')).toHaveAttribute('aria-pressed', 'true');
-    expect(within(sel).getByTestId('width-btn-2')).toHaveAttribute('aria-pressed', 'false');
+    expect(within(sel).getByTestId('width-btn-3')).toHaveAttribute('aria-pressed', 'false');
+    expect(within(sel).getByTestId('width-btn-12')).toHaveAttribute('aria-label', 'Full width');
   });
 
   it('is not rendered at all for non-admins (AC-014)', async () => {
@@ -270,21 +277,13 @@ describe('width selector (AC-013/014/015)', () => {
     expect(api.saveCategoryWidth).toHaveBeenCalledWith('c1', 6);
   });
 
-  it('offers an off-screen width as disabled and ignores its click (D-3)', async () => {
-    // At a 1024px viewport a width-8 box (1664px) can't fit: D-3 renders that
-    // button disabled (aria-disabled + a "Wider than this screen" title) so the
-    // admin never sets an off-screen box, and clicking it persists nothing.
+  it('never disables a span — a fraction of the row fits every screen (D-3 retired by §10.4)', async () => {
     window.innerWidth = 1024;
-    const user = userEvent.setup();
     await renderGridEdit(true, true);
     const media = screen.getAllByTestId('app-grid-box')[0];
-    const w8 = within(media).getByTestId('width-btn-8');
-    expect(w8).toHaveAttribute('aria-disabled', 'true');
-    expect(w8).toHaveAttribute('title', 'Wider than this screen');
-    // A width that fits (width-3 = 634px) stays enabled.
-    expect(within(media).getByTestId('width-btn-3')).not.toHaveAttribute('aria-disabled');
-    await user.click(w8);
-    expect(api.saveCategoryWidth).not.toHaveBeenCalled();
+    for (const n of [3, 4, 6, 12]) {
+      expect(within(media).getByTestId(`width-btn-${n}`)).not.toHaveAttribute('aria-disabled');
+    }
   });
 
   it('rolls the width back when the save fails', async () => {
@@ -292,7 +291,7 @@ describe('width selector (AC-013/014/015)', () => {
     const user = userEvent.setup();
     await renderGridEdit(true, true);
     const media = screen.getAllByTestId('app-grid-box')[0];
-    await user.click(within(media).getByTestId('width-btn-1'));
+    await user.click(within(media).getByTestId('width-btn-3'));
     await waitFor(() => expect(media.style.getPropertyValue('--w')).toBe('4'));
   });
 });
@@ -378,8 +377,8 @@ describe('AppGrid Edit Dashboard mode (AG-EDIT-1/2)', () => {
     const user = userEvent.setup();
     await renderGridEdit(true, true);
     const media = screen.getAllByTestId('app-grid-box')[0];
-    await user.click(within(media).getByTestId('width-btn-5'));
-    await waitFor(() => expect(api.saveCategoryWidth).toHaveBeenCalledWith('c1', 5));
+    await user.click(within(media).getByTestId('width-btn-12'));
+    await waitFor(() => expect(api.saveCategoryWidth).toHaveBeenCalledWith('c1', 12));
   });
 });
 
