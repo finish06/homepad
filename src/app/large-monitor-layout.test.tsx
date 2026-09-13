@@ -103,6 +103,7 @@ function svc(status: ServiceStatus, id: string): Service {
 function setItems(items: Service[]) {
   mockedCtx.mockReturnValue({
     items, setItems: vi.fn(), lastUpdatedAt: null, recentChanges: [], clearRecentChanges: vi.fn(),
+    refresh: vi.fn(async () => 'refreshed' as const),
   });
 }
 

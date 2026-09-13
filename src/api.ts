@@ -576,6 +576,29 @@ export async function setDensityPref(pref: 'large' | 'compact' | 'list'): Promis
   return boolRequest('/api/me', 200, { method: 'PATCH', json: { densityPref: pref } });
 }
 
+// refreshStatus (SPEC-v24 §12.3, OQ-5) asks the backend to re-poll Gatus NOW —
+// POST /api/status/refresh — rather than refetching the same stale payload. The
+// backend answers 200 {as_of} when Gatus replied (the snapshot was replaced) and
+// 503 {error, as_of} when it could not be reached (the last good snapshot and
+// its as_of still stand). An older backend without the route answers 404, which
+// the caller treats like unreachable. `asOf` is passed through so the provider
+// can tell "re-polled, fresh" from "re-polled, nothing newer" by comparing it
+// with the previous value.
+export type RefreshStatusResult = { ok: boolean; status: number; asOf?: string };
+export async function refreshStatus(): Promise<RefreshStatusResult> {
+  const { status, res } = await request('/api/status/refresh', { method: 'POST' });
+  let asOf: string | undefined;
+  if (res && (status === 200 || status === 503)) {
+    try {
+      const body = (await res.json()) as { as_of?: string };
+      if (typeof body.as_of === 'string') asOf = body.as_of;
+    } catch {
+      /* non-JSON body — treat as no as_of */
+    }
+  }
+  return asOf === undefined ? { ok: status === 200, status } : { ok: status === 200, status, asOf };
+}
+
 // setThemePref persists the current user's theme choice (v3) via PATCH /api/me.
 // Session-gated server-side (a user sets only their own theme); an invalid value
 // is rejected 400. Returns true on 200 so the caller can roll back an optimistic
