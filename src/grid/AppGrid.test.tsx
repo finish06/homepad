@@ -164,6 +164,23 @@ describe('AppGrid rendering', () => {
     // the test runs in, rather than hard-coded 190px multiples.
     const floorFor = (span: number) => `${boxWidthPx(span, frameContentPx(window.innerWidth))}px`;
 
+    // Gitea #446 — the frame is sized from clientWidth (no scrollbar), so floors
+    // must be too; innerWidth is only the jsdom fallback (clientWidth reads 0).
+    it('sizes floors from document.clientWidth, not window.innerWidth (#446)', async () => {
+      const desc = Object.getOwnPropertyDescriptor(document.documentElement, 'clientWidth');
+      Object.defineProperty(document.documentElement, 'clientWidth', { configurable: true, value: 1425 });
+      window.innerWidth = 1440;
+      try {
+        await renderGrid(true);
+        const media = screen.getAllByTestId('app-grid-box')[0];
+        expect(media.style.getPropertyValue('--floor')).toBe(`${boxWidthPx(4, frameContentPx(1425))}px`);
+        expect(media.style.getPropertyValue('--floor')).not.toBe(`${boxWidthPx(4, frameContentPx(1440))}px`);
+      } finally {
+        if (desc) Object.defineProperty(document.documentElement, 'clientWidth', desc);
+        else delete (document.documentElement as unknown as Record<string, unknown>).clientWidth;
+      }
+    });
+
     it('exposes --floor, --grow, --cap on each box (R3)', async () => {
       // Media = span 4 (third), 1 app (Plex); shares the row with Infra (span 3),
       // so it is NOT lone: floor = a third of the frame, grow = 1 app, cap =

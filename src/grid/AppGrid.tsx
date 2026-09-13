@@ -78,10 +78,21 @@ const SPAN_LABEL: Record<(typeof SPANS)[number], { glyph: string; name: string }
 // useViewportWidth tracks window.innerWidth so the width selector can offer a
 // --w that would render off-screen as DISABLED (A1 D-3). The ≤640px mobile
 // behavior itself is pure CSS now (D-4) — no JS width cap is needed.
+function readViewportWidth(): number {
+  return document.documentElement.clientWidth || window.innerWidth || 1024;
+}
+
 function useViewportWidth(): number {
-  const [vw, setVw] = useState(() => window.innerWidth || 1024);
+  // Gitea #446 (Gracie, QA on the 12-col PR): the CSS frame is sized from the
+  // document's clientWidth — the viewport MINUS the vertical scrollbar — while
+  // window.innerWidth includes it. Sizing span floors from innerWidth made two
+  // half-span boxes 15px too wide for the row at 1440px whenever a scrollbar
+  // was present, so they wrapped one per row and keyboard DnD lost its
+  // neighbours. Read the same width the CSS gets. jsdom reports clientWidth 0,
+  // hence the innerWidth fallback (tests drive innerWidth).
+  const [vw, setVw] = useState(readViewportWidth);
   useEffect(() => {
-    const onResize = () => setVw(window.innerWidth);
+    const onResize = () => setVw(readViewportWidth());
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
