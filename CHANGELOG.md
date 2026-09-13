@@ -7,6 +7,45 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [16.2.0] — 2026-09-13 — The rest of the v16 interface: 12-column groups, Retry now, settings in the UI
+
+No data loss; one automatic migration (group widths, below). Everything the
+16.0.0 notes listed as blocked is now built. Includes 16.1.1's star fix, which
+was never tagged on its own.
+
+**Group boxes snap to a 12-column grid.** A box's width is now a quarter, a
+third, a half or the full row (¼ ⅓ ½ 1 in the edit-mode width picker) instead
+of a count of tiles, and a row of boxes that adds up to twelve fills the frame
+exactly — no dead space to the right, on any monitor. **Existing widths are
+remapped once by the server** (1 → ¼, 2 → ⅓, 3 → ½, 4 → ½, 5 and up → full)
+and the old values are kept in the database, so the change is reversible. If a
+box looks wider or narrower than you had it, the picker sets it back in one tap.
+
+**"Retry now" on a stale health panel.** When the panel has stood its verdict
+down ("Status is N minutes old"), the button asks the server to re-check the
+status source right away. It says plainly which of three things happened: fresh
+evidence arrived (the panel recovers), the source could not be reached, or it
+answered but had nothing newer. The age counter only resets on the first.
+
+**Response times and "Slow" are real.** The compact and list tiles now show the
+latest check's response time ("Online · 41 ms"), and a service that answers but
+takes longer than a threshold reads **Slow** instead of Online, with the health
+panel turning amber. The threshold defaults to one second and is set in the
+admin System panel ("Mark a service Slow after … ms" — 0 turns it off); it
+applies to the next check without a restart. Both were listed as blocked in
+16.0.0: the API now returns response times and derives the Slow state.
+
+**Your tile density follows your account.** Large / Compact / List is saved to
+your account and applied on every device you sign in on; this device's last
+choice still paints first so nothing flashes. (16.1.0 saved it per device only.)
+
+**Also:** the setup page for connecting Gatus documents the Slow state, and the
+release tooling that builds the versioned image was fixed — its first run, for
+16.1.0, had failed on a changelog format mismatch. **Note on 16.1.0:** the
+tagged 16.1.0 image was built after three of this release's features had landed
+on main, so it contains more than its notes describe; production ran the exact
+16.1.0 changelog content. 16.2.0 reconciles the two.
+
 ## [16.1.1] — 2026-09-13 — Compact tile: favourite star no longer sits on the status dot
 
 Patch release, no data or API changes; safe in place.
