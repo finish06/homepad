@@ -133,10 +133,16 @@ test.describe('pane-fill box grow (R1/R3/R4)', () => {
     const pair = await boxes.nth(1).boundingBox();
     expect(grid && solo && pair).toBeTruthy();
 
+    // The floor is the span's share of the RENDERED frame — the viewport MINUS the
+    // vertical scrollbar (clientWidth), not the nominal 3840 (#446). At this height
+    // the page scrolls, so ~15px of the 3840 is scrollbar and the quarter floor is a
+    // share of the ~3825 the grid actually gets; measuring against 3840 is off by the
+    // scrollbar's fluid-band share (~4px), which the 3px tolerance no longer absorbs.
+    const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
     // Same row, both still at their quarter cap — centering must not re-balloon the glass.
     expect(Math.abs(solo!.y - pair!.y)).toBeLessThanOrEqual(2);
-    expect(Math.abs(solo!.width - floorOf(3, 3840))).toBeLessThanOrEqual(3);
-    expect(Math.abs(pair!.width - floorOf(3, 3840))).toBeLessThanOrEqual(3);
+    expect(Math.abs(solo!.width - floorOf(3, clientWidth))).toBeLessThanOrEqual(3);
+    expect(Math.abs(pair!.width - floorOf(3, clientWidth))).toBeLessThanOrEqual(3);
     // The cluster is CENTERED: symmetric residual gaps (not a 0px left gap).
     const leftGap = solo!.x - grid!.x;
     const rightGap = grid!.x + grid!.width - (pair!.x + pair!.width);

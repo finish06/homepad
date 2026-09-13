@@ -94,7 +94,24 @@ function useViewportWidth(): number {
   useEffect(() => {
     const onResize = () => setVw(readViewportWidth());
     window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    // #446 part 2 — clientWidth alone is not enough: the vertical scrollbar (which
+    // is what makes clientWidth < innerWidth) appears AFTER mount — the boxes
+    // render, the page grows past one screen, the scrollbar claims its ~15px — and
+    // that fires NO window resize. So the mount-time sample is the PRE-scrollbar
+    // width, the boxes keep the too-wide floor, and each wraps to its own row (the
+    // exact symptom, verified in the real Chromium sidecar: floor stuck at 696 until
+    // a synthetic resize dropped it to 688). Observe the document element so the
+    // layout-driven clientWidth change re-floors the boxes; it also fires once on
+    // observe (reconciling the mount value) and covers plain window resizes.
+    let ro: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(onResize);
+      ro.observe(document.documentElement);
+    }
+    return () => {
+      window.removeEventListener('resize', onResize);
+      ro?.disconnect();
+    };
   }, []);
   return vw;
 }

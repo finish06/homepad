@@ -12,7 +12,10 @@ import { mockApi, makeCategorized } from './mockApi';
 
 test.beforeEach(async ({ page }) => {
   // Admin so the gear exposes "Edit dashboard" and the boxes get drag grips.
-  // Width-1 boxes so four fit on the top row left→right (a stable order to move).
+  // makeCategorized(4, 1) = 4 categories × 1 app each; it sets no gridWidth, so
+  // each box takes the DEFAULT_WIDTH span (6 = half). Two half boxes fill a row,
+  // giving a stable left→right order to move (issue #446: the floor must track the
+  // real container width, else all four stack into one column and this DnD fails).
   const { services, categories } = makeCategorized(4, 1);
   await mockApi(page, services, categories, 'admin');
   await page.goto('/');
