@@ -5,8 +5,8 @@ name: Prod release (vX.Y.Z tag)
 # composite Code/ci-shared/prod. The ci-shared/prod action, IN ORDER:
 #   1. Validates version alignment — git tag == CHANGELOG.md top == package.json
 #      version. Fails BEFORE any build if they disagree.
-#   2. Regenerates src/changelog.json from CHANGELOG.md so the release image bundles
-#      the current derived changelog (consumed by src/app/ChangelogOverlay.tsx).
+#   2. (NOT for homepad — see changelog-gen-output below.) The composite CAN
+#      regenerate a changelog.json from CHANGELOG.md; homepad keeps its own.
 #   3. Builds & pushes the prod image :X.Y.Z + :X.Y.Z-<sha> + :latest, baking
 #      APP_VERSION=X.Y.Z as a build-arg so the footer shows the semver.
 #   4. Runs prod-deploy-cmd below — which, for homepad, DELIBERATELY DOES NOT DEPLOY
@@ -20,7 +20,7 @@ name: Prod release (vX.Y.Z tag)
 # PATHS DIFFER FROM fleet-feed: homepad is NOT laid out under web/. package.json,
 # CHANGELOG.md and src/changelog.json all live at the repo ROOT, and the Dockerfile
 # + build context are the repo root defaults — hence version-source-path=package.json
-# (not web/package.json) and changelog-gen-output=src/changelog.json.
+# (not web/package.json).
 #
 # ── ACTION PIN ──────────────────────────────────────────────────────────────────
 # Pinned to the immutable merge COMMIT 0e12d6ef90c5847afce20c783b6b798fe8f3bec8
@@ -54,8 +54,16 @@ jobs:
           # ROOT package.json — homepad is not laid out under web/ like fleet-feed.
           version-source-path: package.json
           changelog-path: CHANGELOG.md
-          # Regenerate the derived changelog bundled into the release image.
-          changelog-gen-output: src/changelog.json
+          # NO changelog-gen-output. The v16.1.0 run (#1549) failed here: ci-shared's
+          # changelog_parse.py speaks Keep-a-Changelog (`## [x.y.z] - date`, `###`
+          # sections, bullets) and emits {version,date,entries[]}[]; homepad's
+          # CHANGELOG.md uses `## [x.y.z] — date — title` prose, and its overlay
+          # reads src/changelog.json as {pending, versions[{version,date,changes[
+          # {type,text}]}]} — so the regenerated file parsed to a single null block
+          # and `tsc` in the image build failed on ChangelogOverlay.tsx. The committed
+          # src/changelog.json is hand-maintained per release (the release PR checks
+          # it), so the image bundles that as-is. changelog-path stays: the version
+          # alignment check (tag == CHANGELOG top == package.json) still reads it.
           # dockerfile + context: repo-root defaults are correct for homepad.
           prod-deploy-cmd: |
             # ─── DELIBERATELY NOT A DEPLOY. This is not an unfinished TODO. ───────────
