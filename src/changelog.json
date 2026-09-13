@@ -2,6 +2,16 @@
   "pending": [],
   "versions": [
     {
+      "version": "16.1.1",
+      "date": "2026-09-13",
+      "changes": [
+        {
+          "type": "bug-fix",
+          "text": "On a Compact tile, the favourite star no longer overlaps the status dot. The two marks share the tile's top-right rail, and on a narrow compact tile the star's disc sat on top of the status dot for a favourited service. The star is now a touch smaller and pulled into the corner in Compact, so it clears the dot while both stay on one rail (star above dot). The invisible touch target around the star is unchanged. Large and List tiles were never affected."
+        }
+      ]
+    },
+    {
       "version": "16.1.0",
       "date": "2026-09-12",
       "changes": [

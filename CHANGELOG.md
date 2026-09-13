@@ -7,6 +7,19 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [16.1.1] — 2026-09-13 — Compact tile: favourite star no longer sits on the status dot
+
+Patch release, no data or API changes; safe in place.
+
+**On a Compact tile, the favourite star stopped overlapping the status dot.** The
+star and the right-rail status dot share the tile's top-right rail, and on a
+236px-wide Compact tile the 34px star's painted disc overlapped the centred status
+dot by 8px, so a favourited service showed the two marks sitting on top of each
+other. The star is now 26×26 and pulled 2px into the corner in Compact, clearing
+the dot by 2px while both stay on the one rail (star above dot). The invisible 44px
+touch target is unchanged, so the star is no easier to miss. Large and List tiles
+were never affected and are untouched.
+
 ## [16.1.0] — 2026-09-12 — Tile density: Large / Compact / List (v16)
 
 The first piece of the v16 interface itself, and the one the 16.0.0 notes listed as
