@@ -1,10 +1,16 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { setDensityPref } from '../api';
 
 // SPEC-tile-density — the tile density preference. Three densities: Large (the
 // legacy vertical name-only tile), Compact (the v16 horizontal tile with a status
-// line — the NEW DEFAULT), and List (one full-width column). Persistence is
-// PER DEVICE via localStorage (OQ-9): a dashboard's density is a property of the
-// screen it's on, not the account, so it needs no API field and no migration.
+// line — the NEW DEFAULT), and List (one full-width column).
+//
+// Persistence (decision record 2026-09-12, OQ-9): PER USER, SERVER-SIDE. The
+// account's `densityPref` (GET /api/me) is the source of truth and wins on every
+// resolve; localStorage is only a per-device CACHE so the first paint does not
+// flash the default before /api/me answers. Choices write through to PATCH
+// /api/me. When the backend has no field yet (older API → 400) the cache carries
+// the choice on this device — the feature degrades, it never reverts.
 export type TileDensity = 'large' | 'compact' | 'list';
 
 // Display order = the switch order (Large · Compact · List), matching the artboard.
@@ -40,13 +46,29 @@ export function saveDensity(d: TileDensity): void {
   }
 }
 
-// useTileDensity seeds from storage on mount and writes through on every change,
-// so the preference survives a reload on this device.
-export function useTileDensity(): [TileDensity, (d: TileDensity) => void] {
-  const [density, setDensity] = useState<TileDensity>(loadDensity);
+// useTileDensity resolves the density as: server preference (when known and
+// valid) → device cache → default. `serverPref` is the account's densityPref
+// from /api/me; it usually arrives after mount, so the hook adopts it whenever
+// it changes and mirrors it into the cache. Setting a density updates state and
+// the cache immediately (optimistic) and writes through to the server.
+export function useTileDensity(serverPref?: string): [TileDensity, (d: TileDensity) => void] {
+  const [density, setDensity] = useState<TileDensity>(() =>
+    isTileDensity(serverPref) ? serverPref : loadDensity(),
+  );
+  useEffect(() => {
+    if (!isTileDensity(serverPref)) return;
+    setDensity(serverPref);
+    saveDensity(serverPref);
+  }, [serverPref]);
   const set = useCallback((d: TileDensity) => {
-    setDensity(d);
-    saveDensity(d);
+    setDensity((cur) => {
+      if (cur === d) return cur;
+      saveDensity(d);
+      // Fire-and-forget: a false (older backend, network blip) is not rolled
+      // back — the device cache already holds the choice and keeps working.
+      void setDensityPref(d);
+      return d;
+    });
   }, []);
   return [density, set];
 }

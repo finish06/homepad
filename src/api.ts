@@ -10,7 +10,16 @@ export type ThemePref = 'system' | 'light' | 'dark';
 // v7 §6.2: `name` is the optional display name surfaced by /api/me (empty when
 // unset). The avatar derives real initials from it, falling back to the email's
 // first letter. Optional so older payloads / fixtures read as "no name".
-export type User = { id: string; email: string; role: string; themePref: ThemePref; name?: string };
+// densityPref (v16, OQ-9) is optional on the wire so a frontend ahead of its
+// backend keeps working: absent → the per-device cache / default applies.
+export type User = {
+  id: string;
+  email: string;
+  role: string;
+  themePref: ThemePref;
+  densityPref?: 'large' | 'compact' | 'list';
+  name?: string;
+};
 
 export type ServiceStatus = 'UP' | 'DOWN' | 'DEGRADED' | 'UNKNOWN' | 'NOT_MONITORED';
 
@@ -557,6 +566,14 @@ export async function deleteLibraryApp(id: string): Promise<boolean> {
 // ids, position 0 first. Returns true on 204 so the manager can roll back.
 export async function setLibraryOrder(order: string[]): Promise<boolean> {
   return boolRequest('/api/library/order', 204, { method: 'PUT', json: { order } });
+}
+
+// setDensityPref persists the current user's tile density (v16, OQ-9: per user,
+// server-side) via PATCH /api/me. Same contract as setThemePref: true on 200. A
+// backend without the field answers 400 → false; the caller keeps the choice on
+// the device instead of reverting, because per-device still works.
+export async function setDensityPref(pref: 'large' | 'compact' | 'list'): Promise<boolean> {
+  return boolRequest('/api/me', 200, { method: 'PATCH', json: { densityPref: pref } });
 }
 
 // setThemePref persists the current user's theme choice (v3) via PATCH /api/me.
