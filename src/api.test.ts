@@ -24,6 +24,8 @@ import {
   setLayout,
   setLibraryOrder,
   saveCategoryWidth,
+  systemConfig,
+  saveSystemSettings,
   setThemePref,
   updateLibraryApp,
   updateService,
@@ -963,5 +965,22 @@ describe('network failures resolve to failure values (never reject)', () => {
   it('me() resolves null so boot shows the login screen instead of wedging', async () => {
     killFetch();
     await expect(me()).resolves.toBeNull();
+  });
+});
+
+describe('systemConfig / saveSystemSettings — statusDegradedMs (v16)', () => {
+  it('reads the effective Slow threshold and tolerates an older backend without it', async () => {
+    mockFetch(JSON.stringify({ showUptimeDisplay: true, statusDegradedMs: 250 }), 200);
+    await expect(systemConfig()).resolves.toEqual({ showUptimeDisplay: true, statusDegradedMs: 250 });
+    mockFetch(JSON.stringify({ showUptimeDisplay: false }), 200);
+    await expect(systemConfig()).resolves.toEqual({ showUptimeDisplay: false, statusDegradedMs: 1000 });
+  });
+
+  it('PATCHes statusDegradedMs and returns the persisted config', async () => {
+    const fn = mockFetch(JSON.stringify({ showUptimeDisplay: true, statusDegradedMs: 0 }), 200);
+    await expect(saveSystemSettings({ statusDegradedMs: 0 })).resolves.toEqual({ showUptimeDisplay: true, statusDegradedMs: 0 });
+    const [url, init] = fn.mock.calls[0];
+    expect(url).toBe('/api/admin/settings');
+    expect(JSON.parse(String(init?.body))).toEqual({ statusDegradedMs: 0 });
   });
 });

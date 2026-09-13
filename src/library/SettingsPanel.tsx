@@ -22,11 +22,13 @@ import {
 export default function SettingsPanel({
   isAdmin,
   showUptimeDisplay,
+  statusDegradedMs,
   onSaveSettings,
   onClose,
 }: {
   isAdmin: boolean;
   showUptimeDisplay: boolean;
+  statusDegradedMs: number;
   onSaveSettings: (patch: Partial<SystemConfig>) => Promise<void>;
   onClose: () => void;
 }) {
@@ -89,6 +91,7 @@ export default function SettingsPanel({
             <>
               <SystemSettings
                 showUptimeDisplay={showUptimeDisplay}
+                statusDegradedMs={statusDegradedMs}
                 onSaveSettings={onSaveSettings}
               />
               <LibraryManager />
@@ -135,9 +138,11 @@ type EnvLoad = 'loading' | 'ready' | 'error';
 // from GET /api/admin/env-config, grouped into Server / Identity (OIDC) (§8).
 function SystemSettings({
   showUptimeDisplay,
+  statusDegradedMs,
   onSaveSettings,
 }: {
   showUptimeDisplay: boolean;
+  statusDegradedMs: number;
   onSaveSettings: (patch: Partial<SystemConfig>) => Promise<void>;
 }) {
   const [entries, setEntries] = useState<EnvConfigEntry[]>([]);
@@ -167,6 +172,7 @@ function SystemSettings({
       </p>
       <dl className="settings-kv" data-testid="settings-env-list" aria-busy={state === 'loading'}>
         <UptimeToggleRow value={showUptimeDisplay} onSave={onSaveSettings} />
+        <DegradedThresholdRow value={statusDegradedMs} onSave={onSaveSettings} />
         {state === 'loading' && <EnvConfigSkeleton />}
         {state === 'error' && <EnvConfigError />}
         {state === 'ready' && <EnvConfigRows entries={entries} />}
@@ -249,6 +255,92 @@ function EnvConfigRows({ entries }: { entries: EnvConfigEntry[] }) {
 }
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+
+// DegradedThresholdRow — the writable "Slow" threshold (v16 tile status line /
+// health panel amber). A number input + explicit Save: unlike the toggle, a
+// half-typed number must not PATCH on every keystroke. 0 turns the derivation
+// off. Same save-flag + revert-on-error contract as the toggle (§9.2).
+function DegradedThresholdRow({
+  value,
+  onSave,
+}: {
+  value: number;
+  onSave: (patch: Partial<SystemConfig>) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => setDraft(String(value)), [value]);
+  useEffect(() => () => { if (savedTimer.current) clearTimeout(savedTimer.current); }, []);
+
+  const parsed = Number(draft);
+  const valid = draft.trim() !== '' && Number.isInteger(parsed) && parsed >= 0 && parsed <= 600000;
+  const dirty = valid && parsed !== value;
+
+  async function save() {
+    if (!dirty || saveState === 'saving') return;
+    setSaveState('saving');
+    try {
+      await onSave({ statusDegradedMs: parsed });
+      setSaveState('saved');
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setSaveState('idle'), 1600);
+    } catch {
+      setDraft(String(value)); // revert to the last persisted value
+      setSaveState('error');
+    }
+  }
+
+  const flag =
+    saveState === 'saving' ? 'Saving…' :
+    saveState === 'saved' ? 'Saved ✓' :
+    saveState === 'error' ? "Couldn't save — try again." : '';
+
+  return (
+    <div className="settings-kv-row settings-kv-row--control">
+      <dt id="degraded-threshold-label">
+        Mark a service Slow after
+        <span className="settings-kv-hint"> — a check that succeeds but takes longer than this reads Slow on the tile and turns the health panel amber. 0 turns this off.</span>
+      </dt>
+      <dd>
+        <span className="settings-save-flag" role="status" aria-live="polite" data-state={saveState}>
+          {flag}
+        </span>
+        <form
+          className="settings-inline-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save();
+          }}
+        >
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={600000}
+            step={50}
+            className="settings-number"
+            data-testid="degraded-threshold-input"
+            aria-labelledby="degraded-threshold-label"
+            aria-invalid={!valid || undefined}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            disabled={saveState === 'saving'}
+          />
+          <span className="settings-unit" aria-hidden="true">ms</span>
+          <button
+            type="submit"
+            className="settings-inline-save"
+            data-testid="degraded-threshold-save"
+            disabled={!dirty || saveState === 'saving'}
+          >
+            Save
+          </button>
+        </form>
+      </dd>
+    </div>
+  );
+}
 
 // UptimeToggleRow — the writable pill switch (§9.1). It moves the thumb
 // optimistically on click, PATCHes via onSave, then shows a transient "Saved ✓"

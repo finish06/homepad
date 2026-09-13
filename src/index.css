@@ -1885,6 +1885,54 @@
     gap: 8px;
   }
 
+  /* Slow-threshold row (System panel): number + unit + explicit Save, inline. */
+  .settings-kv-hint {
+    display: block;
+    font-weight: 400;
+    font-size: 12px;
+    color: var(--v-muted, #64748b);
+    margin-top: 2px;
+  }
+  .settings-inline-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .settings-number {
+    width: 6.5em;
+    min-height: 36px;
+    padding: 0 8px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  .settings-number[aria-invalid='true'] {
+    border-color: var(--v-down);
+  }
+  .settings-unit {
+    font-size: 12px;
+    color: var(--v-muted, #64748b);
+  }
+  .settings-inline-save {
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 0;
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #0b1220;
+    background: var(--v-up);
+    cursor: pointer;
+  }
+  .settings-inline-save:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
   /* SPEC-v26 §8 — the read-only Environment Configuration list. Each env row
      stacks a friendly label over the raw var name in the dt; the dd carries the
      value + [env] badge, right-aligned like the control row. */
