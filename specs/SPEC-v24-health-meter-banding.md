@@ -412,7 +412,7 @@ existing ATTENTION state.
 |---|---|
 | 12.1 ATTENTION inline pills | **Partially blocked** — names and durations are buildable, latency pills are not (no API field) |
 | 12.2 NOT MONITORED | **Built 2026-09-12** — NM1, NM2, NM3a, NM4 implemented and tested; **NM3b built 2026-09-13** once `docs/monitoring.md` existed to point at |
-| 12.3 STALE | **ST1–ST3 built 2026-09-13** (verdict stands down, age headline, dimmed meter). ST4/ST5 ("Retry now") still blocked on the backend refresh endpoint |
+| 12.3 STALE | **Built 2026-09-13** — ST1–ST3 (verdict stands down, age headline, dimmed meter) and ST4/ST5 ("Retry now" → `POST /api/status/refresh`, homepad-api PR #57) |
 
 ---
 
@@ -546,10 +546,12 @@ suggestion was `POST /api/status/refresh`) must exist to prod the poller and rep
 the re-poll succeeded. Until it does, the STALE state can be built **without** the retry
 button, but AC-V24-ST4 and AC-V24-ST5 cannot ship.
 
-**Unresolved, and it matters:** if Gatus itself is unreachable, the re-poll fails too. The
-endpoint has to distinguish "re-polled, still old" from "could not reach Gatus", and the panel
-has to say something useful in each case. Neither the artboard nor this spec covers that
-failure message.
+**Resolved 2026-09-13:** the endpoint distinguishes the two — `200 {as_of}` when Gatus
+answered (snapshot replaced), `503 {error, as_of}` when it could not be reached (the last good
+snapshot and its `as_of` stand; a failed manual re-poll never clobbers it). The panel's words:
+unreachable → "Could not reach the status source — still showing the last confirmed state.";
+answered but `as_of` unchanged since the last retry → "Re-checked, but the status source has
+nothing newer yet."; fresh → no note, the panel simply leaves STALE.
 
 **Product ACs — ST1 to ST3 buildable now, ST4 and ST5 blocked:**
 
@@ -558,8 +560,8 @@ failure message.
 | AC-V24-ST1 | **Implemented 2026-09-13 (without the button — see ST4).** When the age of the last successful `GET /api/services` response exceeds 15 minutes, the panel renders the STALE variant (neutral LED, "Status is N minutes old" headline, sub-line "Last successful check HH:MM · showing the last state that was confirmed"). Stale outranks OPERATIONAL and ATTENTION — the verdict stands down — but not NOT MONITORED, where there is no verdict to stand down. |
 | AC-V24-ST2 | **Implemented 2026-09-13.** The STALE headline shows the age in whole minutes, updated every tick of the existing age counter; the panel crosses into STALE on the tick with no new fetch. |
 | AC-V24-ST3 | **Implemented 2026-09-13.** The meter strip is still rendered, carries `data-stale="true"`, and is faded + desaturated (opacity .45, saturate .35). It shows the last-known band distribution. |
-| AC-V24-ST4 | **Blocked on the refresh endpoint.** "Retry now" calls the backend refresh endpoint, which prods the Gatus poller. If the re-poll succeeds and returns data younger than 15 minutes, the panel transitions out of STALE. If it fails, the panel remains STALE and reports why. |
-| AC-V24-ST5 | **Blocked on the refresh endpoint.** After a successful re-poll, the age counter resets to zero and the panel shows the appropriate variant (OPERATIONAL or ATTENTION) based on the fresh data. The counter must NOT reset if the re-poll returned the same stale snapshot. |
+| AC-V24-ST4 | **Implemented 2026-09-13** (endpoint: homepad-api PR #57). "Retry now" calls `POST /api/status/refresh` via the services context, which prods the Gatus poller. On a 200 with a newer `as_of` the list is reloaded and the panel leaves STALE through the normal path. On a 503 (Gatus unreachable — the backend keeps its last good snapshot) or a 404 (older backend) the panel stays STALE and says "Could not reach the status source — still showing the last confirmed state." The button is disabled and reads "Retrying…" while in flight. |
+| AC-V24-ST5 | **Implemented 2026-09-13.** After a successful re-poll the list reloads, the age counter resets and the panel shows OPERATIONAL/ATTENTION from the fresh data. The counter is NOT reset when the backend answered but `as_of` did not move since the last retry ("Re-checked, but the status source has nothing newer yet.") or when it was unreachable. The `as_of` comparison lives in the services context, not the panel. |
 
 **Threshold confirmed:** the headline stands down at the existing `staleness === 'red'`
 threshold (>15 min), already computed at `StatusBar.tsx:71`. No new magic number.

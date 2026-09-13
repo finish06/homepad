@@ -26,6 +26,7 @@ import {
   saveCategoryWidth,
   systemConfig,
   saveSystemSettings,
+  refreshStatus,
   setThemePref,
   updateLibraryApp,
   updateService,
@@ -982,5 +983,25 @@ describe('systemConfig / saveSystemSettings — statusDegradedMs (v16)', () => {
     const [url, init] = fn.mock.calls[0];
     expect(url).toBe('/api/admin/settings');
     expect(JSON.parse(String(init?.body))).toEqual({ statusDegradedMs: 0 });
+  });
+});
+
+describe('refreshStatus (SPEC-v24 §12.3, OQ-5)', () => {
+  it('POSTs /api/status/refresh and returns ok + the new as_of on 200', async () => {
+    const fn = mockFetch(JSON.stringify({ as_of: '2026-09-13T12:00:30Z' }), 200);
+    await expect(refreshStatus()).resolves.toEqual({ ok: true, status: 200, asOf: '2026-09-13T12:00:30Z' });
+    const [url, init] = fn.mock.calls[0];
+    expect(url).toBe('/api/status/refresh');
+    expect(init?.method).toBe('POST');
+  });
+
+  it('returns ok:false with the standing as_of on 503 (status source unreachable)', async () => {
+    mockFetch(JSON.stringify({ error: 'status source unreachable', as_of: '2026-09-13T12:00:00Z' }), 503);
+    await expect(refreshStatus()).resolves.toEqual({ ok: false, status: 503, asOf: '2026-09-13T12:00:00Z' });
+  });
+
+  it('returns ok:false on a 404 from an older backend without the endpoint', async () => {
+    mockFetch('404 page not found', 404);
+    await expect(refreshStatus()).resolves.toMatchObject({ ok: false, status: 404 });
   });
 });

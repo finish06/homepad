@@ -10,7 +10,7 @@
 // show data freshness.
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { servicesWithStatus, type Service, type ServiceStatus } from './api';
+import { refreshStatus, servicesWithStatus, type Service, type ServiceStatus } from './api';
 import { useAlertHistory } from './alerts/alerts';
 
 // How often to re-poll while visible (AC-001, ±10s tolerance).
@@ -51,7 +51,18 @@ export type ServicesContextValue = {
   // cap5/AC-015: reset recentChanges to [] once ToastContainer has consumed it, so
   // a fresh ToastContainer mount can't replay a prior poll's flips as ghost toasts.
   clearRecentChanges: () => void;
+  // SPEC-v24 §12.3 (OQ-5) — "Retry now" on the STALE health panel. Prods the
+  // BACKEND poller (POST /api/status/refresh); on genuinely new evidence the
+  // list is reloaded and lastUpdatedAt resets. The three outcomes the panel must
+  // tell apart are decided here from what the backend said:
+  //   'refreshed'   Gatus answered with a newer as_of → reloaded, counter reset
+  //   'unreachable' 503 (or 404 from an older backend) → nothing changed
+  //   'still-stale' Gatus answered but as_of did not move → nothing changed
+  // The counter is NEVER reset for the last two (AC-V24-ST5).
+  refresh: () => Promise<RefreshOutcome>;
 };
+
+export type RefreshOutcome = 'refreshed' | 'unreachable' | 'still-stale';
 
 const ServicesContext = createContext<ServicesContextValue | null>(null);
 
@@ -121,6 +132,13 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
   const alertsRef = useRef(alerts);
   alertsRef.current = alerts;
 
+  // The poll body lives in a ref so refresh() below can trigger the same load
+  // path the interval uses, without re-subscribing the effect.
+  const loadRef = useRef<(initial: boolean) => Promise<void>>(async () => {});
+  // as_of the backend reported on the last manual refresh — the baseline for
+  // telling "newer evidence" from "same snapshot" on the next one.
+  const lastAsOf = useRef<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -170,6 +188,7 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    loadRef.current = load;
     void load(true);
     const id = setInterval(() => void load(false), POLL_MS);
 
@@ -187,6 +206,18 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  async function refresh(): Promise<RefreshOutcome> {
+    const r = await refreshStatus();
+    if (!r.ok) return 'unreachable';
+    // A 200 with the same as_of as last time means the poller answered but had
+    // nothing newer. Reloading would reset the age over identical evidence —
+    // the exact misleading behaviour OQ-5 rejected — so it is reported, not hidden.
+    if (r.asOf !== undefined && r.asOf === lastAsOf.current) return 'still-stale';
+    if (r.asOf !== undefined) lastAsOf.current = r.asOf;
+    await loadRef.current(false);
+    return 'refreshed';
+  }
+
   return (
     <ServicesContext.Provider
       value={{
@@ -196,6 +227,7 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
         recentChanges,
         // AC-015 — let the consumer drain the queue after enqueuing.
         clearRecentChanges: () => setRecentChanges([]),
+        refresh,
       }}
     >
       {children}

@@ -38,6 +38,7 @@ function setCtx(items: Service[] | null, lastUpdatedAt: number | null = Date.now
     lastUpdatedAt,
     recentChanges: [],
     clearRecentChanges: vi.fn(),
+    refresh: vi.fn(async () => 'refreshed' as const),
   });
 }
 
@@ -498,5 +499,80 @@ describe('SPEC-v24 §12.2 — "Connect a status source" CTA', () => {
     await userEvent.click(screen.getByTestId('health-dismiss'));
     expect(screen.queryByTestId('health-connect-cta')).toBeNull();
     expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'not-monitored');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SPEC-v24 §12.3 — "Retry now" (AC-V24-ST4, ST5). OQ-5: the button prods the
+// BACKEND poller (POST /api/status/refresh via the services context), never a
+// client refetch of the same stale payload. Three outcomes the panel must tell
+// apart: re-polled and fresh (panel leaves STALE via the normal reload), Gatus
+// unreachable (stays STALE, says so), re-polled but still old (stays STALE,
+// says so). The context owns the network; the panel owns the words.
+// ---------------------------------------------------------------------------
+describe('SPEC-v24 §12.3 — "Retry now"', () => {
+  function setStaleCtx(refresh: () => Promise<'refreshed' | 'unreachable' | 'still-stale'>) {
+    mockedCtx.mockReturnValue({
+      items: [svc('UP', 'u1')],
+      setItems: vi.fn(),
+      lastUpdatedAt: Date.now() - 16 * MIN,
+      recentChanges: [],
+      clearRecentChanges: vi.fn(),
+      refresh,
+    });
+  }
+
+  it('AC-V24-ST4 — offers "Retry now" only in the STALE state', () => {
+    setStaleCtx(vi.fn(async () => 'refreshed' as const));
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-retry')).toHaveTextContent('Retry now');
+    cleanup();
+    setCtx([svc('UP', 'u1')]);
+    render(<StatusBar />);
+    expect(screen.queryByTestId('health-retry')).toBeNull();
+  });
+
+  it('AC-V24-ST4 — clicking asks the context to re-poll the backend, once', async () => {
+    const refresh = vi.fn(async () => 'refreshed' as const);
+    setStaleCtx(refresh);
+    render(<StatusBar />);
+    await userEvent.click(screen.getByTestId('health-retry'));
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('AC-V24-ST4 — while the re-poll is in flight the button is disabled and says so', async () => {
+    let resolve!: (v: 'refreshed') => void;
+    const refresh = vi.fn(() => new Promise<'refreshed'>((r) => (resolve = r)));
+    setStaleCtx(refresh);
+    render(<StatusBar />);
+    await userEvent.click(screen.getByTestId('health-retry'));
+    const btn = screen.getByTestId('health-retry');
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveTextContent('Retrying…');
+    await act(async () => resolve('refreshed'));
+    expect(screen.getByTestId('health-retry')).not.toBeDisabled();
+  });
+
+  it('AC-V24-ST4 — when the status source is unreachable the panel stays STALE and says why', async () => {
+    setStaleCtx(vi.fn(async () => 'unreachable' as const));
+    render(<StatusBar />);
+    await userEvent.click(screen.getByTestId('health-retry'));
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'stale');
+    expect(screen.getByTestId('health-retry-note')).toHaveTextContent('Could not reach the status source');
+  });
+
+  it('AC-V24-ST5 — a re-poll that is still old keeps STALE and does not pretend otherwise', async () => {
+    setStaleCtx(vi.fn(async () => 'still-stale' as const));
+    render(<StatusBar />);
+    await userEvent.click(screen.getByTestId('health-retry'));
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'stale');
+    expect(screen.getByTestId('health-retry-note')).toHaveTextContent('Re-checked, but the status source has nothing newer');
+  });
+
+  it('AC-V24-ST5 — a successful re-poll shows no failure note (the context resets the age)', async () => {
+    setStaleCtx(vi.fn(async () => 'refreshed' as const));
+    render(<StatusBar />);
+    await userEvent.click(screen.getByTestId('health-retry'));
+    expect(screen.queryByTestId('health-retry-note')).toBeNull();
   });
 });
