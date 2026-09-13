@@ -7,6 +7,60 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [16.1.0] — 2026-09-12 — Tile density: Large / Compact / List (v16)
+
+The first piece of the v16 interface itself, and the one the 16.0.0 notes listed as
+blocked. No data or API changes; the upgrade is safe in place.
+
+**Your dashboard tiles can now be one of three shapes.** A switch in a new dashboard
+header row — "Your dashboard" on the left, Large · Compact · List on the right —
+picks between the tall name-only tile you have today (**Large**), a wider horizontal
+tile with the icon on the left and a live status line under the name (**Compact**),
+and a single full-width column of short rows (**List**). It is a proper radio group:
+the active choice is filled and marked for screen readers rather than signalled by
+colour alone, and arrow keys move between the options.
+
+**Compact is the new default, so an existing dashboard will look different after
+this upgrade.** Nothing is lost and no tile changes what it does — pick Large from
+the switch to get the previous layout back, and that choice sticks.
+
+**Compact and List tiles say how each service is doing without being clicked.** A
+status line under the name reads `Online`, `Slow`, `Offline`, `Not monitored` or
+`Unknown`, and the status dot sits on a fixed right rail so that down a column the
+dots line up and the grid scans as a column of dots. An `Offline` service also shows
+how long it has been down — "Offline · 6 min" — derived from its existing check
+history. Large tiles are untouched: same vertical card, same top-left dot, no status
+line.
+
+**The response time is not on that line yet.** The 16.0.0 notes named this as the
+blocker and it is still real: `GET /api/services` does not return a per-service
+response time. Rather than invent one, the line shows the state word alone and
+appends a latency ("Online · 41 ms") only once the API actually carries the value.
+There is no placeholder and no fabricated number. When the backend starts returning
+`responseTimeMs`, the latency appears with no further frontend change.
+
+**Your density choice is saved per device, not per account.** A 4K monitor and a
+phone can sit on different densities for the same login. This *diverges from the
+recorded decision* for this question, which called for a per-user server-side
+preference; building it per-device meant the feature did not have to wait on a
+backend field and a migration. `specs/SPEC-tile-density.md` §2 records the
+divergence and what switching to the server-side model would take.
+
+**Also in this release:** homepad now cuts its own releases — pushing a `vX.Y.Z` tag
+builds the versioned image, checks that the tag, `CHANGELOG.md` and `package.json`
+agree before building anything, and creates the release entry. Two design documents
+that had been sitting unmerged since July — Kare's login glass restyle and the v23
+design section — are now recorded in the repo.
+
+### What is *still* not in this release
+
+- **Per-service response times** on the status line — needs the API field above.
+- **The "retry now" action** on a stale health panel — needs a backend endpoint that
+  can prod the status poller.
+- **Density synced to your account** — needs the per-user preference field.
+- **The twelve-column group grid** — needs a migration, and three of the eight
+  existing width values have no exact equivalent in the new model.
+
 ## [16.0.0] — 2026-09-12 — Honest health reporting, release awareness (v16 foundation)
 
 Major version, no data or API changes. Nothing here breaks an existing install —

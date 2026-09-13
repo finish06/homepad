@@ -2,6 +2,20 @@
   "pending": [],
   "versions": [
     {
+      "version": "16.1.0",
+      "date": "2026-09-12",
+      "changes": [
+        {
+          "type": "feature",
+          "text": "Your dashboard tiles can now be one of three shapes, chosen from a new switch in the dashboard header: Large (the tall name-only tile you have today), Compact (a wider horizontal tile with the icon on the left and a status line under the name), or List (one full-width column of short rows). Compact is the new default, so your grid will look different after this upgrade — nothing is lost, and picking Large brings the previous layout back. The choice is saved on the device you made it on, so a big monitor and a phone can each sit at their own density."
+        },
+        {
+          "type": "feature",
+          "text": "Compact and List tiles say how each service is doing without being clicked. A status line under the name reads Online, Slow, Offline, Not monitored or Unknown, and the status dot sits on a fixed right rail so the dots line up down a column. An offline service also shows how long it has been down — “Offline · 6 min”. Response times are not on the line yet: the API does not return them, and rather than show a made-up number the line stays with the state word until it does."
+        }
+      ]
+    },
+    {
       "version": "16.0.0",
       "date": "2026-09-12",
       "changes": [
