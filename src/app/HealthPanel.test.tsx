@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import StatusBar from './StatusBar';
 import { useServicesContext } from '../services';
@@ -357,5 +357,146 @@ describe('SPEC-v24 §12.2 — legend follows the meter', () => {
     render(<StatusBar />);
     expect(screen.getByTestId('health-meter')).toBeInTheDocument();
     expect(screen.getByText('Online')).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SPEC-v24 §12.3 — STALE panel state (AC-V24-ST1..ST3).
+//
+// Past the existing red freshness threshold (>15 min since the last successful
+// GET /api/services) the verdict stands down: the LED goes neutral, the headline
+// reports the age, and the meter is drawn dimmed as last-known rather than
+// asserted as current. ST4/ST5 ("Retry now" prodding the backend poller) are
+// blocked on the refresh endpoint and are NOT covered here.
+// ---------------------------------------------------------------------------
+const MIN = 60_000;
+
+describe('SPEC-v24 §12.3 — STALE panel state', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('AC-V24-ST1 — stands the verdict down past 15 minutes: neutral LED + age headline', () => {
+    setCtx([svc('UP', 'u1'), svc('UP', 'u2')], Date.now() - 16 * MIN);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'stale');
+    expect(screen.getByTestId('health-headline')).toHaveTextContent('Status is 16 minutes old');
+    expect(screen.getByTestId('health-headline')).not.toHaveTextContent('All systems operational');
+  });
+
+  it('AC-V24-ST1 — an attention verdict stands down too; stale data cannot support it', () => {
+    setCtx([svc('DOWN', 'd1'), svc('UP', 'u1')], Date.now() - 20 * MIN);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'stale');
+    expect(screen.getByTestId('health-headline')).toHaveTextContent('Status is 20 minutes old');
+    expect(screen.getByTestId('health-headline')).not.toHaveTextContent('needs attention');
+  });
+
+  it('AC-V24-ST1 — sub-line names the last successful check and that the state is last-known', () => {
+    const at = Date.now() - 16 * MIN;
+    setCtx([svc('UP', 'u1')], at);
+    render(<StatusBar />);
+    const sub = screen.getByTestId('health-subline');
+    const hhmm = new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    expect(sub).toHaveTextContent(`Last successful check ${hhmm}`);
+    expect(sub).toHaveTextContent('showing the last state that was confirmed');
+  });
+
+  it('AC-V24-ST1 — does not fire at the amber threshold (5–15 min); only red stands the verdict down', () => {
+    setCtx([svc('UP', 'u1')], Date.now() - 10 * MIN);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'operational');
+    expect(screen.getByTestId('health-headline')).toHaveTextContent('All systems operational');
+  });
+
+  it('AC-V24-ST2 — the age counts up with the existing one-second tick', () => {
+    vi.useFakeTimers();
+    setCtx([svc('UP', 'u1')], Date.now() - 16 * MIN);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-headline')).toHaveTextContent('Status is 16 minutes old');
+    act(() => {
+      vi.advanceTimersByTime(2 * MIN);
+    });
+    expect(screen.getByTestId('health-headline')).toHaveTextContent('Status is 18 minutes old');
+  });
+
+  it('AC-V24-ST2 — crosses INTO stale on the tick without a new fetch', () => {
+    vi.useFakeTimers();
+    setCtx([svc('UP', 'u1')], Date.now() - 14 * MIN);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'operational');
+    act(() => {
+      vi.advanceTimersByTime(2 * MIN);
+    });
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'stale');
+    expect(screen.getByTestId('health-headline')).toHaveTextContent('Status is 16 minutes old');
+  });
+
+  it('AC-V24-ST3 — the meter is still rendered, marked dimmed, with the last-known ticks', () => {
+    setCtx([svc('UP', 'u1'), svc('DOWN', 'd1'), svc('NOT_MONITORED', 'n1')], Date.now() - 16 * MIN);
+    render(<StatusBar />);
+    const meter = screen.getByTestId('health-meter');
+    expect(meter).toHaveAttribute('data-stale', 'true');
+    expect(meter.querySelectorAll('[data-tick]')).toHaveLength(3);
+  });
+
+  it('AC-V24-ST3 — the meter is not marked dimmed while the data is fresh', () => {
+    setCtx([svc('UP', 'u1')]);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-meter')).not.toHaveAttribute('data-stale', 'true');
+  });
+
+  it('keeps the not-monitored state when the (absent) evidence is also old', () => {
+    // Stale describes an old verdict. With nothing monitored there is no verdict
+    // to stand down, so the more specific "not being checked" wording wins.
+    setCtx([svc('NOT_MONITORED', 'n1')], Date.now() - 16 * MIN);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'not-monitored');
+    expect(screen.getByTestId('health-headline')).toHaveTextContent('Status is not being checked');
+  });
+
+  it('never shows stale while loading, even with an old timestamp', () => {
+    setCtx(null, Date.now() - 16 * MIN);
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-headline')).toHaveTextContent('Checking services…');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SPEC-v24 §12.2 — "Connect a status source" CTA (AC-V24-NM3b).
+//
+// OQ-4 resolved the target to "link to documentation". The page now exists
+// (docs/monitoring.md), so the CTA ships pointing at it. It sits in the same
+// action row as "Not now", so the dismiss collapses both.
+// ---------------------------------------------------------------------------
+describe('SPEC-v24 §12.2 — "Connect a status source" CTA', () => {
+  it('AC-V24-NM3b — offers the CTA in the not-monitored state', () => {
+    setCtx([svc('NOT_MONITORED', 'n1')]);
+    render(<StatusBar />);
+    const cta = screen.getByTestId('health-connect-cta');
+    expect(cta).toHaveTextContent('Connect a status source');
+  });
+
+  it('AC-V24-NM3b — the CTA links to the monitoring setup documentation in a new tab', () => {
+    setCtx([svc('NOT_MONITORED', 'n1')]);
+    render(<StatusBar />);
+    const cta = screen.getByTestId('health-connect-cta');
+    expect(cta).toHaveAttribute('href', expect.stringContaining('docs/monitoring.md'));
+    expect(cta).toHaveAttribute('target', '_blank');
+    expect(cta.getAttribute('rel')).toContain('noopener');
+  });
+
+  it('AC-V24-NM3b — the CTA is absent once anything is monitored', () => {
+    setCtx([svc('NOT_MONITORED', 'n1'), svc('UP', 'u1')]);
+    render(<StatusBar />);
+    expect(screen.queryByTestId('health-connect-cta')).toBeNull();
+  });
+
+  it('AC-V24-NM3a/b — "Not now" collapses the CTA with the rest of the action row', async () => {
+    setCtx([svc('NOT_MONITORED', 'n1')]);
+    render(<StatusBar />);
+    await userEvent.click(screen.getByTestId('health-dismiss'));
+    expect(screen.queryByTestId('health-connect-cta')).toBeNull();
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'not-monitored');
   });
 });

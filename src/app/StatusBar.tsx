@@ -67,6 +67,11 @@ const statusBand: Record<ServiceStatus, number> = {
   DEGRADED: 2,
 };
 
+// SPEC-v24 §12.2, AC-V24-NM3b — where "Connect a status source" sends people.
+// OQ-4 resolved the CTA's target to documentation rather than an in-app setup
+// flow; this is the setup page in the public repo, so it works from any install.
+const MONITORING_DOCS_URL = 'https://github.com/finish06/homepad/blob/main/docs/monitoring.md';
+
 // §4.2 stale thresholds (§5.3): freshness label → amber past 5 min, red past 15.
 function staleness(ageMs: number): 'fresh' | 'amber' | 'red' {
   if (ageMs > 15 * 60 * 1000) return 'red';
@@ -155,6 +160,13 @@ export default function StatusBar() {
   // monitored statuses, so any attention at all implies monitored > 0. The
   // ordering below is still explicit so the precedence does not rest on that.
   const fleetUnmonitored = !loading && !empty && monitored === 0;
+  const ageMs = lastUpdatedAt == null ? null : now - lastUpdatedAt;
+  // SPEC-v24 §12.3 — past the red freshness threshold the verdict stands down:
+  // the data cannot support a green or red claim any more, so the panel reports
+  // the age instead. Same threshold the freshness label already uses (no new
+  // magic number). The not-monitored state is exempt — there is no verdict there
+  // to stand down, and "not being checked" is the more specific truth.
+  const stale = !loading && !empty && !fleetUnmonitored && ageMs != null && staleness(ageMs) === 'red';
   // "Not now" collapses the action row ONLY. The verdict itself keeps standing
   // down, because dismissing a notice does not start monitoring anything — and
   // a panel that answered the dismiss with a green "All systems operational"
@@ -163,11 +175,13 @@ export default function StatusBar() {
 
   const variant = loading
     ? 'loading'
-    : attention > 0
-      ? 'attention'
-      : fleetUnmonitored
-        ? 'not-monitored'
-        : 'operational';
+    : fleetUnmonitored
+      ? 'not-monitored'
+      : stale
+        ? 'stale'
+        : attention > 0
+          ? 'attention'
+          : 'operational';
   const severity = down > 0 ? 'down' : degraded > 0 ? 'degraded' : 'none';
 
   let headline: string;
@@ -178,15 +192,23 @@ export default function StatusBar() {
   } else if (empty) {
     headline = 'No services yet';
     subline = 'Add your first service to get started';
-  } else if (attention > 0) {
-    headline = `${attention} service${attention === 1 ? '' : 's'} need${attention === 1 ? 's' : ''} attention`;
-    subline = `${total} service${total === 1 ? '' : 's'} across ${groups} group${groups === 1 ? '' : 's'} · ${monitored} monitored`;
   } else if (fleetUnmonitored) {
     // The panel has no evidence, so it states that instead of a verdict. The
     // sub-line is careful to say what still works: the tiles are not broken,
     // they simply cannot report.
     headline = 'Status is not being checked';
     subline = `${total} service${total === 1 ? '' : 's'}, none of them monitored · tiles will launch, but they cannot report`;
+  } else if (stale) {
+    // Whole minutes, so the number matches what the freshness label implies and
+    // ticks with it. The sub-line says exactly what is on screen: the last
+    // state that was confirmed, not the current one.
+    const minutes = Math.round((ageMs ?? 0) / 60_000);
+    const at = new Date(lastUpdatedAt ?? 0).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    headline = `Status is ${minutes} minute${minutes === 1 ? '' : 's'} old`;
+    subline = `Last successful check ${at} · showing the last state that was confirmed`;
+  } else if (attention > 0) {
+    headline = `${attention} service${attention === 1 ? '' : 's'} need${attention === 1 ? 's' : ''} attention`;
+    subline = `${total} service${total === 1 ? '' : 's'} across ${groups} group${groups === 1 ? '' : 's'} · ${monitored} monitored`;
   } else {
     headline = 'All systems operational';
     subline = `${total} service${total === 1 ? '' : 's'} across ${groups} group${groups === 1 ? '' : 's'} · ${monitored} monitored`;
@@ -214,8 +236,6 @@ export default function StatusBar() {
     ? (items ?? []).filter(PEEK_META[peek!].match).slice().sort((a, b) => a.name.localeCompare(b.name))
     : [];
 
-  const ageMs = lastUpdatedAt == null ? null : now - lastUpdatedAt;
-
   return (
     <div data-testid="status-bar" role="status" aria-label="Service status summary" className="relative pt-3">
       {/* Content stays constrained to the shared width so the panel's left edge
@@ -238,11 +258,20 @@ export default function StatusBar() {
             </p>
             {showMonitoringActions && (
               <div className="health-notice-actions">
-                {/* SPEC-v24 §12.2, AC-V24-NM3a. The "Connect a status source"
-                    primary CTA (NM3b) is deliberately absent: OQ-4 resolved its
-                    target to "link to documentation", but no documentation page
-                    exists yet and a dead link is worse than no link. Add it here
-                    once there is a real URL to point at. */}
+                {/* SPEC-v24 §12.2. AC-V24-NM3b — the primary CTA opens the
+                    monitoring setup page (OQ-4: link to documentation). It is a
+                    real link, not a button, so it works with middle-click and
+                    reads as navigation to assistive tech. AC-V24-NM3a — "Not
+                    now" collapses this whole row. */}
+                <a
+                  data-testid="health-connect-cta"
+                  className="health-notice-cta"
+                  href={MONITORING_DOCS_URL}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  Connect a status source
+                </a>
                 <button
                   type="button"
                   data-testid="health-dismiss"
@@ -288,7 +317,12 @@ export default function StatusBar() {
                   state, so the meter is omitted rather than drawn empty. The
                   chips stay; only the meter goes. */}
               {!fleetUnmonitored && (
-                <div data-testid="health-meter" className="health-meter" aria-hidden="true">
+                <div
+                  data-testid="health-meter"
+                  className="health-meter"
+                  data-stale={stale ? 'true' : undefined}
+                  aria-hidden="true"
+                >
                   {(items ?? [])
                     .map((s, i) => ({ s, i }))
                     .sort((a, b) => statusBand[a.s.status] - statusBand[b.s.status] || a.i - b.i)
