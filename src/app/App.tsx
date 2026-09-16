@@ -17,6 +17,8 @@ import AppHeader from './AppHeader';
 import AppGrid from '../grid/AppGrid';
 import TileDensityToggle from '../grid/TileDensityToggle';
 import { useTileDensity } from '../grid/tileDensity';
+import { useHealthBarPref } from './healthBarPref';
+import type { SettingsScope } from '../library/SettingsPanel';
 import StatusBar from './StatusBar';
 import CommandLauncher from '../launcher/CommandLauncher';
 import { LauncherProvider, useLauncher } from '../launcher/launcher';
@@ -107,6 +109,11 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // the per-device cache, choices write through to PATCH /api/me. The switch
   // lives in the dashboard header below.
   const [density, setDensity] = useTileDensity(user.densityPref);
+  // SPEC-health-bar-visibility-toggle — same per-USER shape as densityPref: the
+  // account's showHealthBar from /api/me seeds it and wins on every resolve,
+  // localStorage is only the first-paint cache. The setter is consumed by the
+  // settings control reached from UserMenu -> My Dashboard -> "My settings".
+  const [showHealthBar, setShowHealthBar] = useHealthBarPref(user.showHealthBar);
   // Library browse + add-custom-app remain (service management, not layout),
   // lifted here so the header Gear can trigger them and their result flows into
   // the shared services context that AppGrid renders from.
@@ -117,6 +124,9 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // System panel now reads its own env-config from GET /api/admin/env-config,
   // so App no longer needs to feed it the client auth config.
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // OQ-1 (a) — one panel, two scopes. The entry point decides which: personal
+  // settings are offered to every role, admin settings only under the shield.
+  const [settingsScope, setSettingsScope] = useState<SettingsScope>('admin');
   // cap6 — the global uptime-display toggle. Seeded ON so the first paint (before
   // the config resolves) matches today's behavior; systemConfig() then corrects it.
   const [sysConfig, setSysConfig] = useState<SystemConfig>({ showUptimeDisplay: true, statusDegradedMs: 1000 });
@@ -209,7 +219,14 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
           onToggleEdit={() => setEditMode((e) => !e)}
           onOpenLibrary={() => setBrowseOpen(true)}
           onOpenCustomAppForm={() => setCustomFormOpen(true)}
-          onOpenAdminSettings={() => setSettingsOpen(true)}
+          onOpenAdminSettings={() => {
+            setSettingsScope('admin');
+            setSettingsOpen(true);
+          }}
+          onOpenMySettings={() => {
+            setSettingsScope('personal');
+            setSettingsOpen(true);
+          }}
           onGoToDashboard={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           onLogout={handleLogout}
           alertCount={alerts?.unreadCount ?? 0}
@@ -217,7 +234,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
           bellRef={bellRef}
         />
 
-        <StatusBar />
+        <StatusBar showHealthBar={showHealthBar} />
 
         <section className={`${CONTENT_WIDTH} py-6`}>
           {/* v19 §4.5 / #277 — the shared-catalog edit warning. editMode is
@@ -293,6 +310,9 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Suspense fallback={null}>
             <SettingsPanel
               isAdmin={isAdmin}
+              scope={settingsScope}
+              showHealthBar={showHealthBar}
+              onSetHealthBar={setShowHealthBar}
               showUptimeDisplay={sysConfig.showUptimeDisplay}
               statusDegradedMs={sysConfig.statusDegradedMs}
               onSaveSettings={onSaveSettings}

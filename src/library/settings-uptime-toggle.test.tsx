@@ -26,6 +26,8 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
       showUptimeDisplay={props.showUptimeDisplay ?? true}
       statusDegradedMs={1000}
       onSaveSettings={props.onSaveSettings ?? vi.fn().mockResolvedValue(undefined)}
+      showHealthBar={true}
+      onSetHealthBar={vi.fn()}
       onClose={props.onClose ?? vi.fn()}
     />,
   );

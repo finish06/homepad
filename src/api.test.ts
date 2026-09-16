@@ -27,6 +27,7 @@ import {
   systemConfig,
   saveSystemSettings,
   refreshStatus,
+  setHealthBarPref,
   setThemePref,
   updateLibraryApp,
   updateService,
@@ -553,6 +554,28 @@ describe('setThemePref (v3)', () => {
     await expect(setThemePref('system')).resolves.toBe(false);
     mockFetch(null, 401);
     await expect(setThemePref('light')).resolves.toBe(false);
+  });
+});
+
+// ── SPEC-health-bar-visibility-toggle (per-user bar visibility) ──────────────
+
+describe('setHealthBarPref', () => {
+  it('PATCHes /api/me with showHealthBar alone and returns true on 200', async () => {
+    const fn = mockFetch(JSON.stringify({ id: 'u1', showHealthBar: false }), 200);
+    await expect(setHealthBarPref(false)).resolves.toBe(true);
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/me');
+    expect(opts).toMatchObject({ method: 'PATCH', credentials: 'include' });
+    // A SINGLE-FIELD body: the backend guard must accept this on its own
+    // (homepad-api auth.go rejects a body with neither themePref nor densityPref).
+    expect(JSON.parse(opts!.body as string)).toEqual({ showHealthBar: false });
+  });
+
+  it('AC-009/AC-010 — returns false on a non-200 so the caller can roll back', async () => {
+    mockFetch('showHealthBar must be a boolean', 400);
+    await expect(setHealthBarPref(true)).resolves.toBe(false);
+    mockFetch(null, 401);
+    await expect(setHealthBarPref(false)).resolves.toBe(false);
   });
 });
 

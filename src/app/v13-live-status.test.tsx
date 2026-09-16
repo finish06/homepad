@@ -158,6 +158,7 @@ describe('AC-004 / AC-010 — "Updated X ago" indicator in the header', () => {
           <AppHeader
             user={USER}
             onOpenAdminSettings={() => {}}
+            onOpenMySettings={() => {}}
             onGoToDashboard={() => {}}
             onLogout={() => {}}
             alertCount={0}

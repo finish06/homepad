@@ -285,3 +285,112 @@ describe('StatusBar quick-peek popover', () => {
     );
   });
 });
+
+// ── SPEC-health-bar-visibility-toggle — per-user bar visibility ──────────────
+//
+// The preference hides the DISTRIBUTION block (today: chips + meter + legend,
+// gated by `showMetrics`) and keeps the verdict — LED, headline, subline. It is
+// a prop, seeded by App from the account's showHealthBar, mirroring how
+// densityPref reaches AppGrid.
+describe('SPEC-health-bar-visibility-toggle — bar visibility', () => {
+  const fleet = () => [
+    svc('UP', 'a'),
+    svc('UP', 'b'),
+    svc('DOWN', 'c'),
+    svc('NOT_MONITORED', 'd'),
+  ];
+
+  it('AC-001 — the bar is visible by default (prop omitted)', () => {
+    setItems(fleet());
+    render(<StatusBar />);
+    expect(screen.getByTestId('health-meter')).toBeInTheDocument();
+    expect(screen.getByTestId('status-bar-up')).toBeInTheDocument();
+  });
+
+  it('AC-003 — hiding the bar keeps the verdict: LED, headline and subline all remain', () => {
+    setItems(fleet());
+    render(<StatusBar showHealthBar={false} />);
+    expect(screen.getByTestId('health-led')).toBeInTheDocument();
+    expect(screen.getByTestId('health-headline')).toBeInTheDocument();
+    expect(screen.getByTestId('health-subline')).toBeInTheDocument();
+  });
+
+  it('AC-004/AC-015 — the distribution block is UNMOUNTED, not merely hidden', () => {
+    setItems(fleet());
+    const { container } = render(<StatusBar showHealthBar={false} />);
+    // Absent from the DOM entirely: a display:none / visibility:hidden element
+    // would still be found here, and the bands are focusable, so they must
+    // leave the a11y tree rather than linger in it.
+    expect(screen.queryByTestId('health-meter')).toBeNull();
+    expect(screen.queryByTestId('status-bar-up')).toBeNull();
+    expect(container.querySelector('.health-metrics')).toBeNull();
+    expect(container.querySelector('.health-legend')).toBeNull();
+  });
+
+  it('AC-016 — the counts the bar carried survive in the subline', () => {
+    setItems(fleet());
+    render(<StatusBar showHealthBar={false} />);
+    const subline = screen.getByTestId('health-subline').textContent ?? '';
+    expect(subline).toMatch(/2 online/);
+    expect(subline).toMatch(/1 down/);
+    expect(subline).toMatch(/1 not monitored/);
+  });
+
+  it('AC-016 — the subline is NOT rewritten while the bar is visible', () => {
+    setItems(fleet());
+    render(<StatusBar showHealthBar={true} />);
+    const subline = screen.getByTestId('health-subline').textContent ?? '';
+    // The bar is on screen carrying the breakdown, so the subline keeps its
+    // existing wording — this preference must not change the default view.
+    expect(subline).not.toMatch(/2 online/);
+    expect(subline).toMatch(/monitored/);
+  });
+
+  it('AC-013 — hiding the bar does not disturb the verdict the fleet reports', () => {
+    setItems(fleet());
+    render(<StatusBar showHealthBar={false} />);
+    // One DOWN service: the LED and headline must still raise it. A display
+    // preference may never conceal an outage.
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'attention');
+    expect(screen.getByTestId('health-headline')).toHaveTextContent(/attention/i);
+  });
+});
+
+// TASK-503 / AC-013 — the preference is presentational only. It must not touch
+// the freshness machinery: the v13 refresh cycle, the staleness verdict, or the
+// "Retry now" affordance that re-polls Gatus.
+describe('SPEC-health-bar-visibility-toggle — AC-013 refresh cycle untouched', () => {
+  const MIN = 60 * 1000;
+
+  function staleCtx(refresh: () => Promise<'refreshed'>) {
+    mockedCtx.mockReturnValue({
+      items: [svc('UP', 'u1')],
+      setItems: vi.fn(),
+      lastUpdatedAt: Date.now() - 16 * MIN,
+      recentChanges: [],
+      clearRecentChanges: vi.fn(),
+      refresh,
+    });
+  }
+
+  it('the STALE verdict and "Retry now" still render with the bar hidden', () => {
+    staleCtx(vi.fn(async () => 'refreshed' as const));
+    render(<StatusBar showHealthBar={false} />);
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'stale');
+    expect(screen.getByTestId('health-retry')).toHaveTextContent('Retry now');
+  });
+
+  it('clicking Retry still re-polls exactly once with the bar hidden', async () => {
+    const refresh = vi.fn(async () => 'refreshed' as const);
+    staleCtx(refresh);
+    render(<StatusBar showHealthBar={false} />);
+    await userEvent.click(screen.getByTestId('health-retry'));
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('the freshness label survives — hiding the distribution never hides "when"', () => {
+    staleCtx(vi.fn(async () => 'refreshed' as const));
+    render(<StatusBar showHealthBar={false} />);
+    expect(screen.getByTestId('health-updated')).toBeInTheDocument();
+  });
+});

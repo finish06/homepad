@@ -56,11 +56,14 @@ test('AC-001/AC-006 — a corner tap OUTSIDE the 34×34 button but inside the 44
   expect(page.context().pages().length).toBe(pagesBefore);
 });
 
-test('AC-003 — default ☆ renders slate-500 (#64748b) in light mode at 768px', async ({ page }) => {
+test('AC-003 — default ☆ renders slate-500 (#64748b) in light mode at 768px', async ({ page }, testInfo) => {
   await page.goto('/');
   const star = page.getByTestId('tile-favorite').first();
   await expect(star).toBeVisible();
   const color = await star.evaluate((el) => getComputedStyle(el).color);
   expect(color).toBe('rgb(100, 116, 139)'); // #64748b — 4.76:1 on the white tile
-  await page.screenshot({ path: '/home/stitch/work/v20-fav-star-light-768.png' });
+  // Was an absolute path under /home/stitch — it passed only on its author's
+  // machine and ENOENT'd everywhere else, including CI. outputPath() resolves
+  // into this run's own artifact directory on any host.
+  await page.screenshot({ path: testInfo.outputPath('v20-fav-star-light-768.png') });
 });

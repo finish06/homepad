@@ -87,5 +87,28 @@ export default defineConfig({
     // update, and component test runs stay free of infra archaeology.
     include: ['src/**/*.test.{ts,tsx}', 'tests/infra/**/*.test.{ts,tsx}'],
     css: false,
+    // ADD adoption (2026-09-15) — the coverage total previously counted root
+    // config files, qa-kit/ scripts and the vendored qa-artifacts bundles
+    // (support.js is 2,097 lines, plus copies of React), which dragged the
+    // reported number to 61.98% while src/ was actually at 94.85%. Scope
+    // coverage to shipped source so the threshold measures what we write.
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/test/**',
+        'src/**/*.d.ts',
+      ],
+      thresholds: {
+        statements: 90,
+        lines: 90,
+        // functions sits at 87.57% today — 90 here would block CI on adoption
+        // day. Raise to 90 once the untested branches in App.tsx and
+        // TileDensityToggle.tsx are covered.
+        functions: 85,
+        branches: 88,
+      },
+    },
   },
 });

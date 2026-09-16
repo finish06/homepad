@@ -34,6 +34,7 @@ function renderHeader(alertCount: number, onAlertClick = () => {}) {
       <AppHeader
         user={USER}
         onOpenAdminSettings={() => {}}
+        onOpenMySettings={() => {}}
         onGoToDashboard={() => {}}
         onLogout={() => {}}
         alertCount={alertCount}
@@ -168,6 +169,7 @@ function Harness({ seed }: { seed: AlertEvent[] }) {
       <AppHeader
         user={USER}
         onOpenAdminSettings={() => {}}
+        onOpenMySettings={() => {}}
         onGoToDashboard={() => {}}
         onLogout={() => {}}
         alertCount={alerts.unreadCount}

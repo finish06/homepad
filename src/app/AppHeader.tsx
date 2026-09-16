@@ -289,6 +289,7 @@ export default function AppHeader({
   onOpenLibrary = () => {},
   onOpenCustomAppForm = () => {},
   onOpenAdminSettings,
+  onOpenMySettings,
   onGoToDashboard,
   onLogout,
   alertCount,
@@ -301,6 +302,7 @@ export default function AppHeader({
   onOpenLibrary?: () => void;
   onOpenCustomAppForm?: () => void;
   onOpenAdminSettings: () => void;
+  onOpenMySettings: () => void;
   onGoToDashboard: () => void;
   onLogout: () => void;
   alertCount: number;
@@ -349,6 +351,7 @@ export default function AppHeader({
           <UserMenu
             user={user}
             onOpenAdminSettings={onOpenAdminSettings}
+          onOpenMySettings={onOpenMySettings}
             onGoToDashboard={onGoToDashboard}
             onLogout={onLogout}
           />
