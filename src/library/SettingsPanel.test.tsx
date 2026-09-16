@@ -60,6 +60,8 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
       onSaveSettings={props.onSaveSettings ?? vi.fn().mockResolvedValue(undefined)}
       scope={props.scope ?? 'admin'}
       showHealthBar={props.showHealthBar ?? true}
+      showUptimeDisplayPref={props.showUptimeDisplayPref ?? true}
+      onSetUptimeDisplay={props.onSetUptimeDisplay ?? vi.fn()}
       onSetHealthBar={props.onSetHealthBar ?? vi.fn()}
       onClose={props.onClose ?? vi.fn()}
     />,
@@ -455,5 +457,45 @@ describe('SPEC-health-bar-visibility-toggle — personal scope', () => {
     // layout, so assert the declared minimum the stylesheet is built around.
     expect(toggle.className).toMatch(/settings-switch/);
     expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+// ── cap6 v2 — the uptime display becomes a per-user preference ──────────────
+describe('cap6 v2 — per-user uptime display', () => {
+  it('AC-017 — the control sits in My settings, beside the status-bar toggle', async () => {
+    renderPanel({ scope: 'personal', isAdmin: false });
+    const toggle = await screen.findByTestId('setting-uptime-display');
+    expect(toggle).toHaveAttribute('role', 'switch');
+    expect(toggle).toHaveAccessibleName(/uptime display/i);
+    expect(screen.getByTestId('setting-health-bar')).toBeInTheDocument();
+  });
+
+  it('AC-016 — reflects the account value and asks for the inverse', async () => {
+    const onSetUptimeDisplay = vi.fn();
+    renderPanel({
+      scope: 'personal', isAdmin: false,
+      showUptimeDisplayPref: false, onSetUptimeDisplay,
+    });
+    const toggle = await screen.findByTestId('setting-uptime-display');
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await userEvent.click(toggle);
+    expect(onSetUptimeDisplay).toHaveBeenCalledWith(true);
+  });
+
+  it('AC-028/AC-028a — the ADMIN row is relabelled as a default and explains itself', async () => {
+    renderPanel({ scope: 'admin', isAdmin: true });
+    const label = await screen.findByText(/new accounts/i);
+    expect(label).toBeInTheDocument();
+    // The row must say WHY toggling it appears to do nothing, or an admin
+    // concludes it is broken. The label alone is not enough (AC-028a).
+    expect(
+      screen.getByText(/applies to accounts created after this change/i),
+    ).toBeInTheDocument();
+  });
+
+  it('the per-user control does NOT leak into the admin scope', async () => {
+    renderPanel({ scope: 'admin', isAdmin: true });
+    expect(await screen.findByTestId('settings-system')).toBeInTheDocument();
+    expect(screen.queryByTestId('setting-uptime-display')).toBeNull();
   });
 });

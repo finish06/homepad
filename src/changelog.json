@@ -2,6 +2,24 @@
   "pending": [],
   "versions": [
     {
+      "version": "16.4.0",
+      "date": "2026-09-16",
+      "changes": [
+        {
+          "type": "feature",
+          "text": "The per-tile uptime display is now a personal setting. It used to be all-or-nothing for the whole homepad; now you choose for your own dashboard in My settings, next to “Show status bar”. Turning it off changes nothing for anyone else."
+        },
+        {
+          "type": "feature",
+          "text": "Nothing changes when you upgrade — whatever was set for the homepad becomes your starting value, so your dashboard looks exactly as it did."
+        },
+        {
+          "type": "feature",
+          "text": "Admins keep a default for new accounts in the System panel. It no longer overrides anyone's existing choice, and the row says so."
+        }
+      ]
+    },
+    {
       "version": "16.3.0",
       "date": "2026-09-15",
       "changes": [

@@ -34,6 +34,8 @@ export default function SettingsPanel({
   statusDegradedMs,
   showHealthBar,
   onSetHealthBar,
+  showUptimeDisplayPref,
+  onSetUptimeDisplay,
   onSaveSettings,
   onClose,
 }: {
@@ -43,6 +45,8 @@ export default function SettingsPanel({
   statusDegradedMs: number;
   showHealthBar: boolean;
   onSetHealthBar: (show: boolean) => void;
+  showUptimeDisplayPref: boolean;
+  onSetUptimeDisplay: (show: boolean) => void;
   onSaveSettings: (patch: Partial<SystemConfig>) => Promise<void>;
   onClose: () => void;
 }) {
@@ -100,7 +104,12 @@ export default function SettingsPanel({
 
         <div className="launcher-results settings-body">
           {personal ? (
-            <PersonalSettings showHealthBar={showHealthBar} onSetHealthBar={onSetHealthBar} />
+            <PersonalSettings
+              showHealthBar={showHealthBar}
+              onSetHealthBar={onSetHealthBar}
+              showUptimeDisplay={showUptimeDisplayPref}
+              onSetUptimeDisplay={onSetUptimeDisplay}
+            />
           ) : !isAdmin ? (
             <p className="settings-note">
               Your apps and categories are managed right on your dashboard. Use
@@ -403,7 +412,18 @@ function UptimeToggleRow({
 
   return (
     <div className="settings-kv-row settings-kv-row--control">
-      <dt id="uptime-toggle-label">Show uptime display</dt>
+      {/* AC-028 / AC-028a — cap6 v2 made this a DEFAULT FOR NEW ACCOUNTS, not a
+          live override. Toggling it changes nothing on any existing dashboard,
+          including the admin's own, so the row has to explain its own lack of
+          visible effect or it reads as broken.
+          PLACEHOLDER COPY — awaiting Kare's §9 revision. */}
+      <dt id="uptime-toggle-label">
+        Uptime display for new accounts
+        <span className="settings-kv-help">
+          Applies to accounts created after this change. Everyone controls their own in
+          My settings.
+        </span>
+      </dt>
       <dd>
         <span className="settings-save-flag" role="status" aria-live="polite" data-state={saveState}>
           {flag}
@@ -437,9 +457,13 @@ function UptimeToggleRow({
 function PersonalSettings({
   showHealthBar,
   onSetHealthBar,
+  showUptimeDisplay,
+  onSetUptimeDisplay,
 }: {
   showHealthBar: boolean;
   onSetHealthBar: (show: boolean) => void;
+  showUptimeDisplay: boolean;
+  onSetUptimeDisplay: (show: boolean) => void;
 }) {
   return (
     <section
@@ -465,6 +489,24 @@ function PersonalSettings({
               className="settings-switch"
               data-testid="setting-health-bar"
               onClick={() => onSetHealthBar(!showHealthBar)}
+            >
+              <span className="settings-switch-thumb" aria-hidden="true" />
+            </button>
+          </dd>
+        </div>
+        {/* cap6 v2 — the per-user uptime display. Was a global admin System
+            setting until v2; the admin row now only seeds NEW accounts. */}
+        <div className="settings-kv-row settings-kv-row--control">
+          <dt id="uptime-display-toggle-label">Show uptime display</dt>
+          <dd>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={showUptimeDisplay}
+              aria-labelledby="uptime-display-toggle-label"
+              className="settings-switch"
+              data-testid="setting-uptime-display"
+              onClick={() => onSetUptimeDisplay(!showUptimeDisplay)}
             >
               <span className="settings-switch-thumb" aria-hidden="true" />
             </button>

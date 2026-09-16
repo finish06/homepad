@@ -22,6 +22,9 @@ export type User = {
   // panel's distribution bar. Optional so an older backend that omits the
   // field still type-checks and falls back to the default (AC-012).
   showHealthBar?: boolean;
+  // cap6 v2 — per-user visibility of the per-tile uptime sparkline. Optional so
+  // an older backend that omits the field still type-checks and falls back.
+  showUptimeDisplay?: boolean;
   name?: string;
 };
 
@@ -601,6 +604,13 @@ export async function setDensityPref(pref: 'large' | 'compact' | 'list'): Promis
 // fire-and-forget; AC-010 requires the toggle to revert on a failed write.
 export async function setHealthBarPref(show: boolean): Promise<boolean> {
   return boolRequest('/api/me', 200, { method: 'PATCH', json: { showHealthBar: show } });
+}
+
+// setUptimeDisplayPref persists whether this user sees the per-tile uptime
+// sparkline (cap6 v2) via PATCH /api/me. Session-gated server-side. Returns true
+// on 200 so the caller can roll back an optimistic update (AC-022).
+export async function setUptimeDisplayPref(show: boolean): Promise<boolean> {
+  return boolRequest('/api/me', 200, { method: 'PATCH', json: { showUptimeDisplay: show } });
 }
 
 // refreshStatus (SPEC-v24 §12.3, OQ-5) asks the backend to re-poll Gatus NOW —

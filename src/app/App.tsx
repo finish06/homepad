@@ -18,6 +18,7 @@ import AppGrid from '../grid/AppGrid';
 import TileDensityToggle from '../grid/TileDensityToggle';
 import { useTileDensity } from '../grid/tileDensity';
 import { useHealthBarPref } from './healthBarPref';
+import { useUptimeDisplayPref } from './uptimeDisplayPref';
 import type { SettingsScope } from '../library/SettingsPanel';
 import StatusBar from './StatusBar';
 import CommandLauncher from '../launcher/CommandLauncher';
@@ -114,6 +115,10 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // localStorage is only the first-paint cache. The setter is consumed by the
   // settings control reached from UserMenu -> My Dashboard -> "My settings".
   const [showHealthBar, setShowHealthBar] = useHealthBarPref(user.showHealthBar);
+  // cap6 v2 — the uptime sparkline is a per-USER preference now, not the global
+  // System setting. sysConfig.showUptimeDisplay still exists but only seeds NEW
+  // accounts server-side; nothing on the grid reads it any more.
+  const [showUptimeDisplay, setShowUptimeDisplay] = useUptimeDisplayPref(user.showUptimeDisplay);
   // Library browse + add-custom-app remain (service management, not layout),
   // lifted here so the header Gear can trigger them and their result flows into
   // the shared services context that AppGrid renders from.
@@ -265,7 +270,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             <span className="dashboard-toolbar-label">Your dashboard</span>
             <TileDensityToggle density={density} onChange={setDensity} />
           </div>
-          <AppGrid isAdmin={isAdmin} editMode={editMode} showUptimeDisplay={sysConfig.showUptimeDisplay} density={density} />
+          <AppGrid isAdmin={isAdmin} editMode={editMode} showUptimeDisplay={showUptimeDisplay} density={density} />
         </section>
 
         {/* SPEC-app-grid §7 — service management stays on the existing surfaces.
@@ -314,6 +319,8 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               showHealthBar={showHealthBar}
               onSetHealthBar={setShowHealthBar}
               showUptimeDisplay={sysConfig.showUptimeDisplay}
+              showUptimeDisplayPref={showUptimeDisplay}
+              onSetUptimeDisplay={setShowUptimeDisplay}
               statusDegradedMs={sysConfig.statusDegradedMs}
               onSaveSettings={onSaveSettings}
               onClose={() => setSettingsOpen(false)}

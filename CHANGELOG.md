@@ -7,6 +7,26 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [16.4.0] — 2026-09-16 — Your own uptime display
+
+No data loss; one automatic migration, additive (`users.show_uptime_display`).
+Upgrading from 16.3.0 is a single step. Installs further back pick up the
+intervening migrations too — see the 16.3.0 notes.
+
+**The uptime display is now yours.** The little uptime strip on each tile used to
+be all-or-nothing: an admin turned it on or off for everyone. Now each person
+decides for their own dashboard, in **My settings**, next to "Show status bar".
+Turning it off changes nothing for anyone else.
+
+**Nothing changes when you upgrade.** Whatever the admin had set becomes every
+existing person's starting value, so your dashboards look exactly as they did. If
+the display was off for the household, it stays off for everyone until someone
+turns their own back on.
+
+**Admins keep a default.** The System panel row still exists, relabelled: it sets
+what *new* accounts start with. Changing it does not reach into anyone's existing
+choice — including your own.
+
 ## [16.3.0] — 2026-09-15 — Hide the status bar
 
 **Upgrading from 16.2.0:** no data loss; one automatic migration, additive — a new
