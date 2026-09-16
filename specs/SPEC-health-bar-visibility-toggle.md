@@ -1,9 +1,9 @@
 # Spec: Health Bar Visibility Toggle — per-user
 
-**Version:** 0.1.1
+**Version:** 0.2.0
 **Created:** 2026-09-15
 **Author:** Caleb Dunn (via /add:spec)
-**Status:** Draft — BLOCKED on OQ-1 (see §3). Awaiting Walt product sign-off and Kare §9 design section.
+**Status:** Approved for build — OQ-1 resolved (a) by Caleb 2026-09-15. Kare §9 still unauthored; built to the existing v12 settings vocabulary in the meantime.
 **Repo:** `Code/homepad` (frontend) + `Code/homepad-api` (Go backend)
 **Estimate:** ~2–3 hours (migration + `/api/me` field + settings UI + tests)
 **Depends on:** SPEC-v24-health-meter-banding (shipped v15.1.0), v12-settings-boundary-clarity (shipped PR #77), the health-panel redesign (one proportional bar replacing chips + meter + legend)
@@ -58,7 +58,7 @@ This follows that pattern exactly.
 
 ## 3. Open Questions
 
-### OQ-1 — SettingsPanel is admin-only today (BLOCKING)
+### OQ-1 — SettingsPanel is admin-only today *(RESOLVED)*
 
 The chosen home for the control is `SettingsPanel`. As built, `SettingsPanel` is reachable
 **only** via the `menu-admin-settings` button in `UserMenu.tsx`, which is inside
@@ -78,7 +78,15 @@ Three ways out, in the author's order of preference:
 - **(c)** Ungate `SettingsPanel` and hide admin sections per-role. Largest blast radius —
   it reopens the confusion v11 and v12 were written to close.
 
-**Until OQ-1 is resolved this spec is not implementable as written.**
+**Resolved 2026-09-15 — Caleb: option (a).** `SettingsPanel` gains a `scope`
+prop. A new **"My settings"** entry in `UserMenu`'s My Dashboard section opens it
+in `personal` scope for every user, admin or not; the existing Administration →
+"Admin settings" entry opens it in `admin` scope exactly as today.
+
+Personal scope shows only per-user sections and retitles the dialog, so the v12
+§4.1 boundary is preserved rather than blurred: the Administration shield keeps
+meaning "global state" and nothing else. An admin sees both entries and they do
+different things.
 
 ### OQ-2 — first-paint flash *(RESOLVED)*
 
@@ -97,6 +105,11 @@ that reads only `/api/me` does not satisfy this spec.
 In the redesign the "42s ago" stamp sits on the verdict line (placement P4), not in the
 bar, so it survives when the bar is hidden. Confirm that is wanted. If the stamp were
 ever moved back under the bar, this AC set would need revisiting.
+
+**Answered 2026-09-15, in code.** `health-updated` in fact lived *inside* the
+block being hidden (the legend row), so the stamp did disappear with it — caught
+by the AC-013 regression test. It now re-homes onto the verdict column while the
+bar is hidden; the visible layout is unchanged.
 
 ---
 
@@ -281,3 +294,4 @@ stranded sentence.*
 |------|---------|--------|---------|
 | 2026-09-15 | 0.1.0 | Caleb Dunn | Initial draft via /add:spec |
 | 2026-09-15 | 0.1.1 | Caleb Dunn | AC-011 raised Should → Must; OQ-2 resolved (localStorage first-paint cache now required) |
+| 2026-09-15 | 0.2.0 | Caleb Dunn | OQ-1 resolved (a): SettingsPanel gains a scope prop; "My settings" in UserMenu's My Dashboard opens it for all users. OQ-3 answered in code — the freshness stamp re-homes onto the verdict while the bar is hidden. Unblocked for build. |

@@ -13,11 +13,15 @@ import { userInitials } from '../lib/initials';
 export default function UserMenu({
   user,
   onOpenAdminSettings,
+  onOpenMySettings,
   onGoToDashboard,
   onLogout,
 }: {
   user: User;
   onOpenAdminSettings: () => void;
+  // SPEC-health-bar-visibility-toggle OQ-1 (a) — opens SettingsPanel in personal
+  // scope. Offered to EVERY role: it carries only the user's own preferences.
+  onOpenMySettings: () => void;
   onGoToDashboard?: () => void;
   onLogout: () => void;
 }) {
@@ -153,6 +157,21 @@ export default function UserMenu({
             Go to my dashboard
             <span className="menu-scope-tag">personal</span>
           </button>
+          {/* SPEC-health-bar-visibility-toggle OQ-1 (a) — the personal settings
+              surface. It sits in My Dashboard, NOT under the Administration
+              shield: v12 §4.1 D3/D4 reserve that shield for global state, and
+              these are one user's own preferences. Rendered for every role. */}
+          <button
+            type="button"
+            role="menuitem"
+            data-testid="menu-my-settings"
+            onClick={() => choose(onOpenMySettings)}
+            className="menu-item"
+          >
+            <SlidersIcon />
+            My settings
+            <span className="menu-scope-tag">personal</span>
+          </button>
           {!isAdmin && (
             <p data-testid="menu-dashboard-note" className="menu-dashboard-note">
               These tiles and categories are the shared homelab catalog, managed
@@ -208,6 +227,26 @@ export default function UserMenu({
 
 // 16×16 leading icons (opacity handled by .menu-item). aria-hidden — the menu
 // item's text label carries the meaning.
+function SlidersIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h10M18 18h2" />
+      <circle cx="16" cy="6" r="2" />
+      <circle cx="10" cy="12" r="2" />
+      <circle cx="16" cy="18" r="2" />
+    </svg>
+  );
+}
+
 function GridIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="menu-icon">

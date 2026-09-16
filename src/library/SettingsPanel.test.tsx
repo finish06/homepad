@@ -58,6 +58,9 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
       showUptimeDisplay={props.showUptimeDisplay ?? true}
       statusDegradedMs={props.statusDegradedMs ?? 1000}
       onSaveSettings={props.onSaveSettings ?? vi.fn().mockResolvedValue(undefined)}
+      scope={props.scope ?? 'admin'}
+      showHealthBar={props.showHealthBar ?? true}
+      onSetHealthBar={props.onSetHealthBar ?? vi.fn()}
       onClose={props.onClose ?? vi.fn()}
     />,
   );
@@ -390,5 +393,67 @@ describe('v16 — Slow threshold (statusDegradedMs)', () => {
     await user.click(screen.getByTestId('degraded-threshold-save'));
     expect(await screen.findByText("Couldn't save — try again.")).toBeInTheDocument();
     expect(input.value).toBe('1000');
+  });
+});
+
+// ── SPEC-health-bar-visibility-toggle — personal scope + the toggle ─────────
+//
+// OQ-1 (a): the panel takes a `scope`. `personal` is reachable by every role
+// via UserMenu → My Dashboard → My settings and shows ONLY per-user settings.
+// `admin` is unchanged, so the v12 §4.1 boundary holds.
+describe('SPEC-health-bar-visibility-toggle — personal scope', () => {
+  it('AC-007 — a NON-ADMIN gets the toggle in personal scope', async () => {
+    renderPanel({ scope: 'personal', isAdmin: false });
+    expect(await screen.findByTestId('setting-health-bar')).toBeInTheDocument();
+  });
+
+  it('AC-002 — the control is a boolean whose ON state means visible', async () => {
+    renderPanel({ scope: 'personal', isAdmin: false, showHealthBar: true });
+    const toggle = await screen.findByTestId('setting-health-bar');
+    expect(toggle).toHaveAttribute('role', 'switch');
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    expect(toggle).toHaveAccessibleName(/status bar/i);
+  });
+
+  it('AC-002 — reflects a stored false', async () => {
+    renderPanel({ scope: 'personal', isAdmin: false, showHealthBar: false });
+    expect(await screen.findByTestId('setting-health-bar')).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('AC-002 — toggling asks the owner to persist the inverse', async () => {
+    const onSetHealthBar = vi.fn();
+    renderPanel({ scope: 'personal', isAdmin: false, showHealthBar: true, onSetHealthBar });
+    await userEvent.click(await screen.findByTestId('setting-health-bar'));
+    expect(onSetHealthBar).toHaveBeenCalledWith(false);
+  });
+
+  it('personal scope shows NO admin sections, even for an admin', async () => {
+    renderPanel({ scope: 'personal', isAdmin: true });
+    expect(await screen.findByTestId('setting-health-bar')).toBeInTheDocument();
+    expect(screen.queryByTestId('settings-system')).toBeNull();
+    expect(screen.queryByTestId('settings-library')).toBeNull();
+  });
+
+  it('admin scope is unchanged — no personal section leaks into it', async () => {
+    renderPanel({ scope: 'admin', isAdmin: true });
+    expect(await screen.findByTestId('settings-system')).toBeInTheDocument();
+    expect(screen.queryByTestId('setting-health-bar')).toBeNull();
+  });
+
+  it('the dialog names itself for the scope it is in', async () => {
+    const { unmount } = renderPanel({ scope: 'personal', isAdmin: false });
+    expect(await screen.findByTestId('settings-panel')).toHaveAttribute('aria-label', 'My settings');
+    unmount();
+    renderPanel({ scope: 'admin', isAdmin: true });
+    expect(await screen.findByTestId('settings-panel')).toHaveAttribute('aria-label', 'Admin Panel');
+  });
+
+  it('AC-014 — the control is a ≥44px target and has no a11y violations', async () => {
+    const { container } = renderPanel({ scope: 'personal', isAdmin: false });
+    const toggle = await screen.findByTestId('setting-health-bar');
+    // The house rule from v19: interactive controls clear 44×44px. jsdom has no
+    // layout, so assert the declared minimum the stylesheet is built around.
+    expect(toggle.className).toMatch(/settings-switch/);
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

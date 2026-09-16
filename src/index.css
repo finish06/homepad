@@ -683,6 +683,16 @@
     margin-left: auto;
     color: var(--v-muted);
   }
+  /* SPEC-health-bar-visibility-toggle AC-003 — when the distribution block is
+     hidden the stamp re-homes onto the verdict column. It is a grid child there,
+     not a flex one, so the legend's `margin-left: auto` does not apply. */
+  .health-updated--verdict {
+    grid-column: 2;
+    margin-left: 0;
+    font-family: var(--mono, ui-monospace, monospace);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
   .health-updated[data-stale='amber'] { color: var(--v-degraded); }
   .health-updated[data-stale='red'] { color: var(--v-down); }
 

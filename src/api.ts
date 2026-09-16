@@ -18,6 +18,10 @@ export type User = {
   role: string;
   themePref: ThemePref;
   densityPref?: 'large' | 'compact' | 'list';
+  // SPEC-health-bar-visibility-toggle — per-user visibility of the health
+  // panel's distribution bar. Optional so an older backend that omits the
+  // field still type-checks and falls back to the default (AC-012).
+  showHealthBar?: boolean;
   name?: string;
 };
 
@@ -587,6 +591,16 @@ export async function setLibraryOrder(order: string[]): Promise<boolean> {
 // the device instead of reverting, because per-device still works.
 export async function setDensityPref(pref: 'large' | 'compact' | 'list'): Promise<boolean> {
   return boolRequest('/api/me', 200, { method: 'PATCH', json: { densityPref: pref } });
+}
+
+// setHealthBarPref persists whether this user sees the health panel's
+// distribution bar (SPEC-health-bar-visibility-toggle) via PATCH /api/me.
+// Session-gated server-side — a user sets only their own. Returns true on 200
+// so the caller can roll back an optimistic update (AC-010), the same shape as
+// setFavorite/setLayout. NOTE: unlike setDensityPref this result is NOT
+// fire-and-forget; AC-010 requires the toggle to revert on a failed write.
+export async function setHealthBarPref(show: boolean): Promise<boolean> {
+  return boolRequest('/api/me', 200, { method: 'PATCH', json: { showHealthBar: show } });
 }
 
 // refreshStatus (SPEC-v24 §12.3, OQ-5) asks the backend to re-poll Gatus NOW —

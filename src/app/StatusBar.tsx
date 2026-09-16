@@ -88,7 +88,13 @@ function formatAgo(ageMs: number): string {
   return `updated ${Math.floor(m / 60)}h ago`;
 }
 
-export default function StatusBar() {
+// SPEC-health-bar-visibility-toggle — `showHealthBar` is the per-user
+// preference, seeded by App from the account's showHealthBar (the same way
+// densityPref reaches the grid). It hides the DISTRIBUTION block and nothing
+// else: the verdict (LED, headline, subline) and the freshness label always
+// render, so a display preference can never conceal an outage (AC-003/AC-013).
+// Defaults to true so an omitted prop keeps today's behaviour (AC-001).
+export default function StatusBar({ showHealthBar = true }: { showHealthBar?: boolean } = {}) {
   const ctx = useServicesContext();
   const [peek, setPeek] = useState<PeekStatus | null>(null);
   // SPEC-v24 §12.2 — "Not now" on the NOT MONITORED state. Deliberately component
@@ -230,7 +236,10 @@ export default function StatusBar() {
     subline = `${total} service${total === 1 ? '' : 's'} across ${groups} group${groups === 1 ? '' : 's'} · ${monitored} monitored`;
   }
 
-  const showMetrics = !loading && !empty;
+  // AC-003 — the preference gates exactly this block (chips + meter + legend).
+  // Falsy means the block is UNMOUNTED, not visually hidden: the chips are real
+  // buttons, so they must leave the a11y tree rather than linger in it (AC-015).
+  const showMetrics = !loading && !empty && showHealthBar;
 
   // Quick-peek chips (v14). Down chip carries down+degraded; its number takes the
   // severity color when >0 (AC-V15-017). Rendered only when their count > 0.
@@ -245,6 +254,18 @@ export default function StatusBar() {
     });
   if (notMonitored > 0)
     chips.push({ peekId: 'NOT_MONITORED', count: notMonitored, label: `${notMonitored} not monitored`, sev: 'idle' });
+
+  // AC-016 — with the distribution hidden, fold the counts it would have carried
+  // into the subline so the breakdown is not lost outright. Gated on the same
+  // conditions as the chips above, so the two can never disagree about what is
+  // worth reporting. Untouched while the bar is visible: this preference must
+  // not change the default view for anyone.
+  if (!showHealthBar && !loading && !empty) {
+    const parts = [`${up} online`];
+    if (attention > 0) parts.push(`${attention} down`);
+    if (notMonitored > 0) parts.push(`${notMonitored} not monitored`);
+    subline = `${subline} · ${parts.join(' · ')}`;
+  }
 
   // If a poll empties the open bucket, drop its stale popover.
   const openSegment = peek ? chips.find((s) => s.peekId === peek) : undefined;
@@ -272,6 +293,20 @@ export default function StatusBar() {
             <p data-testid="health-subline" className="health-subline">
               {subline}
             </p>
+            {/* AC-003 / OQ-3 — the freshness stamp normally rides in the legend
+                row, which lives inside the distribution block. With that block
+                hidden the stamp would vanish with it, and "when was this last
+                read" is exactly what must survive. Re-home it on the verdict
+                while hidden; the visible layout is untouched. */}
+            {!showHealthBar && ageMs != null && (
+              <span
+                data-testid="health-updated"
+                className="health-updated health-updated--verdict"
+                data-stale={staleness(ageMs)}
+              >
+                {formatAgo(ageMs)}
+              </span>
+            )}
             {stale && (
               <div className="health-notice-actions">
                 {/* AC-V24-ST4 — prods the backend poller via the context; the

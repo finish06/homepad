@@ -11,12 +11,16 @@ expect.extend(toHaveNoViolations);
 const ADMIN: User = { id: 'a1', email: 'caleb@ohana.io', role: 'admin', themePref: 'system' };
 const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'user', themePref: 'system' };
 
-function renderMenu(user: User, opts: { dark?: boolean } = {}) {
+function renderMenu(
+  user: User,
+  opts: { dark?: boolean; onOpenAdminSettings?: () => void; onOpenMySettings?: () => void } = {},
+) {
   return render(
     <ThemeProvider userPref={opts.dark ? 'dark' : 'light'}>
       <UserMenu
         user={user}
-        onOpenAdminSettings={vi.fn()}
+        onOpenAdminSettings={opts.onOpenAdminSettings ?? vi.fn()}
+        onOpenMySettings={opts.onOpenMySettings ?? vi.fn()}
         onLogout={vi.fn()}
       />
     </ThemeProvider>,
@@ -184,6 +188,7 @@ describe('#96 + v18 A10 — My Dashboard has an actionable item for all roles', 
         <UserMenu
           user={USER}
           onOpenAdminSettings={vi.fn()}
+          onOpenMySettings={vi.fn()}
           onGoToDashboard={onGoToDashboard}
           onLogout={vi.fn()}
         />
@@ -240,5 +245,49 @@ describe('v12 A12 — dark theme labels', () => {
     expect(my).toHaveClass('menu-section-label');
     expect(my).not.toHaveClass('menu-administration-section');
     expect(admin).toHaveClass('menu-administration-section');
+  });
+});
+
+// ── SPEC-health-bar-visibility-toggle OQ-1 (a) — "My settings" ──────────────
+//
+// The per-user settings surface must be reachable by EVERY user, not just
+// admins (AC-007). It belongs in My Dashboard — the personal, non-admin
+// section — so the v12 §4.1 Administration shield keeps meaning "global state".
+describe('OQ-1 (a) — My settings is reachable by every user', () => {
+  it('AC-007 — a NON-ADMIN sees "My settings" in the My Dashboard section', async () => {
+    renderMenu(USER);
+    await open();
+    const item = screen.getByTestId('menu-my-settings');
+    expect(item).toBeInTheDocument();
+    const section = screen.getByTestId('menu-my-dashboard-section');
+    expect(precedes(section, item)).toBe(true);
+  });
+
+  it('AC-007 — clicking it opens the personal settings surface', async () => {
+    const onOpenMySettings = vi.fn();
+    renderMenu(USER, { onOpenMySettings });
+    await open();
+    await userEvent.click(screen.getByTestId('menu-my-settings'));
+    expect(onOpenMySettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('an ADMIN sees both entries, and they are different actions', async () => {
+    const onOpenMySettings = vi.fn();
+    const onOpenAdminSettings = vi.fn();
+    renderMenu(ADMIN, { onOpenMySettings, onOpenAdminSettings });
+    await open();
+    await userEvent.click(screen.getByTestId('menu-my-settings'));
+    expect(onOpenMySettings).toHaveBeenCalledTimes(1);
+    expect(onOpenAdminSettings).not.toHaveBeenCalled();
+  });
+
+  it('v12 §4.1 — "My settings" is NOT inside the admin Administration section', async () => {
+    renderMenu(ADMIN);
+    await open();
+    const admin = screen.getByTestId('menu-administration-section');
+    const mine = screen.getByTestId('menu-my-settings');
+    // Personal entry precedes the Administration divider — it never sits under
+    // the shield, which must keep meaning "global state" and nothing else.
+    expect(precedes(mine, admin)).toBe(true);
   });
 });

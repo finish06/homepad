@@ -19,19 +19,34 @@ import {
 // system values are surfaced from what the client can see (authConfig), since
 // there is no GET /api/admin/settings yet — the env values are noted as such.
 
+// SPEC-health-bar-visibility-toggle OQ-1 (a) — the panel now has two scopes.
+// `admin` is the v9.3 surface, unchanged, reached from Administration →
+// "Admin settings". `personal` carries ONLY the signed-in user's own
+// preferences and is reached from My Dashboard → "My settings" by every role.
+// Keeping them apart is what preserves the v12 §4.1 boundary: the
+// Administration shield still means "global state" and nothing else.
+export type SettingsScope = 'personal' | 'admin';
+
 export default function SettingsPanel({
   isAdmin,
+  scope = 'admin',
   showUptimeDisplay,
   statusDegradedMs,
+  showHealthBar,
+  onSetHealthBar,
   onSaveSettings,
   onClose,
 }: {
   isAdmin: boolean;
+  scope?: SettingsScope;
   showUptimeDisplay: boolean;
   statusDegradedMs: number;
+  showHealthBar: boolean;
+  onSetHealthBar: (show: boolean) => void;
   onSaveSettings: (patch: Partial<SystemConfig>) => Promise<void>;
   onClose: () => void;
 }) {
+  const personal = scope === 'personal';
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -57,16 +72,18 @@ export default function SettingsPanel({
         data-testid="settings-panel"
         role="dialog"
         aria-modal="true"
-        aria-label="Admin Panel"
+        aria-label={personal ? 'My settings' : 'Admin Panel'}
         className="launcher-panel library-panel"
       >
         <div className="library-head">
           {/* v11 §4.2 D3 — "Admin Panel" (not "Settings") + a global-scope
               subtitle: the first thing an admin reads on open. */}
           <div className="settings-admin-title-group">
-            <h2 className="library-title">Admin Panel</h2>
+            <h2 className="library-title">{personal ? 'My settings' : 'Admin Panel'}</h2>
             <p className="settings-admin-subtitle">
-              Changes here are global — they affect all users on this homepad.
+              {personal
+                ? 'These apply to your dashboard only — nobody else is affected.'
+                : 'Changes here are global — they affect all users on this homepad.'}
             </p>
           </div>
           <button
@@ -82,7 +99,9 @@ export default function SettingsPanel({
         </div>
 
         <div className="launcher-results settings-body">
-          {!isAdmin ? (
+          {personal ? (
+            <PersonalSettings showHealthBar={showHealthBar} onSetHealthBar={onSetHealthBar} />
+          ) : !isAdmin ? (
             <p className="settings-note">
               Your apps and categories are managed right on your dashboard. Use
               the “Add apps” button to browse the App Library.
@@ -404,6 +423,55 @@ function UptimeToggleRow({
         </button>
       </dd>
     </div>
+  );
+}
+
+// SPEC-health-bar-visibility-toggle §4 — the per-user section. Reuses the cap6
+// switch markup and styling verbatim (role="switch" + aria-labelledby +
+// .settings-switch, already a 44x44 target per v19), so this row behaves and
+// measures exactly like the System toggles an admin already knows.
+//
+// No save flag here: unlike the cap6 System toggle, persistence is owned by the
+// caller's useHealthBarPref, which is optimistic and rolls back on failure
+// (AC-010). This control reports the value it is given and asks for the inverse.
+function PersonalSettings({
+  showHealthBar,
+  onSetHealthBar,
+}: {
+  showHealthBar: boolean;
+  onSetHealthBar: (show: boolean) => void;
+}) {
+  return (
+    <section
+      data-testid="settings-personal"
+      aria-labelledby="settings-personal-h"
+      className="settings-section"
+    >
+      <h3 id="settings-personal-h" className="settings-section-title">
+        Dashboard
+      </h3>
+      <p className="settings-section-note">
+        These apply to your account on every device you sign in from.
+      </p>
+      <dl className="settings-kv">
+        <div className="settings-kv-row settings-kv-row--control">
+          <dt id="health-bar-toggle-label">Show status bar</dt>
+          <dd>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={showHealthBar}
+              aria-labelledby="health-bar-toggle-label"
+              className="settings-switch"
+              data-testid="setting-health-bar"
+              onClick={() => onSetHealthBar(!showHealthBar)}
+            >
+              <span className="settings-switch-thumb" aria-hidden="true" />
+            </button>
+          </dd>
+        </div>
+      </dl>
+    </section>
   );
 }
 

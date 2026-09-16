@@ -27,6 +27,7 @@ function renderHeader(
         onOpenLibrary={() => {}}
         onOpenCustomAppForm={() => {}}
         onOpenAdminSettings={() => {}}
+        onOpenMySettings={() => {}}
         onGoToDashboard={() => {}}
         onLogout={() => {}}
         alertCount={0}
