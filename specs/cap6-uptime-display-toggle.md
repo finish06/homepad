@@ -1,9 +1,9 @@
 # Spec: Uptime Display Toggle — Capability #6
 
-**Version:** 1.0.0
+**Version:** 2.2.0
 **Created:** 2026-07-04
 **Author:** Walt (product lead)
-**Status:** Spec approved — Walt product sign-off 2026-07-04, Kare design sign-off 2026-07-04
+**Status:** v1 SHIPPED (prod v13.5.0, global admin setting). **v2 DRAFT — the setting moves to per-user.** Caleb 2026-09-16. OQ-1 resolved by Caleb. Awaiting Walt product sign-off and Kare §9 revision (AC-028 copy).
 **Repo:** `Code/homepad` (frontend) + `Code/homepad-api` (Go backend)
 **Estimate:** ~2–3 hours (migration + two API endpoints + frontend prop thread + settings UI)
 **Depends on:** uptime-sparkline (shipped PR #46–#47), v12-settings-boundary-clarity (shipped PR #77)
@@ -32,7 +32,37 @@ metrics visible — without stopping health monitoring.
 
 ---
 
-## 2. Decision: Global Admin System Setting (not per-user)
+## 2. Decision — SUPERSEDED 2026-09-16: the setting becomes per-user
+
+> ## ⚠️ v1's decision is reversed
+>
+> **Decided 2026-09-16 by Caleb.** "Show uptime display" moves out of the admin System
+> panel and into **My settings**, as a per-user preference — the same shape as
+> `themePref` (v3), `densityPref` (SPEC-tile-density) and `showHealthBar`
+> (SPEC-health-bar-visibility-toggle).
+>
+> **Why the original reasoning does not hold.** §2 below argued that a per-user toggle
+> would be "incoherent UX" because Gatus is shared homelab infrastructure. That
+> conflates two different questions:
+>
+> 1. *Is uptime monitoring meaningful for this homelab?* — infrastructure. The admin's
+>    call, and still is: it is governed by `GATUS_BASE_URL` and per-service `gatus_key`,
+>    not by this toggle.
+> 2. *Do I want sparklines on my tiles?* — display. The viewer's call.
+>
+> **D2 already settled this without noticing.** The toggle is a frontend render gate, not
+> data suppression: the API keeps returning `uptimeChecks` in both states. So nothing
+> about a per-user choice touches the shared poller, the shared Gatus instance, or what
+> data exists — exactly as nothing about per-user tile density does.
+>
+> "User A sees sparklines, User B does not" is no more incoherent than "User A uses
+> Compact density, User B uses List". homepad already ships three per-user preferences
+> that render shared state differently per person; this becomes the fourth.
+>
+> **What survives:** everything in §3 except D1, and all of the §9 design work — the
+> control itself is unchanged, only its home and its scope move.
+
+### Original v1 decision (for the record)
 
 **Verdict: global admin setting, applied to all users.**
 
@@ -58,7 +88,8 @@ Caleb's framing ("System setting") is architecturally correct for this feature.
 
 | # | Decision | Rationale |
 |---|----------|-----------|
-| D1 | Global admin setting, not per-user | Gatus is shared homelab infrastructure; see §2 |
+| ~~D1~~ | ~~Global admin setting, not per-user~~ | **SUPERSEDED 2026-09-16 — see §2.** Replaced by D1b. |
+| D1b | Per-user preference on `users`, surfaced in My settings | The toggle is a display gate (D2), not an infrastructure decision. Same shape as `themePref` / `densityPref` / `showHealthBar`. |
 | D2 | Frontend-side render gate, not API-side data suppression | API continues including `uptimeChecks` in `GET /api/services`. Frontend reads the toggle and decides not to render `<UptimeSparkline />`. No data loss; faster toggle-on recovery; simpler API contract (callers always see uptime data regardless of display preference). |
 | D3 | New `system_settings` DB table (singleton row, upsert pattern) | Runtime-writable without a redeploy. Env vars require cluster access + redeploy — wrong UX for a UI toggle. Singleton-row config table is the simplest extensible pattern; future system settings can add columns rather than new tables. |
 | D4 | New public `GET /api/system/config` endpoint (no auth required) | Extends the `GET /api/auth/config` unauthenticated-config pattern without polluting auth config with display concerns. Public so the frontend can read it consistently regardless of session state. |
@@ -73,12 +104,12 @@ Caleb's framing ("System setting") is architecturally correct for this feature.
 | ID | Criterion | Priority |
 |----|-----------|----------|
 | AC-001 | When the toggle is **ON** (default), `UptimeSparkline` renders on tiles that have `uptimeChecks` data — behavior identical to today. | Must |
-| AC-002 | When the toggle is **OFF**, no uptime block appears on any tile for any user, regardless of whether `uptimeChecks` data is present. The tile renders as if `uptimeChecks` were absent. | Must |
+| ~~AC-002~~ | ~~When the toggle is **OFF**, no uptime block appears on any tile for any user~~ — **REVISED by AC-016**: "for any user" becomes "for that user". | v1 |
 | AC-003 | When the toggle is **OFF**, no empty gap or layout shift appears in the tile where the uptime block was. The tile's height and layout adapt cleanly. | Must |
-| AC-004 | An admin user opening the System settings panel sees a labeled toggle for "Show uptime display" reflecting the current persisted value. | Must |
+| ~~AC-004~~ | ~~An admin user opening the System settings panel sees the toggle~~ — **REVISED by AC-017**: the control moves to My settings and every user sees it. | v1 |
 | AC-005 | Toggling and saving persists immediately to the database (no redeploy required). | Must |
-| AC-006 | After saving, any user who loads or reloads the page sees the updated toggle state applied to the app grid. | Must |
-| AC-007 | The toggle control is visible and interactive only to admin users. Non-admin users do not see the toggle (their System section view is unchanged). | Must |
+| ~~AC-006~~ | ~~After saving, ANY user sees the updated state~~ — **REVISED by AC-019**: the change applies to the saving user only. | v1 |
+| ~~AC-007~~ | ~~The toggle is visible only to admin users~~ — **INVERTED by AC-017**: every user gets it, because it is now their own setting. | v1 |
 | AC-008 | `GET /api/system/config` returns `{"showUptimeDisplay": true}` when no `system_settings` row exists (the default-ON safe case). | Must |
 | AC-009 | `GET /api/system/config` returns `{"showUptimeDisplay": false}` after an admin saves OFF. | Must |
 | AC-010 | `GET /api/system/config` requires no authentication — it is accessible before login. | Must |
@@ -87,6 +118,30 @@ Caleb's framing ("System setting") is architecturally correct for this feature.
 | AC-013 | `PATCH /api/admin/settings` returns 401 for an unauthenticated request. | Must |
 | AC-014 | Status badges (the UP/DOWN/UNKNOWN colored dot on each tile) are unaffected by the toggle in either state. | Must |
 | AC-015 | The status bar (service count chips) is unaffected by the toggle in either state. | Must |
+
+### v2 — per-user (2026-09-16)
+
+AC-008 through AC-013 (the `/api/system/config` and `/api/admin/settings` contracts) stay
+as written **only** insofar as OQ-2 keeps the admin default; if OQ-2 retires it, they are
+superseded with the column.
+
+| ID | Criterion | Priority |
+|----|-----------|----------|
+| AC-016 | Turning the toggle off hides the uptime block **for that user only**. Another user's dashboard is unaffected. | Must |
+| AC-017 | The control lives in **My settings** (`SettingsPanel` `scope="personal"`), reachable by every role via UserMenu → My Dashboard → My settings. It is no longer in the admin System panel. | Must |
+| AC-018 | The preference is stored per user, read from `GET /api/me` and written with `PATCH /api/me` — the `themePref` / `densityPref` / `showHealthBar` contract. Session-gated: a user can set only their own. | Must |
+| AC-019 | The preference follows the account across devices and survives logout/login. | Must |
+| AC-020 | **On migration, nobody's view changes.** Every existing user's new column is seeded from the current global `system_settings.show_uptime_display`. An admin who had it OFF does not find it silently back ON for everyone. | Must |
+| AC-021 | The seeding in AC-020 runs **exactly once**. `Migrate` re-runs every migration on every boot, so an unguarded `UPDATE users SET ...` would reset every user's choice on every restart. The migration must be guarded on its own effect, per the `0013` precedent. | Must |
+| AC-022 | A failed write rolls back to the persisted value, matching `setFavorite` / `setLayout` and the `showHealthBar` control. | Must |
+| AC-023 | On a cold load the sparklines do not flash before `/api/me` resolves — `localStorage` first-paint cache, `/api/me` wins on every resolve. Same model as `healthBarPref`. | Should |
+| AC-024 | The control keeps its v9 design: `role="switch"`, `aria-labelledby`, `.settings-switch`, ≥44×44px. It sits alongside "Show status bar" in the Dashboard section of My settings. | Must |
+| AC-025 | Status badges and the health panel remain unaffected in either state (AC-014/AC-015 continue to hold per-user). | Must |
+| AC-026 | A **newly created account** inherits `system_settings.show_uptime_display` as its starting value, read at creation time. | Must |
+| AC-027 | Changing the admin default **does not alter any existing user's setting** — it applies only to accounts created afterwards. | Must |
+| AC-027a | AC-026 and AC-027 are tested **in the direction that can fail**: set the admin default **OFF**, create an account, assert it comes up **OFF**. Testing with the default ON proves nothing — a stale column default alone would pass it. | Must |
+| AC-028 | The System panel row is **relabelled** to say it is a default for new accounts, not a global switch. An admin must not be able to read that row as "turn sparklines off for everyone", because it no longer does that. Copy owned by Kare (§9 revision). | Must |
+| AC-028a | The relabel is accompanied by **inline help text** stating the change applies to accounts created afterwards. The label alone is insufficient: an admin toggles the row, checks their own dashboard, sees nothing change, and concludes it is broken. The row must explain its own lack of visible effect. | Must |
 
 ---
 
@@ -125,6 +180,77 @@ missing row (fresh install) is treated as all-defaults: `showUptimeDisplay = tru
 ```sql
 DROP TABLE IF EXISTS system_settings;
 ```
+
+---
+
+### v2 — per-user column (2026-09-16)
+
+`system_settings.show_uptime_display` is no longer what the app grid reads. The preference
+moves to `users`, seeded once from the global value so nobody's view changes (AC-020).
+
+```sql
+-- 0016_per_user_uptime_display.up.sql   (prod is at 0015; 0016 is the next free)
+--
+-- Idempotent AND once-only. Migrate re-runs EVERY migration on EVERY boot, so the
+-- seeding UPDATE cannot sit at the top level: unguarded, it would reset every user's
+-- choice back to the global value on every API restart (AC-021).
+--
+-- The guard predicate is the COLUMN — the vehicle this migration adds. Note this is
+-- NOT the same predicate as 0013, which guards on pg_constraint, i.e. on its own
+-- EFFECT, and adds grid_width_legacy unguarded at top level. Both are correct for
+-- what they do; do not copy one to the other without re-deciding which you need.
+--
+-- table_schema is pinned to current_schema(): an unqualified information_schema
+-- lookup would find a `users` in ANY schema, flip NOT EXISTS false, skip the whole
+-- block, never create the column, and fail hard on the first query. 0013 sidesteps
+-- this with ::regclass.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'users'
+          AND column_name = 'show_uptime_display'
+    ) THEN
+        -- DEFAULT TRUE is required here so the column can be NOT NULL over existing
+        -- rows. It is dropped again below — see the two-defaults note.
+        ALTER TABLE users
+            ADD COLUMN show_uptime_display BOOLEAN NOT NULL DEFAULT TRUE;
+
+        -- AC-020 — inherit whatever the admin had set globally. COALESCE covers the
+        -- fresh-install case where no system_settings row exists (D7: default ON).
+        UPDATE users
+           SET show_uptime_display = COALESCE(
+                 (SELECT show_uptime_display FROM system_settings WHERE id = 1), TRUE);
+
+        -- TWO SOURCES OF DEFAULT TRUTH — the AC-027 failure mode.
+        -- Leaving DEFAULT TRUE in place means the column default and
+        -- system_settings.show_uptime_display both claim to decide a new account's
+        -- value. Any insert path that omits the field then silently gets TRUE and the
+        -- row still LOOKS right. That is invisible while the admin default is ON, and
+        -- surfaces only when an admin sets it OFF and a new account comes up ON.
+        -- Dropping the default makes that a loud NOT NULL violation at insert time
+        -- instead of a quiet wrong value, leaving system_settings as the single
+        -- source of truth for new accounts (AC-026).
+        ALTER TABLE users ALTER COLUMN show_uptime_display DROP DEFAULT;
+    END IF;
+END $$;
+```
+
+> **Consequence, stated plainly:** after this migration every insert into `users` must
+> supply `show_uptime_display`. `storage.CreateUser` does (AC-026). Any other insert
+> path — fixtures, seed helpers, test support — will fail loudly the first time it
+> runs. That is the intent: a hard error in a test beats a wrong default in prod that
+> nobody notices until an admin turns the setting off.
+
+```sql
+-- 0016_per_user_uptime_display.down.sql
+ALTER TABLE users DROP COLUMN IF EXISTS show_uptime_display;
+```
+
+**`system_settings.show_uptime_display` is deliberately left in place** by this migration
+— see OQ-2. Dropping it is a separate decision, and keeping it means the down migration
+is a clean reversal rather than a data-losing one.
 
 ---
 
@@ -445,6 +571,81 @@ standard flow.
 
 ---
 
+## 9b. v2 — API, UI and open questions (2026-09-16)
+
+### API
+
+No new endpoints. The preference joins the existing per-user contract:
+
+**`GET /api/me`** gains `showUptimeDisplay` alongside `themePref`, `densityPref` and
+`showHealthBar`.
+
+**`PATCH /api/me`** accepts `{"showUptimeDisplay": false}`, on its own or with the other
+fields. Session-gated — the server derives the user from the session (AC-018). A
+non-boolean fails `json.Decode` and 400s before anything is written.
+
+> **Implementation note.** The empty-body guard in `auth.go` must list the new field.
+> It rejects any body carrying none of the known fields, so a single-field write would
+> 400 — and an optimistic client would roll back and look like a flaky server rather
+> than a missing case. This exact bug was found and fixed for `showHealthBar`
+> (homepad-api #68); do not reintroduce it.
+
+`GET /api/system/config` and `PATCH /api/admin/settings` are **unchanged and retained**
+(OQ-1 resolved). What changes is what the value *means*: it is the seed for new accounts,
+no longer a live render gate. Nothing reads it per-request any more.
+
+**`storage.CreateUser` must seed the new column** from `system_settings` in the same
+statement that inserts the row (AC-026), and its `RETURNING` clause gains
+`show_uptime_display` like the other two user SELECT sites.
+
+Because §6 drops the column default, this is no longer belt-and-braces — it is the only
+thing supplying the value. An omitted field is a `NOT NULL` violation, not a silent
+`TRUE`. Every other insert path into `users` (fixtures, `internal/storage/seed`,
+`testsupport`) must be updated in the same change and will fail loudly if missed.
+
+### Frontend
+
+Mirrors `showHealthBar` closely enough that it is largely a copy:
+
+- `src/api.ts` — `showUptimeDisplay?: boolean` on `User` (optional, so an older backend
+  degrades), plus `setUptimeDisplayPref`.
+- A `useUptimeDisplayPref` hook on the `healthBarPref.ts` model: `/api/me` is the source
+  of truth and wins on every resolve, `localStorage` is a first-paint cache only
+  (AC-023), and a failed write **rolls back** (AC-022).
+- `App` seeds it from `user.showUptimeDisplay` and passes it to `AppGrid`, replacing the
+  current `sysConfig.showUptimeDisplay` thread.
+- `SettingsPanel` `PersonalSettings` gains a second row beneath "Show status bar",
+  reusing the same switch markup (AC-024).
+
+The v9 design work is unchanged — the control looks and behaves as Kare specified; only
+its container moves from the System section to the Dashboard section of My settings.
+
+### Open questions
+
+**OQ-1 — does the admin keep a global control? RESOLVED 2026-09-16 — Caleb: YES.**
+The admin keeps it, **as a default for new accounts, not a live override.**
+
+`system_settings.show_uptime_display` stays. Its *meaning* changes: it no longer gates
+anybody's rendering, it seeds `users.show_uptime_display` at account creation. An admin
+who removes Gatus can therefore stop sparklines appearing for every account created from
+then on, without reaching into anyone's existing personal choice.
+
+The consequence that needs care: **after this change, an admin toggling that row sees
+nothing happen** — not on their own dashboard, not on anyone's. That is correct
+behaviour and terrible UX if the row still reads like a global switch. AC-028 requires
+the copy to change with it. This is precisely the class of confusion v11 and v12 were
+written to eliminate, so it is not optional polish.
+
+**OQ-2 — retiring the admin endpoints. CLOSED by OQ-1.** `system_settings`,
+`GET /api/system/config` and `PATCH /api/admin/settings` all stay. (`GET
+/api/system/config` also carries `statusDegradedMs` since v16.2.0, so it was never
+going to be empty.)
+
+**OQ-3 — a user created *after* migration. CLOSED by OQ-1.** Seeds from the admin
+default at creation. See AC-026.
+
+---
+
 ## 10. Sign-offs
 
 | Role | Person | Status |
@@ -475,3 +676,6 @@ Stitch until both are present.*
 |------|---------|--------|---------|
 | 2026-07-04 | 1.0.0 | Walt | Initial draft — pending Kare design section (§9) |
 | 2026-07-04 | 1.1.0 | Kare | §9 Design section authored (control spec, 5 states, D6 note copy, CSS/a11y); design co-sign recorded in §10 |
+| 2026-09-16 | 2.2.0 | Caleb (review: Joe) | Migration numbered **0016**; `information_schema` lookup pinned to `current_schema()`; the 0013 guard comparison corrected (0013 guards its *effect* via pg_constraint, this guards its *vehicle*, the column); **column default dropped after seeding** so `system_settings` is the single source of truth for new accounts; AC-027a (test in the failing direction — admin default OFF) and AC-028a (inline help text) added. |
+| 2026-09-16 | 2.1.0 | Caleb | **OQ-1 resolved: admin keeps the global value as the default for new accounts, not an override.** OQ-2/OQ-3 closed by it. AC-026..AC-028 added — new accounts seed from the default, changing the default never touches existing users, and the System panel row must be relabelled so it cannot be misread as a global switch. |
+| 2026-09-16 | 2.0.0 | Caleb | **Setting becomes per-user.** §2 decision reversed with reasoning (D2 already made it a display gate, not data suppression); D1 → D1b; AC-002/004/006/007 revised or inverted; AC-016..AC-025 added; per-user migration with a once-only seed guard; API moves to GET/PATCH /api/me. Admin default retained pending OQ-1. |
