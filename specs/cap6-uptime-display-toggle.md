@@ -1,6 +1,6 @@
 # Spec: Uptime Display Toggle — Capability #6
 
-**Version:** 2.1.0
+**Version:** 2.2.0
 **Created:** 2026-07-04
 **Author:** Walt (product lead)
 **Status:** v1 SHIPPED (prod v13.5.0, global admin setting). **v2 DRAFT — the setting moves to per-user.** Caleb 2026-09-16. OQ-1 resolved by Caleb. Awaiting Walt product sign-off and Kare §9 revision (AC-028 copy).
@@ -139,7 +139,9 @@ superseded with the column.
 | AC-025 | Status badges and the health panel remain unaffected in either state (AC-014/AC-015 continue to hold per-user). | Must |
 | AC-026 | A **newly created account** inherits `system_settings.show_uptime_display` as its starting value, read at creation time. | Must |
 | AC-027 | Changing the admin default **does not alter any existing user's setting** — it applies only to accounts created afterwards. | Must |
+| AC-027a | AC-026 and AC-027 are tested **in the direction that can fail**: set the admin default **OFF**, create an account, assert it comes up **OFF**. Testing with the default ON proves nothing — a stale column default alone would pass it. | Must |
 | AC-028 | The System panel row is **relabelled** to say it is a default for new accounts, not a global switch. An admin must not be able to read that row as "turn sparklines off for everyone", because it no longer does that. Copy owned by Kare (§9 revision). | Must |
+| AC-028a | The relabel is accompanied by **inline help text** stating the change applies to accounts created afterwards. The label alone is insufficient: an admin toggles the row, checks their own dashboard, sees nothing change, and concludes it is broken. The row must explain its own lack of visible effect. | Must |
 
 ---
 
@@ -187,19 +189,31 @@ DROP TABLE IF EXISTS system_settings;
 moves to `users`, seeded once from the global value so nobody's view changes (AC-020).
 
 ```sql
--- 00NN_per_user_uptime_display.up.sql
+-- 0016_per_user_uptime_display.up.sql   (prod is at 0015; 0016 is the next free)
 --
 -- Idempotent AND once-only. Migrate re-runs EVERY migration on EVERY boot, so the
 -- seeding UPDATE cannot sit at the top level: unguarded, it would reset every user's
--- choice back to the global value on every API restart. Guarded on the column's own
--- existence, so the seed runs exactly once — on the boot that adds the column
--- (AC-021). Same shape as 0013's constraint guard.
+-- choice back to the global value on every API restart (AC-021).
+--
+-- The guard predicate is the COLUMN — the vehicle this migration adds. Note this is
+-- NOT the same predicate as 0013, which guards on pg_constraint, i.e. on its own
+-- EFFECT, and adds grid_width_legacy unguarded at top level. Both are correct for
+-- what they do; do not copy one to the other without re-deciding which you need.
+--
+-- table_schema is pinned to current_schema(): an unqualified information_schema
+-- lookup would find a `users` in ANY schema, flip NOT EXISTS false, skip the whole
+-- block, never create the column, and fail hard on the first query. 0013 sidesteps
+-- this with ::regclass.
 DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'users' AND column_name = 'show_uptime_display'
+        WHERE table_schema = current_schema()
+          AND table_name = 'users'
+          AND column_name = 'show_uptime_display'
     ) THEN
+        -- DEFAULT TRUE is required here so the column can be NOT NULL over existing
+        -- rows. It is dropped again below — see the two-defaults note.
         ALTER TABLE users
             ADD COLUMN show_uptime_display BOOLEAN NOT NULL DEFAULT TRUE;
 
@@ -208,12 +222,29 @@ BEGIN
         UPDATE users
            SET show_uptime_display = COALESCE(
                  (SELECT show_uptime_display FROM system_settings WHERE id = 1), TRUE);
+
+        -- TWO SOURCES OF DEFAULT TRUTH — the AC-027 failure mode.
+        -- Leaving DEFAULT TRUE in place means the column default and
+        -- system_settings.show_uptime_display both claim to decide a new account's
+        -- value. Any insert path that omits the field then silently gets TRUE and the
+        -- row still LOOKS right. That is invisible while the admin default is ON, and
+        -- surfaces only when an admin sets it OFF and a new account comes up ON.
+        -- Dropping the default makes that a loud NOT NULL violation at insert time
+        -- instead of a quiet wrong value, leaving system_settings as the single
+        -- source of truth for new accounts (AC-026).
+        ALTER TABLE users ALTER COLUMN show_uptime_display DROP DEFAULT;
     END IF;
 END $$;
 ```
 
+> **Consequence, stated plainly:** after this migration every insert into `users` must
+> supply `show_uptime_display`. `storage.CreateUser` does (AC-026). Any other insert
+> path — fixtures, seed helpers, test support — will fail loudly the first time it
+> runs. That is the intent: a hard error in a test beats a wrong default in prod that
+> nobody notices until an admin turns the setting off.
+
 ```sql
--- 00NN_per_user_uptime_display.down.sql
+-- 0016_per_user_uptime_display.down.sql
 ALTER TABLE users DROP COLUMN IF EXISTS show_uptime_display;
 ```
 
@@ -567,6 +598,11 @@ no longer a live render gate. Nothing reads it per-request any more.
 statement that inserts the row (AC-026), and its `RETURNING` clause gains
 `show_uptime_display` like the other two user SELECT sites.
 
+Because §6 drops the column default, this is no longer belt-and-braces — it is the only
+thing supplying the value. An omitted field is a `NOT NULL` violation, not a silent
+`TRUE`. Every other insert path into `users` (fixtures, `internal/storage/seed`,
+`testsupport`) must be updated in the same change and will fail loudly if missed.
+
 ### Frontend
 
 Mirrors `showHealthBar` closely enough that it is largely a copy:
@@ -640,5 +676,6 @@ Stitch until both are present.*
 |------|---------|--------|---------|
 | 2026-07-04 | 1.0.0 | Walt | Initial draft — pending Kare design section (§9) |
 | 2026-07-04 | 1.1.0 | Kare | §9 Design section authored (control spec, 5 states, D6 note copy, CSS/a11y); design co-sign recorded in §10 |
+| 2026-09-16 | 2.2.0 | Caleb (review: Joe) | Migration numbered **0016**; `information_schema` lookup pinned to `current_schema()`; the 0013 guard comparison corrected (0013 guards its *effect* via pg_constraint, this guards its *vehicle*, the column); **column default dropped after seeding** so `system_settings` is the single source of truth for new accounts; AC-027a (test in the failing direction — admin default OFF) and AC-028a (inline help text) added. |
 | 2026-09-16 | 2.1.0 | Caleb | **OQ-1 resolved: admin keeps the global value as the default for new accounts, not an override.** OQ-2/OQ-3 closed by it. AC-026..AC-028 added — new accounts seed from the default, changing the default never touches existing users, and the System panel row must be relabelled so it cannot be misread as a global switch. |
 | 2026-09-16 | 2.0.0 | Caleb | **Setting becomes per-user.** §2 decision reversed with reasoning (D2 already made it a display gate, not data suppression); D1 → D1b; AC-002/004/006/007 revised or inverted; AC-016..AC-025 added; per-user migration with a once-only seed guard; API moves to GET/PATCH /api/me. Admin default retained pending OQ-1. |
