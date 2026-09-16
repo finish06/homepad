@@ -4,7 +4,10 @@ import userEvent from '@testing-library/user-event';
 import SettingsPanel from './SettingsPanel';
 import { adminEnvConfig, listLibrary } from '../api';
 
-// SPEC cap6-uptime-display-toggle §8/§9 — the writable "Show uptime display"
+// SPEC cap6-uptime-display-toggle §8/§9 — the writable admin System row.
+// As of cap6 v2 this row sets the DEFAULT FOR NEW ACCOUNTS; the per-user
+// preference it used to control lives in My settings (see SettingsPanel.test).
+// Originally: the writable "Show uptime display"
 // toggle in the admin System settings section. It is a role="switch" whose
 // aria-checked reflects the persisted value (AC-004), calls onSaveSettings with
 // the flipped value on click (AC-005), and renders only for admins (AC-007). The
@@ -27,6 +30,8 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
       statusDegradedMs={1000}
       onSaveSettings={props.onSaveSettings ?? vi.fn().mockResolvedValue(undefined)}
       showHealthBar={true}
+      showUptimeDisplayPref={true}
+      onSetUptimeDisplay={vi.fn()}
       onSetHealthBar={vi.fn()}
       onClose={props.onClose ?? vi.fn()}
     />,
@@ -47,7 +52,10 @@ describe('System settings — uptime display toggle (cap6)', () => {
     expect(sw).toHaveAttribute('role', 'switch');
     expect(sw).toHaveAttribute('aria-checked', 'true');
     // The accessible name comes from the row's dt label.
-    expect(screen.getByText('Show uptime display')).toBeInTheDocument();
+    // cap6 v2 relabelled this row: it is the DEFAULT FOR NEW ACCOUNTS now, not a
+    // global override (AC-004 superseded by AC-028). The switch itself, its wiring
+    // and its save semantics — everything else this suite covers — are unchanged.
+    expect(screen.getByText(/new accounts/i)).toBeInTheDocument();
   });
 
   it('reflects the OFF state via aria-checked=false', async () => {
