@@ -9,7 +9,21 @@ codename maps to a release it is noted in the heading.
 
 ## [16.3.0] — 2026-09-15 — Hide the status bar
 
-No data loss; one automatic migration (a new per-account setting, below).
+**Upgrading from 16.2.0:** no data loss; one automatic migration, additive — a new
+per-account setting (`users.show_health_bar`, defaulting to visible).
+
+**Upgrading from below 16.2.0:** this is *not* a one-migration step. Installs that
+never applied 16.2.0 pick up migrations 0013, 0014 and 0015 together. **0013 rewrites
+every category's `grid_width`** from the old 1–8 tile-count scale into 12-column spans.
+The original values are preserved in `grid_width_legacy`, so it is reversible — but the
+matching frontend must be deployed alongside it. Running 0013 against a pre-16.2.0
+frontend leaves every dashboard's tile layout visibly wrong, because the old frontend
+reads the rewritten values on the old scale.
+
+Deploy the API and web images as a pair, API first by seconds — not API first and web
+later. Rollback note: once 0013 has run, apply `0013.down` before rolling back to a
+pre-16.2.0 image; migration 0009 in those images is unguarded and re-adds the 1–8 CHECK
+constraint on boot, which aborts once any category holds a 12 span.
 
 **You can hide the status bar.** The health panel's coloured breakdown — how
 many services are online, unmonitored and down — can now be turned off for your
