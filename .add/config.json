@@ -1,0 +1,180 @@
+{
+  "$schema": "https://github.com/MountainUnicorn/add/config.schema.json",
+  "version": "0.5.0",
+  "project": {
+    "name": "homepad",
+    "description": "Self-hosted launcher/homepage for a homelab: one page listing every service in a shared catalog with live Gatus-backed status badges, per-user favorites and tile order. This repo is the React + Vite web frontend; it pairs with the Go backend at homepad-api.",
+    "created": "2026-09-15",
+    "author": "Caleb Dunn"
+  },
+  "maturity": {
+    "level": "ga",
+    "promoted_from": null,
+    "promoted_date": null,
+    "next_promotion_criteria": "GA is the top level. Sole outstanding evidence gap at adoption: no enforced coverage threshold (resolved by this init \u2014 90% configured in vite.config.ts)."
+  },
+  "architecture": {
+    "languages": [
+      {
+        "name": "typescript",
+        "version": "5.6",
+        "role": "frontend"
+      },
+      {
+        "name": "go",
+        "version": "1.25.0",
+        "role": "backend"
+      }
+    ],
+    "backend": {
+      "framework": "net/http (homepad-api, separate repo)",
+      "version": "n/a",
+      "runtime": "go 1.25.0"
+    },
+    "frontend": {
+      "framework": "react",
+      "version": "18.3",
+      "bundler": "vite"
+    },
+    "database": {
+      "type": "postgresql",
+      "version": "via jackc/pgx v5.10.0"
+    },
+    "containerized": true,
+    "container_strategy": "docker-compose",
+    "suggested_by_claude": false
+  },
+  "infrastructure": {
+    "git_host": "gitea",
+    "git_remote": "https://github.com/finish06/homepad.git (mirror: gitea.kube.calebdunn.tech/Code/homepad)",
+    "cloud_provider": "self-hosted",
+    "cloud_services": [
+      "k3s",
+      "Pangolin ingress",
+      "Gatus"
+    ],
+    "cicd": {
+      "platform": "gitea-actions",
+      "scaffolded_by_add": false,
+      "pipeline_file": ".gitea/workflows/ci.yml"
+    },
+    "infrastructure_as_code": "none"
+  },
+  "environments": {
+    "tier": 3,
+    "local": {
+      "run": "npm run dev",
+      "test": "npm test",
+      "e2e": "npm run test:e2e",
+      "url": "http://localhost:5173"
+    },
+    "dev": {
+      "deploy_trigger": null,
+      "url": null,
+      "verify": [
+        "unit_tests"
+      ]
+    },
+    "staging": {
+      "deploy_trigger": "merge request / staging-release.yml",
+      "url": "https://homepad-staging.10.17.2.213.nip.io",
+      "verify": [
+        "e2e_tests",
+        "browser_gate"
+      ]
+    },
+    "production": {
+      "deploy_trigger": "merge to main + prod-release.yml",
+      "verify": [
+        "smoke_tests"
+      ],
+      "url": null,
+      "requires_approval": true
+    }
+  },
+  "quality": {
+    "mode": "strict",
+    "coverage_threshold": 90,
+    "type_check_blocking": true,
+    "e2e_required": true,
+    "screenshot_protocol": true,
+    "lint": {
+      "backend": "golangci-lint run ./...",
+      "frontend": "npm run lint"
+    },
+    "typecheck": {
+      "backend": "go vet ./...",
+      "frontend": "npm run typecheck"
+    },
+    "test": {
+      "unit": "npx vitest run --coverage",
+      "integration": "npm run test:gate",
+      "e2e": "npm run test:e2e"
+    }
+  },
+  "collaboration": {
+    "autonomy_level": "autonomous",
+    "team_size": "solo+agents",
+    "commit_review_gate": false,
+    "pr_review_gate": true,
+    "deploy_approval_required": true
+  },
+  "source_control": {
+    "branching": "feature-branches",
+    "default_branch": "main",
+    "commit_convention": "conventional",
+    "pr_template": true,
+    "protected_branches": [
+      "main"
+    ]
+  },
+  "branding": {
+    "accentColor": "#2e63e0",
+    "presetName": "custom-homepad-blue",
+    "palette": {
+      "accent": "#2e63e0",
+      "accentLight": "#8fb8ff",
+      "accentDark": "#0d1526",
+      "accentMuted": "#5a9bff",
+      "accentGlow": "rgba(46,99,224,0.4)",
+      "gradientStart": "#8fb8ff",
+      "gradientMid": "#5a9bff",
+      "gradientEnd": "#2e63e0",
+      "success": "#43d18e",
+      "warning": "#f5b34a",
+      "info": "#5a9bff"
+    },
+    "fonts": {
+      "sans": "Inter",
+      "mono": "SF Mono"
+    },
+    "tone": null,
+    "logoPath": "public/",
+    "styleGuideSource": "src/index.css (v15 design tokens, SPEC-v15-design-system)"
+  },
+  "imageGeneration": {
+    "enabled": false,
+    "tool": null,
+    "plugin": null,
+    "nudged": false,
+    "lastDetected": null
+  },
+  "changelog": {
+    "lastProcessedCommit": null,
+    "lastVersionTag": "v16.2.0"
+  },
+  "learnings": {
+    "active_cap": 15,
+    "archival_days": 90,
+    "archival_max_severity": "medium"
+  },
+  "planning": {
+    "current_milestone": null,
+    "current_cycle": null,
+    "wip_limit": 5,
+    "parallel_agents": 5,
+    "cycle_history": []
+  },
+  "specs_directory": "specs/",
+  "specs_format": "markdown"
+}

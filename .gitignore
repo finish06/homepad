@@ -11,3 +11,7 @@ playwright/.cache/
 
 # lighthouse-ci
 .lighthouseci/
+
+# ADD — ephemeral artifacts (don't commit)
+.add/away-logs/
+tests/screenshots/errors/
