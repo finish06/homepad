@@ -1,9 +1,9 @@
 # Spec: Uptime Display Toggle — Capability #6
 
-**Version:** 2.0.0
+**Version:** 2.1.0
 **Created:** 2026-07-04
 **Author:** Walt (product lead)
-**Status:** v1 SHIPPED (prod v13.5.0, global admin setting). **v2 DRAFT — the setting moves to per-user.** Caleb 2026-09-16. Awaiting Walt product sign-off and Kare §9 revision.
+**Status:** v1 SHIPPED (prod v13.5.0, global admin setting). **v2 DRAFT — the setting moves to per-user.** Caleb 2026-09-16. OQ-1 resolved by Caleb. Awaiting Walt product sign-off and Kare §9 revision (AC-028 copy).
 **Repo:** `Code/homepad` (frontend) + `Code/homepad-api` (Go backend)
 **Estimate:** ~2–3 hours (migration + two API endpoints + frontend prop thread + settings UI)
 **Depends on:** uptime-sparkline (shipped PR #46–#47), v12-settings-boundary-clarity (shipped PR #77)
@@ -137,6 +137,9 @@ superseded with the column.
 | AC-023 | On a cold load the sparklines do not flash before `/api/me` resolves — `localStorage` first-paint cache, `/api/me` wins on every resolve. Same model as `healthBarPref`. | Should |
 | AC-024 | The control keeps its v9 design: `role="switch"`, `aria-labelledby`, `.settings-switch`, ≥44×44px. It sits alongside "Show status bar" in the Dashboard section of My settings. | Must |
 | AC-025 | Status badges and the health panel remain unaffected in either state (AC-014/AC-015 continue to hold per-user). | Must |
+| AC-026 | A **newly created account** inherits `system_settings.show_uptime_display` as its starting value, read at creation time. | Must |
+| AC-027 | Changing the admin default **does not alter any existing user's setting** — it applies only to accounts created afterwards. | Must |
+| AC-028 | The System panel row is **relabelled** to say it is a default for new accounts, not a global switch. An admin must not be able to read that row as "turn sparklines off for everyone", because it no longer does that. Copy owned by Kare (§9 revision). | Must |
 
 ---
 
@@ -556,8 +559,13 @@ non-boolean fails `json.Decode` and 400s before anything is written.
 > than a missing case. This exact bug was found and fixed for `showHealthBar`
 > (homepad-api #68); do not reintroduce it.
 
-`GET /api/system/config` and `PATCH /api/admin/settings` are untouched by this spec —
-their disposition is OQ-2.
+`GET /api/system/config` and `PATCH /api/admin/settings` are **unchanged and retained**
+(OQ-1 resolved). What changes is what the value *means*: it is the seed for new accounts,
+no longer a live render gate. Nothing reads it per-request any more.
+
+**`storage.CreateUser` must seed the new column** from `system_settings` in the same
+statement that inserts the row (AC-026), and its `RETURNING` clause gains
+`show_uptime_display` like the other two user SELECT sites.
 
 ### Frontend
 
@@ -578,21 +586,27 @@ its container moves from the System section to the Dashboard section of My setti
 
 ### Open questions
 
-**OQ-1 — does the admin keep a global control?** Recommend **yes, as a default for new
-accounts, not an override**: keep `system_settings.show_uptime_display`, relabel it in
-the System panel as "Default for new accounts", and have user creation seed from it.
-Losing it entirely means an admin who removes Gatus has no way to stop sparklines
-appearing for every new account. **Needs Walt.**
+**OQ-1 — does the admin keep a global control? RESOLVED 2026-09-16 — Caleb: YES.**
+The admin keeps it, **as a default for new accounts, not a live override.**
 
-**OQ-2 — if OQ-1 says no,** then `system_settings.show_uptime_display`, `GET
-/api/system/config`'s only field, `PATCH /api/admin/settings`, and AC-008 through AC-013
-all retire together, and `GET /api/system/config` becomes an endpoint with nothing in it
-(it also carries `statusDegradedMs` since v16.2.0 — check before removing anything).
-**Do not drop the column in the same migration that adds the per-user one**; the seed
-in AC-020 reads it.
+`system_settings.show_uptime_display` stays. Its *meaning* changes: it no longer gates
+anybody's rendering, it seeds `users.show_uptime_display` at account creation. An admin
+who removes Gatus can therefore stop sparklines appearing for every account created from
+then on, without reaching into anyone's existing personal choice.
 
-**OQ-3 — what about a user created *after* migration?** Covered by OQ-1: if the admin
-default survives, seed from it; if not, `DEFAULT TRUE` applies.
+The consequence that needs care: **after this change, an admin toggling that row sees
+nothing happen** — not on their own dashboard, not on anyone's. That is correct
+behaviour and terrible UX if the row still reads like a global switch. AC-028 requires
+the copy to change with it. This is precisely the class of confusion v11 and v12 were
+written to eliminate, so it is not optional polish.
+
+**OQ-2 — retiring the admin endpoints. CLOSED by OQ-1.** `system_settings`,
+`GET /api/system/config` and `PATCH /api/admin/settings` all stay. (`GET
+/api/system/config` also carries `statusDegradedMs` since v16.2.0, so it was never
+going to be empty.)
+
+**OQ-3 — a user created *after* migration. CLOSED by OQ-1.** Seeds from the admin
+default at creation. See AC-026.
 
 ---
 
@@ -626,4 +640,5 @@ Stitch until both are present.*
 |------|---------|--------|---------|
 | 2026-07-04 | 1.0.0 | Walt | Initial draft — pending Kare design section (§9) |
 | 2026-07-04 | 1.1.0 | Kare | §9 Design section authored (control spec, 5 states, D6 note copy, CSS/a11y); design co-sign recorded in §10 |
+| 2026-09-16 | 2.1.0 | Caleb | **OQ-1 resolved: admin keeps the global value as the default for new accounts, not an override.** OQ-2/OQ-3 closed by it. AC-026..AC-028 added — new accounts seed from the default, changing the default never touches existing users, and the System panel row must be relabelled so it cannot be misread as a global switch. |
 | 2026-09-16 | 2.0.0 | Caleb | **Setting becomes per-user.** §2 decision reversed with reasoning (D2 already made it a display gate, not data suppression); D1 → D1b; AC-002/004/006/007 revised or inverted; AC-016..AC-025 added; per-user migration with a once-only seed guard; API moves to GET/PATCH /api/me. Admin default retained pending OQ-1. |
