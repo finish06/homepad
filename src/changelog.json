@@ -2,6 +2,24 @@
   "pending": [],
   "versions": [
     {
+      "version": "16.3.0",
+      "date": "2026-09-15",
+      "changes": [
+        {
+          "type": "feature",
+          "text": "You can hide the status bar. The health panel's coloured breakdown — how many services are online, unmonitored and down — can be turned off for your account in My settings. The verdict stays: the panel still says whether anything needs attention, still shows the light, and still tells you when the status was last read. Only the breakdown goes. An outage is always reported, whatever this is set to."
+        },
+        {
+          "type": "feature",
+          "text": "The setting follows your account to every device you sign in from, and changes nothing for anyone else. Everyone sees the bar by default."
+        },
+        {
+          "type": "feature",
+          "text": "Your avatar menu now has “My settings” under My Dashboard, open to everyone rather than admins only. It holds the settings that affect only your own dashboard; Administration is unchanged."
+        }
+      ]
+    },
+    {
       "version": "16.2.0",
       "date": "2026-09-13",
       "changes": [

@@ -7,6 +7,27 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [16.3.0] — 2026-09-15 — Hide the status bar
+
+No data loss; one automatic migration (a new per-account setting, below).
+
+**You can hide the status bar.** The health panel's coloured breakdown — how
+many services are online, unmonitored and down — can now be turned off for your
+account. The verdict stays: the panel still says "All systems operational" or
+"3 services need attention", still shows the light, and still tells you when the
+status was last read. Only the breakdown goes, and the panel shrinks to a single
+line. If something is down you will still be told, every time — this setting
+cannot hide an outage.
+
+**The setting is yours, not everyone's.** It follows your account to every
+device you sign in from and changes nothing for anyone else on this homepad.
+Everyone sees the bar by default, so nothing changes until you turn it off.
+
+**A new "My settings" menu.** Your avatar menu now has **My settings** under My
+Dashboard, open to everyone rather than admins only. It holds the settings that
+affect only your own dashboard. Admin settings are unchanged and still live
+under Administration.
+
 ## [16.2.0] — 2026-09-13 — The rest of the v16 interface: 12-column groups, Retry now, settings in the UI
 
 No data loss; one automatic migration (group widths, below). Everything the
