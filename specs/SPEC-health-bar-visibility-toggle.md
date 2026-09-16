@@ -1,6 +1,6 @@
 # Spec: Health Bar Visibility Toggle — per-user
 
-**Version:** 0.1.0
+**Version:** 0.1.1
 **Created:** 2026-09-15
 **Author:** Caleb Dunn (via /add:spec)
 **Status:** Draft — BLOCKED on OQ-1 (see §3). Awaiting Walt product sign-off and Kare §9 design section.
@@ -80,16 +80,17 @@ Three ways out, in the author's order of preference:
 
 **Until OQ-1 is resolved this spec is not implementable as written.**
 
-### OQ-2 — first-paint flash
+### OQ-2 — first-paint flash *(RESOLVED)*
 
 Storage is server-side only, with no `localStorage` cache. `densityPref` deliberately
 keeps a per-device cache so the first paint does not flash the default before `/api/me`
 answers (see `tileDensity.ts` header comment). Without one, a user who has hidden the bar
 will see it render and then disappear on every cold load.
 
-Recommend mirroring the `densityPref` model: `/api/me` is the source of truth and wins on
-every resolve, `localStorage` is a first-paint cache only. Flagged rather than assumed —
-AC-011 is written for the cached behaviour and is marked **Should**, not Must.
+**Resolved 2026-09-15 — Caleb.** Mirror the `densityPref` model: `/api/me` is the source
+of truth and wins on every resolve, `localStorage` is a first-paint cache only. AC-011 is
+**Must**, so the cache is a requirement rather than an optimisation — an implementation
+that reads only `/api/me` does not satisfy this spec.
 
 ### OQ-3 — does hiding the bar hide the freshness stamp?
 
@@ -113,7 +114,7 @@ ever moved back under the bar, this AC set would need revisiting.
 | AC-008 | The write is session-gated server-side — a user can set only their own preference; no cross-user write is possible. | Must |
 | AC-009 | An invalid value is rejected `400` and the UI keeps the prior state. | Must |
 | AC-010 | When the save fails, the toggle rolls back to the persisted value and says so — same optimistic/rollback shape as `setFavorite`/`setLayout`. | Must |
-| AC-011 | On a cold load the panel does not flash the bar before `/api/me` resolves. *(See OQ-2.)* | Should |
+| AC-011 | On a cold load the panel does not flash the bar before `/api/me` resolves. *(See OQ-2.)* | Must |
 | AC-012 | An older backend with no such field (400) degrades without reverting the user's choice for the session. | Should |
 | AC-013 | Hiding the bar does not affect Gatus polling, the status payload, per-tile badges, or the v13 refresh cycle. | Must |
 | AC-014 | The toggle has a ≥44×44px hit target and an accessible name, per v19. | Must |
@@ -236,6 +237,11 @@ Optional so an older API that omits the field type-checks and falls back to the 
 - The panel's row layout already sizes to content, so removing the bar collapses the row
   with no CSS change needed — assert it (AC-004) rather than assume it.
 - The counts must remain in the subline when the bar is hidden (AC-016).
+- **A `localStorage` first-paint cache is required (AC-011, Must).** Follow
+  `tileDensity.ts`: read the cache synchronously for the first paint, let the
+  `/api/me` value win on every resolve, and write through on every change. A
+  storage throw (private mode) must fall back to the default without breaking the
+  toggle for the session.
 
 ---
 
@@ -274,3 +280,4 @@ stranded sentence.*
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
 | 2026-09-15 | 0.1.0 | Caleb Dunn | Initial draft via /add:spec |
+| 2026-09-15 | 0.1.1 | Caleb Dunn | AC-011 raised Should → Must; OQ-2 resolved (localStorage first-paint cache now required) |
