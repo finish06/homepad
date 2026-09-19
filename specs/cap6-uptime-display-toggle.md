@@ -1,6 +1,6 @@
 # Spec: Uptime Display Toggle — Capability #6
 
-**Version:** 2.2.0
+**Version:** 2.3.0
 **Created:** 2026-07-04
 **Author:** Walt (product lead)
 **Status:** v1 SHIPPED (prod v13.5.0, global admin setting). **v2 DRAFT — the setting moves to per-user.** Caleb 2026-09-16. OQ-1 resolved by Caleb. Awaiting Walt product sign-off and Kare §9 revision (AC-028 copy).
@@ -132,6 +132,7 @@ superseded with the column.
 | AC-018 | The preference is stored per user, read from `GET /api/me` and written with `PATCH /api/me` — the `themePref` / `densityPref` / `showHealthBar` contract. Session-gated: a user can set only their own. | Must |
 | AC-019 | The preference follows the account across devices and survives logout/login. | Must |
 | AC-020 | **On migration, nobody's view changes.** Every existing user's new column is seeded from the current global `system_settings.show_uptime_display`. An admin who had it OFF does not find it silently back ON for everyone. | Must |
+| AC-020a | AC-020 is tested with the global set to the **non-default** value (i.e. OFF). With it ON, "everyone ends up ON" is also what a completely broken seed produces, so the test cannot fail. Confirmed in practice: prod's global was OFF and staging's was ON, and only the prod check was discriminating. | Must |
 | AC-021 | The seeding in AC-020 runs **exactly once**. `Migrate` re-runs every migration on every boot, so an unguarded `UPDATE users SET ...` would reset every user's choice on every restart. The migration must be guarded on its own effect, per the `0013` precedent. | Must |
 | AC-022 | A failed write rolls back to the persisted value, matching `setFavorite` / `setLayout` and the `showHealthBar` control. | Must |
 | AC-023 | On a cold load the sparklines do not flash before `/api/me` resolves — `localStorage` first-paint cache, `/api/me` wins on every resolve. Same model as `healthBarPref`. | Should |
@@ -236,6 +237,26 @@ BEGIN
     END IF;
 END $$;
 ```
+
+> ### ⚠️ Rollback hazard — verified
+>
+> Dropping the default means **rolling the API back to a pre-0016 image breaks account
+> creation.** The older `CreateUser` does not supply `show_uptime_display`, and the
+> column is `NOT NULL` with no default:
+>
+> ```
+> ERROR: null value in column "show_uptime_display" violates not-null constraint
+> ```
+>
+> Existing users and sign-in are unaffected — only new-account creation. Before
+> swapping to a pre-0016 image, apply `0016_per_user_uptime_display.down.sql` or
+> re-add the default with
+> `ALTER TABLE users ALTER COLUMN show_uptime_display SET DEFAULT TRUE`.
+>
+> Same shape as the 0013 hazard, and it belongs in any rollback plan that crosses
+> this migration. Reasoned from the migration, then **verified against staging** by
+> reproducing the pre-0016 insert shape with a control insert that included the
+> column succeeding — so the failure is specifically the missing column.
 
 > **Consequence, stated plainly:** after this migration every insert into `users` must
 > supply `show_uptime_display`. `storage.CreateUser` does (AC-026). Any other insert
@@ -676,6 +697,7 @@ Stitch until both are present.*
 |------|---------|--------|---------|
 | 2026-07-04 | 1.0.0 | Walt | Initial draft — pending Kare design section (§9) |
 | 2026-07-04 | 1.1.0 | Kare | §9 Design section authored (control spec, 5 states, D6 note copy, CSS/a11y); design co-sign recorded in §10 |
+| 2026-09-16 | 2.3.0 | Caleb (verified: Joe) | Records the **0016 rollback hazard** — dropping the column default breaks account creation on a pre-0016 image; verified against staging, remedy is 0016.down or re-adding the default. Adds **AC-020a**: the seed test must run with the global at its non-default value, or "everyone ends up ON" passes for a completely broken seed. |
 | 2026-09-16 | 2.2.0 | Caleb (review: Joe) | Migration numbered **0016**; `information_schema` lookup pinned to `current_schema()`; the 0013 guard comparison corrected (0013 guards its *effect* via pg_constraint, this guards its *vehicle*, the column); **column default dropped after seeding** so `system_settings` is the single source of truth for new accounts; AC-027a (test in the failing direction — admin default OFF) and AC-028a (inline help text) added. |
 | 2026-09-16 | 2.1.0 | Caleb | **OQ-1 resolved: admin keeps the global value as the default for new accounts, not an override.** OQ-2/OQ-3 closed by it. AC-026..AC-028 added — new accounts seed from the default, changing the default never touches existing users, and the System panel row must be relabelled so it cannot be misread as a global switch. |
 | 2026-09-16 | 2.0.0 | Caleb | **Setting becomes per-user.** §2 decision reversed with reasoning (D2 already made it a display gate, not data suppression); D1 → D1b; AC-002/004/006/007 revised or inverted; AC-016..AC-025 added; per-user migration with a once-only seed guard; API moves to GET/PATCH /api/me. Admin default retained pending OQ-1. |
