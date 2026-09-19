@@ -48,7 +48,7 @@ export function saveUptimeDisplayPref(show: boolean): void {
 }
 
 // useUptimeDisplayPref resolves visibility as: server preference (when known) →
-// device cache → default. `serverPref` is the account's showHealthBar from
+// device cache → default. `serverPref` is the account's showUptimeDisplay from
 // /api/me; it usually arrives after mount, so the hook adopts it whenever it
 // changes and mirrors it into the cache.
 export function useUptimeDisplayPref(serverPref?: boolean): [boolean, (show: boolean) => void] {

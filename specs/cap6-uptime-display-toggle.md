@@ -1,6 +1,6 @@
 # Spec: Uptime Display Toggle — Capability #6
 
-**Version:** 2.3.0
+**Version:** 2.3.1
 **Created:** 2026-07-04
 **Author:** Walt (product lead)
 **Status:** v1 SHIPPED (prod v13.5.0, global admin setting). **v2 DRAFT — the setting moves to per-user.** Caleb 2026-09-16. OQ-1 resolved by Caleb. Awaiting Walt product sign-off and Kare §9 revision (AC-028 copy).
@@ -669,25 +669,35 @@ default at creation. See AC-026.
 
 ## 10. Sign-offs
 
-| Role | Person | Status |
-|------|--------|--------|
-| Product | Walt | Approved — 2026-07-04 |
-| Design / UX | Kare | Approved — 2026-07-04 |
+| Role | Person | v1 (global admin setting) | v2 (per-user) |
+|------|--------|---------------------------|---------------|
+| Product | Walt | Approved — 2026-07-04 | **PENDING** |
+| Design / UX | Kare | Approved — 2026-07-04 | **PENDING — §9 revision required (AC-028 copy)** |
 
 *This spec is not finalized until both sign-offs are recorded here. It does NOT go to
 Stitch until both are present.*
+
+> **The v1 column does not satisfy the rule above for v2.** Those approvals are from
+> 2026-07-04 and cover the global-admin design that §2 reverses. Read as a single
+> "both present" the table would mark the gate satisfied while v2 is still a draft —
+> which is what the Status field at the top of this spec actually says (homepad#464).
+>
+> Note v2 shipped in 16.4.0 **ahead of** these sign-offs, under the standing rule that
+> code originating from the repo owner does not require Walt or Kare validation. That
+> rule covers product and design sign-off; it does not retroactively fill this table,
+> and AC-028's copy is still Kare's to write.
 
 ---
 
 ## 11. Out of Scope
 
-- Per-user uptime toggle (see §2 for justification).
+- ~~Per-user uptime toggle (see §2 for justification).~~ **REVERSED in v2.0.0 — this IS v2.** §2 now justifies the per-user model rather than arguing against it (homepad#463).
 - Hiding or toggling the UP/DOWN/UNKNOWN status badge on tiles.
 - Pausing or disabling Gatus polling from homepad.
 - Real-time propagation to active sessions (change takes effect on next page load).
 - Any visual redesign of the uptime sparkline itself.
 - Exposing additional system settings through these new endpoints (future work).
-- Controlling uptime display per-category or per-tile (global toggle only).
+- Controlling uptime display per-category or per-tile. (v1 read "global toggle only"; in v2 the scope is per-user, but per-category and per-tile remain out of scope.)
 
 ---
 
@@ -697,6 +707,7 @@ Stitch until both are present.*
 |------|---------|--------|---------|
 | 2026-07-04 | 1.0.0 | Walt | Initial draft — pending Kare design section (§9) |
 | 2026-07-04 | 1.1.0 | Kare | §9 Design section authored (control spec, 5 states, D6 note copy, CSS/a11y); design co-sign recorded in §10 |
+| 2026-09-19 | 2.3.1 | Caleb (QA: Ada) | Sweeps sections the v2 reversal invalidated but left untouched: §10 sign-offs split into v1/v2 columns so the "both present" gate cannot read as satisfied for v2 (homepad#464), and §11's out-of-scope bullets corrected — one pointed at §2 for a justification §2 no longer makes (homepad#463). |
 | 2026-09-16 | 2.3.0 | Caleb (verified: Joe) | Records the **0016 rollback hazard** — dropping the column default breaks account creation on a pre-0016 image; verified against staging, remedy is 0016.down or re-adding the default. Adds **AC-020a**: the seed test must run with the global at its non-default value, or "everyone ends up ON" passes for a completely broken seed. |
 | 2026-09-16 | 2.2.0 | Caleb (review: Joe) | Migration numbered **0016**; `information_schema` lookup pinned to `current_schema()`; the 0013 guard comparison corrected (0013 guards its *effect* via pg_constraint, this guards its *vehicle*, the column); **column default dropped after seeding** so `system_settings` is the single source of truth for new accounts; AC-027a (test in the failing direction — admin default OFF) and AC-028a (inline help text) added. |
 | 2026-09-16 | 2.1.0 | Caleb | **OQ-1 resolved: admin keeps the global value as the default for new accounts, not an override.** OQ-2/OQ-3 closed by it. AC-026..AC-028 added — new accounts seed from the default, changing the default never touches existing users, and the System panel row must be relabelled so it cannot be misread as a global switch. |
