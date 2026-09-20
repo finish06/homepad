@@ -38,6 +38,8 @@ import {
 import { boxesFromData, boxWidthPx, contentMaxPx, frameContentPx, DEFAULT_WIDTH, moveCategory, rowFillCounts, SPANS, type Box } from './appGridLayout';
 import { iconSrc, initialBadge } from '../lib/icons';
 import { useServicesContext } from '../services';
+import { clearRecentlyOpened, recordOpened, useRecentlyOpened } from '../lib/recentlyOpened';
+import { CONTENT_WIDTH } from '../lib/layout';
 import { useResolvedTheme } from '../theme/theme';
 import { type TileDensity } from './tileDensity';
 import { tileStatusLine } from './tileStatus';
@@ -409,6 +411,12 @@ export default function AppGrid({
 
   return (
     <>
+      {/* cap3 — "Recently opened". Hidden in edit mode (AC-008) and when the
+          catalog is empty (AC-009); the component itself hides when nothing
+          resolves (AC-001/AC-006). */}
+      {!editing && (ctx?.items?.length ?? 0) > 0 && (
+        <RecentlyOpenedRow items={ctx?.items ?? []} theme={gridTheme} onOpenIframe={openIframe} />
+      )}
       <div
         className={`app-grid${editing ? ' is-editing' : ''}`}
         data-testid="app-grid"
@@ -1022,6 +1030,77 @@ function UptimeWindowsLine({ windows }: { windows?: Record<string, number> }) {
 // as a SIBLING of the <a> (interactive content can't nest in an anchor) — its
 // own <button>, painted above the link, so a real center click hits the star,
 // not the navigation; the handler preventDefault/stopPropagation guard the rest.
+// cap3 — the "Recently opened" strip. Reads the per-browser list, resolves it
+// against the live catalog, and renders a compact row above the grid.
+//
+// SPEC DEVIATION, recorded in the spec: AC-003 says items open "in a new tab —
+// the same behavior as the main tile". Since that was written, v23 made the main
+// tile's behaviour per-service (clickAction: new_tab | same_tab | iframe). The
+// AC's INTENT is "behave like the main tile", so these honour clickAction rather
+// than hardcoding a new tab — hardcoding it would now DIVERGE from the tile.
+function RecentlyOpenedRow({
+  items,
+  theme,
+  onOpenIframe,
+}: {
+  items: Service[];
+  theme: 'light' | 'dark';
+  onOpenIframe: (s: Service) => void;
+}) {
+  const recent = useRecentlyOpened(items);
+  if (recent.length === 0) return null; // AC-001 / AC-006
+  return (
+    <div className={`${CONTENT_WIDTH} recently-opened`} data-testid="recently-opened-row">
+      <span className="recently-opened-label">Recently opened</span>
+      <ul className="recently-opened-list">
+        {recent.map((s) => {
+          const action = s.clickAction ?? 'new_tab';
+          // AC-004 — opening from the row counts as an open too.
+          const record = () => recordOpened(s.id);
+          const linkProps: React.ComponentPropsWithoutRef<'a'> =
+            action === 'new_tab'
+              ? { target: '_blank', rel: 'noreferrer noopener', onClick: record }
+              : action === 'iframe'
+                ? {
+                    onClick: (e: React.MouseEvent) => {
+                      e.preventDefault();
+                      record();
+                      onOpenIframe(s);
+                    },
+                  }
+                : { onClick: record };
+          return (
+            <li key={s.id}>
+              <a
+                className="recently-opened-item"
+                data-testid="recently-opened-item"
+                data-service-id={s.id}
+                href={safeHref(s.url)}
+                aria-label={s.name}
+                title={s.name}
+                {...linkProps}
+              >
+                <span className="recently-opened-icon">
+                  <img src={iconSrc(s, theme, 0)} alt="" data-fallback={initialBadge(s.name)} />
+                </span>
+                <span className="recently-opened-name">{s.name}</span>
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+      <button
+        type="button"
+        className="recently-opened-clear"
+        data-testid="recently-opened-clear"
+        onClick={() => clearRecentlyOpened()}
+      >
+        Clear
+      </button>
+    </div>
+  );
+}
+
 function ToolLink({
   service,
   theme,
@@ -1060,17 +1139,22 @@ function ToolLink({
   // navigates; iframe keeps href (right-click "open in new tab" still works,
   // AC-007) but intercepts the left-click to open IframeOverlay (AC-005).
   const action = service.clickAction ?? 'new_tab';
+  // cap3 AC-002 — record the open for the "Recently opened" row. Hung off every
+  // branch rather than the anchor alone, because the iframe branch preventDefaults
+  // and would otherwise never count as an open.
+  const record = () => recordOpened(service.id);
   const linkProps: React.ComponentPropsWithoutRef<'a'> =
     action === 'new_tab'
-      ? { target: '_blank', rel: 'noreferrer noopener' }
+      ? { target: '_blank', rel: 'noreferrer noopener', onClick: record }
       : action === 'iframe'
         ? {
             onClick: (e) => {
               e.preventDefault();
+              record();
               onOpenIframe(service);
             },
           }
-        : {}; // same_tab — plain in-tab navigation, no target/rel
+        : { onClick: record }; // same_tab — plain in-tab navigation, no target/rel
   return (
     <div
       ref={sortable?.setNodeRef}
