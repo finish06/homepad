@@ -415,8 +415,7 @@ function UptimeToggleRow({
       {/* AC-028 / AC-028a — cap6 v2 made this a DEFAULT FOR NEW ACCOUNTS, not a
           live override. Toggling it changes nothing on any existing dashboard,
           including the admin's own, so the row has to explain its own lack of
-          visible effect or it reads as broken.
-          PLACEHOLDER COPY — awaiting Kare's §9 revision. */}
+          visible effect or it reads as broken. Copy accepted 2026-09-20. */}
       <dt id="uptime-toggle-label">
         Uptime display for new accounts
         <span className="settings-kv-help">
