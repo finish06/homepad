@@ -53,8 +53,12 @@ export default function App() {
   }, []);
 
   // The provider wraps every state (loading/auth/home) so the resolved theme is
-  // applied throughout. Pre-auth has no stored pref, so it falls back to System
-  // (OS/cache); once /api/me resolves, the user's themePref flows in via the prop.
+  // applied throughout. Pre-auth `user` is null, so userPref stays undefined
+  // indefinitely — the provider resolves from the first-paint cache, falling
+  // back to the live OS when that cache is empty or invalid (homepad#468). It
+  // does NOT resolve as 'system': an explicitly cached dark keeps the login
+  // screen dark even under a light OS, which is the anti-flash guarantee. Once
+  // /api/me answers, the account's themePref takes over via this prop.
   return (
     <ThemeProvider userPref={user?.themePref}>
       {loading ? (

@@ -87,8 +87,10 @@ export function ThemeProvider({
   // prevent. resolveBootTheme always documented this as "shared by the
   // provider's initial state"; it simply was not wired up.
   //
-  // Read once, at first render, before the layout effect can overwrite the cache.
-  const bootResolved = useRef<ResolvedTheme>(resolveBootTheme(readThemeCache(), osTheme() === 'dark'));
+  // The CACHE is read once, at first render, before the layout effect below can
+  // overwrite it. The OS is NOT snapshotted — it is folded in live on every
+  // render (see below), so this is a snapshot of the stored value only.
+  const bootCache = useRef<string | null>(readThemeCache());
 
   // The boot cache is a stand-in, not an authority. It stops being consulted as
   // soon as the server answers or the user makes an explicit in-session choice.
@@ -103,11 +105,25 @@ export function ThemeProvider({
     if (userPref !== undefined) setAuthoritative(true);
   }, [userPref]);
 
+  // Pre-auth, `userPref` is undefined INDEFINITELY — App renders
+  // <ThemeProvider userPref={user?.themePref}> around the login screen, where
+  // `user` is null — so `authoritative` does not flip and this branch is not
+  // transient. Resolving from a frozen snapshot would freeze the login screen's
+  // theme and stop it following the OS, so the OS is folded in live here.
+  //
+  // The cache is snapshotted but the OS is not, deliberately. Re-reading the
+  // cache each render would poison this: the layout effect writes `resolved`
+  // back, so an initially-empty cache becomes 'light' after first paint, and a
+  // later OS flip would then read that back and pin it.
+  //
+  // An explicit cached value still outranks the OS here — resolveBootTheme
+  // returns a valid cache entry verbatim. That is the anti-flash guarantee and
+  // it is intended: a returning dark-mode user keeps dark on the login screen.
   const resolved: ResolvedTheme = authoritative
     ? pref === 'system'
       ? os
       : pref
-    : bootResolved.current;
+    : resolveBootTheme(bootCache.current, os === 'dark');
 
   // Apply before paint to avoid a flash, and mirror into the first-paint cache.
   useLayoutEffect(() => {
