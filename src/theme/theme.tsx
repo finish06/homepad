@@ -6,7 +6,7 @@
 // live while pref==='system'. The icon precedence (v2) reads the resolved theme
 // via useResolvedTheme.
 
-import { createContext, useContext, useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { setThemePref, type ThemePref } from '../api';
 
 export type ResolvedTheme = 'light' | 'dark';
@@ -25,6 +25,16 @@ function osTheme(): ResolvedTheme {
 // resolveBootTheme picks the first-paint surface from the cache, falling back to
 // the OS. Shared by the provider's initial state and mirrored by the index.html
 // boot script. A bad/empty cache value degrades to the OS preference.
+// Reading the cache can throw in private mode / with storage disabled, exactly
+// as writing it can. A throw here must degrade to the OS, never break boot.
+function readThemeCache(): string | null {
+  try {
+    return localStorage.getItem(THEME_CACHE_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export function resolveBootTheme(cache: string | null, osDark: boolean): ResolvedTheme {
   if (cache === 'light' || cache === 'dark') return cache;
   return osDark ? 'dark' : 'light';
@@ -66,15 +76,38 @@ export function ThemeProvider({
   const [pref, setPrefState] = useState<ThemePref>(userPref ?? 'system');
   const os = useOsTheme();
 
+  // A8 (homepad#468) — until we KNOW the account preference, honour whatever
+  // the index.html boot script decided.
+  //
+  // Without this the provider mounted with userPref still undefined (/api/me
+  // has not resolved), fell back to 'system', resolved against the OS, and the
+  // layout effect below stripped the dark class the boot script had just
+  // applied — then flipped it back when /api/me answered. A dark-mode user saw
+  // dark -> light -> dark on every cold load, the exact flash A8 exists to
+  // prevent. resolveBootTheme always documented this as "shared by the
+  // provider's initial state"; it simply was not wired up.
+  //
+  // Read once, at first render, before the layout effect can overwrite the cache.
+  const bootResolved = useRef<ResolvedTheme>(resolveBootTheme(readThemeCache(), osTheme() === 'dark'));
+
+  // The boot cache is a stand-in, not an authority. It stops being consulted as
+  // soon as the server answers or the user makes an explicit in-session choice.
+  const [authoritative, setAuthoritative] = useState(userPref !== undefined);
+
   // The stored preference arrives with /api/me (and changes on login/logout).
   // Sync internal state to it whenever the prop's value changes — keyed on the
   // value so it can't clobber an in-session optimistic setPref (which mutates
   // internal state only, never the prop).
   useEffect(() => {
     setPrefState(userPref ?? 'system');
+    if (userPref !== undefined) setAuthoritative(true);
   }, [userPref]);
 
-  const resolved: ResolvedTheme = pref === 'system' ? os : pref;
+  const resolved: ResolvedTheme = authoritative
+    ? pref === 'system'
+      ? os
+      : pref
+    : bootResolved.current;
 
   // Apply before paint to avoid a flash, and mirror into the first-paint cache.
   useLayoutEffect(() => {
@@ -90,6 +123,7 @@ export function ThemeProvider({
     const prev = pref;
     if (next === prev) return true;
     setPrefState(next); // optimistic — instant surface feedback
+    setAuthoritative(true); // an explicit choice outranks the boot cache
     const ok = await setThemePref(next);
     if (!ok) setPrefState(prev); // roll back to the prior choice
     return ok;

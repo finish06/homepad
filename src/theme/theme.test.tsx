@@ -204,3 +204,65 @@ describe('A12 — useResolvedTheme falls back to OS with no provider (pre-auth)'
     expect(screen.getByTestId('resolved')).toHaveTextContent('dark');
   });
 });
+
+// ── A8 anti-flash: the provider must not undo the boot script (homepad#468) ──
+//
+// resolveBootTheme's own comment says it is "shared by the provider's initial
+// state and mirrored by the index.html boot script" — but the provider never
+// called it. It initialised pref to `userPref ?? 'system'`, and /api/me has not
+// resolved at mount, so userPref is undefined and pref lands on 'system'. Its
+// layout effect then resolved against the OS and stripped the dark class the
+// boot script had just applied, rewriting the cache to light.
+//
+// A dark-mode user therefore flashed dark -> light -> dark on every cold load,
+// which is the exact thing A8 exists to prevent.
+describe('A8 — provider seeds from the boot cache until the server answers', () => {
+  it('keeps the dark class the boot script applied while userPref is unknown', () => {
+    stubMatchMedia(false); // OS says light
+    localStorage.setItem(THEME_CACHE_KEY, 'dark');
+    // What index.html does before the bundle runs.
+    document.documentElement.classList.add('dark');
+
+    render(
+      <ThemeProvider userPref={undefined}>
+        <div />
+      </ThemeProvider>,
+    );
+
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    expect(localStorage.getItem(THEME_CACHE_KEY)).toBe('dark');
+  });
+
+  it('does not invent dark when the cache says light and the OS says light', () => {
+    stubMatchMedia(false);
+    localStorage.setItem(THEME_CACHE_KEY, 'light');
+    render(
+      <ThemeProvider userPref={undefined}>
+        <div />
+      </ThemeProvider>,
+    );
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+  });
+
+  it('the server preference still wins once it arrives', () => {
+    stubMatchMedia(false);
+    localStorage.setItem(THEME_CACHE_KEY, 'dark');
+    document.documentElement.classList.add('dark');
+
+    const { rerender } = render(
+      <ThemeProvider userPref={undefined}>
+        <div />
+      </ThemeProvider>,
+    );
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+
+    // /api/me answers: this account is light. The cache must yield to it.
+    rerender(
+      <ThemeProvider userPref="light">
+        <div />
+      </ThemeProvider>,
+    );
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    expect(localStorage.getItem(THEME_CACHE_KEY)).toBe('light');
+  });
+});

@@ -106,7 +106,11 @@ test.describe('v3 — theme control', () => {
 test.describe('v3 — anti-flash first paint (A8)', () => {
   test('a dark localStorage cache paints dark before React mounts', async ({ page }) => {
     const patched: Record<string, unknown>[] = [];
-    await seedUser(page, patched);
+    // The mocked server preference must AGREE with the seeded cache, or this
+    // races: once /api/me resolves, ThemeProvider correctly applies the server's
+    // value and the class legitimately leaves dark. Chromium resolved fast
+    // enough to catch that and fail; WebKit did not. See homepad#468.
+    await seedUser(page, patched, 'dark');
     // Seed the first-paint cache before any document script runs.
     await page.addInitScript(() => localStorage.setItem('homepad.theme', 'dark'));
 
