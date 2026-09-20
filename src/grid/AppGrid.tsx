@@ -414,8 +414,8 @@ export default function AppGrid({
       {/* cap3 — "Recently opened". Hidden in edit mode (AC-008) and when the
           catalog is empty (AC-009); the component itself hides when nothing
           resolves (AC-001/AC-006). */}
-      {!editing && (ctx?.items?.length ?? 0) > 0 && (
-        <RecentlyOpenedRow items={ctx?.items ?? []} theme={gridTheme} onOpenIframe={openIframe} />
+      {!editing && (svcs?.length ?? 0) > 0 && (
+        <RecentlyOpenedRow items={svcs ?? []} theme={gridTheme} onOpenIframe={openIframe} />
       )}
       <div
         className={`app-grid${editing ? ' is-editing' : ''}`}
