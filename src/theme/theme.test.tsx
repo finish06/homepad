@@ -204,3 +204,104 @@ describe('A12 — useResolvedTheme falls back to OS with no provider (pre-auth)'
     expect(screen.getByTestId('resolved')).toHaveTextContent('dark');
   });
 });
+
+// ── A8 anti-flash: the provider must not undo the boot script (homepad#468) ──
+//
+// resolveBootTheme's own comment says it is "shared by the provider's initial
+// state and mirrored by the index.html boot script" — but the provider never
+// called it. It initialised pref to `userPref ?? 'system'`, and /api/me has not
+// resolved at mount, so userPref is undefined and pref lands on 'system'. Its
+// layout effect then resolved against the OS and stripped the dark class the
+// boot script had just applied, rewriting the cache to light.
+//
+// A dark-mode user therefore flashed dark -> light -> dark on every cold load,
+// which is the exact thing A8 exists to prevent.
+describe('A8 — provider seeds from the boot cache until the server answers', () => {
+  it('keeps the dark class the boot script applied while userPref is unknown', () => {
+    stubMatchMedia(false); // OS says light
+    localStorage.setItem(THEME_CACHE_KEY, 'dark');
+    // What index.html does before the bundle runs.
+    document.documentElement.classList.add('dark');
+
+    render(
+      <ThemeProvider userPref={undefined}>
+        <div />
+      </ThemeProvider>,
+    );
+
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    expect(localStorage.getItem(THEME_CACHE_KEY)).toBe('dark');
+  });
+
+  it('does not invent dark when the cache says light and the OS says light', () => {
+    stubMatchMedia(false);
+    localStorage.setItem(THEME_CACHE_KEY, 'light');
+    render(
+      <ThemeProvider userPref={undefined}>
+        <div />
+      </ThemeProvider>,
+    );
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+  });
+
+  it('the server preference still wins once it arrives', () => {
+    stubMatchMedia(false);
+    localStorage.setItem(THEME_CACHE_KEY, 'dark');
+    document.documentElement.classList.add('dark');
+
+    const { rerender } = render(
+      <ThemeProvider userPref={undefined}>
+        <div />
+      </ThemeProvider>,
+    );
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+
+    // /api/me answers: this account is light. The cache must yield to it.
+    rerender(
+      <ThemeProvider userPref="light">
+        <div />
+      </ThemeProvider>,
+    );
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    expect(localStorage.getItem(THEME_CACHE_KEY)).toBe('light');
+  });
+});
+
+// The pre-auth case, which every other test in this file misses because they all
+// seed a user and are therefore immediately `authoritative`.
+//
+// App mounts <ThemeProvider userPref={user?.themePref}>. Before login `user` is
+// null, so userPref is undefined INDEFINITELY — not for a tick. A boot value
+// captured once in a ref would freeze the login screen's theme and stop it
+// following the OS, which is what it did before this pair of tests existed.
+describe('A8 — pre-auth, with no stored preference, still follows the OS', () => {
+  it('re-resolves when the OS flips while userPref stays undefined', () => {
+    const mm = stubMatchMedia(false); // OS light, no cache
+    render(
+      <ThemeProvider userPref={undefined}>
+        <div />
+      </ThemeProvider>,
+    );
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+
+    act(() => mm.set(true)); // user flips the OS on the login screen
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+  });
+
+  it('an explicit cached theme still outranks the OS pre-auth', () => {
+    // Deliberate: resolveBootTheme returns a valid cache value verbatim, so a
+    // returning dark-mode user keeps dark on the login screen even if the OS
+    // says light. That is the anti-flash guarantee, and it is a decision — not
+    // a side effect of how the value happens to be read.
+    const mm = stubMatchMedia(false);
+    localStorage.setItem(THEME_CACHE_KEY, 'dark');
+    render(
+      <ThemeProvider userPref={undefined}>
+        <div />
+      </ThemeProvider>,
+    );
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    act(() => mm.set(true));
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+  });
+});
