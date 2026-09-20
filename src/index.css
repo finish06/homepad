@@ -405,6 +405,108 @@
     background: rgba(255, 255, 255, 0.08);
   }
 
+  /* ===== cap3 "Recently opened" =====
+     A compact strip above the grid. Reads from the same v15 --v-* tokens as the
+     rest of the chrome so it is mode-aware and accent-independent. Horizontal
+     scroll rather than wrap: the row is capped at 8 and must not push the grid
+     down a line on a narrow viewport. */
+  .recently-opened {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 4px;
+    padding: 10px 0;
+  }
+  .recently-opened-label {
+    flex: none;
+    font-family: var(--mono, ui-monospace, monospace);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--v-muted);
+  }
+  .recently-opened-list {
+    display: flex;
+    flex: 1 1 auto;
+    gap: 10px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  /* min-height clears the v19 44px touch floor; the icon is the ~64px the spec
+     asks for, with the name beneath it. */
+  .recently-opened-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    width: 76px;
+    min-height: 44px;
+    padding: 6px 4px;
+    border-radius: var(--r-chip);
+    text-decoration: none;
+    color: var(--v-txt);
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+  .recently-opened-item:hover {
+    background: var(--v-hover);
+    transform: translateY(-1px);
+  }
+  .recently-opened-item:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent-3);
+  }
+  .recently-opened-icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--v-tile);
+    border: 1px solid var(--v-tilebrd);
+    overflow: hidden;
+  }
+  .recently-opened-icon img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+  }
+  .recently-opened-name {
+    max-width: 100%;
+    font-size: 11px;
+    line-height: 1.2;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--v-muted);
+  }
+  .recently-opened-clear {
+    flex: none;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: var(--r-chip);
+    background: none;
+    cursor: pointer;
+    font-family: var(--mono, ui-monospace, monospace);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--v-muted);
+  }
+  .recently-opened-clear:hover {
+    background: var(--v-hover);
+    color: var(--v-txt);
+  }
+  .recently-opened-clear:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent-3);
+  }
+
   /* ===== v15 health summary panel (design spec §4.2) =====
      Glass verdict panel: a two-column grid (verdict | metrics) that collapses to
      one column ≤720px. All chrome reads from the v15 --v-* glass/status tokens so

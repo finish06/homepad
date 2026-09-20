@@ -1,9 +1,9 @@
 # Spec: "Recently Opened" Row — Capability #3
 
-**Version:** 0.1.0
+**Version:** 1.0.0
 **Created:** 2026-06-23
 **Author:** Walt (product lead)
-**Status:** Ready for implementation
+**Status:** BUILT 2026-09-20 — see §8 for the two deviations from this spec's original guidance. Awaiting QA.
 **Repo:** `Code/homepad` (frontend only — no backend changes)
 **Estimate:** ~45 minutes
 
@@ -22,6 +22,16 @@ As a homelab operator with a dozen services on my dashboard, I want to see the s
 ---
 
 ## 2. Architecture notes
+
+> ### ⚠️ This section is superseded — it predates the v16 AppGrid rewrite
+>
+> Written 2026-06-23 against `src/Catalog.tsx` / `ServiceTile`. **That file no
+> longer exists** — the v16 App Grid rewrite replaced it. The ACs below are
+> behavioural and unchanged; only the mount point moved. What was actually built
+> is recorded in §8. Kept as-is for the record rather than rewritten.
+
+### Original notes (2026-06-23)
+
 
 - **Where the click happens:** `ServiceTile` in `src/Catalog.tsx` — the tile renders an `<a href={service.url} target="_blank" rel="noreferrer noopener">` that opens the service URL. An `onClick` handler on this anchor records the service ID in localStorage.
 - **localStorage key:** `homepad.recentlyOpened` — a JSON array of service IDs, ordered newest-first, max 8 entries. Stored IDs that no longer exist in the current catalog are silently dropped on render.
@@ -122,6 +132,54 @@ As a homelab operator with a dozen services on my dashboard, I want to see the s
 **Expected:** The "Recently opened" row is not rendered. When edit mode is turned OFF, the row reappears (if the list is non-empty).
 
 **Maps to:** AC-008
+
+---
+
+## 8. As built (2026-09-20)
+
+Two deviations from the original guidance, both recorded rather than silently
+reinterpreted.
+
+### D-1 — mount point (mechanical)
+
+`src/Catalog.tsx` and `ServiceTile` were deleted by the v16 App Grid rewrite. As
+built:
+
+| Spec said | Actually |
+|---|---|
+| `ServiceTile` in `src/Catalog.tsx` | `ToolLink` in `src/grid/AppGrid.tsx` |
+| Row renders in `src/Catalog.tsx` | `RecentlyOpenedRow`, local to `AppGrid.tsx`, above the grid |
+| — | Store extracted to `src/lib/recentlyOpened.ts` |
+
+The custom-event design (§2) survived intact and is why no prop drill or context
+change was needed — a tile click anywhere in the grid updates the row.
+
+The row reads `svcs` (`ctx ? ctx.items : ownSvcs`), not the context directly, so
+it also works in an isolated `AppGrid` render that self-fetches.
+
+### D-2 — AC-003 resolves toward intent, not the literal (substantive)
+
+AC-003 says row items open "in a new tab — **the same behavior as the main
+tile**". When written those were one statement: the tile always opened a new tab.
+
+**v23 split them.** `clickAction` made the tile's behaviour per-service
+(`new_tab` | `same_tab` | `iframe`), so the mechanism clause and the intent
+clause now disagree and only one can be satisfied.
+
+**As built, row items honour `clickAction`.** Hardcoding a new tab would satisfy
+the words while breaking what the words describe, and would make the row behave
+*differently* from the tile it mirrors — the one outcome AC-003 was plainly
+written to prevent.
+
+Per the documented precedent (Caleb, 2026-07-30): a spec's prose promise
+outranks a stale literal when the two diverge.
+
+### Coverage
+
+`src/lib/recentlyOpened.test.ts` (8) — ordering, dedup, cap, clear, stale-id
+filtering, corrupt-value and storage-throw degradation.
+`src/grid/recently-opened.test.tsx` (9) — AC-001 through AC-009 against a real
+`AppGrid` render.
 
 ---
 
