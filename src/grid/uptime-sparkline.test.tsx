@@ -238,12 +238,37 @@ describe('cap4 AC-010 — the tooltip surface carries its own colors', () => {
   });
 
   it('keeps the dots at every density and hides only the redundant label (§8 D-5)', () => {
-    // The strip must survive the horizontal densities: DEFAULT_DENSITY is
-    // 'compact', so a rule hiding .uptime-sparkline there would ship a feature
-    // no default user ever sees.
-    expect(css).not.toMatch(/data-density='(compact|list)'\]\s+\.uptime-sparkline\b/);
     expect(css).toMatch(/data-density='compact'\]\s+\.uptime-label/);
     expect(css).toMatch(/data-density='list'\]\s+\.uptime-label/);
+  });
+
+  // cap6 §8.4 / Joe's review of #475. The v16.4.0 defect was not that the
+  // preference was wrong — it round-tripped perfectly — but that the ONLY
+  // element it gated was display:none at DEFAULT_DENSITY. Every check anyone
+  // ran was about state; none was about what a user sees.
+  //
+  // So this asserts the property that was actually violated, not the spelling
+  // of the rule that violated it: no density rule may hide the visible part of
+  // anything `showUptimeDisplay` gates. It walks every `display: none` block
+  // keyed on data-density rather than pattern-matching one selector, so a
+  // future density change cannot re-break it by writing the rule differently.
+  it('no density rule hides the visible part of a showUptimeDisplay-gated element', () => {
+    const GATED_VISIBLE = ['.uptime-sparkline', '.uptime-sparkline-dots', '.uptime-dot'];
+    const offenders: string[] = [];
+    // Each rule: everything up to '{', then the body up to the matching '}'.
+    for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const selector = m[1].trim();
+      const body = m[2];
+      if (!/data-density=/.test(selector)) continue;
+      if (!/display:\s*none/.test(body)) continue;
+      for (const sel of GATED_VISIBLE) {
+        // Word-boundary guard so `.uptime-label` never counts as `.uptime-l…`
+        // and `.uptime-sparkline-dots` is matched on its own, not by its prefix.
+        const re = new RegExp(`\\${sel}(?![\\w-])`);
+        if (re.test(selector)) offenders.push(`${selector} { display: none }`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 
   it('AC-005 — the tooltip is anchored above the dots and does not affect layout', () => {
