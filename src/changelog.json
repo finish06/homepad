@@ -2,6 +2,44 @@
   "pending": [],
   "versions": [
     {
+      "version": "16.5.2",
+      "date": "2026-09-23",
+      "changes": [
+        {
+          "type": "bug-fix",
+          "text": "The “What’s new” changelog was two releases out of date — it listed 16.4.0 as newest while you were running 16.5.1. Fixed, and now guarded by a build check."
+        }
+      ]
+    },
+    {
+      "version": "16.5.1",
+      "date": "2026-09-23",
+      "changes": [
+        {
+          "type": "bug-fix",
+          "text": "The search box sits in the middle of the header again — it had been about 90px left of centre at every window size."
+        }
+      ]
+    },
+    {
+      "version": "16.5.0",
+      "date": "2026-09-22",
+      "changes": [
+        {
+          "type": "feature",
+          "text": "Tiles show their recent check history again — a row of dots, green for a pass and red for a fail. Hover one to see exactly when that check ran."
+        },
+        {
+          "type": "feature",
+          "text": "A “Recently opened” row collects the apps you actually launch, up to eight, most recent first."
+        },
+        {
+          "type": "bug-fix",
+          "text": "No more bright flash when opening homepad in dark mode, and the login screen follows your system theme again."
+        }
+      ]
+    },
+    {
       "version": "16.4.0",
       "date": "2026-09-16",
       "changes": [
