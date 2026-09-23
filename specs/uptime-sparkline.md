@@ -3,7 +3,11 @@
 **Version:** 0.1.0
 **Created:** 2026-06-14
 **Author:** Walt (product lead)
-**Status:** Shipped — prod (PR #46/#47/#51, 2026-06-18)
+**Status:** Shipped — prod (PR #46/#47/#51, 2026-06-18). **Absent from the product
+2026-07-02 → 2026-09-22**: `4c7dce2` restored the App Grid and `Catalog.tsx` — the only
+file rendering this strip — stopped being rendered. Not a product decision; no
+`DECISIONS.md` entry. Restored on `AppGrid` alongside cap4; see
+`specs/cap4-sparkline-dot-tooltip.md` §8.
 **Repos:** `Code/homepad` (frontend) · `Code/homepad-api` (backend)
 
 ---

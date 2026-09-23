@@ -7,6 +7,37 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [16.5.0] — 2026-09-22 — The dots are back
+
+No migrations. No configuration changes. Frontend only — upgrading from 16.4.0 is
+a single step.
+
+**Your tiles show their recent history again.** Each monitored tile carries a row
+of small dots — one per recent check, oldest on the left, green for a pass and red
+for a fail. Hover any dot and it tells you exactly when that check ran and how it
+went ("✗ Failed — Sep 21, 04:09"), so a red dot becomes a time you can match against
+whatever you were doing.
+
+If that sounds familiar, it should: this shipped in June and then quietly went
+missing. Restoring the App Grid on 2 July replaced the page that drew the dots, and
+nothing put them back. The 16.4.0 notes above describe "the little uptime strip on
+each tile" — written three days ago, about something that had not been on a tile in
+eleven weeks. It is there now, and there is a test that renders the real dashboard
+and fails if it ever leaves again.
+
+The dots appear at every tile size. The "75% / 20 checks" summary under them shows
+in the Large layout, where there is room for it.
+
+**"Recently opened" row.** The tiles you actually launch now collect in a compact
+strip above the grid — up to eight, most recent first. It is per-browser and needs
+no setup; open a few things and it appears. Each entry opens the same way its tile
+does, whether that is a new tab, this tab, or the in-app window.
+
+**No more theme flash on load.** If you use dark mode, opening homepad could show a
+bright flash before the page settled — dark, then light, then dark again, in under
+a second. The page now keeps the theme it painted with instead of second-guessing it
+once your preferences arrive. The login screen follows your system theme again too.
+
 ## [16.4.0] — 2026-09-16 — Your own uptime display
 
 No data loss; one automatic migration, additive (`users.show_uptime_display`).

@@ -34,6 +34,7 @@ import {
   type Category,
   type Service,
   type ServiceStatus,
+  type UptimeCheck,
 } from '../api';
 import { boxesFromData, boxWidthPx, contentMaxPx, frameContentPx, DEFAULT_WIDTH, moveCategory, rowFillCounts, SPANS, type Box } from './appGridLayout';
 import { iconSrc, initialBadge } from '../lib/icons';
@@ -1024,6 +1025,89 @@ function UptimeWindowsLine({ windows }: { windows?: Record<string, number> }) {
   );
 }
 
+// fmtCheckTime — local-time "MMM D, HH:MM" (24-hour, no UTC offset: cap4 AC-002
+// judged local time more useful at a glance than an absolute one). Returns ''
+// for an absent or unparseable stamp so AC-008 never renders "Invalid Date".
+function fmtCheckTime(ts: string): string {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
+// UptimeSparkline — specs/uptime-sparkline.md (the strip) + cap4 (the tooltip).
+// A row of ≤20 dots, oldest→newest, green for a pass and red for a fail, under
+// an "XX% / N checks" label. Renders nothing without checks, so an unmonitored
+// tile keeps its height exactly (the same parity rule UptimeWindowsLine follows).
+//
+// Restored to AppGrid on 2026-09-21 after eleven weeks out of the product — see
+// the header of uptime-sparkline.test.tsx for how it went missing. It is ported,
+// not rewritten: the June behaviour is preserved except where a deviation is
+// recorded in cap4 §8.
+function UptimeSparkline({ checks }: { checks?: UptimeCheck[] }) {
+  // Index of the hovered dot, or null. Cleared on leave (AC-007, no delay).
+  const [hovered, setHovered] = useState<number | null>(null);
+  if (!checks || checks.length === 0) return null;
+  const total = checks.length;
+  const successes = checks.reduce((n, c) => (c.success ? n + 1 : n), 0);
+  const pct = Math.round((successes / total) * 100);
+  // AC-004 — a touch device reports no hover capability, so the handlers are
+  // never attached and a tap cannot flicker a tooltip into view. Absent
+  // matchMedia (jsdom, very old browsers) is treated as hover-capable.
+  const canHover = window.matchMedia?.('(hover: hover)').matches ?? true;
+  const active = hovered != null ? checks[hovered] : null;
+  const activeTime = active ? fmtCheckTime(active.timestamp) : '';
+  return (
+    <span className="uptime-sparkline" data-testid="uptime-sparkline">
+      <span className="uptime-sparkline-dots">
+        {checks.map((c, i) => {
+          const time = fmtCheckTime(c.timestamp);
+          const result = c.success ? 'Passed' : 'Failed';
+          return (
+            <span
+              key={i}
+              className="uptime-dot"
+              data-testid="uptime-dot"
+              data-success={c.success}
+              // AC-011 — role="img" is load-bearing, not decoration. The June
+              // build put aria-label on a bare <span>, which has no role, and a
+              // label on a generic element is one assistive tech may discard.
+              // This mirrors the tile status pip a few lines up.
+              role="img"
+              aria-label={time ? `${result} – ${time}` : result}
+              onMouseEnter={canHover ? () => setHovered(i) : undefined}
+              onMouseLeave={canHover ? () => setHovered(null) : undefined}
+            />
+          );
+        })}
+      </span>
+      {active && (
+        // Anchored to the sparkline wrapper rather than the dot row: the row
+        // clips its overflow, and a tooltip inside it would be clipped away.
+        <span className="uptime-tooltip" data-testid="uptime-tooltip" role="tooltip">
+          <span className={active.success ? 'uptime-tooltip-pass' : 'uptime-tooltip-fail'}>
+            {active.success ? '✓ Passed' : '✗ Failed'}
+          </span>
+          {activeTime && (
+            <span className="uptime-tooltip-time" data-testid="uptime-tooltip-time">
+              {activeTime}
+            </span>
+          )}
+        </span>
+      )}
+      <span className="uptime-label" data-testid="uptime-label">
+        {pct}% / {total} {total === 1 ? 'check' : 'checks'}
+      </span>
+    </span>
+  );
+}
+
 // One tool link: icon plate + name, opens the tool in a new tab (AC-011, §6.4).
 // The visible name truncates; the accessible name (aria-label) + native title
 // carry the full string (§6.2.1). A favorite ★ toggle (#240) sits in the corner
@@ -1221,6 +1305,11 @@ function ToolLink({
               gate not data suppression). When off, the tile renders as if it had
               no uptime data (AC-002/003); the status pip above is untouched. */}
           {showUptimeDisplay && <UptimeWindowsLine windows={service.uptimeWindows} />}
+          {/* The sparkline sits under the same gate. cap6 calls its subject "the
+              per-tile uptime sparkline" in its own prose — written while the
+              strip was still on the tile — so one preference governing both
+              uptime elements is what that spec always described. */}
+          {showUptimeDisplay && <UptimeSparkline checks={service.uptimeChecks} />}
         </span>
       </a>
       <button
