@@ -1,5 +1,7 @@
 import Modal from '../ui/Modal';
 import { useEffect, useRef, useState } from 'react';
+import TileDensityToggle from '../grid/TileDensityToggle';
+import type { TileDensity } from '../grid/tileDensity';
 import {
   adminEnvConfig,
   createLibraryApp,
@@ -36,6 +38,8 @@ export default function SettingsPanel({
   onSetHealthBar,
   showUptimeDisplayPref,
   onSetUptimeDisplay,
+  density,
+  onSetDensity,
   onSaveSettings,
   onClose,
 }: {
@@ -47,6 +51,9 @@ export default function SettingsPanel({
   onSetHealthBar: (show: boolean) => void;
   showUptimeDisplayPref: boolean;
   onSetUptimeDisplay: (show: boolean) => void;
+  // SPEC-density-to-my-settings — density joins the per-user preferences here.
+  density: TileDensity;
+  onSetDensity: (d: TileDensity) => void;
   onSaveSettings: (patch: Partial<SystemConfig>) => Promise<void>;
   onClose: () => void;
 }) {
@@ -109,6 +116,8 @@ export default function SettingsPanel({
               onSetHealthBar={onSetHealthBar}
               showUptimeDisplay={showUptimeDisplayPref}
               onSetUptimeDisplay={onSetUptimeDisplay}
+              density={density}
+              onSetDensity={onSetDensity}
             />
           ) : !isAdmin ? (
             <p className="settings-note">
@@ -458,11 +467,15 @@ function PersonalSettings({
   onSetHealthBar,
   showUptimeDisplay,
   onSetUptimeDisplay,
+  density,
+  onSetDensity,
 }: {
   showHealthBar: boolean;
   onSetHealthBar: (show: boolean) => void;
   showUptimeDisplay: boolean;
   onSetUptimeDisplay: (show: boolean) => void;
+  density: TileDensity;
+  onSetDensity: (d: TileDensity) => void;
 }) {
   return (
     <section
@@ -509,6 +522,19 @@ function PersonalSettings({
             >
               <span className="settings-switch-thumb" aria-hidden="true" />
             </button>
+          </dd>
+        </div>
+        {/* SPEC-density-to-my-settings AC-001/AC-005 — density moves here from
+            the dashboard toolbar. It is the first row in this list that is NOT
+            a switch: three options, so the control stays a radiogroup and is
+            reused as-is rather than restyled into something binary. The <dt>
+            is decorative here (aria-hidden) because TileDensityToggle already
+            carries aria-label="Tile density" — labelling it twice would make a
+            screen reader announce the group name and then repeat it. */}
+        <div className="settings-kv-row settings-kv-row--control">
+          <dt aria-hidden="true">Tile density</dt>
+          <dd>
+            <TileDensityToggle density={density} onChange={onSetDensity} />
           </dd>
         </div>
       </dl>

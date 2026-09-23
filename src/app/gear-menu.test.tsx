@@ -109,21 +109,26 @@ describe('A3 — admin-only editing section', () => {
   });
 });
 
-// AG-EDIT-1 — the Gear restores the Edit Dashboard toggle (admin-only), retired
-// when the App Grid replaced Catalog. Toggling it drives the App Grid's
+// AG-EDIT-1 — the Gear restores the rearrange toggle (admin-only), retired when
+// the App Grid replaced Catalog. Toggling it drives the App Grid's
 // client-ephemeral, admin-only rearrange mode. It is a checkbox menu item so its
 // on/off state is announced; clicking fires onToggleEdit and closes the menu.
-describe('AG-EDIT-1 — Edit Dashboard toggle (admin)', () => {
-  it('admin sees an Edit dashboard toggle in the admin section', async () => {
+//
+// SPEC-density-to-my-settings AC-007 renamed the label "Edit dashboard" ->
+// "Arrange apps" and moved it under "Add apps" (OQ-3: no section boundary). The
+// testid is deliberately retained (AC-013) — it is an internal handle, not copy.
+// Everything this suite covers apart from the label text is unchanged.
+describe('AG-EDIT-1 — Arrange apps toggle (admin)', () => {
+  it('admin sees an Arrange apps toggle', async () => {
     const user = userEvent.setup();
     renderHeader(ADMIN);
     await openGear(user);
     const item = screen.getByTestId('gear-edit-dashboard');
-    expect(item).toHaveTextContent(/edit dashboard/i);
+    expect(item).toHaveTextContent(/arrange apps/i);
     expect(item).toHaveAttribute('role', 'menuitemcheckbox');
   });
 
-  it('non-admin never sees the Edit dashboard toggle', async () => {
+  it('non-admin never sees the Arrange apps toggle', async () => {
     const user = userEvent.setup();
     renderHeader(USER);
     await openGear(user);

@@ -1,6 +1,6 @@
 # Spec: Tile density moves to My settings · gear "Edit dashboard" becomes "Arrange apps"
 
-**Status:** Ready for build — Caleb decided both open points 2026-09-23 (§3). Kare §9 not authored; see OQ-1.
+**Status:** BUILT 2026-09-23 — all three open questions resolved (§3, §7). Kare §9 not authored; OQ-1 stands as a product call over a design placement.
 **Version:** 0.1.0
 **Created:** 2026-09-23
 **Author:** Claude (Opus 5), from Caleb's direction
@@ -179,7 +179,16 @@ should not wait on it, but Kare should be told rather than discovering it shippe
 
 Either satisfies AC-006. (a) unless Kare or Caleb says otherwise.
 
-**OQ-3 — where exactly "under Add apps" puts it.** "Add apps" is in the **My
+**OQ-3 — RESOLVED by Caleb, 2026-09-23: the boundary does not hold.**
+"Arrange apps" sits **directly under "Add apps"**, in the My Dashboard section,
+with no section header between them — grouped by the task rather than by the
+permission. It remains admin-only (AC-008, TC-006): the v12 personal/admin split
+still governs who *sees* it, just not where it sits. The recommendation below was
+not taken, and is kept for the record.
+
+**OQ-2 — RESOLVED as (a):** the toolbar row is gone entirely.
+
+**OQ-3 original text — where exactly "under Add apps" puts it.** "Add apps" is in the **My
 Dashboard** section; "Arrange apps" is admin-only and lives in **Admin editing**.
 `v12-settings-boundary-clarity` drew that personal/admin line deliberately, so
 moving the item across it would undo a shipped decision. Recommended reading —
