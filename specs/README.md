@@ -63,9 +63,15 @@ homepad. Historical specs for shipped versions v2–v10 are in
 | [`v22-icon-light-dark-tabs.md`](./v22-icon-light-dark-tabs.md) | homepad v22 — Icon Light/Dark Tabs in TileEditModal | SHIPPED — v13.11.0 (`f0a2286`). Status line read "Draft" until 2026-09-22. |
 | [`v28-tile-drag-reorder.md`](./v28-tile-drag-reorder.md) | homepad v28 — Tile Drag-and-Drop Reorder in Edit Mode | SHIPPED — v15.6.0 (`03fa922`, PR #402). dnd-kit sortable tiles in edit mode. Status line read "Ready for Build" until 2026-09-22. |
 
+## Open — not shipped (1)
+
+| File | Feature | Status |
+|------|---------|------|
+| [`SPEC-density-to-my-settings.md`](./SPEC-density-to-my-settings.md) | Tile density moves to My settings · gear "Edit dashboard" becomes "Arrange apps" | Ready for build — Caleb decided both open points 2026-09-23 (§3). Kare §9 not authored; see OQ-1. |
+
 ## Superseded — do not build (1)
 
-| File | Feature | Status (verified 2026-09-22) |
+| File | Feature | Status |
 |------|---------|------|
 | [`SPEC-category-pane-width-layout.md`](./SPEC-category-pane-width-layout.md) | Category Pane Width Layout — Horizontal Screen Utilization | ⛔ **SUPERSEDED 2026-09-12 — DO NOT BUILD.** *(was: APPROVED for implementation, Walt product go 2026-07-01 — dispatched to Stitch; subsequently held as Phase 2 and never built)* |
 
