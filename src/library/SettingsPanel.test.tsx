@@ -63,6 +63,8 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
       showUptimeDisplayPref={props.showUptimeDisplayPref ?? true}
       onSetUptimeDisplay={props.onSetUptimeDisplay ?? vi.fn()}
       onSetHealthBar={props.onSetHealthBar ?? vi.fn()}
+      density="compact"
+      onSetDensity={vi.fn()}
       onClose={props.onClose ?? vi.fn()}
     />,
   );

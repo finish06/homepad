@@ -109,7 +109,7 @@ function GearMenuTrigger({
       ref={triggerRef}
       type="button"
       data-testid="settings-gear"
-      aria-label="Edit dashboard"
+      aria-label="Dashboard menu"
       aria-haspopup="menu"
       aria-expanded={open}
       onClick={onClick}
@@ -194,7 +194,7 @@ function GearMenu({
   }
 
   return (
-    <div ref={menuRef} data-testid="gear-menu" role="menu" aria-label="Edit dashboard" className="gear-menu">
+    <div ref={menuRef} data-testid="gear-menu" role="menu" aria-label="Dashboard menu" className="gear-menu">
       {/* Personal section — all users. */}
       <div data-testid="gear-menu-section-personal" className="menu-section-label">
         My Dashboard
@@ -210,6 +210,27 @@ function GearMenu({
         <PlusIcon />
         Add apps
       </button>
+
+      {/* SPEC-density-to-my-settings AC-007 / OQ-3 — "Arrange apps" (was "Edit
+          dashboard") sits directly under "Add apps", with no section header
+          between them. Caleb's call 2026-09-23: group by the TASK, not by the
+          permission, so the two things an admin does to their grid are
+          adjacent. It stays admin-only (AC-008) — the personal/admin split
+          from v12 still governs who SEES it, just not where it sits. */}
+      {isAdmin && (
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={editMode}
+            data-testid="gear-edit-dashboard"
+            onClick={() => act(onToggleEdit)}
+            className="menu-item"
+          >
+            <ArrangeIcon />
+            Arrange apps
+            {editMode && <span className="menu-check" aria-hidden="true">✓</span>}
+          </button>
+      )}
 
       {/* Admin editing section — admins only, amber/shield (D2/D5/D6). */}
       {isAdmin && (
@@ -231,23 +252,6 @@ function GearMenu({
             Add custom app
           </button>
 
-          {/* Edit Dashboard — the admin, client-ephemeral rearrange mode restored
-              for the App Grid (a reload returns to view mode). A checkbox item so
-              its on/off state is announced; the trailing checkmark mirrors the
-              old Arrange/Edit-tiles toggles. Toggling drives AppGrid's box
-              drag-to-reorder. */}
-          <button
-            type="button"
-            role="menuitemcheckbox"
-            aria-checked={editMode}
-            data-testid="gear-edit-dashboard"
-            onClick={() => act(onToggleEdit)}
-            className="menu-item"
-          >
-            <ArrangeIcon />
-            Edit dashboard
-            {editMode && <span className="menu-check" aria-hidden="true">✓</span>}
-          </button>
         </>
       )}
     </div>

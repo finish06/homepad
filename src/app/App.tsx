@@ -15,7 +15,6 @@ import {
 } from '../api';
 import AppHeader from './AppHeader';
 import AppGrid from '../grid/AppGrid';
-import TileDensityToggle from '../grid/TileDensityToggle';
 import { useTileDensity } from '../grid/tileDensity';
 import { useHealthBarPref } from './healthBarPref';
 import { useUptimeDisplayPref } from './uptimeDisplayPref';
@@ -267,13 +266,12 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               </button>
             </div>
           )}
-          {/* SPEC-tile-density — the dashboard header: a label on the left, the
-              density switch on the right (matching the v16 artboard). The switch
-              lives here only (OQ-9), and its choice persists per device. */}
-          <div className="dashboard-toolbar" data-testid="dashboard-toolbar">
-            <span className="dashboard-toolbar-label">Your dashboard</span>
-            <TileDensityToggle density={density} onChange={setDensity} />
-          </div>
+          {/* SPEC-density-to-my-settings AC-002/AC-006 — the density switch moved
+              to My settings and the toolbar row went with it (OQ-2 (a)): its only
+              other content was a "Your dashboard" label restating the page, and
+              leaving an empty band is what AC-006 forbids. SPEC-tile-density OQ-9
+              put the switch here "matching the v16 artboard"; Caleb reversed that
+              placement 2026-09-23 (OQ-1 — a product call over a design one). */}
           <AppGrid isAdmin={isAdmin} editMode={editMode} showUptimeDisplay={showUptimeDisplay} density={density} />
         </section>
 
@@ -325,6 +323,8 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               showUptimeDisplay={sysConfig.showUptimeDisplay}
               showUptimeDisplayPref={showUptimeDisplay}
               onSetUptimeDisplay={setShowUptimeDisplay}
+              density={density}
+              onSetDensity={setDensity}
               statusDegradedMs={sysConfig.statusDegradedMs}
               onSaveSettings={onSaveSettings}
               onClose={() => setSettingsOpen(false)}
