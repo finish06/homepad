@@ -7,6 +7,26 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [16.5.1] — 2026-09-23 — Search box sits centred again
+
+No migrations. Frontend only.
+
+**The search box is centred.** It had been sitting about 90px left of the middle
+of the header at every window size — close enough to look intentional, far enough
+to notice once you saw it. It now lands on the centre line whether the window is
+1024px or 2560px wide.
+
+The cause was a layout that reads as centred in the markup but is not: the header
+spread its three pieces — wordmark, search, and the clock/gear/bell/avatar cluster
+— by putting equal gaps between them. Equal gaps only centre the middle piece when
+the two outer ones are the same width, and they never were. The right-hand cluster
+is much wider than the word "homepad", so the search box got pushed left by half
+the difference.
+
+A browser test now measures the distance from the search box to the header's centre
+at three window widths and fails if it drifts more than 4px, so this cannot come
+back unnoticed.
+
 ## [16.5.0] — 2026-09-22 — The dots are back
 
 No migrations. No configuration changes. Frontend only — upgrading from 16.4.0 is
