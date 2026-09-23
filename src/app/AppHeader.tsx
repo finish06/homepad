@@ -323,10 +323,20 @@ export default function AppHeader({
 
   return (
     <header className="sticky top-0 z-20 border-b border-neutral-200/70 bg-white/70 backdrop-blur dark:border-neutral-800/70 dark:bg-neutral-900/70">
-      <div className={`${CONTENT_WIDTH} flex items-center justify-between gap-3 py-3`}>
-        <span className="wordmark">homepad</span>
+      {/* 16.5.1 — the search trigger must sit on the row's true centre line.
+          This was `justify-between` with three children, which distributes the
+          GAPS evenly and only centres the middle child when the flanking items
+          happen to be equal width. They never are: a short wordmark on the left
+          against LastUpdated + gear + bell + avatar on the right pushed the
+          trigger 91px left at every width. Giving both sides `flex-1` makes
+          them claim equal space regardless of content, so the middle child
+          lands on centre. min-w-0 lets them shrink rather than shove it. */}
+      <div className={`${CONTENT_WIDTH} flex items-center gap-3 py-3`}>
+        <div className="flex min-w-0 flex-1 items-center">
+          <span className="wordmark">homepad</span>
+        </div>
         <LauncherTrigger />
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
           <LastUpdated />
           <div className="relative">
             <GearMenuTrigger
