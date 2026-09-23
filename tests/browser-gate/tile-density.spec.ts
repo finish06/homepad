@@ -18,6 +18,22 @@ function tile(page: Page, name: string) {
   return page.locator('.app-grid-tool-wrap', { hasText: name });
 }
 
+
+// SPEC-density-to-my-settings — the density switch moved off the dashboard and
+// into My settings, so the gate has to open the panel to reach it. Everything
+// these tests assert about the GRID is unchanged; only the route to the control
+// moved.
+async function openDensityControl(page: import('@playwright/test').Page) {
+  await page.getByTestId('user-menu-trigger').click();
+  await page.getByTestId('menu-my-settings').click();
+  await page.getByTestId('density-toggle').waitFor();
+}
+
+async function closeSettings(page: import('@playwright/test').Page) {
+  await page.getByTestId('settings-close').click();
+  await page.getByTestId('settings-panel').waitFor({ state: 'detached' });
+}
+
 test.describe('SPEC-tile-density — the density switch', () => {
   test('a fresh device defaults to Compact and the switch reflects it', async ({ page }) => {
     const { services, categories } = makeStatusTiles(['UP']);
@@ -25,6 +41,7 @@ test.describe('SPEC-tile-density — the density switch', () => {
     await mockApi(page, services, categories, 'user', null); // null → do NOT seed density
     await page.goto('/');
     await expect(page.locator('.app-grid')).toHaveAttribute('data-density', 'compact');
+    await openDensityControl(page);
     await expect(page.getByRole('radio', { name: /compact/i })).toHaveAttribute('aria-checked', 'true');
   });
 
@@ -108,8 +125,11 @@ test.describe('SPEC-tile-density — the density switch', () => {
     await mockApi(page, services, categories, 'user', 'compact');
     await page.goto('/');
 
+    await openDensityControl(page);
     await page.getByRole('radio', { name: /list/i }).click();
+    // AC-003 — the grid re-renders live, with the panel still open.
     await expect(page.locator('.app-grid')).toHaveAttribute('data-density', 'list');
+    await closeSettings(page);
     // One column: the two rows share an x and stack (different y).
     const a = await tile(page, 'App UP').first().getByTestId('tool-link').boundingBox();
     const b = await tile(page, 'App UP').nth(1).getByTestId('tool-link').boundingBox();
