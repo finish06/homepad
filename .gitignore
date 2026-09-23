@@ -19,3 +19,9 @@ tests/screenshots/errors/
 # Generated test-coverage report (vitest --coverage). Regenerated on every run;
 # committed by mistake in 0123c80 and untracked again in this change.
 coverage/
+
+# Local-only operational notes. The GitHub mirror of this repo is PUBLIC, so
+# anything naming a real host, ingress or internal address stays out of git.
+# Convention: *.local.md is never committed — see docs/environments.local.md,
+# which records the production URL for whoever is operating this checkout.
+*.local.md
