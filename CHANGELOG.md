@@ -7,6 +7,20 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [16.5.2] — 2026-09-23 — What's new actually shows what's new
+
+No migrations. Frontend only.
+
+**The changelog you open from the footer was two releases out of date.** On
+16.5.1 it still showed 16.4.0 as the newest release, so the two features and the
+fix from 16.5.0 and 16.5.1 — the tile history dots, the "Recently opened" row,
+the dark-mode flash fix, the centred search box — were never listed. The version
+badge next to it was correct the whole time, which made the gap easy to miss.
+
+Both releases are listed now, and the app will not let this happen again: a check
+in the build fails if the changelog's newest entry is not the version being
+released.
+
 ## [16.5.1] — 2026-09-23 — Search box sits centred again
 
 No migrations. Frontend only.
