@@ -125,15 +125,21 @@ it.
 
 ## 9. Open Questions
 
-- Production URL is not recorded anywhere in the repo.
+- ~~Production URL is not recorded anywhere in the repo.~~ **Resolved 2026-09-23:**
+  recorded in `docs/environments.local.md`, which is gitignored via `*.local.md`.
+  It stays out of git deliberately — the GitHub mirror of this repo is public, so
+  the URL is operational information for whoever holds a checkout, not a fact about
+  the product. `CLAUDE.md` points at the file without naming the host.
 - `layoutWidthPct` and `saveCategoryLayout` survive in `src/api.ts` from the
   superseded `SPEC-category-pane-width-layout.md`; that spec explicitly leaves
   open whether the 12-column work reuses or replaces the field, and
   SPEC-app-grid §10.4 does not answer it. `saveCategoryLayout` currently has
   zero callers.
-- Five spec `Status:` lines contradict the code (v13, v21, v22, v28 are built
-  but not marked so; cap5 still says a bug-fix is required for an AC-015 that
-  is implemented and tested).
+- ~~Five spec `Status:` lines contradict the code (v13, v21, v22, v28, cap5).~~
+  **Resolved 2026-09-23 (PR #479):** all 38 spec headers were reconciled against
+  the code and `CHANGELOG.md` — 21 were wrong, not five. `specs/README.md` was
+  rebuilt from the verified headers and now carries the rule that a `Status:`
+  line is a claim, not evidence.
 
 ## 10. Revision History
 
