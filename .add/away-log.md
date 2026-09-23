@@ -44,3 +44,5 @@ If #468 proves to be a real product bug: fix it and open a PR.
 
 Approach: implement against CURRENT architecture, record each deviation in the spec
 with a version bump. Do not silently reinterpret.
+| +2 | #470 pre-auth regression | done | Joe caught it: userPref undefined INDEFINITELY pre-auth, so the boot-cache ref froze the login screen's theme. His fix would have poisoned itself (layout effect writes the cache back); snapshot the cache, keep the OS live. 2 new tests. |
+| +2 | cap3 | done | Built against AppGrid, not the deleted Catalog.tsx. 17 tests. Two deviations recorded in spec §8. PR opened. |

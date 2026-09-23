@@ -1,9 +1,10 @@
 # Spec: Sparkline Dot Hover Tooltip — Capability #4
 
-**Version:** 0.1.0
+**Version:** 1.0.0
 **Created:** 2026-06-23
 **Author:** Walt (product lead)
-**Status:** Ready for implementation
+**Status:** BUILT 2026-09-22 (restored) — see §8. Originally shipped 2026-06-23 (PR #145),
+lost 2026-07-02 with its host component, rebuilt on AppGrid.
 **Repo:** `Code/homepad` (frontend only — no backend changes)
 **Estimate:** ~30 minutes
 **Depends on:** Uptime sparkline (shipped), v14 status summary bar (pending fix)
@@ -186,3 +187,100 @@ Stitch should add/extend tests in the existing `src/Catalog.test.tsx` (or a new
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
 | 2026-06-23 | 0.1.0 | Walt | Initial spec — grounded in api.ts UptimeCheck type and Catalog.tsx UptimeSparkline component (lines 864–886) |
+
+---
+
+## 8. As built
+
+### 8.1 Why this spec was built twice
+
+cap4 shipped on the day it was written: `ed867fd`, PR #145, against `UptimeSparkline`
+in `src/Catalog.tsx`. Nobody updated this file's `Status:` line, which is why it was
+still reading "Ready for implementation" three months later.
+
+On **2026-07-02**, `4c7dce2` ("Revert #271 — restore App Grid on main (data-loss
+merge)") brought the App Grid back as the live dashboard. `Catalog.tsx` stopped being
+rendered, and the sparkline — plus this tooltip — left the product with it. That was
+**collateral from reverting a bad merge, not a product decision**: there is no entry
+in `DECISIONS.md`, and `specs/uptime-sparkline.md` still read "Shipped — prod".
+
+`specs/uptime-windows.md` was written the *same day*, and opens by describing the
+sparkline as present and the 24h/7d/30d percentages as what it *lacks*. The windows
+line was **additive**. It never replaced the strip; the strip simply vanished.
+
+`AppGrid` had never rendered `uptimeChecks` — zero commits. So tiles carried no
+per-check history from 2026-07-02 until this rebuild, eleven weeks later. On
+2026-08-30, `db3304c` deleted `Catalog.tsx` as "dead since 4c7dce2", removing the
+orphaned code and the only tests that covered it.
+
+**The gap that allowed it:** every test asserting a dot existed lived in
+`Catalog.test.tsx` and was deleted with its subject. `src/grid/uptime-sparkline.test.tsx`
+now renders `AppGrid`, never a component in isolation, so this cannot recur silently.
+
+### 8.2 Deviations from §4
+
+§4's implementation guidance targets a file that no longer exists. Each departure is
+recorded rather than silently reinterpreted.
+
+| ID | Kind | Deviation |
+|----|------|-----------|
+| D-1 | Mechanical | §4 says "All changes are in `src/Catalog.tsx`, inside `UptimeSparkline` (lines 864–886)". Built in `src/grid/AppGrid.tsx` — the live grid. |
+| D-2 | Mechanical | §4 prescribes Tailwind utility strings. AppGrid styles through `src/index.css` classes; the tooltip is `.uptime-tooltip`. Follows the host file's convention, not the spec's. |
+| D-3 | Substantive | **AC-006 (keyboard focus) is NOT met.** See §8.3. |
+| D-4 | Strengthening | AC-011 asks for `aria-label` per dot. Added `role="img"` alongside it — a label on a role-less `<span>` is one assistive tech may discard, so the June build's AC-011 was weaker than it looked. Mirrors the tile status pip. |
+| D-5 | Substantive | Density, which postdates this spec: the **label** hides at compact/list (redundant with the status line, matching `.app-grid-tool-uptime`'s existing rule), the **dots** do not. `DEFAULT_DENSITY` is `compact`, so hiding the dots there would ship a strip no default user sees. |
+| D-6 | Mechanical | The sparkline sits under cap6's `showUptimeDisplay` gate. cap6 calls its subject "the per-tile uptime sparkline" in its own prose — written while the strip was still on the tile — so one preference governing both uptime elements is what cap6 always described. |
+
+### 8.3 AC-006 is not met, and the June build did not meet it either
+
+AC-006 (Should) asks for the tooltip on `:focus-visible`. The June implementation
+attached `onFocus`/`onBlur` to each dot but gave them **no `tabIndex`** — a plain
+`<span>` is not focusable, so those handlers never fired for a keyboard user. AC-006
+has never actually worked. This rebuild does not carry the dead handlers forward.
+
+Doing it properly is not a small change, which is why it is flagged rather than
+assumed:
+
+- The strip renders **inside the tile's `<a>`**. An element with `tabindex` is
+  interactive content, and interactive content may not descend from a link. Making
+  dots focusable requires moving the strip out of the anchor, as the ★, the status
+  pip and the pencil already are — a layout change to `.app-grid-tool-wrap`.
+- 20 dots × every tile is 20 tab stops per tile. The correct pattern is a roving
+  tabindex: one stop for the row, arrow keys between dots.
+
+Recommend tracking as its own issue. AC-011's per-dot labels are what serve assistive
+tech today, and those are now genuinely exposed (D-4).
+
+### 8.4 Adjacent finding — cap6's toggle is a no-op at the default density
+
+Not caused by this work, found while placing the strip, and it affects a feature that
+shipped to production as **v16.4.0** on 2026-09-20.
+
+`showUptimeDisplay`'s only render consumer is `AppGrid`, where it gates
+`UptimeWindowsLine` (`.app-grid-tool-uptime`). That element is `display: none` at
+compact and list density. `DEFAULT_DENSITY` is `compact`. So a user who has not
+switched to Large density and toggles "Show uptime display" in My settings **sees
+nothing change** — the preference persists correctly and controls an invisible element.
+
+After this change the toggle does have a visible effect at every density, because it
+also gates the sparkline (D-6). That is a side effect of this work, not a fix designed
+for the problem, and the underlying question — should the long-window line appear at
+compact density? — is still open for Walt and Kare.
+
+### 8.5 Test coverage
+
+`src/grid/uptime-sparkline.test.tsx`, 15 tests, all rendering the real `AppGrid`:
+dot count/order/colour, the rolling label and its singular form, height parity for
+unmonitored tiles, the cap6 gate, AC-001/002/003 (tooltip content and the "MMM D,
+HH:MM" 24-hour shape, asserted as a pattern so it does not encode the runner's time
+zone), AC-003 failure path, AC-007 dismissal, AC-004 touch suppression, AC-008
+absent/unparseable timestamps, AC-011 role and label, AC-010/AC-005 tooltip surface
+and anchoring, and D-5's density split.
+
+---
+
+## 9. Revision History (continued)
+
+| Date | Version | Author | Changes |
+|------|---------|--------|---------|
+| 2026-09-22 | 1.0.0 | Claude (Opus 5) | Rebuilt on AppGrid after the strip was found missing from the product. Added §8 recording the loss, six deviations, the AC-006 gap that predates this build, and the cap6 density finding. |
