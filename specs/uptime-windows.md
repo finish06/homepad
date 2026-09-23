@@ -3,7 +3,7 @@
 **Version:** 0.1.0 (DRAFT — awaiting Walt ratification)
 **Created:** 2026-07-02
 **Author:** Stitch (implementer draft; Walt owns product sign-off)
-**Status:** Draft — building on staging behind board vote
+**Status:** SHIPPED — carried by the v13.2.0 release (`697d2ca`, PR #268). `UptimeWindowsLine` in `src/grid/AppGrid.tsx`. The 13.2.0 CHANGELOG entry covers only pane-fill and never mentions this feature. Status line read "Draft — building on staging behind board vote" until 2026-09-22.
 **Repos:** `Code/homepad` (frontend) · `Code/homepad-api` (backend)
 **Builds on:** `specs/uptime-sparkline.md` (shipped PR #46/#47/#51)
 

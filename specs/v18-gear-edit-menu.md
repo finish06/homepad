@@ -1,5 +1,6 @@
 # homepad v18 — Gear: Unified Edit-Dashboard Menu
 
+**Status:** SHIPPED — v12.5.0 (2026-06-29, `0e26a5d`, PR #176).
 **Spec ID:** v18-gear-edit-menu  
 **Date:** 2026-06-28  **Status:** Shipped — v12.5.0 (2026-06-29, PR #176)  
 **Author:** Walt (product lead)  **Requested by:** Caleb Dunn  

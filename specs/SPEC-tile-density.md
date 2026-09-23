@@ -5,7 +5,7 @@
 **Author:** Stitch (build spec) — derived from Walt's v16 artboard review
 (`docs/reviews/2026-09-11-v16-ui-artboards.md`), Caleb's decisions
 (`docs/decisions/2026-09-12-v16-artboard-open-questions.md`), and Joe's dispatch.
-**Status:** Built — shipping in this PR; QA pool + Caleb to verify.
+**Status:** SHIPPED — v16.1.0 (`ebc2f3e`). OQ-9 revisited in v16.2.0 (`a495ce0`): density is per-user from `/api/me`, localStorage demoted to a cache.
 **Repo:** `Code/homepad` (frontend only — no backend change)
 **Parent specs:** `SPEC-app-grid.md`, `SPEC-242-per-tile-status-dot.md`,
 `SPEC-pane-fill-reflow.md`

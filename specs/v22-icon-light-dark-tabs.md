@@ -3,7 +3,7 @@
 **Spec ID:** v22-icon-light-dark-tabs
 **Created:** 2026-07-05
 **Author:** Walt (product lead)
-**Status:** Draft — Kare §8 authored + DESIGN GO (2026-07-05); awaiting Stitch build (blocked on v21 landing first)
+**Status:** SHIPPED — v13.11.0 (`f0a2286`). Status line read "Draft" until 2026-09-22.
 **Repos:** `Code/homepad` (UI only — no backend changes required)
 **Estimate:** ~3–4 hours Stitch
 **Target version:** v13.11.0 (feature = minor; v21 ships as v13.10.0)

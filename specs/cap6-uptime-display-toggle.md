@@ -3,7 +3,7 @@
 **Version:** 2.4.0
 **Created:** 2026-07-04
 **Author:** Walt (product lead)
-**Status:** v1 SHIPPED (prod v13.5.0, global admin setting). **v2 DRAFT — the setting moves to per-user.** Caleb 2026-09-16. OQ-1 resolved. v2 product/design sign-off waived 2026-09-20 under the owner standing rule; AC-028 copy accepted. No outstanding gates.
+**Status:** v1 SHIPPED (prod v13.5.0, global admin setting). **v2 SHIPPED — prod v16.4.0, 2026-09-20** (the setting is per-user; the admin row now seeds new accounts). OQ-1 resolved. v2 product/design sign-off waived 2026-09-20 under the owner standing rule; AC-028 copy accepted. No outstanding gates. See #476 — the toggle is a no-op at the default tile density.
 **Repo:** `Code/homepad` (frontend) + `Code/homepad-api` (Go backend)
 **Estimate:** ~2–3 hours (migration + two API endpoints + frontend prop thread + settings UI)
 **Depends on:** uptime-sparkline (shipped PR #46–#47), v12-settings-boundary-clarity (shipped PR #77)

@@ -3,7 +3,7 @@
 **Issues:** Code/homepad #194 (grid inversion) · #196 (width misalignment) · #195 (name truncation — resolved by #194)  
 **Version:** 1.0  
 **Date:** 2026-06-29  
-**Status:** APPROVED — Walt (product) ✓ · Kare (design) ✓  
+**Status:** SHIPPED — v12.7.1 / v12.7.2 (#194, #195, #196). Walt (product) ✓ · Kare (design) ✓  
 **Authors:** Walt (product lead) + Kare (UX/design)  
 **Audience:** Stitch (implementer) · Gracie (tech-QA)  
 **Repo:** `Code/homepad` — frontend only. No backend changes.  

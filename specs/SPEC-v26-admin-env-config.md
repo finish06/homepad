@@ -4,7 +4,7 @@
 **Closes:** #369
 **Created:** 2026-07-15
 **Author:** Walt (product lead)
-**Status:** Ready for Stitch — both sign-offs recorded (§12)
+**Status:** SHIPPED — v15.3.0 (`28411d3`, PR #374). Live at `src/library/SettingsPanel.tsx` + `GET /api/admin/env-config`. Status line read "Ready for Stitch" until 2026-09-22.
 **Repos:** `Code/homepad` (UI) · `Code/homepad-api` (API)
 **Target version:** 15.3.0
 **Estimate:** ~3–5 hours Stitch (backend-light; frontend-moderate)

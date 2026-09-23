@@ -3,7 +3,7 @@
 **Spec ID:** SPEC-245-224-shared-catalog-model
 **Date:** 2026-07-02
 **Author:** Walt (product lead)
-**Status:** Ready for Stitch — backend-only policy change; no UI-bearing changes (no Kare co-sign required)
+**Status:** SHIPPED — `Code/homepad-api` PR #34 (`f120477`). Shared reads via `SharedCatalogOwnerID`; writes behind `requireAdmin`. Status line read "Ready for Stitch" until 2026-09-22.
 **Repos:** `Code/homepad-api` (primary) + `Code/homepad` (minor copy update)
 **Issues:** #245 (non-admin empty grid), #224 (write gate missing)
 **Caleb's directive:** "All users see the shared, admin-managed set of categories/services. Writes are admin-only."

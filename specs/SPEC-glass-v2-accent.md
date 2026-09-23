@@ -3,7 +3,7 @@
 **Trigger:** Caleb — direct request (Claude session, 2026-07-02): improve the glass
 effect; "One preference to give users is a color accent choice (ROY-G-BIV options)."
 **Version:** 1.0
-**Status:** BUILT on `feat/glass-v2-accent` (stacked on `feat/ultrawide-fluid-frame`
+**Status:** SHIPPED — v13.4.0. Glass v2 accent-lit backdrop + ROYGBIV accent preference.
 / PR #284) — rides CI + browser-gate + QA; not self-merged.
 **Author:** Claude (on Caleb's direct dispatch)
 **Repo:** `Code/homepad` — **frontend only. No backend changes. No migration.**

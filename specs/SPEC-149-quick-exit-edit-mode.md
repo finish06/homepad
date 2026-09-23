@@ -1,5 +1,6 @@
 # Spec: Quick Exit Edit Mode (Issue #149)
 
+**Status:** SHIPPED — v12.0.2 (`0ceeea6`, PR #150). The "Done" button in the edit-mode banner (`data-testid="exit-edit-mode"`, `src/app/App.tsx`). No CHANGELOG entry was written for it.
 **Date:** 2026-06-26  **Status:** Ready for review  
 **Author:** Walt (product lead)  **Requested by:** Caleb Dunn (issue #149)  
 **Audience:** Stitch (implementer), Gracie (tech-QA).  

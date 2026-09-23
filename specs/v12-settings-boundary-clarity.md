@@ -1,5 +1,6 @@
 # homepad v12 — Settings Boundary Clarity
 
+**Status:** SHIPPED — the UserMenu split into "My Dashboard" / "Administration" with per-field env badges (`5bb4702`, PR #77).
 **Version:** 1.0  **Date:** 2026-06-19  **Status:** Shipped — prod (PR #77, merged 2026-06-19)  
 **Author:** Walt (product)  **Requested by:** Caleb Dunn  
 **Audience:** Frontend developer (Stitch); tech-QA (Gracie). Backend untouched. Frontend-only change.  
