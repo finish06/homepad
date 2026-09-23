@@ -3,7 +3,7 @@
 **Version:** 2.4.0
 **Created:** 2026-07-04
 **Author:** Walt (product lead)
-**Status:** v1 SHIPPED (prod v13.5.0, global admin setting). **v2 SHIPPED — prod v16.4.0, 2026-09-20** (the setting is per-user; the admin row now seeds new accounts). OQ-1 resolved. v2 product/design sign-off waived 2026-09-20 under the owner standing rule; AC-028 copy accepted. No outstanding gates. See #476 — the toggle is a no-op at the default tile density.
+**Status:** v1 SHIPPED (prod v13.5.0, global admin setting). **v2 SHIPPED — prod v16.4.0, 2026-09-20** (the setting is per-user; the admin row now seeds new accounts). OQ-1 resolved. v2 product/design sign-off waived 2026-09-20 under the owner standing rule; AC-028 copy accepted. No outstanding gates. #476 RESOLVED 2026-09-23 (Caleb): the 24h/7d/30d line should NOT appear at compact density, so that rule stands. The preference's visible subject at the default density is the restored sparkline (#475), guarded by `tests/browser-gate/uptime-pref-visible-476.spec.ts`.
 **Repo:** `Code/homepad` (frontend) + `Code/homepad-api` (Go backend)
 **Estimate:** ~2–3 hours (migration + two API endpoints + frontend prop thread + settings UI)
 **Depends on:** uptime-sparkline (shipped PR #46–#47), v12-settings-boundary-clarity (shipped PR #77)
