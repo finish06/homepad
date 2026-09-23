@@ -3,7 +3,7 @@
 **Spec ID:** SPEC-v24-health-meter-banding
 **Created:** 2026-07-14
 **Author:** Walt (product lead)
-**Status:** Approved — Walt + Kare co-signed 2026-07-14. Shipped as v15.1.0 (impl PR #361, merged 2026-07-14 14:49 UTC).
+**Status:** SHIPPED — v15.1.0 (impl PR #361, merged 2026-07-14). Walt + Kare co-signed 2026-07-14.
 **Repos:** `Code/homepad` (frontend only — render-order change in the health panel)
 **Estimate:** ~1–2 hours Stitch
 **Target version:** v15.x (ships as part of v15 build, or as the first v15 patch)

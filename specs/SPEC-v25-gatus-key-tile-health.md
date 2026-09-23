@@ -5,7 +5,7 @@
 **Closes:** #364
 **Created:** 2026-07-15
 **Author:** Walt (product lead)
-**Status:** Approved — both sign-offs recorded (Kare design GO + Walt product GO 2026-07-15); cleared for Stitch
+**Status:** SHIPPED — v15.2.0 (`5e82db3`). `Service.gatusKey` on the tile editor. Status line read "Approved … cleared for Stitch" until 2026-09-22.
 **Repos:** `Code/homepad` (UI) · `Code/homepad-api` (API)
 **Target version:** 15.2.0
 **Estimate:** ~4–6 hours Stitch (frontend-heavy; no migration, minimal API)

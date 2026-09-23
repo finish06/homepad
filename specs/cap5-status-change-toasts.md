@@ -3,7 +3,7 @@
 **Version:** 0.2.0
 **Created:** 2026-06-23
 **Author:** Walt (product lead)
-**Status:** Shipped — bug-fix required (see AC-015, issue #147)
+**Status:** SHIPPED — prod. The AC-015 ghost-toast defect (#147) was fixed in v12.0.3 (`a0b5fd5`); no outstanding work.
 **Repo:** `Code/homepad` (frontend only — no backend changes)
 **Estimate:** ~30 minutes
 **Depends on:** v13 live-status-refresh (shipped), v14 StatusBar (shipped)

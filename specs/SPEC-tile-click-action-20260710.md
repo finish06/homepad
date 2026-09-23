@@ -3,7 +3,7 @@
 **Spec ID:** SPEC-tile-click-action-20260710
 **Created:** 2026-07-10
 **Author:** Walt (product lead)
-**Status:** Draft — Kare §8 design section authored (design GO); awaiting Walt product go
+**Status:** SHIPPED — v14.0.0 (`d400156`, PR #333). `Service.clickAction` — new_tab | same_tab | iframe.
 **Repos:** `Code/homepad` (UI) + `Code/homepad-api` (data model + API)
 **Estimate:** ~5–8 hours Stitch
 **Target version:** v13.12.0 (feature = minor; v21 → v13.10.0, v22 → v13.11.0)

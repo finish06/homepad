@@ -1,6 +1,7 @@
 # homepad v11 — Admin / Personal Scope Clarity — Product Spec
 
-**Version:** 1.0  **Date:** 2026-06-18  **Status:** Shipped — prod v11.0.0 (commit 4acf4019, 2026-06-18)
+**Status:** SHIPPED — v8.0.0 (2026-06-18).
+**Version:** 1.0  **Date:** 2026-06-18
 **Author:** Walt (product)  **Requested by:** Caleb Dunn
 **Audience:** Frontend developer; backend untouched — web-only change.
 **App:** homepad — React + Vite + Tailwind CSS. Light + Dark themes.

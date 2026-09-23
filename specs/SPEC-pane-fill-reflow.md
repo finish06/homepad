@@ -3,7 +3,7 @@
 **Trigger:** Caleb — direct layout feedback on the authed dashboard at wide viewports
 (3 screenshots), 2026-07-02. "Still not in love." Wide monitors leave dead space.
 **Version:** 1.0 (formalized from design direction by Walt, 2026-07-02)
-**Status:** ✅ APPROVED BUILD CONTRACT — Walt (product) ✓ · Kare (design) ✓
+**Status:** SHIPPED — Phase 1 in v13.2.0, Phase 1b in v13.3.0. `rowFillCounts`/`contentMaxPx` in `src/grid/appGridLayout.ts`. Walt (product) ✓ · Kare (design) ✓
 **Authors:** Kare (design/UX) + Walt (product)
 **Audience:** Stitch (implementer) · Gracie (tech-QA)
 **Repo:** `Code/homepad` — **frontend only. No backend changes. No migration.**

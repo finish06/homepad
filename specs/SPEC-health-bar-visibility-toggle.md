@@ -3,7 +3,7 @@
 **Version:** 0.2.0
 **Created:** 2026-09-15
 **Author:** Caleb Dunn (via /add:spec)
-**Status:** Approved for build — OQ-1 resolved (a) by Caleb 2026-09-15. Kare §9 still unauthored; built to the existing v12 settings vocabulary in the meantime.
+**Status:** SHIPPED — v16.3.0 (`cbf6210`). OQ-1 resolved (a) by Caleb 2026-09-15. Kare §9 waived under the owner standing rule (2026-09-20); no outstanding gates.
 **Repo:** `Code/homepad` (frontend) + `Code/homepad-api` (Go backend)
 **Estimate:** ~2–3 hours (migration + `/api/me` field + settings UI + tests)
 **Depends on:** SPEC-v24-health-meter-banding (shipped v15.1.0), v12-settings-boundary-clarity (shipped PR #77), the health-panel redesign (one proportional bar replacing chips + meter + legend)

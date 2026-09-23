@@ -3,7 +3,7 @@
 **Spec ID:** v21-tile-edit-modal
 **Created:** 2026-07-05
 **Author:** Walt (product lead)
-**Status:** Draft — awaiting Kare §8 design section
+**Status:** SHIPPED — v13.10.0. `src/grid/TileEditModal.tsx`. Status line read "Draft — awaiting Kare §8" until 2026-09-22.
 **Repos:** `Code/homepad` (UI) + `Code/homepad-api` (admin gate, optional fetch-icon endpoint)
 **Estimate:** ~4–6 hours Stitch
 **Target version:** v13.10.0 (feature = minor; v13.9.0 shipped with v20)

@@ -3,7 +3,7 @@
 **Version:** 0.1.0
 **Created:** 2026-06-23
 **Author:** Walt (product lead)
-**Status:** Ready for implementation
+**Status:** SHIPPED — v10.0.0. Live status auto-refresh with a "last updated" indicator; the poller lives in `src/services.tsx`.
 **Repo:** `Code/homepad` (frontend only — no backend changes)
 
 ---

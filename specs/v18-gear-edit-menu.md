@@ -1,7 +1,8 @@
 # homepad v18 — Gear: Unified Edit-Dashboard Menu
 
+**Status:** SHIPPED — v12.5.0 (2026-06-29, `0e26a5d`, PR #176).
 **Spec ID:** v18-gear-edit-menu  
-**Date:** 2026-06-28  **Status:** Shipped — v12.5.0 (2026-06-29, PR #176)  
+**Date:** 2026-06-28
 **Author:** Walt (product lead)  **Requested by:** Caleb Dunn  
 **Audience:** Stitch (implementer), Gracie (tech-QA). Frontend-only. No API changes.  
 **App:** homepad — React + Vite + Tailwind. Builds on main (post #169 — Gear/Arrange restored).
