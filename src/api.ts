@@ -212,7 +212,16 @@ async function request(
     init.headers = jsonHeaders;
     init.body = JSON.stringify(opts.json);
   }
-  if (opts.headers) init.headers = opts.headers;
+  // #416/#422 — MERGE rather than replace. This used to be a bare assignment, so
+  // `{ json, headers }` together sent a JSON body with no Content-Type: the
+  // headers assignment discarded jsonHeaders entirely. No caller combines them
+  // today, which is why it was latent — but the type permits it, so the next one
+  // would have hit a silent serialization mismatch.
+  //
+  // Spread order is deliberate: opts.headers comes second, so a caller CAN still
+  // override Content-Type on purpose (uploadIcon sends image/png). Augmenting is
+  // the default; overriding stays available.
+  if (opts.headers) init.headers = { ...(init.headers as Record<string, string> | undefined), ...opts.headers };
   if (opts.body !== undefined) init.body = opts.body;
   try {
     const res = await fetch(path, init);
