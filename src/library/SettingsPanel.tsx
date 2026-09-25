@@ -16,10 +16,17 @@ import {
 } from '../api';
 
 // v9.3 §7.3 — the admin Settings surface. A modal extending the v6/v7 settings
-// area with (admin-only) App Library management + a READ-ONLY System settings
-// panel (OIDC + self-registration, D7). CLIENT-SIDE only over /api/library*;
-// system values are surfaced from what the client can see (authConfig), since
-// there is no GET /api/admin/settings yet — the env values are noted as such.
+// area with (admin-only) App Library management + a System settings panel.
+//
+// #378 — the note that used to sit here said system values were inferred from
+// `authConfig` "since there is no GET /api/admin/settings yet", and that the
+// System panel was READ-ONLY. Both stopped being true and the comment outlived
+// them by two releases:
+//   - SPEC-v26 (v15.3.0) added `GET /api/admin/env-config`, and SystemSettings
+//     now fetches the allowlisted env vars from it directly (see adminEnvConfig).
+//   - cap6 made the "Show uptime display" row WRITABLE via
+//     PATCH /api/admin/settings, so the section is no longer read-only; the
+//     per-row [env] badge carries that signal instead.
 
 // SPEC-health-bar-visibility-toggle OQ-1 (a) — the panel now has two scopes.
 // `admin` is the v9.3 surface, unchanged, reached from Administration →
