@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { TILE_DENSITIES, type TileDensity } from './tileDensity';
 
 // SPEC-tile-density §switch — the dashboard-header density control. A radiogroup of
@@ -25,6 +26,14 @@ export default function TileDensityToggle({
   density: TileDensity;
   onChange: (d: TileDensity) => void;
 }) {
+  // #437 — one ref per radio so an arrow press can move PHYSICAL focus, not just
+  // selection. Without it activeElement stayed on the originally-focused button,
+  // and because that button's own index is captured in its keydown closure, every
+  // later press recomputed `next` from the SAME index: the control advanced once
+  // and then stuck. The aria state was correct throughout, which is exactly why
+  // no test caught it — they all watched onChange.
+  const btns = useRef<(HTMLButtonElement | null)[]>([]);
+
   function onKeyDown(e: React.KeyboardEvent, index: number) {
     const n = TILE_DENSITIES.length;
     let next: number;
@@ -33,6 +42,11 @@ export default function TileDensityToggle({
     else return;
     e.preventDefault();
     onChange(TILE_DENSITIES[next]);
+    // Focus the destination directly rather than waiting for the re-render to
+    // move tabIndex. Focusing an element still carrying tabIndex={-1} is fine —
+    // that only bars TAB from reaching it, not programmatic focus — and the
+    // re-render promotes it to 0 immediately after.
+    btns.current[next]?.focus();
   }
 
   return (
@@ -47,6 +61,9 @@ export default function TileDensityToggle({
         return (
           <button
             key={d}
+            ref={(el) => {
+              btns.current[i] = el;
+            }}
             type="button"
             role="radio"
             aria-checked={selected}
