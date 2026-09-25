@@ -7,6 +7,32 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [16.6.0] — 2026-09-25 — Tile size moves into your settings
+
+No migrations. Frontend only. Upgrading from 16.5.x is a single step.
+
+**Tile size now lives in My settings.** The Large / Compact / List switch used to
+sit permanently above your grid. It is a preference you set once, so it has moved
+in beside the other two — "Show status bar" and "Show uptime display" — and the
+row it occupied is gone, giving the grid that space back. Your current choice
+carries over untouched; nothing about how tiles look has changed.
+
+**"Edit dashboard" is now "Arrange apps".** The gear item does one thing — let an
+admin drag tiles around and edit them — and the old name promised more than that.
+It now sits directly under "Add apps", since adding and arranging are usually the
+same trip. It still does exactly what it did, and still only appears for admins.
+
+**Keyboard users can reach every tile size.** Arrow keys on the size switch moved
+the selection but not the keyboard focus, so after one press the control stopped
+responding and you could not get past the neighbouring option. Arrow keys now walk
+the whole way round in both directions.
+
+**Under the hood.** A request helper could drop its content type when a caller
+supplied custom headers — no feature hit that path, but it would have bitten the
+next one. Three stale code comments and twenty-one spec headers that disagreed
+with the code were corrected, and a handful of long-open reports were verified and
+closed.
+
 ## [16.5.2] — 2026-09-23 — What's new actually shows what's new
 
 No migrations. Frontend only.
