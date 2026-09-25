@@ -77,3 +77,37 @@ test.describe('header — the search trigger sits on the header centre line', ()
     expect(wordmark!.x + wordmark!.width).toBeLessThanOrEqual(trigger!.x);
   });
 });
+
+// #405 — the header overflowed the viewport by ~22px at 320px, producing a
+// horizontal scrollbar on the narrowest phones. There is no commit referencing
+// #405: it was fixed INCIDENTALLY by 16.5.1's centering change, which gave both
+// flanking groups `min-w-0 flex-1` so they shrink instead of forcing width.
+//
+// An incidental fix is the kind that regresses silently, which is the #476 lesson
+// applied here. This pins the property rather than the implementation: the
+// document must never scroll horizontally at phone widths, whoever the user is.
+test.describe('#405 — the header never forces a horizontal scrollbar', () => {
+  for (const width of [320, 360, 390, 414]) {
+    for (const role of ['user', 'admin'] as const) {
+      test(`no overflow at ${width}px as ${role}`, async ({ page }) => {
+        const { services, categories } = makeStatusTiles(['UP', 'DOWN', 'NOT_MONITORED']);
+        await page.setViewportSize({ width, height: 800 });
+        await mockApi(page, services, categories, role, 'compact');
+        await page.goto('/');
+        await expect(page.getByTestId('launcher-trigger')).toBeVisible();
+
+        const m = await page.evaluate(() => ({
+          scroll: document.documentElement.scrollWidth,
+          client: document.documentElement.clientWidth,
+        }));
+        // scrollWidth > clientWidth IS the horizontal scrollbar. Asserting on the
+        // document rather than on any element's width, because the defect is
+        // "the page scrolls sideways" and any element could cause it.
+        expect(
+          m.scroll - m.client,
+          `document overflows by ${m.scroll - m.client}px at ${width}px as ${role}`,
+        ).toBeLessThanOrEqual(0);
+      });
+    }
+  }
+});
