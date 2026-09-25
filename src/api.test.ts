@@ -1028,3 +1028,32 @@ describe('refreshStatus (SPEC-v24 §12.3, OQ-5)', () => {
     await expect(refreshStatus()).resolves.toMatchObject({ ok: false, status: 404 });
   });
 });
+
+// #416/#422 — request() used to REPLACE init.headers when opts.headers was given,
+// discarding the Content-Type that opts.json had just set. Latent: no caller
+// combines them, so the broken path was unreachable from the public API.
+//
+// That unreachability is the honest limit of this suite. The two tests below pin
+// the two paths that DO have callers, so the merge cannot regress them; the
+// combined path has no caller and therefore no test, and the comment in api.ts
+// carries the precedence rule instead. Writing a test that reaches it would mean
+// exporting request() purely to be tested, which trades a real public surface for
+// a guard on a path nobody walks.
+describe('#416/#422 — request() header handling', () => {
+  it('a json caller still sends Content-Type: application/json', async () => {
+    const fn = mockFetch(JSON.stringify({ showUptimeDisplay: false, statusDegradedMs: 1000 }), 200);
+    await saveSystemSettings({ showUptimeDisplay: false });
+    const [, opts] = fn.mock.calls[0];
+    expect((opts!.headers as Record<string, string>)['Content-Type']).toBe('application/json');
+    expect(opts!.body).toBe(JSON.stringify({ showUptimeDisplay: false }));
+  });
+
+  it('a headers caller keeps its OWN Content-Type — overriding is still possible', async () => {
+    const fn = mockFetch(null, 204);
+    const png = new Blob([new Uint8Array([0x89, 0x50])], { type: 'image/png' });
+    await uploadIcon('s1', 'light', png);
+    const [, opts] = fn.mock.calls[0];
+    // The merge puts opts.headers LAST on purpose, so an explicit override wins.
+    expect((opts!.headers as Record<string, string>)['Content-Type']).toBe('image/png');
+  });
+});
