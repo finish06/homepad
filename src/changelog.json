@@ -2,6 +2,24 @@
   "pending": [],
   "versions": [
     {
+      "version": "16.6.0",
+      "date": "2026-09-25",
+      "changes": [
+        {
+          "type": "enhancement",
+          "text": "Tile size (Large / Compact / List) moved into My settings, beside your other preferences. The row above the grid is gone and your current choice carries over."
+        },
+        {
+          "type": "enhancement",
+          "text": "The gear’s “Edit dashboard” is now “Arrange apps”, sitting directly under “Add apps”. Same behaviour, admin-only as before."
+        },
+        {
+          "type": "bug-fix",
+          "text": "Arrow keys on the tile-size switch now move keyboard focus, not just the selection — it used to stop responding after one press."
+        }
+      ]
+    },
+    {
       "version": "16.5.2",
       "date": "2026-09-23",
       "changes": [
