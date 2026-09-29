@@ -29,8 +29,17 @@ jobs:
             fi
             # Converge the deploy-owned nginx ConfigMap (first yaml doc only —
             # see mr-staging.yml for the full rationale / issue #414).
-            curl -sSf http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main/homepad-staging/03-web.yaml \
-              | sed '/^---$/q' | kubectl -n homepad-staging apply -f -
+            #
+            # Download, extract, apply — NO pipes. Piping curl into
+            # `sed '/^---$/q'` fails intermittently with curl exit 23 under
+            # ci-shared's `bash -e -o pipefail`; see mr-staging.yml for the
+            # reproduction. This path fires on every merge to main, so the flake
+            # was not limited to PRs.
+            MANIFEST="$(mktemp)"; CONFIGMAP_DOC="$(mktemp)"
+            curl -sSf http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main/homepad-staging/03-web.yaml -o "$MANIFEST"
+            sed '/^---$/q' "$MANIFEST" > "$CONFIGMAP_DOC"
+            kubectl -n homepad-staging apply -f "$CONFIGMAP_DOC"
+            rm -f "$MANIFEST" "$CONFIGMAP_DOC"
             kubectl -n homepad-staging set image deploy/homepad-web web="$IMAGE_REF"
             kubectl -n homepad-staging rollout restart deploy/homepad-web
             kubectl -n homepad-staging rollout status deploy/homepad-web --timeout=120s
