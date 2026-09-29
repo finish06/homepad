@@ -15,6 +15,8 @@ and merge.
 | Merge to `main` | `staging-release.yml` | Build integrated image `homepad:<sha>-beta` + `:<sha>`, roll to staging. **No tests.** | Branch protection means the merged tree is the exact tested tree; re-running the suites would be the wasteful third run. |
 | Merge to `main` (mirrored to GitHub) | `.github/workflows/ghcr-release.yml` — **GitHub runners** | Build + push `ghcr.io/finish06/homepad:<sha>` + `:latest` (buildx, gha layer cache). **No tests** (same reasoning). | The Gitea push mirror (sync_on_commit) lands every merge on `github.com/finish06/homepad`, which triggers this workflow there — so the ghcr publish consumes zero homelab runner time and authenticates with the workflow's own `GITHUB_TOKEN` (`packages: write`); no PAT or Gitea secret involved. |
 
+> **Why publish to ghcr at all when nothing in the homelab pulls it?** Deliberate. Audited 2026-09-29: no homepad manifest in any namespace references `ghcr.io/finish06/homepad`, and the only finish06 ghcr images the cluster pulls are `rx-dag` and `rsync-viewer`. The gethomepad demo runs on Cloud Run, outside the cluster, and was **not** checked — so "unconsumed" holds for the homelab and is unverified beyond it. It is kept as a second **public** publish target (the GitHub mirror is public, so this is where anyone outside the homelab would pull from) and as an off-cluster copy of every `main` build. A zero-consumer audit result is the expected state here, not a reason to retire it.
+
 If a suite needs to run again (flaky infra, expired staging), re-run the
 workflow — don't add overlapping triggers back.
 
