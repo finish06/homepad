@@ -15,6 +15,23 @@
 # same tag names exist in both registries for any given release. GIT_SHA is
 # threaded as a build-arg so the footer badge and /version.json carry the real
 # sha (#157) exactly like the Kaniko builds do.
+#
+# WHO CONSUMES THIS IMAGE: nothing in the homelab, deliberately.
+#
+# Audited 2026-09-29 during a fleet CI review. `Code/homelab` references
+# `ghcr.io/finish06/*` only for `rx-dag` and `rsync-viewer`, and those are the
+# only finish06 ghcr images any running pod in the cluster pulls. No homepad
+# manifest, in any namespace, points at ghcr. NOT checked: the gethomepad demo,
+# which runs on Cloud Run outside the cluster — so "unconsumed" is established
+# for the homelab and unverified beyond it.
+#
+# It is kept ON PURPOSE as a second, public publish target: the GitHub mirror is
+# public, so this is the registry anyone outside the homelab could pull homepad
+# from, and it doubles as an off-cluster copy of every main build. Caleb's call,
+# 2026-09-29, after the audit raised it as apparently unowned.
+#
+# So: a zero-consumer audit result is NOT a reason to retire this. If you are
+# here because nothing seems to use it, that is the expected state.
 name: ghcr publish
 
 on:
