@@ -64,8 +64,23 @@ jobs:
             # them). The manifest's FIRST yaml doc is the ConfigMap — apply just
             # that, never the Deployment doc (its image field would fight the
             # set-image below).
-            curl -sSf http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main/homepad-staging/03-web.yaml \
-              | sed '/^---$/q' | kubectl -n homepad-staging apply -f -
+            #
+            # Download, extract, apply — three steps, NO pipes, deliberately.
+            # This was `curl ... | sed '/^---$/q' | kubectl apply -f -`, which
+            # fails intermittently: sed quits at the first `---` and closes the
+            # pipe while curl is still writing, curl exits 23
+            # (CURLE_WRITE_ERROR), and ci-shared runs deploy-cmd under
+            # `bash -e -o pipefail`, so that failure fails the whole job — AFTER
+            # kubectl apply has already succeeded. Reproduced 25/25 against a
+            # manifest shaped like this one; 0/25 with the form below. It is
+            # timing-dependent on how much follows the `---`, which is why
+            # consecutive runs on an identical manifest disagreed (#499 and #500
+            # passed, #501 failed).
+            MANIFEST="$(mktemp)"; CONFIGMAP_DOC="$(mktemp)"
+            curl -sSf http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main/homepad-staging/03-web.yaml -o "$MANIFEST"
+            sed '/^---$/q' "$MANIFEST" > "$CONFIGMAP_DOC"
+            kubectl -n homepad-staging apply -f "$CONFIGMAP_DOC"
+            rm -f "$MANIFEST" "$CONFIGMAP_DOC"
             kubectl -n homepad-staging set image deploy/homepad-web web="$IMAGE_REF"
             # Restart even when the image tag is unchanged so a ConfigMap-only
             # change still reaches the pods (mounted configs don't hot-reload).
