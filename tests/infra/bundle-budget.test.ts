@@ -23,12 +23,44 @@ import { describe, expect, it } from 'vitest';
 //   lazy       SettingsPanel 4,752 · TileEditModal 3,596 · LibraryBrowse 1,858
 //              ServiceForm 1,399 · IframeOverlay 827  (all gzip)
 //
-// Budgets carry ~15% headroom. Raising one is a legitimate, deliberate act — a
-// feature can cost bytes. Raise it in the same commit that spends them, with the
-// new measurement, so the number always reflects a decision someone made rather
-// than drift nobody noticed.
-const ENTRY_JS_GZIP_BUDGET = 115_000;
-const ENTRY_CSS_GZIP_BUDGET = 21_000;
+// The headroom is DERIVED, not chosen by feel. Entry-chunk gzip at every 16.x
+// release tag, each built from its own tag in a clean worktree (2026-09-28):
+//
+//   tag       entry JS        entry CSS
+//   v16.0.0     93,738           16,898
+//   v16.1.0     95,794 (+2,056)  17,698   (+800)
+//   v16.2.0     96,684   (+890)  17,713    (+15)
+//   v16.3.0     97,374   (+690)  17,725    (+12)
+//   v16.4.0     97,595   (+221)  17,747    (+22)
+//   v16.5.0     98,644 (+1,049)  18,174   (+427)
+//   v16.5.1     98,652     (+8)  18,191    (+17)
+//   v16.5.2     98,948   (+296)  18,191     (+0)
+//   v16.6.0     98,850    (-98)  18,165    (-26)
+//
+// JS: worst single release +2,056 B, median ~+490 B, whole 16.x line +5,112 B
+// (+5.5%). 105,000 leaves 6,150 B — about 3x the worst release observed, or a
+// dozen typical ones. Quiet enough not to be raised reflexively, tight enough to
+// trip on the failure this exists to catch: any single addition over that 6,150 B
+// of headroom — the weight of a mid-sized dependency landing in the entry chunk.
+//
+// CSS: worst single release +800 B, median ~+16 B, whole line +1,267 B (+7.5%).
+// 20,500 leaves 2,335 B, again ~3x the worst release. That is a proportionally
+// LARGER share than the JS budget on purpose — the CSS failure mode is not a
+// dependency creeping in, it is a Tailwind purge/content-glob regression, which
+// is an order-of-magnitude event (tens to hundreds of kB). A budget that catches
+// that does not need to be tight, and a tight one would only trip on legitimate
+// token work.
+//
+// Two earlier drafts of these numbers were picked by feel — 115,000 (~16%, room
+// for two mid-weight dependencies to hide in) and then 19,500 for CSS (only 1.7x
+// the worst observed release, so normal token work would have breached it). Both
+// were challenged in review, measured, and corrected. Measure before you pick.
+//
+// Raising a budget is a legitimate, deliberate act; a feature can cost bytes. Do
+// it in the same commit that spends them, with the new measurement, so the number
+// always reflects a decision someone made rather than drift nobody noticed.
+const ENTRY_JS_GZIP_BUDGET = 105_000;
+const ENTRY_CSS_GZIP_BUDGET = 20_500;
 
 // Every overlay that must stay OUT of the entry chunk. Same list as
 // code-splitting.test.ts, asserted against the build instead of the source.
