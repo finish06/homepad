@@ -1,0 +1,68 @@
+name: E2E
+
+# #498 — the tests/e2e suite finally runs in CI.
+#
+# It never ran here before, for a reason that had stopped being true: the suite
+# was built around `npm run dev` and its /api proxy to a local Go backend
+# (vite.config.ts), so wiring it into CI appeared to require standing up
+# homepad-api + Postgres. It does not. Every spec in the suite is now
+# backend-free — theme-mode and perf route-mock each endpoint, no-gatus-leak
+# reads dist/ off disk — and playwright.config.ts serves the BUILT app via
+# `vite preview` on :4174 rather than the dev server.
+#
+# Test-dedup contract (see ci.yml): PR-only. main is branch-protected, so the
+# merged tree is the tested tree; re-running on the merge commit would test the
+# same sha twice.
+#
+# Not yet a REQUIRED status check — that is an org/branch-protection decision.
+# It reports on every PR so its reliability can be observed first. Unlike
+# browser-gate this has no path filter: the suite covers first paint, the theme
+# boot path and the built-bundle secret scan, and there is no useful subset of
+# changed files that cannot affect those.
+on:
+  pull_request:
+
+jobs:
+  e2e:
+    name: E2E (built app, mocked API)
+    runs-on: ubuntu-latest
+    # Same pinning rationale as browser-gate.yml: the tag must match the exact
+    # @playwright/test version in package-lock.json (1.60.0) so the preinstalled
+    # browsers are used and nothing is downloaded at runtime. This image carries
+    # Chromium AND WebKit, which the `mobile` (iPhone 13) project needs.
+    container: mcr.microsoft.com/playwright:v1.60.0-noble
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - run: npm ci
+
+      # No-op in the pinned image; fails fast if a version drift ever
+      # re-introduces a runtime download.
+      - name: Verify preinstalled browsers (no download)
+        timeout-minutes: 3
+        run: npx playwright install chromium webkit
+
+      # Required, not incidental: playwright.config.ts serves dist/ via
+      # `vite preview`, and no-gatus-leak.spec.ts + the bundle budget read dist/
+      # directly. Without this step the suite has nothing to test — and since
+      # #498 those specs FAIL rather than skip when dist/ is absent, so a
+      # missing build cannot be mistaken for a pass.
+      - name: Build app
+        run: npm run build
+
+      - name: Run e2e suite
+        run: npm run test:e2e
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore

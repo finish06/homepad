@@ -45,14 +45,17 @@ Document hierarchy: PRD → Spec → Plan → User Test Cases → Automated Test
 npm run dev                      # Vite dev server on :5173, /api proxied to :8080
 npx vitest run --coverage        # Unit tests + coverage
 npm run test:gate                # Playwright browser gate (mocked API, serves dist/)
-npm run test:e2e                 # Playwright e2e (needs a live API)
+npm run test:e2e                 # Playwright e2e (mocked API, serves dist/ on :4174)
 npm run lint                     # ESLint
 npm run typecheck                # tsc --noEmit
 npm run build                    # typecheck + vite build
 ```
 
 **`npm run build` must run before `npx vitest run`** on a clean checkout —
-`tests/infra/pwa-icons.test.ts` reads from `dist/`.
+`tests/infra/pwa-icons.test.ts` and `tests/infra/bundle-budget.test.ts` read from
+`dist/`. Both fail rather than skip when it is missing, deliberately: a byte
+budget or a security guard that opts out when its subject is absent passes
+vacuously (#498).
 
 ### ADD Workflow
 ```
@@ -76,7 +79,7 @@ src/theme/      Theme mode + accent
 src/lib/        layout, icons, ranker, safeUrl, categoryColor
 tests/infra/    Source-contract suites (readFileSync greps over configs/CSS)
 tests/browser-gate/  Real-browser interaction gate, mocked API
-tests/e2e/      End-to-end, requires a live API
+tests/e2e/      End-to-end against the built app (mocked API, vite preview :4174)
 qa-kit/         CDP smoke tooling
 ```
 
