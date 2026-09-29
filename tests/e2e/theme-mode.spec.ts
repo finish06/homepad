@@ -29,6 +29,15 @@ const SEED = [
 // Wire the reads a logged-in session needs, plus a PATCH /api/me capture.
 // `patched` collects each PATCH body so a test can assert what was persisted.
 async function seedUser(page: Page, patched: Record<string, unknown>[], pref = 'light') {
+  // Catch-all first, specifics after (later registration wins — see
+  // tests/browser-gate/mockApi.ts). Without this, /api/categories and
+  // /api/system/config were never mocked, and since the suite moved to
+  // `vite preview` — which inherits vite.config.ts's /api proxy to :8080 —
+  // they escaped to whatever is on that port. On a dev machine running the Go
+  // backend that means this spec's PATCH assertions raced a real database.
+  await page.route('**/api/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+  );
   await page.route('**/api/me', (route) => {
     if (route.request().method() === 'PATCH') {
       const body = route.request().postDataJSON();
