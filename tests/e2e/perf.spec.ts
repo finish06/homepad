@@ -20,6 +20,13 @@ import { test, expect, type Browser, type Page } from '@playwright/test';
 // parses, paint timing that stops being reported at all. The bounds below are
 // set to be un-flaky on a shared CI runner, which necessarily makes them loose.
 //
+// #501 QA (gracie) found the consequence of loosening these bounds: on her pod a
+// DEV-server build measured DCL 728.9ms, under the 800ms bound, so the timing
+// checks alone would have accepted the wrong artifact. That hole is closed
+// structurally rather than by re-tightening — `sample()` refuses to report a
+// number for a page that is not the built bundle — so these bounds can stay loose
+// enough never to flake without the suite losing the #498 protection.
+//
 // The DETERMINISTIC regression guard is `tests/infra/bundle-budget.test.ts`:
 // byte budgets and the code-splitting contract, measured off dist/ with no
 // timing involved. Tighten that when you want to catch a 20% regression. Do not
@@ -85,6 +92,22 @@ async function mockApi(page: Page) {
 
 type Sample = { fcp: number; dcl: number };
 
+// Is this page the BUILT app? dist/index.html references a hashed entry chunk;
+// the dev server serves /src/main.tsx and /@vite/client.
+//
+// Returns the reason it is NOT built, or null when it is, so both the standalone
+// assertion below and every timing sample can share one definition.
+async function notBuiltReason(page: Page): Promise<string | null> {
+  const scripts = await page
+    .locator('script[src]')
+    .evaluateAll((els) => els.map((e) => (e as HTMLScriptElement).getAttribute('src') ?? ''));
+  const hashedEntry = scripts.some((x) => /^\/assets\/index-[A-Za-z0-9_-]+\.js$/.test(x));
+  const devUrls = scripts.some((x) => x.includes('/src/') || x.includes('/@vite/'));
+  if (devUrls) return `dev-server module URLs present: ${JSON.stringify(scripts)}`;
+  if (!hashedEntry) return `no hashed /assets/index-<hash>.js entry chunk: ${JSON.stringify(scripts)}`;
+  return null;
+}
+
 // Each sample gets a FRESH context: cold HTTP cache, like a first visit.
 // Reloading one page would measure a warm cache and quietly drift away from the
 // thing being claimed.
@@ -94,6 +117,28 @@ async function sample(browser: Browser): Promise<Sample> {
     const page = await ctx.newPage();
     await mockApi(page);
     await page.goto('/', { waitUntil: 'networkidle' });
+
+    // Every timing sample refuses to measure anything but the built artifact.
+    //
+    // QA on #501 (gracie) found the hole this closes: her pod's DEV server
+    // measured a best-of-5 DCL of 728.9ms, which is UNDER the 800ms bound this
+    // file loosened to — so on that hardware a dev-server build would have
+    // satisfied the timing checks. The bounds are deliberately loose (the real
+    // regression guard is tests/infra/bundle-budget.test.ts), which meant the
+    // timing pair had stopped contributing anything to catching #498's class on
+    // slower machines, leaving the standalone assertion below as the sole guard.
+    //
+    // Making identity a PRECONDITION of measurement fixes that without
+    // re-tightening the bounds: a dev server now cannot produce a passing timing
+    // number on any hardware, at any threshold.
+    const wrong = await notBuiltReason(page);
+    if (wrong) {
+      throw new Error(
+        `refusing to report a timing number for a page that is not the built artifact — ${wrong}. ` +
+          `Check playwright.config.ts is serving \`npm run preview:e2e\` and not the dev server (#498).`,
+      );
+    }
+
     return await page.evaluate(() => {
       const paint = performance
         .getEntriesByType('paint')
@@ -179,18 +224,13 @@ test.describe('built-bundle load smoke (not AC A8 — see Lighthouse CI)', () =>
     await mockApi(page);
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-    const scripts = await page.locator('script[src]').evaluateAll((els) =>
-      els.map((e) => (e as HTMLScriptElement).getAttribute('src') ?? ''),
-    );
-
+    const wrong = await notBuiltReason(page);
     expect(
-      scripts.some((s) => /^\/assets\/index-[A-Za-z0-9_-]+\.js$/.test(s)),
-      `expected a hashed /assets/index-<hash>.js entry chunk (a built bundle); got ${JSON.stringify(scripts)}. ` +
-        `An unhashed /src/main.tsx means playwright.config.ts is serving the dev server again (#498).`,
-    ).toBe(true);
-    expect(
-      scripts.some((s) => s.includes('/src/') || s.includes('/@vite/')),
-      `dev-server module URLs present in ${JSON.stringify(scripts)} — this is not the built artifact`,
-    ).toBe(false);
+      wrong,
+      `this suite must run against the built app; instead: ${wrong}. ` +
+        `Check playwright.config.ts is serving \`npm run preview:e2e\` and not the dev server (#498). ` +
+        `NOTE: the timing tests above now enforce this too, so weakening THIS test no longer ` +
+        `removes the protection — that was the case until #501 QA pointed it out.`,
+    ).toBeNull();
   });
 });

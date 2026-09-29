@@ -54,8 +54,25 @@ import { describe, expect, it } from 'vitest';
 // LAZY_CHUNKS only checks that these five KNOWN overlays stay separate. A new
 // dependency statically imported into the entry chunk leaves all five intact and
 // shows up ONLY as bytes — which is precisely the job assigned to this budget. At
-// 115,000 anything up to +16 kB passed silently, and her own control proved the
-// gap: a regression that grew the entry chunk 9.33 kB CLEARED the byte budget.
+// 115,000 anything up to +16 kB passed silently.
+//
+// Read the two controls carefully, because they do NOT prove the same thing and
+// the stronger-looking one is the weaker evidence (gracie's reading on #501, which
+// is sharper than the argument it corrected):
+//
+//   manualChunks: () => 'index'  → entry 98,850 → 108,175 B. Passes at 115,000,
+//     fails SIX assertions at 105,000. But it collapses the chunk structure, so
+//     all five LAZY_CHUNKS fire too — this case was already covered, and it
+//     OVERSTATES what the byte budget adds.
+//
+//   a static import that does NOT collapse the lazy chunks (verified by appending
+//     a 7.2 kB incompressible payload to src/main.tsx) → entry 106,767 B, all five
+//     lazy chunks still emitted, LAZY_CHUNKS all GREEN, and exactly ONE assertion
+//     fails: this budget. THAT is the real-world regression class, and the byte
+//     budget is the only thing standing in front of it.
+//
+// So the second control is the one that justifies the number. The first proves the
+// underlying point about coverage, but via a case both guards catch.
 //
 // Runway is also not a virtue here. Headroom is not a budget for future spending;
 // it is how much unnoticed regression the guard tolerates. Growth that is expected
