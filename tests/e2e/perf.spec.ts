@@ -26,11 +26,18 @@ import { test, expect, type Browser, type Page } from '@playwright/test';
 // tighten the numbers here to do a byte budget's job — wall-clock on a shared
 // runner cannot hold that line, and a flaky perf gate gets deleted.
 
-// Loose enough never to flake on a slow shared runner (~5x this machine still
-// lands ~200ms / ~80ms); tight enough that a blocking pre-paint request or a
-// boot-time throw shows up.
-const FCP_SMOKE_MS = 500;
-const DCL_SMOKE_MS = 400;
+// Chosen for flake-immunity, NOT for detection. The deterministic regression
+// guard is tests/infra/bundle-budget.test.ts; this pair only has to catch gross,
+// qualitative failures, so headroom here costs nothing.
+//
+// Raised from 500/400 after QA on #500: on gracie's verification pod the DEV
+// server measured a best-of-5 DCL of 728.9ms — past the old 400ms bound. That
+// says nothing about the built bundle (which is 16.7ms here), but it does say the
+// spread across environments is far wider than the "~5x this machine" I assumed
+// when picking 400. A bound that a slow pod can breach is a bound that will
+// eventually flake, and a flaky perf gate gets deleted.
+const FCP_SMOKE_MS = 1_000;
+const DCL_SMOKE_MS = 800;
 
 const SAMPLES = 5;
 
@@ -158,9 +165,16 @@ test.describe('built-bundle load smoke (not AC A8 — see Lighthouse CI)', () =>
 
   // The assertion the old spec was missing entirely: prove we are measuring the
   // BUILT app, not a dev server. dist/index.html references a hashed entry
-  // chunk; the dev server serves /src/main.tsx. Without this, a future config
-  // edit could point the suite back at `npm run dev` and every timing assertion
-  // above would still pass.
+  // chunk; the dev server serves /src/main.tsx.
+  //
+  // This is the ONLY environment-independent catcher for that regression. The
+  // timing assertions above may or may not also fire, depending on the machine:
+  // reverting the config to `npm run dev` left both of them passing here, while
+  // on gracie's QA pod the DCL check fired too (728.9ms). An earlier version of
+  // this comment claimed the timing tests "still pass" as though it were a
+  // property of the change — it is a property of the hardware. This assertion is
+  // the one that holds everywhere, and with the bounds now deliberately loose it
+  // is the only one that will.
   test('the page under test is the built artifact, not the dev server', async ({ page }) => {
     await mockApi(page);
     await page.goto('/', { waitUntil: 'domcontentloaded' });
