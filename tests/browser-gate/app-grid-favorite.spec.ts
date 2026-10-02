@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { mockApi, makeCategorized } from './mockApi';
+import { mockApi, makeCategorized, enterArrange } from './mockApi';
 
 // #240 (#35 hit-test gate) — real-browser only. The App Grid restored a per-tile
 // favorite ★ toggle. It's a <button> layered over the tool's <a> (interactive
@@ -27,6 +27,8 @@ test('a real center click on the ★ toggles favorite without navigating the too
   });
 
   await page.goto('/');
+  // v29 — the ★ is a control only in arrange mode.
+  await enterArrange(page);
   const star = page.getByTestId('tile-favorite').first();
   await expect(star).toBeVisible();
   await expect(star).toHaveAttribute('aria-pressed', 'false');

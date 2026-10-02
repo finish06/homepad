@@ -123,3 +123,14 @@ export async function mockApi(
   );
   await page.route('**/api/favorites/**', (route) => route.fulfill({ status: 204, body: '' }));
 }
+
+// v29 — the favorite ★ is a CONTROL only in arrange mode
+// (specs/v29-favorite-star-arrange-only.md). Any gate that drives the star has to
+// enter the mode first. Exposed here rather than copied into each spec so the
+// gear-menu path lives in one place.
+export async function enterArrange(page: Page): Promise<void> {
+  await page.getByTestId('settings-gear').click();
+  await page.getByTestId('gear-edit-dashboard').click();
+  // The menu closes on activation; wait for the control the caller came for.
+  await page.getByTestId('tile-favorite').first().waitFor({ state: 'visible' });
+}

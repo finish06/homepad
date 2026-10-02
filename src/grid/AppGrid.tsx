@@ -395,6 +395,18 @@ export default function AppGrid({
   // Edit Dashboard is admin-only + client-ephemeral (a reload returns to view
   // mode). Only REAL category boxes rearrange; the synthetic Uncategorized box
   // (empty id) stays pinned last, outside the sortable context.
+  // v29 — TWO derived flags, not two modes. `editMode` is still the single piece
+  // of session state; these split it by WHO the affordance belongs to, which is
+  // the boundary OQ-3 left open.
+  //
+  //   arranging = any user  -> personal affordances (the ★; per-user favorites)
+  //   editing   = admin only -> shared-catalog affordances (box drag, canManage,
+  //                             the tile pencil)
+  //
+  // The split is load-bearing, not tidiness: category order, category CRUD and
+  // tile edit are all `requireAdmin` server-side, so handing a non-admin those
+  // controls would offer a drag that silently 403s on save.
+  const arranging = editMode;
   const editing = isAdmin && editMode;
   const sortableBoxes = boxes.filter((b) => b.id !== '');
   const uncatBox = boxes.find((b) => b.id === '');
@@ -429,17 +441,17 @@ export default function AppGrid({
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext items={sortableBoxes.map((b) => b.id)} strategy={rectSortingStrategy}>
                 {sortableBoxes.map((box) => (
-                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} sensors={sensors} onTileDragEnd={onTileDragEnd} setAnnounce={setAnnounce} />
+                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} arranging={arranging} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} sensors={sensors} onTileDragEnd={onTileDragEnd} setAnnounce={setAnnounce} />
                 ))}
               </SortableContext>
             </DndContext>
             {uncatBox && (
-              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(uncatBox.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} sensors={sensors} onTileDragEnd={onTileDragEnd} setAnnounce={setAnnounce} />
+              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} arranging={arranging} lone={loneById.get(uncatBox.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} sensors={sensors} onTileDragEnd={onTileDragEnd} setAnnounce={setAnnounce} />
             )}
           </>
         ) : (
           boxes.map((box) => (
-            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} />
+            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} arranging={arranging} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} />
           ))
         )}
         {addButton}
@@ -510,6 +522,7 @@ function BoxCard({
   isAdmin,
   viewportWidth,
   editing,
+  arranging,
   lone,
   onWidth,
   onToggleFavorite,
@@ -528,6 +541,8 @@ function BoxCard({
   isAdmin: boolean;
   viewportWidth: number;
   editing: boolean;
+  // v29 — arrange mode (ANY user). Gates the personal ★ control.
+  arranging: boolean;
   lone: boolean;
   onWidth: (id: string, width: number) => void;
   onToggleFavorite: (id: string) => void;
@@ -748,7 +763,7 @@ function BoxCard({
         <TileDndGrid
           box={box}
           theme={theme}
-          editing={editing}
+          editing={editing} arranging={arranging}
           sensors={sensors}
           onTileDragEnd={onTileDragEnd}
           setAnnounce={setAnnounce}
@@ -761,7 +776,7 @@ function BoxCard({
       ) : (
         <div className="app-grid-tools" data-testid="box-tools">
           {box.tools.map((s) => (
-            <ToolLink key={s.id} service={s} theme={theme} editing={editing} onToggleFavorite={onToggleFavorite} onEdit={onEdit} onOpenIframe={onOpenIframe} showUptimeDisplay={showUptimeDisplay} density={density} />
+            <ToolLink key={s.id} service={s} theme={theme} editing={editing} arranging={arranging} onToggleFavorite={onToggleFavorite} onEdit={onEdit} onOpenIframe={onOpenIframe} showUptimeDisplay={showUptimeDisplay} density={density} />
           ))}
         </div>
       )}
@@ -778,6 +793,7 @@ function TileDndGrid({
   box,
   theme,
   editing,
+  arranging,
   sensors,
   onTileDragEnd,
   setAnnounce,
@@ -790,6 +806,8 @@ function TileDndGrid({
   box: Box;
   theme: 'light' | 'dark';
   editing: boolean;
+  // v29 — arrange mode (ANY user). Gates the personal ★ control.
+  arranging: boolean;
   sensors: ReturnType<typeof useSensors>;
   onTileDragEnd: (e: DragEndEvent) => void;
   setAnnounce?: (msg: string) => void;
@@ -846,7 +864,7 @@ function TileDndGrid({
               key={s.id}
               service={s}
               theme={theme}
-              editing={editing}
+              editing={editing} arranging={arranging}
               onToggleFavorite={onToggleFavorite}
               onEdit={onEdit}
               onOpenIframe={onOpenIframe}
@@ -868,6 +886,7 @@ function SortableTile({
   service,
   theme,
   editing,
+  arranging,
   onToggleFavorite,
   onEdit,
   onOpenIframe,
@@ -877,6 +896,8 @@ function SortableTile({
   service: Service;
   theme: 'light' | 'dark';
   editing: boolean;
+  // v29 — arrange mode (ANY user). Gates the personal ★ control.
+  arranging: boolean;
   onToggleFavorite: (id: string) => void;
   onEdit: (service: Service, opener: HTMLElement | null) => void;
   onOpenIframe: (service: Service) => void;
@@ -889,7 +910,7 @@ function SortableTile({
     <ToolLink
       service={service}
       theme={theme}
-      editing={editing}
+      editing={editing} arranging={arranging}
       onToggleFavorite={onToggleFavorite}
       onEdit={onEdit}
       onOpenIframe={onOpenIframe}
@@ -908,6 +929,7 @@ function SortableBox({
   isAdmin,
   viewportWidth,
   editing,
+  arranging,
   lone,
   onWidth,
   onToggleFavorite,
@@ -925,6 +947,8 @@ function SortableBox({
   isAdmin: boolean;
   viewportWidth: number;
   editing: boolean;
+  // v29 — arrange mode (ANY user). Gates the personal ★ control.
+  arranging: boolean;
   lone: boolean;
   onWidth: (id: string, width: number) => void;
   onToggleFavorite: (id: string) => void;
@@ -946,7 +970,7 @@ function SortableBox({
       box={box}
       isAdmin={isAdmin}
       viewportWidth={viewportWidth}
-      editing={editing}
+      editing={editing} arranging={arranging}
       lone={lone}
       onWidth={onWidth}
       onToggleFavorite={onToggleFavorite}
@@ -1189,6 +1213,7 @@ function ToolLink({
   service,
   theme,
   editing,
+  arranging,
   onToggleFavorite,
   onEdit,
   onOpenIframe,
@@ -1200,6 +1225,8 @@ function ToolLink({
   theme: 'light' | 'dark';
   // v21 — admin edit mode: render the pencil affordance + mark the tile editable.
   editing: boolean;
+  // v29 — arrange mode (ANY user). Gates the personal ★ control.
+  arranging: boolean;
   onToggleFavorite: (id: string) => void;
   onEdit: (service: Service, opener: HTMLElement | null) => void;
   // v23 — open the in-app embed overlay for a clickAction='iframe' tile.
@@ -1312,21 +1339,49 @@ function ToolLink({
           {showUptimeDisplay && <UptimeSparkline checks={service.uptimeChecks} />}
         </span>
       </a>
-      <button
-        type="button"
-        className={`app-grid-tool-fav${fav ? ' is-favorite' : ''}`}
-        data-testid="tile-favorite"
-        aria-pressed={fav}
-        aria-label={fav ? `Unpin ${service.name} from favorites` : `Pin ${service.name} to favorites`}
-        title={fav ? 'Favorited' : 'Favorite'}
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onToggleFavorite(service.id);
-        }}
-      >
-        {fav ? '★' : '☆'}
-      </button>
+      {/* v29 §3.2 — the ★ does two jobs and only ONE is withdrawn here. In
+          arrange mode it is the control it has always been. Outside it, a
+          favorited tile keeps a visible but INERT ★ (the state is still
+          information the user needs), while an unfavorited tile renders nothing
+          at all — an inert ☆ on every tile would be a dead control, which is
+          worse than the stray-tap this fixes.
+
+          Gated on `arranging`, NOT `editing`: favoriting is per-user
+          (POST/DELETE /api/favorites/{id} carry no requireAdmin, and
+          shared_catalog_test.go asserts favorites stay per-user), so gating it
+          on the admin flag would have silently removed favoriting from every
+          non-admin user. */}
+      {arranging ? (
+        <button
+          type="button"
+          className={`app-grid-tool-fav${fav ? ' is-favorite' : ''}`}
+          data-testid="tile-favorite"
+          aria-pressed={fav}
+          aria-label={fav ? `Unpin ${service.name} from favorites` : `Pin ${service.name} to favorites`}
+          title={fav ? 'Favorited' : 'Favorite'}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleFavorite(service.id);
+          }}
+        >
+          {fav ? '★' : '☆'}
+        </button>
+      ) : (
+        fav && (
+          /* role="img" rather than a bare aria-label span: a span with only an
+             aria-label can be dropped by assistive tech (same reason the uptime
+             dots carry it). Not focusable, no handler, no button semantics. */
+          <span
+            className="app-grid-tool-fav is-favorite is-indicator"
+            data-testid="tile-favorite-indicator"
+            role="img"
+            aria-label={`${service.name} is a favorite`}
+          >
+            ★
+          </span>
+        )
+      )}
       {/* v21 §8.1 — per-tile pencil edit affordance. A SIBLING of the <a> (like
           the ★ and status pip), painted BOTTOM-right so it pairs with the ★
           (top-right) and never shares a row/tap with it. Rendered ONLY in admin

@@ -128,11 +128,19 @@ describe('AG-EDIT-1 — Arrange apps toggle (admin)', () => {
     expect(item).toHaveAttribute('role', 'menuitemcheckbox');
   });
 
-  it('non-admin never sees the Arrange apps toggle', async () => {
+  // v29 AC-005 reverses this. It previously asserted a non-admin never sees the
+  // toggle (SPEC-density-to-my-settings AC-008). v29 makes the favorite ★ a
+  // control only in arrange mode, and favoriting is per-user, so an admin-only
+  // mode would have removed favoriting from every non-admin. The personal/admin
+  // boundary moved from "who can open the mode" to "what the mode contains" —
+  // enforced in AppGrid and covered by app-grid-fav-arrange-gate.test.tsx.
+  it('a non-admin DOES see the Arrange apps toggle (v29 AC-005)', async () => {
     const user = userEvent.setup();
     renderHeader(USER);
     await openGear(user);
-    expect(screen.queryByTestId('gear-edit-dashboard')).not.toBeInTheDocument();
+    const item = screen.getByTestId('gear-edit-dashboard');
+    expect(item).toHaveTextContent(/arrange apps/i);
+    expect(item).toHaveAttribute('role', 'menuitemcheckbox');
   });
 
   it('reflects the current edit-mode state via aria-checked', async () => {

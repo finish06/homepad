@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { mockApi, makeStatusTiles } from './mockApi';
+import { mockApi, makeStatusTiles, enterArrange } from './mockApi';
 
 // SPEC-tile-density — the v16 density switch, real-browser GATE.
 //
@@ -33,6 +33,8 @@ async function closeSettings(page: import('@playwright/test').Page) {
   await page.getByTestId('settings-close').click();
   await page.getByTestId('settings-panel').waitFor({ state: 'detached' });
 }
+
+type Box = { x: number; y: number; width: number; height: number };
 
 test.describe('SPEC-tile-density — the density switch', () => {
   test('a fresh device defaults to Compact and the switch reflects it', async ({ page }) => {
@@ -89,17 +91,34 @@ test.describe('SPEC-tile-density — the density switch', () => {
       await mockApi(page, services, categories, 'user', density);
       await page.goto('/');
       const wrap = page.locator('.app-grid-tool-wrap').first();
+
+      const overlaps = (a: Box, b: Box) =>
+        !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y);
+
+      // v29 — this property now has to hold in BOTH modes, so it is checked twice
+      // rather than relocated. The fixture tile is favorited, so in the browsing
+      // view the corner is occupied by the inert ★ INDICATOR; in arrange mode it
+      // is the button. Both sit in the same corner as the right-rail dot, so both
+      // can collide with it, and only checking one would leave the other free to
+      // regress.
+      const pipBrowse = await wrap.getByTestId('tile-status').boundingBox();
+      const indicator = await wrap.getByTestId('tile-favorite-indicator').boundingBox();
+      expect(indicator, 'a favorited tile must still show the inert ★ while browsing').not.toBeNull();
+      expect(pipBrowse).not.toBeNull();
+      expect(
+        overlaps(indicator!, pipBrowse!),
+        `browsing: ★ indicator ${JSON.stringify(indicator)} overlaps dot ${JSON.stringify(pipBrowse)}`,
+      ).toBe(false);
+
+      await enterArrange(page);
       const star = await wrap.getByTestId('tile-favorite').boundingBox();
       const pip = await wrap.getByTestId('tile-status').boundingBox();
       expect(star).not.toBeNull();
       expect(pip).not.toBeNull();
-      const overlap = !(
-        star!.x + star!.width <= pip!.x ||
-        pip!.x + pip!.width <= star!.x ||
-        star!.y + star!.height <= pip!.y ||
-        pip!.y + pip!.height <= star!.y
-      );
-      expect(overlap, `★ ${JSON.stringify(star)} overlaps dot ${JSON.stringify(pip)}`).toBe(false);
+      expect(
+        overlaps(star!, pip!),
+        `arrange: ★ ${JSON.stringify(star)} overlaps dot ${JSON.stringify(pip)}`,
+      ).toBe(false);
     });
   }
 
