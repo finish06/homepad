@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { mockApi, makeStatusTiles } from './mockApi';
+import { mockApi, makeStatusTiles, enterArrange } from './mockApi';
 
 // SPEC-242 — per-tile status dot on the App Grid, real-browser GATE.
 //
@@ -29,6 +29,10 @@ test.describe('SPEC-242 per-tile status dot', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await mockApi(page, services, categories, 'user');
     await page.goto('/');
+    // v29 — the ★ is a control only in arrange mode, and D-1's whole argument for
+    // putting the dot top-LEFT is that top-right belongs to the star. That
+    // collision is only possible where the star exists, so measure it there.
+    await enterArrange(page);
 
     const wraps = page.locator('.app-grid-tool-wrap');
     await expect(wraps).toHaveCount(STATES.length);

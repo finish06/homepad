@@ -103,10 +103,16 @@ describe('SPEC-242 per-tile status dot', () => {
     await renderGrid();
     const dot = dotFor('UP');
     expect(dot.closest('a')).toBeNull();
-    // …and it shares the wrap with the link + favorite ★.
+    // …and it shares the wrap with the link.
     const wrap = dot.closest('.app-grid-tool-wrap') as HTMLElement;
     expect(within(wrap).getByTestId('tool-link')).toBeInTheDocument();
-    expect(within(wrap).getByTestId('tile-favorite')).toBeInTheDocument();
+    // The ★ used to be asserted here too. v29 makes it arrange-mode-only, and
+    // this suite renders the NORMAL view, so its absence here is now correct —
+    // it was never this test's subject (D-1 is about the dot not being nested in
+    // the anchor). The property it was incidentally protecting — that the ★ is a
+    // SIBLING of the link rather than inside it — is asserted directly, in
+    // arrange mode, in app-grid-fav-arrange-gate.test.tsx. Relocated, not
+    // dropped.
   });
 
   it('distinguishes NOT_MONITORED by shape, not colour alone (AC-017)', async () => {

@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { mockApi, makeCategorized } from './mockApi';
+import { mockApi, makeCategorized, enterArrange } from './mockApi';
 
 // v20 (#255) — real-browser gate for the favorite ★ touch-target & contrast fix
 // (specs/v20-fav-star-a11y.md §8). jsdom can assert the CSS rules but has no
@@ -13,6 +13,13 @@ import { mockApi, makeCategorized } from './mockApi';
 //     139)) — measured off the live computed style at 768px, light mode.
 // Named for the observed symptoms (corner tap toggles / default ☆ contrast), not
 // a theorized cause, per the retro lesson.
+
+// v29 RE-SCOPE (2026-10-01): both claims below still hold, but the ★ is now a
+// control only in ARRANGE mode (specs/v29-favorite-star-arrange-only.md), so these
+// gates enter it first. AC-003 in particular could not survive otherwise — there
+// is no default ☆ in the browsing view at all any more, by design: an inert ☆ on
+// every unfavorited tile would be a dead control. The contrast requirement did not
+// go away, it moved to where the ☆ now exists.
 
 test.beforeEach(async ({ page }) => {
   const { services, categories } = makeCategorized(1, 1); // one box, one tool
@@ -31,6 +38,7 @@ test('AC-001/AC-006 — a corner tap OUTSIDE the 34×34 button but inside the 44
   });
 
   await page.goto('/');
+  await enterArrange(page);
   const star = page.getByTestId('tile-favorite').first();
   await expect(star).toBeVisible();
   await expect(star).toHaveAttribute('aria-pressed', 'false');
@@ -58,6 +66,7 @@ test('AC-001/AC-006 — a corner tap OUTSIDE the 34×34 button but inside the 44
 
 test('AC-003 — default ☆ renders slate-500 (#64748b) in light mode at 768px', async ({ page }, testInfo) => {
   await page.goto('/');
+  await enterArrange(page);
   const star = page.getByTestId('tile-favorite').first();
   await expect(star).toBeVisible();
   const color = await star.evaluate((el) => getComputedStyle(el).color);

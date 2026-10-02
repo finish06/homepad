@@ -121,10 +121,24 @@ describe('gear menu — "Arrange apps" (AC-007..AC-011)', () => {
     expect(within(menu).queryByTestId('gear-edit-dashboard')).not.toBeNull();
   });
 
-  it('TC-006 — a non-admin sees Add apps but no Arrange apps', async () => {
+  // TC-006 is SUPERSEDED by SPEC-v29-favorite-star-arrange-only AC-005. The
+  // original asserted a non-admin sees no Arrange apps item; v29 deliberately
+  // reverses it (see the spec's "Supersedes" header). Kept as a live test of the
+  // NEW rule rather than deleted, so the reversal is visible in this file's
+  // history instead of looking like coverage that quietly disappeared.
+  it('TC-006 (v29 AC-005) — a non-admin sees BOTH Add apps and Arrange apps', async () => {
     renderHeader('user');
     const menu = await openGear();
     expect(within(menu).getByTestId('gear-add-apps')).toBeTruthy();
-    expect(within(menu).queryByTestId('gear-edit-dashboard')).toBeNull();
+    expect(within(menu).queryByTestId('gear-edit-dashboard')).not.toBeNull();
+  });
+
+  it('v29 AC-006 — the non-admin arrange item exposes no admin-only siblings', async () => {
+    // Opening the mode to everyone must not open the ADMIN section with it. This
+    // is the half of the reversal that could go wrong silently.
+    renderHeader('user');
+    const menu = await openGear();
+    expect(within(menu).queryByTestId('gear-menu-section-admin')).toBeNull();
+    expect(within(menu).queryByTestId('gear-add-custom-app')).toBeNull();
   });
 });

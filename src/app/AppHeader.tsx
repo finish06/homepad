@@ -215,22 +215,31 @@ function GearMenu({
           dashboard") sits directly under "Add apps", with no section header
           between them. Caleb's call 2026-09-23: group by the TASK, not by the
           permission, so the two things an admin does to their grid are
-          adjacent. It stays admin-only (AC-008) — the personal/admin split
-          from v12 still governs who SEES it, just not where it sits. */}
-      {isAdmin && (
-          <button
-            type="button"
-            role="menuitemcheckbox"
-            aria-checked={editMode}
-            data-testid="gear-edit-dashboard"
-            onClick={() => act(onToggleEdit)}
-            className="menu-item"
-          >
-            <ArrangeIcon />
-            Arrange apps
-            {editMode && <span className="menu-check" aria-hidden="true">✓</span>}
-          </button>
-      )}
+          adjacent.
+
+          v29 / SPEC-v29-favorite-star-arrange-only AC-005 — this is now visible
+          to EVERY user, which reverses SPEC-density-to-my-settings AC-008 and
+          TC-006 ("admin-only"). Deliberate: v29 makes the favorite ★ selectable
+          only in arrange mode, and favoriting is per-user, so leaving the mode
+          admin-only would have removed favoriting from every non-admin.
+
+          What the mode GRANTS is still split by role inside AppGrid — a
+          non-admin gets the ★ and nothing else, because box drag, category CRUD
+          and tile edit are `requireAdmin` server-side. The personal/admin
+          boundary moved from "who can open the mode" to "what the mode
+          contains", which is the OQ-3 question. */}
+      <button
+        type="button"
+        role="menuitemcheckbox"
+        aria-checked={editMode}
+        data-testid="gear-edit-dashboard"
+        onClick={() => act(onToggleEdit)}
+        className="menu-item"
+      >
+        <ArrangeIcon />
+        Arrange apps
+        {editMode && <span className="menu-check" aria-hidden="true">✓</span>}
+      </button>
 
       {/* Admin editing section — admins only, amber/shield (D2/D5/D6). */}
       {isAdmin && (

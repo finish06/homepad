@@ -3439,6 +3439,21 @@
     color: #f59e0b;
     opacity: 1;
   }
+  /* v29 §3.2 — the INERT favorite indicator shown outside arrange mode. It paints
+     identically to the control (same class, so a favorite looks the same in both
+     modes) but it must not consume pointer events.
+     `pointer-events: none` is not cosmetic here: the ★ carries a 44x44 invisible
+     ::before hit area added for touch (v20/#255), and on a non-interactive span
+     that area would swallow taps aimed at the tile underneath — converting the
+     stray-tap this spec fixes into a dead zone in the tile's corner. The ::before
+     is removed outright as well, so there is nothing left to capture. */
+  .app-grid-tool-fav.is-indicator {
+    cursor: default;
+    pointer-events: none;
+  }
+  .app-grid-tool-fav.is-indicator::before {
+    content: none;
+  }
   .dark .app-grid-tool-fav {
     color: #64748b;
   }

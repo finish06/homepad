@@ -1,6 +1,8 @@
 # Spec: Tile density moves to My settings · gear "Edit dashboard" becomes "Arrange apps"
 
-**Status:** BUILT 2026-09-23 — all three open questions resolved (§3, §7). Kare §9 not authored; OQ-1 stands as a product call over a design placement.
+**Status:** BUILT 2026-09-23 · **AC-008 and TC-006 partially SUPERSEDED 2026-10-01** by `v29-favorite-star-arrange-only` (arrange mode is no longer admin-only — see those entries)
+
+**Original status:** BUILT 2026-09-23 — all three open questions resolved (§3, §7). Kare §9 not authored; OQ-1 stands as a product call over a design placement.
 **Version:** 0.1.0
 **Created:** 2026-09-23
 **Author:** Claude (Opus 5), from Caleb's direction
@@ -111,7 +113,7 @@ contradict its contents (AC-009).
 | AC-005 | The density row is reachable and operable by keyboard, and its group carries an accessible name ("Tile density"). It is a three-way choice, so it is a radio group — not a switch. | Must |
 | AC-006 | With the control gone, the dashboard toolbar either disappears entirely or keeps only its "Your dashboard" label — whichever leaves no empty row. See OQ-2. | Must |
 | AC-007 | The gear item reads **"Arrange apps"** and sits directly under "Add apps" in reading order. | Must |
-| AC-008 | The gear item keeps its existing behaviour exactly: `role="menuitemcheckbox"`, `aria-checked` tracking the mode, trailing ✓ when on, admin-only. Only the label and position change. | Must |
+| AC-008 | ~~The gear item keeps its existing behaviour exactly: `role="menuitemcheckbox"`, `aria-checked` tracking the mode, trailing ✓ when on, admin-only. Only the label and position change.~~ **SUPERSEDED 2026-10-01 by `v29-favorite-star-arrange-only` AC-005** — everything here still holds EXCEPT "admin-only": the item is now visible to every user. v29 gates the favorite ★ on arrange mode, and favoriting is per-user, so an admin-only mode would have removed favoriting from every non-admin. The personal/admin boundary moved from *who can open the mode* to *what the mode contains*. | Must |
 | AC-009 | **Three** places say "Edit dashboard" and all three must be resolved: the menu container's `aria-label` (`AppHeader.tsx:196`), the gear *trigger* button's `aria-label` (`AppHeader.tsx:112`, `data-testid="settings-gear"`), and the item label itself. A screen-reader user currently hears "Edit dashboard" three times for three different things. | Must |
 | AC-010 | Nothing else in the gear menu changes — "Add apps" and "Add custom app" keep their labels, testids, order relative to each other, and role gating. | Must |
 | AC-011 | The edit-mode banner and its "Done" button (`exit-edit-mode`, SPEC-149) are untouched. | Must |
@@ -147,7 +149,9 @@ reopening the panel shows Large still selected.
 **Expected:** Edit mode turns on exactly as before — tiles draggable, pencils
 visible, ✓ against the item, banner with **Done** at the top.
 
-### TC-006: Non-admin sees no arrange item
+### TC-006: Non-admin sees no arrange item — **SUPERSEDED 2026-10-01**
+
+> Reversed by `v29-favorite-star-arrange-only` TC-004/AC-005: a non-admin now DOES see "Arrange apps". The test that asserted this was updated in place rather than deleted (`src/app/gear-arrange-apps.test.tsx`), so the reversal is visible rather than looking like lost coverage.
 **Precondition:** Logged in as a non-admin.
 1. Open the gear.
 **Expected:** "Add apps" only. No "Arrange apps".

@@ -402,15 +402,30 @@ describe('AppGrid Edit Dashboard mode (AG-EDIT-1/2)', () => {
 // #240 — the App Grid's ToolLink dropped the per-tile favorite toggle when it
 // replaced Catalog (the setFavorite API + the launcher Favorites section still
 // exist, but there was no UI to pin/unpin). Restore a per-tile toggle (⋯/star)
-// that calls setFavorite and pins/unpins live. Available to every user in the
-// normal view (favoriting is a personal action, not admin edit).
-describe('AppGrid favorite toggle (#240)', () => {
+// that calls setFavorite and pins/unpins live.
+//
+// SUPERSEDED IN PART by SPEC-v29-favorite-star-arrange-only (2026-10-01). #240's
+// last clause used to read "available to every user in the NORMAL VIEW" — v29
+// reverses that half: the ★ is a control only in arrange mode, because in the
+// normal view it sits inside the tile's hit area and a stray tap silently
+// destroys a user's own curation.
+//
+// What #240 established and v29 KEEPS: favoriting is a personal action available
+// to every user, not an admin one. v29 is why "Arrange apps" stopped being
+// admin-only — gating the ★ on the admin flag would have broken exactly the
+// property #240 was written to establish.
+//
+// So these cases now render in arrange mode. The companion assertions — that no
+// interactive favorite control exists in the normal view, and that a favorited
+// tile still SHOWS an inert ★ there — live in
+// src/grid/app-grid-fav-arrange-gate.test.tsx.
+describe('AppGrid favorite toggle (#240, control relocated to arrange mode by v29)', () => {
   it('renders a favorite toggle on every tool reflecting its favorite state', async () => {
     vi.mocked(api.services).mockResolvedValue([
       { ...svc('s1', 'Plex', 'c1'), favorite: true },
       svc('s2', 'Grafana', 'c2'),
     ]);
-    await renderGrid(false); // any user, view mode
+    await renderGridEdit(false, true); // any user, ARRANGE mode (v29)
     const media = screen.getAllByTestId('app-grid-box')[0];
     const infra = screen.getAllByTestId('app-grid-box')[1];
     expect(within(media).getByTestId('tile-favorite')).toHaveAttribute('aria-pressed', 'true');
@@ -419,7 +434,7 @@ describe('AppGrid favorite toggle (#240)', () => {
 
   it('pins an app via the toggle (setFavorite true) and reflects it optimistically', async () => {
     const user = userEvent.setup();
-    await renderGrid(false);
+    await renderGridEdit(false, true);
     const media = screen.getAllByTestId('app-grid-box')[0];
     await user.click(within(media).getByTestId('tile-favorite'));
     expect(api.setFavorite).toHaveBeenCalledWith('s1', true);
@@ -431,7 +446,7 @@ describe('AppGrid favorite toggle (#240)', () => {
   it('unpins an already-favorited app (setFavorite false)', async () => {
     vi.mocked(api.services).mockResolvedValue([{ ...svc('s1', 'Plex', 'c1'), favorite: true }]);
     const user = userEvent.setup();
-    await renderGrid(false);
+    await renderGridEdit(false, true);
     const fav = screen.getByTestId('tile-favorite');
     await user.click(fav);
     expect(api.setFavorite).toHaveBeenCalledWith('s1', false);
@@ -441,7 +456,7 @@ describe('AppGrid favorite toggle (#240)', () => {
   it('rolls the favorite back when the save fails', async () => {
     vi.mocked(api.setFavorite).mockResolvedValue(false);
     const user = userEvent.setup();
-    await renderGrid(false);
+    await renderGridEdit(false, true);
     const media = screen.getAllByTestId('app-grid-box')[0];
     await user.click(within(media).getByTestId('tile-favorite'));
     await waitFor(() => expect(api.setFavorite).toHaveBeenCalledWith('s1', true));
@@ -452,7 +467,7 @@ describe('AppGrid favorite toggle (#240)', () => {
 
   it('does not navigate the tool link when the favorite toggle is activated', async () => {
     const user = userEvent.setup();
-    await renderGrid(false);
+    await renderGridEdit(false, true);
     const media = screen.getAllByTestId('app-grid-box')[0];
     const link = within(media).getByTestId('tool-link');
     const onClick = vi.fn((e: Event) => e.preventDefault());
@@ -473,7 +488,7 @@ describe('AppGrid favorite toggle (#240)', () => {
     const spy = vi.spyOn(services, 'useServicesContext').mockReturnValue(ctx);
     try {
       const user = userEvent.setup();
-      await renderGrid(false);
+      await renderGridEdit(false, true);
       const media = screen.getAllByTestId('app-grid-box')[0];
       await user.click(within(media).getByTestId('tile-favorite'));
       expect(setItems).toHaveBeenCalled();

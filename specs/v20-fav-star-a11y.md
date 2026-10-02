@@ -4,6 +4,18 @@
 **Created:** 2026-07-05
 **Author:** Walt (product lead)
 **Status:** Shipped — v13.9.0 (PR #306, merged). Design co-sign confirmed on built UI (§10).
+
+> **RE-SCOPED 2026-10-01 by `v29-favorite-star-arrange-only`.** Every requirement
+> in this spec still stands, but the surface it applies to narrowed: the ★ is now a
+> **control only in arrange mode**. In the browsing view a favorited tile shows an
+> inert ★ indicator and an unfavorited tile shows nothing at all, so there is no
+> default ☆ in the browsing view for AC-003 to measure. The 44×44 hit area
+> (AC-001/AC-006) and the ☆ contrast (AC-003) are now verified **inside arrange
+> mode** — see `tests/browser-gate/app-grid-fav-a11y-v20.spec.ts`, which enters the
+> mode before measuring. Nothing was weakened: v29 also added a browsing-view
+> hit-test proving the inert indicator does **not** capture pointer events, because
+> the 44×44 area this spec introduced would otherwise have made the tile corner
+> dead to the touch.
 **Repo:** `Code/homepad` (frontend only — CSS + AppGrid.tsx only, no API changes)
 **Estimate:** ~1 hour Stitch
 **Target version:** v13.9.0 (minor — first available after v19 ships at v13.8.0)
@@ -124,7 +136,7 @@ The dark-mode rule (`.dark .app-grid-tool-fav { color: #64748b; }`) is untouched
 |---|---|---|
 | AC-001 | must | The ★ favorite button (`data-testid="tile-favorite"`) has a hit area of ≥44×44px. A pointer event landing anywhere in the 44×44 zone toggles the favorite state. |
 | AC-002 | must | The visual ★/☆ glyph renders at ≤20px font-size — the expanded hit area is transparent padding, not a larger glyph. |
-| AC-003 | must | The default ☆ in light mode has measured contrast ≥3:1 against the white tile background (`#ffffff`). |
+| AC-003 | must | The default ☆ in light mode has measured contrast ≥3:1 against the white tile background (`#ffffff`). **Re-scoped 2026-10-01 (v29):** measured in **arrange mode**, the only place a default ☆ now renders. |
 | AC-004 | must | The dark-mode ☆, the favorited ★ (amber) in both modes, tile layout (120px height), status-dot position, and all hover/focus-visible styles are visually unchanged. |
 | AC-005 | must | Gitea issue #255 is closed by the PR. |
 | AC-006 | should | On a 768px viewport (iPad), the ★ is reachable without precision — a casual corner tap lands in the hit area. |
