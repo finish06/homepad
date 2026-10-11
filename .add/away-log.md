@@ -61,3 +61,53 @@ with a version bump. Do not silently reinterpret.
 | +6 | #498 perf.spec.ts | FILED | Measured rather than asserted: FCP 264ms built vs 500ms dev; DCL 26.4ms vs 466.8ms; 1 JS request vs 10. AC A8's 1500ms budget has ~57x headroom on the real artifact, and bundling regressions are invisible by construction. Three options offered, none chosen — it changes what a documented AC is verified by. |
 | +6 | item 8 e2e into CI | BLOCKED, logged | Suite passes 6/6, but one webServer (`npm run dev`) serves all three specs, so the #498 choice determines the CI shape. Wiring it first means building something that gets rewritten. Dependency recorded on #498 rather than half-wired. |
 | +7 | getHomepad /add:init | done | Adoption mode. Scored beta 8/12 conservatively (declined to claim ga on unverified config), then promoted to ga 9/12 once Joe verified the cluster and I confirmed the external half. My assumption inverted: STAGING is live and load-bearing, PROD in-cluster is the orphan. Had I disabled the "stale" k8s workflows I would have removed the only pre-merge check. Pangolin 112 hazard recorded unfixed. |
+
+---
+
+# Away Mode Log — session 2
+
+**Started:** 2026-10-11T04:13:37Z
+**Expected Return:** 2026-10-11T16:13:37Z
+**Duration:** 12h
+**Retro:** BYPASSED by Caleb's explicit decision (recorded as `compliance-bypass-20261010` in `.add/learnings.json`). The block was real — no retro has ever run and the knowledge base is empty — and the bypass does not resolve it.
+
+## Entry state
+
+- `gitea/main` = `0bae21c` — #499..#506 all merged; no open homepad PRs.
+- `v3` rollout stalled: tag still `3eb21c0` (2026-07-26); tictactoe canary merged and left pinned to `34dec17`; test-gate hardening live in no repo. **Caleb's call: nudge Joe, touch nothing.**
+
+## Work Plan (agreed)
+
+1. Nudge Joe on the stalled v3 rollout — message only, no tag move, no pin revert.
+2. Close #498 (perf.spec.ts measured the dev server) — fixed and merged; close with evidence.
+3. Correct #492 — its text blames a self-merge racing QA; measurement showed ~5s approve→merge is 89% of all merges and the real defect is duplicate dispatch with no claim.
+4. Fix `specs/v29-favorite-star-arrange-only.md` Status — reads APPROVED, is built and shipped in #506.
+5. Raise the `functions` coverage threshold 85 → 90, covering the untested branches in `App.tsx` and `TileDensityToggle.tsx` that the config note names.
+
+**Explicitly queued, not attempted:** moving `v3`; reverting the tictactoe pin; per-user tile drag for non-admins (v29 §3.3 — lacks its own spec and is a product-shape question); #477 (needs Kare); #488 (copy).
+
+## Progress Log
+
+| Time | Task | Status | Notes |
+|------|------|--------|-------|
+| 2026-10-11T04:13:37Z | away session opened | done | retro bypass recorded; plan agreed |
+| 2026-10-11T04:22:01Z | 1. nudge Joe on stalled v3 | done | message sent; tag NOT moved, pin NOT reverted, as agreed |
+| 2026-10-11T04:22:01Z | 2. close #498 | done | closed with evidence (#500/#501/#504); noted the skipping security guard it uncovered |
+| 2026-10-11T04:22:01Z | 3. correct #492 | done | premise was FALSE — PR #491 was merged by ada, not self-merged; recommendation was already in force. Retitled; left open pending the lease |
+| 2026-10-11T04:22:01Z | 4. v29 spec Status | done | APPROVED -> BUILT/shipped (#506, 0bae21c); §3.3 recorded as still open |
+| 2026-10-11T04:22:01Z | 5. functions coverage 85 -> 90 | done | App.tsx 50% -> 96% funcs via App.overlay-wiring.test.tsx (12 cases); total 88.08% -> 91.45%. Config note naming TileDensityToggle was itself stale — that file was already 100% |
+| 2026-10-11T04:28:11Z | PR #508 opened + CI | done | all four checks green on `b781e26` (mr-staging, E2E, Web, Browser gate) |
+| 2026-10-11T04:28:11Z | plan complete | — | 5/5 items done in ~1h of the 12h window. NOT inventing further work: of what remains, three items need human input and the fourth (move `v3`) Caleb explicitly assigned to Joe. Holding. |
+
+## Return briefing
+
+**Done:** v3 nudge to Joe (no tag moved, no pin reverted) · #498 closed with evidence · #492 premise corrected + retitled · v29 spec Status fixed · functions coverage 85 → 90 (App.tsx 50% → 96%).
+
+**Open PR:** #508, green, needs QA + a non-author approval.
+
+**Waiting on a human:**
+1. `v3` tag move + tictactoe pin revert — with Joe; order matters (tag first, then pin).
+2. Per-user tile drag for non-admins (v29 §3.3) — needs its own spec; product-shape question.
+3. #477 sparkline keyboard focus — needs Kare on placement.
+4. #488 — copy/design.
+5. **The retro still hasn't happened.** Bypassed by decision, logged as `compliance-bypass-20261010`. ~8 durable learnings from the 2026-09-22..10-03 work still live only in the assistant's memory, not `.add/learnings.json`. The next bypass is the warned one on the abuse ladder.

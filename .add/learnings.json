@@ -2,5 +2,17 @@
   "$schema": "https://github.com/MountainUnicorn/add/learnings.schema.json",
   "version": "1.0.0",
   "project": "homepad",
-  "entries": []
+  "entries": [
+    {
+      "id": "compliance-bypass-20261010",
+      "type": "compliance-bypass",
+      "date": "2026-10-11T04:13:37Z",
+      "command": "/add:away 12h",
+      "rule": "retro-cadence",
+      "threshold_tripped": "days since last retro > 7 (no retro has ever been recorded; learnings.json untouched since 2026-09-18, 22 days)",
+      "authorised_by": "Caleb, explicitly, when presented with the block and the alternatives",
+      "prior_bypasses_30d": 0,
+      "note": "Bypass accepted silently per the rule's abuse-detection ladder (0 prior bypasses in 30 days). Recorded so the NEXT bypass is the warned one rather than starting the count over. The substance of the block stands and is not resolved by this entry: roughly eight durable learnings from the 2026-09-22..2026-10-03 work exist only in the assistant's own memory (two-surfaces-check, measure-before-picking-a-threshold, pipefail-early-quit-consumer, activity-is-not-abandonment, qa-duplicate-dispatch-not-merge-race, comments-asserting-all-callers, qa-brief-assert-sha-not-version, gitea-actions-api-logs) and NOT in this file. The project's knowledge base being empty is an accurate record of that gap, not a reporting error."
+    }
+  ]
 }
