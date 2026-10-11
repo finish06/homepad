@@ -16,10 +16,34 @@
 - 2026-09-15: Node 16 cannot build this repo (`engines: >=20 <23`, `.nvmrc` 22).
   Source: /add:verify at adoption.
 
+- 2026-10-11 (L-004): Gitea Actions API — the `id` in `actions/tasks` is NOT the run id
+  (`/actions/runs/{that_id}` 404s); the run id is the last segment of the object's own
+  `url`. Job logs only at `actions/jobs/{job_id}/logs`. A job log contains the script
+  TEXT as well as its output, so grepping for an `echo` string matches twice on success
+  and once where it never executed — anchor on the timestamp prefix.
+- 2026-10-11 (L-007): `deploy-cmd` runs under `bash --noprofile --norc -e -o pipefail`,
+  which is INVISIBLE in ci-shared (the composite declares plain `shell: bash`; Gitea
+  expands it). So `curl … | sed '/^---$/q' | kubectl apply -f -` fails nondeterministically:
+  curl exits 23 on the closed pipe and pipefail promotes it, AFTER the apply succeeded.
+  Reproduced 25/25; download-then-extract 0/40.
+- 2026-10-11 (L-002): `ci-docs-approver` can approve but NOT merge (405, review-only
+  scope), so a docs PR can sit green AND approved indefinitely.
+
 ## Architecture Decisions
 - 2026-09-15: ADD adopts the existing `specs/` directory and house spec format rather
   than introducing a parallel ADD-format spec tree, because `specs/README.md` is already
   the authoritative index and reformatting would create two sources of truth.
+
+- 2026-10-11 (L-003): The recurring "merge race" is a misdiagnosis. ~5s approve→merge is
+  89% of all merges (25/28, median 5s) — it is an atomic bot action, not a race. The real
+  defect is duplicate QA dispatch with no claim: 10/28 PRs worked by both ada and gracie,
+  7/28 with findings landing post-merge. Fix is a lease on `friend.qa.task.<pr>`, not a
+  merge delay. Caleb's decision 2026-09-29.
+- 2026-10-11 (v29): The personal/admin boundary moved from "who can open arrange mode" to
+  "what the mode contains" — `arranging = editMode` (any user, the ★) vs
+  `editing = isAdmin && editMode` (shared-catalog affordances). Required because favoriting
+  is per-user server-side; gating it on the admin flag would have removed it from every
+  non-admin.
 
 ## What Worked
 - The `tests/infra/` quarantine for source-contract suites: brittle `readFileSync` greps
@@ -36,8 +60,34 @@
   not marked so, and cap5 still says "bug-fix required" for an AC-015 that is implemented
   and tested. Status in prose has no mechanism keeping it honest.
 
+- 2026-10-11 (L-005): Two surfaces stating one fact — checking one proves nothing about
+  the other, INCLUDING in tests. `code-splitting.test.ts` greps `src/` and stayed green at
+  2 passed while `manualChunks` folded every overlay into the entry chunk and the initial
+  download grew 98.8 → 108.2 kB.
+- 2026-10-11 (L-006): Thresholds picked by feel were wrong in BOTH directions in one file
+  — JS budget 16% too loose, CSS budget 1.7x too tight (set by analogy to the JS ratio
+  rather than measured). Build the historical series first.
+- 2026-10-11 (L-008): Measuring activity cannot conclude abandonment. Three workflows were
+  called dead on last-run date and approved for retirement; two were serving LIVE public
+  sites on Caleb's own domains, triggered on `paths:` that simply had not changed. Read the
+  trigger. And an approval is for the thing DESCRIBED — when the description is false the
+  approval does not transfer.
+- 2026-10-11 (L-009): A comment asserting "all callers do X" is a tree-wide claim that ages
+  silently. 0016's "CreateUser always supplies it" was false of `seed_demo.go`, which would
+  have killed the demo container on every cold start.
+- 2026-10-11 (L-010): A QA brief must assert the SHA, never the version — only a release PR
+  bumps `package.json`, so "version matches" green-lights any build.
+
 ## Agent Checkpoints
 - 2026-09-15 (post-verify, adoption): Gates 1-2 pass, 804/804 unit tests pass,
   browser gate 49/50. Evidence score 11/12 → GA.
+
+- 2026-10-11 (/add:retro, FIRST retro): 26 days, 36 commits, 28 PRs merged, 5 releases
+  (16.3.0 → 16.6.0), 42 specs. Learning checkpoints and handoffs both produced NOTHING for
+  the whole window — one `learnings.json` entry existed and it was a compliance-bypass
+  record. Delivery discipline was strong (strict gates, negative controls on every new
+  guard, no self-merges); the knowledge loop was unused. Caleb's decision: start BOTH
+  mechanisms. Scores: collaboration 4.1-6.0 band (human), ADD effectiveness 4.3,
+  swarm 7.0.
 
 ## Profile Update Candidates

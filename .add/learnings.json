@@ -13,6 +13,126 @@
       "authorised_by": "Caleb, explicitly, when presented with the block and the alternatives",
       "prior_bypasses_30d": 0,
       "note": "Bypass accepted silently per the rule's abuse-detection ladder (0 prior bypasses in 30 days). Recorded so the NEXT bypass is the warned one rather than starting the count over. The substance of the block stands and is not resolved by this entry: roughly eight durable learnings from the 2026-09-22..2026-10-03 work exist only in the assistant's own memory (two-surfaces-check, measure-before-picking-a-threshold, pipefail-early-quit-consumer, activity-is-not-abandonment, qa-duplicate-dispatch-not-merge-race, comments-asserting-all-callers, qa-brief-assert-sha-not-version, gitea-actions-api-logs) and NOT in this file. The project's knowledge base being empty is an accurate record of that gap, not a reporting error."
+    },
+    {
+      "id": "L-001",
+      "date": "2026-10-11",
+      "type": "observation",
+      "category": "process",
+      "severity": "high",
+      "scope": "project",
+      "classified_by": "human",
+      "source": "/add:retro 2026-10-11",
+      "title": "The QA pool is reachable only by NATS dispatch through Joe",
+      "body": "ada/gracie consume friend.qa.task.> off NATS only. A Gitea reviewer request never reaches them, so a PR awaiting 'review' that was never dispatched waits forever. Route briefs through joe_tmux_1."
+    },
+    {
+      "id": "L-002",
+      "date": "2026-10-11",
+      "type": "observation",
+      "category": "process",
+      "severity": "high",
+      "scope": "project",
+      "classified_by": "human",
+      "source": "/add:retro 2026-10-11",
+      "title": "No token here can self-approve, and ci-docs-approver cannot merge",
+      "body": "Every token authenticates as finish06, and Gitea refuses self-approval, so a PR author can never satisfy main's one-approval gate. Separately, ci-docs-approver holds review-only rights: it approves and then the merge API returns 405. A docs PR can therefore sit green AND approved with nobody noticing, and the cause is not a missing approval. Observed on #499."
+    },
+    {
+      "id": "L-003",
+      "date": "2026-10-11",
+      "type": "anti-pattern",
+      "category": "process",
+      "severity": "high",
+      "scope": "project",
+      "classified_by": "human",
+      "source": "/add:retro 2026-10-11",
+      "title": "The 'merge race' was a misdiagnosis; the defect is duplicate QA dispatch",
+      "body": "Measured across the 28 most recent merged PRs: 25 merged within 60s of approval (median ~5s), so the interval the complaint named is 89% of all merges and not a signal. The real defect is that both ada and gracie work the same PR (10/28) with no claim on the task, and the loser's findings land after the merge (7/28). Critically, a reviews-only query UNDERCOUNTS this by exactly the cases that matter: Gitea refuses a review event on a merged PR, so the losing reviewer posts an issue comment, invisible to /pulls/{n}/reviews (4 of the 10). Any check of whether the fix worked must union reviews AND comments. Fix dispatched: lease friend.qa.task.<pr>."
+    },
+    {
+      "id": "L-004",
+      "date": "2026-10-11",
+      "type": "reference",
+      "category": "tooling",
+      "severity": "medium",
+      "scope": "project",
+      "classified_by": "human",
+      "source": "/add:retro 2026-10-11",
+      "title": "Reading Gitea Actions results over the API",
+      "body": "The id in actions/tasks is NOT the run id \u2014 /actions/runs/{that_id} 404s; the run id is the last path segment of the object's own url. Job logs live only at actions/jobs/{job_id}/logs. The tasks response carries total_count; a limit is a page size, not a total. And a job log contains the script TEXT as well as its output, so grepping for an echo string matches twice on success and once where it never executed \u2014 anchor on the timestamp prefix that only real output carries."
+    },
+    {
+      "id": "L-005",
+      "date": "2026-10-11",
+      "type": "anti-pattern",
+      "category": "testing",
+      "severity": "high",
+      "scope": "project",
+      "classified_by": "human",
+      "source": "/add:retro 2026-10-11",
+      "title": "Where two surfaces state one fact, checking one proves nothing about the other",
+      "body": "Every defect shipped in this window passed a check that looked at something adjacent and correct: the footer version badge was right while the changelog overlay was two releases stale; showUptimeDisplay persisted perfectly and gated an element that is display:none at the default density. It applies to TESTS too \u2014 code-splitting.test.ts greps src/ for lazy(() => import()) and stayed green at 2 passed while manualChunks folded every overlay into the entry chunk and the initial download grew 98.8 -> 108.2 kB. Check the surface the user sees, in the built artifact."
+    },
+    {
+      "id": "L-006",
+      "date": "2026-10-11",
+      "type": "anti-pattern",
+      "category": "process",
+      "severity": "high",
+      "scope": "project",
+      "classified_by": "human",
+      "source": "/add:retro 2026-10-11",
+      "title": "A threshold picked by feel is wrong in an unpredictable direction",
+      "body": "ENTRY_JS_GZIP_BUDGET was set to 115,000 against a 98,849 B baseline by feel (~16%). Building every 16.x tag gave worst single-release growth +2,056 B and a median ~+490 B, so that was ~8 releases of headroom at the worst rate and ~33 at the median. Then the SAME mistake in the other direction: the CSS budget was set to 19,500 by analogy to the JS percentage rather than measured \u2014 only 1.7x the worst observed CSS release, which ordinary token work would have breached. Build the historical series first, pick a multiple of the worst observed delta, and write the series into the file."
+    },
+    {
+      "id": "L-007",
+      "date": "2026-10-11",
+      "type": "anti-pattern",
+      "category": "tooling",
+      "severity": "high",
+      "scope": "project",
+      "classified_by": "human",
+      "source": "/add:retro 2026-10-11",
+      "title": "Under pipefail, never pipe into a consumer that quits early",
+      "body": "mr-staging and staging-release ran `curl ... | sed '/^---$/q' | kubectl apply -f -`. sed quits at the first ---, closing the pipe while curl is still writing; curl exits 23 (CURLE_WRITE_ERROR) and pipefail promotes it, so the job failed AFTER kubectl apply had already succeeded. Reproduced 25/25; the download-then-extract form 0/40. Two further lessons: pipefail can be INVISIBLE (the composite declared plain `shell: bash` and Gitea expands it to `bash --noprofile --norc -e -o pipefail`), and a red deploy does NOT mean nothing changed \u2014 the ConfigMap was live in staging while the status was red."
+    },
+    {
+      "id": "L-008",
+      "date": "2026-10-11",
+      "type": "anti-pattern",
+      "category": "process",
+      "severity": "high",
+      "scope": "project",
+      "classified_by": "human",
+      "source": "/add:retro 2026-10-11",
+      "title": "Measuring activity cannot conclude abandonment",
+      "body": "Three GitHub workflows were reported as dead weight on last-run date (dormant 2-4 months) and approved for retirement. Reading their triggers first: two were GitHub Pages deploys on paths:[landing/**] serving LIVE public sites on Caleb's own domains (drug-cash.calebdunn.tech, dg.calebdunn.tech), one was a tags:v* release pipeline to the private registry, one a tags:v* ghcr publisher deliberately GitHub-only. Silence was correct behaviour. Read the trigger, not the timestamp. Second lesson: an approval is for the thing DESCRIBED \u2014 when the description turns out false the approval does not transfer, so re-ask."
+    },
+    {
+      "id": "L-009",
+      "date": "2026-10-11",
+      "type": "anti-pattern",
+      "category": "code-quality",
+      "severity": "medium",
+      "scope": "project",
+      "classified_by": "human",
+      "source": "/add:retro 2026-10-11",
+      "title": "A comment asserting 'all callers do X' ages silently",
+      "body": "Migration 0016 adds users.show_uptime_display NOT NULL then DROP DEFAULT, justified by 'CreateUser always supplies it'. True of storage.go CreateUser, false of internal/storage/seed_demo.go \u2014 the one INSERT INTO users in the tree that is not CreateUser. It produced SQLSTATE 23502 inside a log.Fatalf, which on an ephemeral demo sidecar would have killed the container on EVERY cold start. Enforce the invariant (keep the DEFAULT, a trigger, or a single write path) rather than asserting it in prose."
+    },
+    {
+      "id": "L-010",
+      "date": "2026-10-11",
+      "type": "observation",
+      "category": "process",
+      "severity": "medium",
+      "scope": "project",
+      "classified_by": "human",
+      "source": "/add:retro 2026-10-11",
+      "title": "A QA brief must assert the SHA, not the version",
+      "body": "Only a release PR bumps package.json, so on a feature or docs PR the branch reports the SAME version as prod and 'confirm /version.json matches this PR' green-lights a staging box running literally anything. The identity assertion must name the artifact, not a label that travels with it \u2014 same rule as pinning a promotion digest, since homepad:<sha>-beta and homepad:<semver> are different builds of the same source."
     }
   ]
 }
