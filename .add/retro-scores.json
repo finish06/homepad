@@ -1,0 +1,13 @@
+{
+  "scores": [
+    {
+      "date": "2026-10-11",
+      "collab_score": 5.0,
+      "collab_band": "4.1-6.0 (human selected a band, not a point value)",
+      "add_effectiveness": 4.3,
+      "swarm_effectiveness": 7.0,
+      "retro_file": ".add/retros/retro-2026-10-11.md",
+      "context": "collaborative"
+    }
+  ]
+}
