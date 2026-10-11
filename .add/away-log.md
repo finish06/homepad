@@ -96,3 +96,18 @@ with a version bump. Do not silently reinterpret.
 | 2026-10-11T04:22:01Z | 3. correct #492 | done | premise was FALSE — PR #491 was merged by ada, not self-merged; recommendation was already in force. Retitled; left open pending the lease |
 | 2026-10-11T04:22:01Z | 4. v29 spec Status | done | APPROVED -> BUILT/shipped (#506, 0bae21c); §3.3 recorded as still open |
 | 2026-10-11T04:22:01Z | 5. functions coverage 85 -> 90 | done | App.tsx 50% -> 96% funcs via App.overlay-wiring.test.tsx (12 cases); total 88.08% -> 91.45%. Config note naming TileDensityToggle was itself stale — that file was already 100% |
+| 2026-10-11T04:28:11Z | PR #508 opened + CI | done | all four checks green on `b781e26` (mr-staging, E2E, Web, Browser gate) |
+| 2026-10-11T04:28:11Z | plan complete | — | 5/5 items done in ~1h of the 12h window. NOT inventing further work: of what remains, three items need human input and the fourth (move `v3`) Caleb explicitly assigned to Joe. Holding. |
+
+## Return briefing
+
+**Done:** v3 nudge to Joe (no tag moved, no pin reverted) · #498 closed with evidence · #492 premise corrected + retitled · v29 spec Status fixed · functions coverage 85 → 90 (App.tsx 50% → 96%).
+
+**Open PR:** #508, green, needs QA + a non-author approval.
+
+**Waiting on a human:**
+1. `v3` tag move + tictactoe pin revert — with Joe; order matters (tag first, then pin).
+2. Per-user tile drag for non-admins (v29 §3.3) — needs its own spec; product-shape question.
+3. #477 sparkline keyboard focus — needs Kare on placement.
+4. #488 — copy/design.
+5. **The retro still hasn't happened.** Bypassed by decision, logged as `compliance-bypass-20261010`. ~8 durable learnings from the 2026-09-22..10-03 work still live only in the assistant's memory, not `.add/learnings.json`. The next bypass is the warned one on the abuse ladder.
