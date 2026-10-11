@@ -103,10 +103,19 @@ export default defineConfig({
       thresholds: {
         statements: 90,
         lines: 90,
-        // functions sits at 87.57% today — 90 here would block CI on adoption
-        // day. Raise to 90 once the untested branches in App.tsx and
-        // TileDensityToggle.tsx are covered.
-        functions: 85,
+        // Raised 85 -> 90 on 2026-10-11, which is what the previous note here
+        // asked for. Functions now 91.45% (353/386).
+        //
+        // The note named two files; only one was still true. App.tsx WAS the hole
+        // — 14 of its 28 functions uncovered, all of them the one-line callbacks it
+        // hands to its lazy overlays, because nothing in the suite opened an
+        // overlay and then closed it. Covered by src/app/App.overlay-wiring.test.tsx
+        // (12 cases): App.tsx 50% -> 96%, total 88.08% -> 91.45%.
+        //
+        // TileDensityToggle.tsx was already at 100% functions when checked — the
+        // note had gone stale, presumably covered by its own suite after the note
+        // was written. Measured rather than assumed before being acted on.
+        functions: 90,
         branches: 88,
       },
     },

@@ -1,8 +1,19 @@
 # Spec: the favorite ★ is only selectable in Arrange mode
 
-**Status:** APPROVED 2026-10-01 — requested by Caleb; the admin/personal question
-answered by him the same day (§3). Kare §9 not authored; §3.2 is a product call
-on an indicator-vs-control split, flagged for review rather than deferred.
+**Status:** BUILT 2026-10-01, shipped in PR #506 (merged to `main` as `0bae21c`)
+— requested by Caleb; the admin/personal question answered by him the same day
+(§3). Kare §9 not authored; §3.2 is a product call on an indicator-vs-control
+split, flagged for review rather than deferred.
+
+All ten ACs implemented and covered: `src/grid/app-grid-fav-arrange-gate.test.tsx`
+(10 unit cases) and `tests/browser-gate/fav-star-arrange-gate-v29.spec.ts`
+(6 real-browser cases, including the `elementFromPoint` hit-test that proves the
+inert indicator does not create a dead zone over the tile).
+
+§3.3 remains OPEN and deliberately unbuilt: per-user tile drag-reorder for
+non-admins. `PUT /api/layout` already supports it per-user, so for a non-admin
+"Arrange apps" currently enables only the ★ and the label over-promises for that
+role. Needs its own spec — it is a product-shape question, not an oversight.
 
 **Supersedes:** `SPEC-density-to-my-settings` **AC-008** ("admin-only") and
 **TC-006** ("a non-admin sees Add apps but no Arrange apps"). Those are reversed
