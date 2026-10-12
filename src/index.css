@@ -4680,9 +4680,13 @@
   /* v23 §4.2 — the Inline-overlay embed caveat under the click-action selector.
      A touch stronger than a plain help line so the "some sites block embedding"
      honesty is not missed, without shouting like an error. */
-  .tile-click-action-caveat {
-    font-style: italic;
-    opacity: 0.85;
+  /* #428 — Kare §8.1.3: control → description is 8px, against the form's usual 2px
+     help margin. The colour stays the form's help colour (#525252, 7.81:1) rather
+     than §8.1.3's annotated #475069, so this line matches the help text around it;
+     flagged to Kare. The separate italic caveat rule that lived here is gone — the
+     caveat is now part of the Inline overlay description. */
+  .tile-click-action-hint {
+    margin-top: 8px;
   }
 
   /* ============================================================

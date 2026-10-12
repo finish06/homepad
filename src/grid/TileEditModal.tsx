@@ -13,10 +13,18 @@ import {
 import { iconSrc, initialBadge, validateIconFile } from '../lib/icons';
 
 // v23 §4.2 — the per-option hint shown under the click-action selector.
+// Kare §8.1.2 — copy is "exact". The "(default)" marker lives in the description,
+// never in the segment label; the Inline overlay line carries the block-embedding
+// caveat itself rather than a separate paragraph.
+const CLICK_ACTION_SEGMENTS: { value: ClickAction; label: string }[] = [
+  { value: 'new_tab', label: 'New tab' },
+  { value: 'same_tab', label: 'Same tab' },
+  { value: 'iframe', label: 'Inline overlay' },
+];
 const CLICK_ACTION_HINT: Record<ClickAction, string> = {
-  new_tab: 'Opens in a new browser tab (default).',
+  new_tab: 'Opens in a new browser tab. (default)',
   same_tab: 'Navigates this tab to the service.',
-  iframe: 'Embeds the service in an overlay panel.',
+  iframe: 'Embeds the service in an overlay panel. Some sites block embedding — a fallback link appears if that happens.',
 };
 
 // v21 — Tile Edit Modal (specs/v21-tile-edit-modal.md §6, §8). An admin in edit
@@ -388,33 +396,51 @@ export default function TileEditModal({
             />
           </div>
 
-          {/* v23 §4 — click-action selector, URL-adjacent because it controls how
-              the URL is navigated. A <select> (Kare §8 pending; matches the
-              Category control already here). The selected option's hint shows
-              below, plus the honest embed caveat when Inline overlay is chosen. */}
+          {/* v23 §4 / #428 — click-action selector, URL-adjacent because it controls
+              how the URL is navigated. Built to Kare §8.1 in place of the <select>
+              placeholder: a three-segment control reusing ThemeControl's classes verbatim
+              (§8.1.4), so all three behaviours stay visible and each is a ≥44px tap target
+              — a native <select> on iPad opens a system wheel and its trigger renders
+              easily under 44px (#183/#185).
+
+              Selection is LOCAL state only (§8.1.5): nothing is sent until Save, and Save
+              includes click_action only when it changed (handleSave).
+
+              One live description line (§8.1.2) — the Inline overlay caveat IS that
+              option's description, so it is on screen the moment it is chosen rather than
+              in a separate paragraph. */}
           <div className="tile-edit-field">
-            <label className="tile-edit-label" htmlFor={clickActionId}>
+            <span className="tile-edit-label" id={clickActionId}>
               Click action
-            </label>
-            <select
-              id={clickActionId}
-              data-testid="tile-field-click-action"
-              className="tile-edit-input tile-edit-select"
-              value={clickAction}
-              onChange={(e) => setClickAction(e.target.value as ClickAction)}
+            </span>
+            <div
+              role="group"
+              aria-labelledby={clickActionId}
+              className="inline-flex w-full items-center rounded-lg border border-neutral-200 p-0.5 dark:border-neutral-700"
             >
-              <option value="new_tab">New tab</option>
-              <option value="same_tab">Same tab</option>
-              <option value="iframe">Inline overlay</option>
-            </select>
-            <p className="tile-edit-help" data-testid="tile-click-action-hint">
+              {CLICK_ACTION_SEGMENTS.map((seg) => {
+                const active = clickAction === seg.value;
+                return (
+                  <button
+                    key={seg.value}
+                    type="button"
+                    data-testid={`tile-click-action-${seg.value}`}
+                    aria-pressed={active}
+                    onClick={() => setClickAction(seg.value)}
+                    className={`inline-flex min-h-[44px] flex-1 items-center justify-center whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                      active
+                        ? 'bg-indigo-600 text-white'
+                        : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
+                    }`}
+                  >
+                    {seg.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="tile-edit-help tile-click-action-hint" data-testid="tile-click-action-hint" aria-live="polite">
               {CLICK_ACTION_HINT[clickAction]}
             </p>
-            {clickAction === 'iframe' && (
-              <p className="tile-edit-help tile-click-action-caveat" data-testid="tile-click-action-caveat">
-                Some sites block embedding — a fallback link appears if that happens.
-              </p>
-            )}
           </div>
 
           <div className="tile-edit-field">

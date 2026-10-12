@@ -158,30 +158,42 @@ describe('v21 TileEditModal — Save (AC-004..AC-007, AC-014)', () => {
 });
 
 // v23 — SPEC-tile-click-action §4: the click-action selector inside the edit modal.
+// #428 (cycle-1 E): rebuilt as the three-segment control Kare specified in §8.1, in
+// place of the <select> placeholder. These tests keep every behaviour the
+// <select>-era tests protected (AC-010/011, #342, the no-op PATCH) and drive the
+// segments instead. §8.1's own requirements are in the describe block below.
+const clickActionGroup = () => screen.getByRole('group', { name: 'Click action' });
+const segment = (label: string) => within(clickActionGroup()).getByRole('button', { name: label });
+const pressed = () =>
+  within(clickActionGroup())
+    .getAllByRole('button')
+    .filter((b) => b.getAttribute('aria-pressed') === 'true')
+    .map((b) => b.textContent);
 describe('v23 TileEditModal — Click action selector (AC-010/011)', () => {
-  it('shows a Click action selector with the three options (AC-010)', () => {
+  it('shows a Click action selector with the three options, in order (AC-010)', () => {
     renderModal();
-    const select = screen.getByTestId('tile-field-click-action') as HTMLSelectElement;
-    const values = Array.from(select.options).map((o) => o.value);
-    expect(values).toEqual(['new_tab', 'same_tab', 'iframe']);
+    const labels = within(clickActionGroup()).getAllByRole('button').map((b) => b.textContent);
+    expect(labels).toEqual(['New tab', 'Same tab', 'Inline overlay']);
   });
 
   it('defaults an absent clickAction to New tab (AC-002/010)', () => {
     renderModal(); // svc() has no clickAction
-    expect(screen.getByTestId('tile-field-click-action')).toHaveValue('new_tab');
+    expect(pressed()).toEqual(['New tab']);
   });
 
   it('reflects the saved clickAction on open (AC-010)', () => {
     renderModal({ service: svc({ clickAction: 'iframe' }) });
-    expect(screen.getByTestId('tile-field-click-action')).toHaveValue('iframe');
+    expect(pressed()).toEqual(['Inline overlay']);
   });
 
   it('surfaces the embed caveat only when Inline overlay is chosen (§4.2)', async () => {
+    // §8.1.2: the caveat IS Inline overlay's description line — still on screen the
+    // moment it is chosen, never hidden, but no longer a separate paragraph.
     const u = userEvent.setup();
     renderModal();
-    expect(screen.queryByTestId('tile-click-action-caveat')).not.toBeInTheDocument();
-    await u.selectOptions(screen.getByTestId('tile-field-click-action'), 'iframe');
-    expect(screen.getByTestId('tile-click-action-caveat')).toHaveTextContent(/block embedding/i);
+    expect(screen.getByTestId('tile-click-action-hint')).not.toHaveTextContent(/block embedding/i);
+    await u.click(segment('Inline overlay'));
+    expect(screen.getByTestId('tile-click-action-hint')).toHaveTextContent(/Some sites block embedding/);
   });
 
   it('PATCHes the changed click_action on Save (AC-011)', async () => {
@@ -189,7 +201,7 @@ describe('v23 TileEditModal — Click action selector (AC-010/011)', () => {
     mUpdate.mockResolvedValue({ ok: true, status: 200, service: svc({ clickAction: 'iframe' }) });
     const { onPatch } = renderModal();
 
-    await u.selectOptions(screen.getByTestId('tile-field-click-action'), 'iframe');
+    await u.click(segment('Inline overlay'));
     await u.click(screen.getByTestId('tile-edit-save'));
 
     await waitFor(() => expect(mUpdate).toHaveBeenCalledTimes(1));
@@ -210,7 +222,7 @@ describe('v23 TileEditModal — Click action selector (AC-010/011)', () => {
     mUpdate.mockResolvedValue({ ok: true, status: 200, service: svc({ clickAction: 'same_tab' }) });
     const { onPatch } = renderModal();
 
-    await u.selectOptions(screen.getByTestId('tile-field-click-action'), 'iframe');
+    await u.click(segment('Inline overlay'));
     await u.click(screen.getByTestId('tile-edit-save'));
 
     await waitFor(() => expect(mUpdate).toHaveBeenCalledTimes(1));
@@ -229,6 +241,82 @@ describe('v23 TileEditModal — Click action selector (AC-010/011)', () => {
     await waitFor(() => expect(mUpdate).toHaveBeenCalledTimes(1));
     const [, patch] = mUpdate.mock.calls[0];
     expect(patch).not.toHaveProperty('clickAction');
+  });
+});
+
+// #428 — Kare §8.1: the three-segment control itself. Copy is "exact" per §8.1.2,
+// and the classes are ThemeControl's "verbatim" per §8.1.4, so both are asserted
+// literally rather than approximately.
+describe('#428 TileEditModal — click action is a three-segment control (Kare §8.1)', () => {
+  it('§8.1.1 — it is a segmented control, not a <select>', () => {
+    renderModal();
+    expect(clickActionGroup()).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /click action/i })).toBeNull();
+    expect(document.querySelector('select#' + CSS.escape(clickActionGroup().id || 'none'))).toBeNull();
+  });
+
+  it.each([
+    ['New tab', 'Opens in a new browser tab. (default)'],
+    ['Same tab', 'Navigates this tab to the service.'],
+    ['Inline overlay', 'Embeds the service in an overlay panel. Some sites block embedding — a fallback link appears if that happens.'],
+  ])('§8.1.2 — selecting "%s" shows its exact description line', async (label, copy) => {
+    const u = userEvent.setup();
+    renderModal({ service: svc({ clickAction: label === 'New tab' ? 'same_tab' : 'new_tab' }) });
+    await u.click(segment(label));
+    expect(screen.getByTestId('tile-click-action-hint')).toHaveTextContent(copy, { normalizeWhitespace: true });
+    expect(screen.getByTestId('tile-click-action-hint').textContent?.trim()).toBe(copy);
+  });
+
+  it('§8.1.2 — exactly ONE live description line; no separate caveat paragraph', async () => {
+    const u = userEvent.setup();
+    renderModal();
+    await u.click(segment('Inline overlay'));
+    expect(screen.queryByTestId('tile-click-action-caveat')).toBeNull();
+    expect(screen.getByTestId('tile-click-action-hint')).toHaveAttribute('aria-live', 'polite');
+  });
+
+  it('§8.1.5 — selecting a segment is local state only: no PATCH until Save', async () => {
+    const u = userEvent.setup();
+    renderModal();
+    await u.click(segment('Inline overlay'));
+    await u.click(segment('Same tab'));
+    expect(mUpdate).not.toHaveBeenCalled();
+    expect(pressed()).toEqual(['Same tab']);
+  });
+
+  it('§8.1.5 — every segment is a real button, a Tab stop, with aria-pressed', () => {
+    renderModal();
+    for (const b of within(clickActionGroup()).getAllByRole('button')) {
+      expect(b.tagName).toBe('BUTTON');
+      expect(b).toHaveAttribute('type', 'button');
+      expect(b).toHaveAttribute('aria-pressed');
+      expect(b.tabIndex).not.toBe(-1);
+    }
+  });
+
+  it('§8.1.5 — Enter and Space select the focused segment', async () => {
+    const u = userEvent.setup();
+    renderModal();
+    segment('Same tab').focus();
+    await u.keyboard('{Enter}');
+    expect(pressed()).toEqual(['Same tab']);
+    segment('Inline overlay').focus();
+    await u.keyboard(' ');
+    expect(pressed()).toEqual(['Inline overlay']);
+  });
+
+  it("§8.1.4 — reuses ThemeControl's classes verbatim (light/dark and AA come for free)", () => {
+    renderModal();
+    const g = clickActionGroup();
+    for (const c of ['inline-flex', 'items-center', 'rounded-lg', 'border', 'border-neutral-200', 'p-0.5', 'dark:border-neutral-700', 'w-full'])
+      expect(g).toHaveClass(c);
+    for (const b of within(g).getAllByRole('button')) {
+      for (const c of ['flex-1', 'min-h-[44px]', 'rounded-md', 'px-2.5', 'py-1', 'text-xs', 'font-medium', 'whitespace-nowrap'])
+        expect(b).toHaveClass(c);
+    }
+    expect(segment('New tab')).toHaveClass('bg-indigo-600', 'text-white');
+    for (const c of ['text-neutral-600', 'hover:bg-neutral-100', 'dark:text-neutral-300', 'dark:hover:bg-neutral-800'])
+      expect(segment('Same tab')).toHaveClass(c);
   });
 });
 
