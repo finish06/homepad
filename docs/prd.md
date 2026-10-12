@@ -108,6 +108,26 @@ single gap was an unenforced coverage threshold, closed during this init.
 |------|-----|-------------|
 | beta → ga | Met at adoption: specs, tests, CI/CD, PR workflow, conventional commits, environment separation, release tags, protected branches, TDD evidence, spec-driven evidence, quality gates |
 
+### Roadmap
+
+Created 2026-10-11 from a backlog triage: of 71 open issues, **26 were closed with
+evidence** (fixed on `main`, obsolete, or duplicate — each verified against the code
+or a real-browser measurement rather than a PR title), leaving 45 that are still true.
+Those 45 are organised below. The PRD holds the horizons; each milestone file holds
+status and detail.
+
+| Horizon | Milestone | Goal | Status |
+|---|---|---|---|
+| **Now** | [M1 — 16.7.0 release + quick wins](milestones/M1-release-16-7-quick-wins.md) | Ship the 10 unreleased commits; clear 10 verified quick wins and 5 spec-cleanup decisions | NOT_STARTED |
+| **Now** | [M2 — QA pipeline reliability](milestones/M2-qa-pipeline-reliability.md) | One reviewer per PR, a reserved staging slot, a QA browser env that fails only for real | IN_PROGRESS (lease dispatched) |
+| **Next** | [M3 — Robustness & security](milestones/M3-robustness-security.md) | Iframe sandbox (#334), ErrorBoundary for lazy overlays (#341) | NOT_STARTED |
+| **Next** | [M4 — Accessibility debt](milestones/M4-accessibility-debt.md) | AA everywhere, starting with the dark-mode login (#379) | NOT_STARTED |
+| **Later** | [M5 — Non-admin arrange](milestones/M5-non-admin-arrange.md) | Per-user tile drag for non-admins (v29 §3.3) — needs a spec first | NOT_STARTED |
+| **Later** | [M6 — Layout & design evolution](milestones/M6-layout-design-evolution.md) | Kare-led layout and visual decisions | NOT_STARTED |
+
+**Decisions are folded into milestones**, not held in a separate queue (Caleb,
+2026-10-11): #368 #172 #295 #449 #200 → M1; #487 → M2; #488 #477 → M4; #403 → M6.
+
 ## 7. Key Features
 
 See `specs/README.md` for the authoritative per-feature index and status. The
@@ -146,3 +166,4 @@ it.
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
 | 2026-09-15 | 0.1.0 | Caleb Dunn | Initial retroactive PRD from /add:init adoption |
+| 2026-10-11 | 0.2.0 | roadmap | First roadmap: six milestones (M1–M2 Now, M3–M4 Next, M5–M6 Later) built from a backlog triage that closed 26 of 71 issues with evidence |
