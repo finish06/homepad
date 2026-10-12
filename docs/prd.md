@@ -118,7 +118,7 @@ status and detail.
 
 | Horizon | Milestone | Goal | Status |
 |---|---|---|---|
-| **Now** | [M1 — 16.7.0 release + quick wins](milestones/M1-release-16-7-quick-wins.md) | Ship the 10 unreleased commits; clear 10 verified quick wins and 5 spec-cleanup decisions | NOT_STARTED |
+| **Now** | [M1 — 16.7.0 release + quick wins](milestones/M1-release-16-7-quick-wins.md) | Ship the 10 unreleased commits; clear 10 verified quick wins and 5 spec-cleanup decisions | COMPLETE (2026-10-12 — 16.7.1 in production) |
 | **Now** | [M2 — QA pipeline reliability](milestones/M2-qa-pipeline-reliability.md) | One reviewer per PR, a reserved staging slot, a QA browser env that fails only for real | IN_PROGRESS (lease dispatched) |
 | **Next** | [M3 — Robustness & security](milestones/M3-robustness-security.md) | Iframe sandbox (#334), ErrorBoundary for lazy overlays (#341) | NOT_STARTED |
 | **Next** | [M4 — Accessibility debt](milestones/M4-accessibility-debt.md) | AA everywhere, starting with the dark-mode login (#379) | NOT_STARTED |
@@ -167,3 +167,4 @@ it.
 |------|---------|--------|---------|
 | 2026-09-15 | 0.1.0 | Caleb Dunn | Initial retroactive PRD from /add:init adoption |
 | 2026-10-11 | 0.2.0 | roadmap | First roadmap: six milestones (M1–M2 Now, M3–M4 Next, M5–M6 Later) built from a backlog triage that closed 26 of 71 issues with evidence |
+| 2026-10-12 | 0.2.1 | cycle | M1 COMPLETE after cycle-1: 16.7.0 and 16.7.1 released, 16.7.1 in production, 16 issues closed. Active milestone → M2 |
