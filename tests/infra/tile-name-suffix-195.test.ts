@@ -38,6 +38,11 @@ describe('#195 — tile name drops the distinguishing suffix under truncation', 
     // distinguishing "Warrior1"/"Warrior2" on line 2 — never dropped.
     expect(rule).toMatch(/-webkit-line-clamp:\s*2/);
     expect(rule).toMatch(/-webkit-box-orient:\s*vertical/);
+    // #235 — and the display that makes line-clamp do anything at all. Without
+    // `display: -webkit-box`, Webkit/Blink ignore -webkit-line-clamp entirely and
+    // the name is clipped by `overflow: hidden` alone — the original #195 bug,
+    // while the two assertions above still pass.
+    expect(rule).toMatch(/display:\s*-webkit-box/);
     // still hides any overflow past the two lines
     expect(rule).toMatch(/overflow:\s*hidden/);
   });

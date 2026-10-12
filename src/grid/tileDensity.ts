@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { setDensityPref } from '../api';
 
 // SPEC-tile-density — the tile density preference. Three densities: Large (the
@@ -55,20 +55,30 @@ export function useTileDensity(serverPref?: string): [TileDensity, (d: TileDensi
   const [density, setDensity] = useState<TileDensity>(() =>
     isTileDensity(serverPref) ? serverPref : loadDensity(),
   );
+  // #441 — the latest density, readable synchronously by set(). The persistence
+  // side effects used to live INSIDE the setDensity((cur) => …) updater so they
+  // could short-circuit on `cur === d`. But an updater must be pure: React 18
+  // StrictMode double-invokes updaters in development, and does so for any update
+  // processed during render — i.e. every QUEUED update (a lone update is computed
+  // eagerly and runs once, which is why the bug only showed on batched changes).
+  // Measured on the old code: two quick changes PATCHed ['list', 'large', 'large'].
+  // A ref gives the same short-circuit without making the updater impure; it is
+  // updated synchronously in set() so back-to-back calls see each other.
+  const latest = useRef<TileDensity>(density);
   useEffect(() => {
     if (!isTileDensity(serverPref)) return;
+    latest.current = serverPref;
     setDensity(serverPref);
     saveDensity(serverPref);
   }, [serverPref]);
   const set = useCallback((d: TileDensity) => {
-    setDensity((cur) => {
-      if (cur === d) return cur;
-      saveDensity(d);
-      // Fire-and-forget: a false (older backend, network blip) is not rolled
-      // back — the device cache already holds the choice and keeps working.
-      void setDensityPref(d);
-      return d;
-    });
+    if (latest.current === d) return;
+    latest.current = d;
+    setDensity(d);
+    saveDensity(d);
+    // Fire-and-forget: a false (older backend, network blip) is not rolled
+    // back — the device cache already holds the choice and keeps working.
+    void setDensityPref(d);
   }, []);
   return [density, set];
 }
