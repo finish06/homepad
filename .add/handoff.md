@@ -90,3 +90,8 @@ checkpoints both start. This is the first handoff this project has ever had.
   → C #487 (measure centring at 1400px) → E 16.7.2. D #414 closes on Joe's in-cluster staging check.
 - Starts once #520 merges. Update the log **after every merge** this time.
 
+## Update 2026-10-12 — cycle-2 running
+
+- #521 (plan) merged. **#522 (A, #452) in QA** at `5a48b15`. B (#423) built at `3ab5b64`, held behind A.
+- Running log: branch `docs/cycle-2-log`, pushed after each merge, one PR at cycle end.
+

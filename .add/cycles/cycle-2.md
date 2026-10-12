@@ -2,8 +2,8 @@
 
 **Milestone:** M2 — QA pipeline reliability
 **Maturity:** ga
-**Status:** PLANNED
-**Started:** TBD
+**Status:** IN_PROGRESS
+**Started:** 2026-10-12
 **Completed:** TBD
 **Duration Budget:** ~1 cycle (half of M2's two-cycle appetite). As in cycle-1, the **strictly serialized staging slot** bounds throughput, not coding time.
 **Planned:** 2026-10-12, with Caleb. He is **away**: the cycle runs autonomously, and nothing touches production.
@@ -112,3 +112,8 @@ A → B → C → E. Each merges only on QA-pool approval, and the next opens on
 | Time | Item | Status | Notes |
 |---|---|---|---|
 | 2026-10-12 | planning | done | Plan agreed with Caleb: scope, away, release 16.7.2 |
+| 2026-10-12 | plan (#521) | merged | gracie approved at `8688159`. Docs-only, so no staging slot used |
+| 2026-10-12 | A — #452 (#522) | in QA | `5a48b15`. Pod-sim (no browser, Chrome 148 CDP sidecar): main fails 35/35 with #455's exact error; the branch passes 35/35, full gate 85/85. Asked QA for a real pod run to close #455/#507 |
+| 2026-10-12 | B — #423 | built, held | `3ab5b64` on `feat/admin-modal-gates-423`, stacked on A. 14 tests, 7 negative controls, 99/99 on mac, CI image and pod-sim. PR opens after A merges and rolls out |
+| 2026-10-12 | (lesson) | — | A negative control whose mutation breaks typecheck leaves the **previous** `dist/` in place, and the gate silently tests that. The harness now `rm -rf dist` and fails loudly on a build error |
+
