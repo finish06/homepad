@@ -7,11 +7,23 @@ import { mockApi, makeStatusTiles } from './mockApi';
 // segments render 32px tall or "Inline overlay" wraps to two lines. So it is measured
 // here, in a real browser, at the two widths §8.1.3 names.
 
-async function openTileEditor(page: import('@playwright/test').Page, width: number, height: number) {
+// Headless Chromium draws OVERLAY scrollbars, which take no width. In a browser with
+// classic scrollbars (QA's, #518), on a real dashboard where both the page and the
+// modal body scroll, each takes 15px: the group shrinks from 303px to 273px at a 375
+// viewport. Styling ::-webkit-scrollbar makes Chromium's scrollbars classic, and
+// overflow-y:scroll reserves them even though the mocked page is short. Playwright's
+// default --hide-scrollbars suppresses all of that, so this file opts out of it.
+test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } });
+const CLASSIC_SCROLLBARS =
+  '::-webkit-scrollbar{width:15px;height:15px}::-webkit-scrollbar-thumb{background:#999}' +
+  'html,.tile-edit-body{overflow-y:scroll}';
+
+async function openTileEditor(page: import('@playwright/test').Page, width: number, height: number, classicScrollbars = false) {
   const { services, categories } = makeStatusTiles(['UP']);
   await page.setViewportSize({ width, height });
   await mockApi(page, services as never, categories, 'admin');
   await page.goto('/');
+  if (classicScrollbars) await page.addStyleTag({ content: CLASSIC_SCROLLBARS });
   await page.getByTestId('settings-gear').click();
   await page.getByTestId('gear-edit-dashboard').click();
   await page.getByTestId('tile-edit').first().click();
@@ -23,13 +35,22 @@ const SEGMENTS = ['tile-click-action-new_tab', 'tile-click-action-same_tab', 'ti
 // iPad portrait (the primary device), the phone width §8.1.3 calls out, and 320px —
 // the narrowest width this app supports (the #405 header guard tests it too).
 //
-// 320 is the case that gives the `whitespace-nowrap` assertion teeth. Measured:
-// without nowrap, "Inline overlay" wraps to TWO lines at 320, 340 and 360px and only
-// holds together from 375. Testing at 375 and 768 alone — this file's first draft —
-// passed with nowrap removed, i.e. it could not fail.
-for (const [label, w, h] of [['iPad 768', 768, 1024], ['phone 375', 375, 812], ['smallest phone 320', 320, 640]] as const) {
+// The narrow cases give the `whitespace-nowrap` assertion teeth: testing at 375 and
+// 768 alone — this file's first draft — passed with nowrap removed.
+//
+// 'phone 375, classic scrollbars' is #518: QA's browser, where the group is 273px, not
+// 303. With px-2.5 "Inline overlay" needs ~96px of a ~90px share; flex-1 alone gave it
+// the extra (82.9/83.0/101.2 on staging). min-w-0 from 375 is what holds it equal.
+for (const [label, w, h, classic] of [
+  ['iPad 768', 768, 1024, false],
+  ['phone 375', 375, 812, false],
+  ['phone 375, classic scrollbars', 375, 812, true],
+  ['smallest phone 320', 320, 640, false],
+  // The narrowest real case: classic scrollbars at the smallest supported width.
+  ['smallest phone 320, classic scrollbars', 320, 640, true],
+] as const) {
   test(`§8.1.3/8.1.5 — segments are ≥44px tall, fill the field, and never wrap — ${label}`, async ({ page }) => {
-    await openTileEditor(page, w, h);
+    await openTileEditor(page, w, h, classic);
     const boxes = [];
     for (const id of SEGMENTS) boxes.push((await page.getByTestId(id).boundingBox())!);
 
