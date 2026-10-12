@@ -117,4 +117,7 @@ A → B → C → E. Each merges only on QA-pool approval, and the next opens on
 | 2026-10-12 | B — #423 | built, held | `3ab5b64` on `feat/admin-modal-gates-423`, stacked on A. 14 tests, 7 negative controls, 99/99 on mac, CI image and pod-sim. PR opens after A merges and rolls out |
 | 2026-10-12 | (lesson) | — | A negative control whose mutation breaks typecheck leaves the **previous** `dist/` in place, and the gate silently tests that. The harness now `rm -rf dist` and fails loudly on a build error |
 | 2026-10-12 | C — #487 | built, held | `2437659` on `feat/centre-1400-487`, stacked on B. At 1400px: 0.0px from the row centre; 7.5px from the **window** centre with a classic scrollbar. That's the "8px", and it isn't a defect. Measurement posted on #487. A 24px-shift negative control fails every width |
+| 2026-10-12 18:16Z | A — #452 (#522) | merged | ada approved at `5a48b15`; `6abab3e`; staging run 6008 rolled out. #452 closed. **#455 auto-closed** from the squash title, so I reopened it pending a real QA-pod run (the approval didn't include one) |
+| 2026-10-12 | B — #423 (#523) | in QA | cherry-picked onto main as `6f01957`; gate 99/99, guard 41/41. Pod run requested |
+| 2026-10-12 | (lessons) | — | (1) The PR watcher used `set -- $st`, which zsh doesn't word-split (L-007's sibling); it never fired. Use `read`. (2) Backticks inside a double-quoted `python3 -c` were run by the shell: they executed a SHA and `npm run test:gate`, and blanked those words in a posted comment. Fixed via a quoted heredoc. **Always use quoted heredocs for API bodies** |
 
