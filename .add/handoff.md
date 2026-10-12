@@ -41,3 +41,19 @@ checkpoints both start. This is the first handoff this project has ever had.
   fails a push with a misleading "could not read Username". Recreate it before pushing.
 - A Gitea job log contains script **text** as well as output. Grepping for an `echo`
   string matches on runs where it never executed (L-004).
+
+## Update 2026-10-11 — triage + first roadmap
+
+- **Backlog triage:** 71 open issues → **26 closed with evidence**, 45 remain. Every
+  closure carries the specific proof (code line, real-browser measurement re-run on
+  `57733eb`, or merged fix + QA verification). Two near-misses worth knowing: #403 was
+  NOT closed — the advisory claimed the spec permits the build's behaviour, but spec
+  §8.4 reads as a requirement; #443 was closed as a duplicate of #441 while noting its
+  finding is still true.
+- **Roadmap created** (first ever): `docs/prd.md` §6 + `docs/milestones/M1..M6`.
+  `planning.current_milestone` = M1 (16.7.0 release + quick wins).
+- **#503 is mine** (M1): temp files in the pipefail-fix deploy steps aren't removed
+  when `curl` fails under `set -e`.
+- **Staging is unreachable from the LAN** for verification: every `*.10.17.2.213.nip.io`
+  host returns Traefik's `404 page not found` from this Mac, though deploys succeed.
+  Vantage point, not an outage — but it means #414 needs in-cluster checking (M2).

@@ -169,7 +169,7 @@
     "archival_max_severity": "medium"
   },
   "planning": {
-    "current_milestone": null,
+    "current_milestone": "M1-release-16-7-quick-wins",
     "current_cycle": null,
     "wip_limit": 5,
     "parallel_agents": 5,
