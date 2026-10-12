@@ -34,6 +34,7 @@
 | B | **#423**: real-browser gates for **AdminSettings** and the **custom-app form** (mocked API, admin role) | SHAPED | DONE | Agent | ~1d | Each opens, validates, saves (asserting the request body) and closes in a real browser at iPad 768 and phone 375. Each gate fails when the behaviour it pins is removed |
 | C | **#487**: measure LauncherTrigger centring at **1400px**; add 1400 to `header-search-centered.spec.ts` | SHAPED | DONE | Agent | ~1h | The drift is measured and recorded on #487. If it exceeds the spec's tolerance, that's a real defect: file it, keep the case red-then-green. If not, close with the number |
 | D | **#414**: close-out | SHAPED | DONE | Agent + Joe | ~15m | Prod headers (above) plus an in-cluster `curl -I` of staging from Joe or the QA pool. Closed only on both |
+| A2 | **#524 (rest of #507)**: decide once, in the config, whether the gate attaches to the pod's CDP sidecar; never fall back per worker; 1 worker when attached. *Added mid-cycle, from QA's #523 run* | NEW | DONE | Agent | ~3h | Reproduce QA's failure in pod-sim with a starved sidecar, and pass the same setup after the fix. Decision logic unit-tested; static guards negative-controlled |
 | E | **Release 16.7.2**: after A–C merge; tag `v16.7.2` | PLANNED | DONE (tagged, built) | Agent | ~1h + QA | Alignment test green. prod-release builds and validates. The digest recorded is the **staging-release `-beta` build of the tagged commit** (L-012 / homelab `50527cb`). **Not promoted** |
 
 ### Routed to Joe this cycle (tracked, not owned)
@@ -120,4 +121,7 @@ A → B → C → E. Each merges only on QA-pool approval, and the next opens on
 | 2026-10-12 18:16Z | A — #452 (#522) | merged | ada approved at `5a48b15`; `6abab3e`; staging run 6008 rolled out. #452 closed. **#455 auto-closed** from the squash title, so I reopened it pending a real QA-pod run (the approval didn't include one) |
 | 2026-10-12 | B — #423 (#523) | in QA | cherry-picked onto main as `6f01957`; gate 99/99, guard 41/41. Pod run requested |
 | 2026-10-12 | (lessons) | — | (1) The PR watcher used `set -- $st`, which zsh doesn't word-split (L-007's sibling); it never fired. Use `read`. (2) Backticks inside a double-quoted `python3 -c` were run by the shell: they executed a SHA and `npm run test:gate`, and blanked those words in a posted comment. Fixed via a quoted heredoc. **Always use quoted heredocs for API bodies** |
+| 2026-10-12 19:06Z | B — #423 (#523) | merged | gracie approved at `6f01957`; `5c0f757`; staging run 6013 rolled out. #423 closed. **Gracie's pod run** found the full suite fails in the pod under 3 workers, and filed **#524**. #455 was closed by gracie (the bypass is fixed); **#507 stays open**, because the silent per-worker fallback is its remaining cause |
+| 2026-10-12 | C — #487 (#525) | in QA | cherry-picked onto main as `ba0aa37` |
+| 2026-10-12 | A2 — #524 | reproduced | pod-sim with the sidecar capped at 0.35 CPU, 3 workers, main: **47/99 fail** (30s action stalls, plus the fallback's `Executable doesn't exist`). My first pod-sim missed this because the sidecar was never loaded. Fix built on `fix/gate-sidecar-524`; the same-setup run is in progress |
 
