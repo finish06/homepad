@@ -7,6 +7,29 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [16.7.2] — 2026-10-12 — Testing the admin screens, and testing where QA actually runs
+
+No migrations. No change to the app itself: nothing you see or do is different
+from 16.7.1. This release records work on how homepad is tested.
+
+**The admin screens are now tested in a real browser.** The Admin Panel and the
+form for adding a custom app had never been checked the way the rest of the
+dashboard is: opened in an actual browser, at iPad and phone sizes, and clicked
+through. Both are now. That covers whether they fit the screen, whether their
+buttons can be pressed, what they send when you save, and what happens when a
+save fails.
+
+**The browser tests now run on QA's machines.** QA reviews every change on
+machines that can't launch an ordinary browser, so the tests borrow one that
+runs alongside them. Five test files skipped that step, and under load the rest
+could quietly fall back to a browser that couldn't start. Both made QA's runs
+fail for reasons that had nothing to do with the change under review. Both are
+fixed, and checked by tests of their own.
+
+**Two QA questions answered.** A note that the search box sat "8px off centre"
+at one window width turned out to be the scrollbar: the search box is exactly
+centred in the visible page, and that width is now tested.
+
 ## [16.7.1] — 2026-10-12 — Choosing how a tile opens, at a glance
 
 No migrations. Frontend only. Upgrading from 16.7.0 is a single step.
