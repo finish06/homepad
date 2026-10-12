@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { mockApi, makeStatusTiles } from './mockApi';
 
 // SPEC v29 — the ★ is a control only in arrange mode.

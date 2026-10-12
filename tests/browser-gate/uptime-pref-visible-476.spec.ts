@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { mockApi, makeStatusTiles } from './mockApi';
 
 // #476 — resolved by Caleb 2026-09-23: the 24h/7d/30d line SHOULD NOT show at
