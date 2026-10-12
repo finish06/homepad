@@ -131,7 +131,11 @@ Gatus key, saving, and seeing the tile refresh — with no Settings panel visit.
 service object: the slug string when monitoring is configured, `""` when not. The
 field is always present (never omitted).
 
-**AC-002 (MUST):** The `Service` type in `api.ts` gains a `gatus_key: string` field.
+**AC-002 (MUST):** The `Service` type in `api.ts` gains a `gatus_key` field. The API returns it on
+every service (`""` when unmonitored), but the client types it **optional** (`gatus_key?: string`)
+and every consumer normalizes with `?? ''`, so a payload without it (an older API mid-rollout, or a
+hand-built fixture) reads as unmonitored instead of crashing. *(Amended 2026-10-12, #367: the code
+wins, as with #368. This was originally written as a required `gatus_key: string`.)*
 All consumers that don't use it are unaffected (additive, backward-compatible).
 
 ### 5.2 TileEditModal field

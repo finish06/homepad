@@ -169,8 +169,8 @@
     "archival_max_severity": "medium"
   },
   "planning": {
-    "current_milestone": "M1-release-16-7-quick-wins",
-    "current_cycle": "cycle-1",
+    "current_milestone": "M2-qa-pipeline-reliability",
+    "current_cycle": null,
     "wip_limit": 5,
     "parallel_agents": 5,
     "cycle_history": [
@@ -178,8 +178,9 @@
         "cycle": "cycle-1",
         "milestone": "M1-release-16-7-quick-wins",
         "planned": "2026-10-11",
-        "status": "PLANNED",
-        "plan": ".add/cycles/cycle-1.md"
+        "status": "COMPLETE",
+        "plan": ".add/cycles/cycle-1.md",
+        "completed": "2026-10-12"
       }
     ]
   },

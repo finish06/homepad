@@ -57,3 +57,29 @@ checkpoints both start. This is the first handoff this project has ever had.
 - **Staging is unreachable from the LAN** for verification: every `*.10.17.2.213.nip.io`
   host returns Traefik's `404 page not found` from this Mac, though deploys succeed.
   Vantage point, not an outage — but it means #414 needs in-cluster checking (M2).
+
+## Update 2026-10-12 — cycle-1 complete, M1 closed
+
+- `gitea/main` = `29cded3` (#519). **Production = 16.7.1 @ `29cded3`** (homelab `eb5f2d3`),
+  verified from prod `/version.json`. 16.7.0 reached prod inside 16.7.1.
+- **M1 COMPLETE.** Active milestone → **M2 (QA pipeline reliability)**; no cycle planned yet.
+- **#367 decided (Caleb): code wins.** `gatus_key?` stays; v25 AC-002 amended.
+- **Promotion digest:** pin the staging-release `<sha>-beta` build of the tagged commit
+  (homelab 50527cb explains why). prod-release's printed digest is a separate rebuild.
+- **With Joe, unconfirmed:** homepad's `NATS_PUBLISH_TOKEN` 403s on
+  `joe.deploy.homepad.tag.*` (scoped to `friend.qa.task.*`), so no deploy notifications
+  have been sent automatically since at least 16.7.0.
+- **Still open for Caleb:** #449 OQ-1 (no way back to "unset"), #513 (★/pencil overlap, M4),
+  Kare's view on #517's two trade-offs (320px widths; hint #525252 vs #475069).
+- Reply-to name for cross-session messages: give the exact session name (`ListAgents`),
+  not "the homepad session".
+
+## Update 2026-10-12 — roadmap: M1 archived
+
+- PRD §6: **M1 moved Now → Done** (Caleb, `/add:roadmap --edit`). Now = M2 only; Next = M3, M4;
+  Later = M5, M6. The milestone file is kept; its Horizon reads DONE.
+- Docs synced: spec count 39 → 40 (CLAUDE.md, PRD); `specs/README.md` and spec status lines
+  record what shipped in 16.7.x (#428 segmented control, v29 in prod, v25 AC-002 amended).
+- The "Where things stand" block at the top of this file is from 2026-10-11 — read the
+  dated updates below it for current state.
+

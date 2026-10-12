@@ -2,9 +2,9 @@
 
 **Milestone:** M1 — 16.7.0 release + quick wins
 **Maturity:** ga
-**Status:** PLANNED
-**Started:** TBD
-**Completed:** TBD
+**Status:** COMPLETE
+**Started:** 2026-10-11
+**Completed:** 2026-10-12
 **Duration Budget:** ~1 cycle (M1's whole appetite). Throughput is bounded by the **strictly serialized staging slot**, not by coding time — one PR in QA at a time.
 **Planned:** 2026-10-11, with Caleb. He is **away** for the cycle: work runs autonomously; production promotion waits for him.
 
@@ -28,7 +28,7 @@ All five recorded on their issues.
 | A | **Release 16.7.0** — `package.json`, `CHANGELOG.md`, `src/changelog.json`; tag `v16.7.0` after merge | PLANNED | DONE (tagged, built) | Agent | ~1h + QA | Alignment gate green; `prod-release` builds and validates the tag; **not promoted** |
 | D | **#503** — remove the deploy temp files on failure too (`trap`), both workflows | SHAPED | DONE | Agent | ~1h | Its own `mr-staging` run exercises the change; a forced-failure reproduction leaves no temp files |
 | B | **Spec text** (docs-only PR): #427, #199, #318, #200, #368 (§7), #449 (new spec) | SHAPED | DONE | Agent | ~3h | Each fix checked against the code it describes; `specs/README.md` index updated for the new spec |
-| C | **Code quick wins**: #366, #367, #377, #441, #235, #172, #295 (AC-029 + test) | SHAPED | DONE | Agent | ~1d | Typecheck, lint, unit, coverage ≥ thresholds; **#441 test written first and seen failing**; every new test negative-controlled |
+| C | **Code quick wins**: #366, ~~#367~~ (a decision; pulled), #377, #441, #235, #172, #295 (AC-029 + test) | SHAPED | DONE | Agent | ~1d | Typecheck, lint, unit, coverage ≥ thresholds; **#441 test written first and seen failing**; every new test negative-controlled |
 | E | **#428** — click-action `<select>` → three-segment control per Kare §8.1.1–8.1.5 | SHAPED | DONE | Agent | ~1d | TDD; §8.1.2 copy exact; keyboard + touch per §8.1.5; real-browser gate; existing tile-edit gates stay green |
 | F | **Release 16.7.1** — after B–E merge; tag `v16.7.1` | PLANNED | DONE (tagged, built) | Agent | ~1h + QA | As A; not promoted |
 
@@ -76,11 +76,11 @@ A → D → B → C → E → F, each merging only on QA-pool approval, the next
 - **E:** §8 copy and styling match exactly; keyboard and touch behaviour per §8.1.5 verified in a real browser; no regression in `tile-edit-*` gates.
 
 ### Cycle Success Criteria
-- [ ] 16.7.0 and 16.7.1 tagged and built by `prod-release`, digests recorded, **both awaiting Caleb for promotion**
-- [ ] All 16 issues in scope closed with evidence: #503 #427 #199 #318 #200 #368 #449 #366 #367 #377 #441 #235 #172 #295 #428 (+ #443 already closed as #441's duplicate)
-- [ ] Every PR merged through the QA pool; no self-merge; no PR merged with a failing check
-- [ ] `main` green on every gate at cycle end; coverage ≥ thresholds (functions ≥ 90)
-- [ ] Handoff and cycle log current after every merge
+- [x] 16.7.0 and 16.7.1 tagged and built by `prod-release`, digests recorded, **both awaiting Caleb for promotion**. *Caleb then gave the go: 16.7.1 is in production.*
+- [x] All 16 issues in scope closed with evidence: #503 #427 #199 #318 #200 #368 #449 #366 #367 #377 #441 #235 #172 #295 #428 (+ #443 already closed as #441's duplicate)
+- [x] Every PR merged through the QA pool; no self-merge; no PR merged with a failing check
+- [x] `main` green on every gate at cycle end; coverage ≥ thresholds (functions ≥ 90)
+- [ ] Handoff and cycle log current after every merge. *Missed: both were written once, at close-out, not after each merge. Recorded as a learning.*
 
 ## Agent Autonomy & Checkpoints
 
@@ -113,3 +113,13 @@ Caleb is **away**. Elevated autonomy within these lines:
 | Time | Item | Status | Notes |
 |---|---|---|---|
 | 2026-10-11 | planning | done | Plan agreed; five decisions recorded on their issues |
+| 2026-10-12 03:11Z | A — 16.7.0 (#512) | merged | `9b4a7c5`; tagged `v16.7.0`; prod-release run 5951 green |
+| 2026-10-12 | D — #503 (#514) | merged | `9b148b2`; staging rolled out |
+| 2026-10-12 | C — quick wins (#516) | merged | `d0a9113`; staging run 5969 `successfully rolled out` |
+| 2026-10-12 | B — spec text (#515) | merged | `8cdfab7`; docs-only; staging run 5970 rolled out |
+| 2026-10-12 14:42Z | E — #428 (#517) | QA block | gracie: unequal segment widths at 375 → #518. Cause: the gate's Chromium hides scrollbars (303px group vs QA's 273px) |
+| 2026-10-12 15:09Z | E — #428 (#517) | merged | stitch's fix `20244fb` + gate reproduces #518 (`89573b8`); ada approved at `89573b8`; `9aafc19`, staging rolled out |
+| 2026-10-12 16:20Z | F — 16.7.1 (#519) | merged | gracie approved at `1649704`; `29cded3`; tagged `v16.7.1`; prod-release run 5989 green |
+| 2026-10-12 17:45Z | promotion | done | Caleb's go; homelab `eb5f2d3` pins `29cded3-beta@sha256:62c6688…`; prod `/version.json` = 16.7.1 @ `29cded3` |
+| 2026-10-12 | #367 | decided | Caleb: code wins; AC-002 amended in the close-out PR |
+| 2026-10-12 | close-out | done | Cycle COMPLETE. Found: prod-release NATS notify 403 on both releases (key scoped to `friend.qa.task.*`) — with Joe |

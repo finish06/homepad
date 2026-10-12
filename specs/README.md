@@ -1,6 +1,6 @@
 # homepad — Spec Index
 
-**Current as of:** 2026-09-22  **Maintainer:** Walt (product lead)
+**Current as of:** 2026-10-12  **Maintainer:** Walt (product lead)
 
 This directory holds the **current, authoritative** product specs and decisions for
 homepad. Historical specs for shipped versions v2–v10 are in
@@ -35,17 +35,17 @@ homepad. Historical specs for shipped versions v2–v10 are in
 | [`SPEC-mobile-launcher-ux.md`](./SPEC-mobile-launcher-ux.md) | Mobile Command Launcher UX — Hide Keyboard Hints, Fix Tap Targets | Shipped — prod (PR #129, merged 2026-06-21 as b936511e) |
 | [`SPEC-pane-fill-reflow.md`](./SPEC-pane-fill-reflow.md) | App-Grid Box Horizontal Fill & Tile Reflow (wide viewports) — Phase 1 | SHIPPED — Phase 1 in v13.2.0, Phase 1b in v13.3.0. `rowFillCounts`/`contentMaxPx` in `src/grid/appGridLayout.ts`. Walt (product) ✓ · Kare (design) ✓ |
 | [`SPEC-settings-admin-vs-user.md`](./SPEC-settings-admin-vs-user.md) | SPEC — Settings: Admin-Global vs. Per-User Clarity | Done — intent fully absorbed by v11+v12; no implementation required |
-| [`SPEC-tile-click-action-20260710.md`](./SPEC-tile-click-action-20260710.md) | homepad v23 — Per-Tile Click Action | SHIPPED — v14.0.0 (`d400156`, PR #333). `Service.clickAction` — new_tab \| same_tab \| iframe. |
+| [`SPEC-tile-click-action-20260710.md`](./SPEC-tile-click-action-20260710.md) | homepad v23 — Per-Tile Click Action | SHIPPED — v14.0.0 (`d400156`, PR #333). `Service.clickAction` — new_tab \| same_tab \| iframe. §8.1 segmented control SHIPPED in v16.7.1 (PR #517, #428). |
 | [`SPEC-tile-density.md`](./SPEC-tile-density.md) | SPEC — Tile Density (Large / Compact / List) | SHIPPED — v16.1.0 (`ebc2f3e`). OQ-9 revisited in v16.2.0 (`a495ce0`): density is per-user from `/api/me`, localStorage demoted to a cache. |
 | [`SPEC-ultrawide-fluid-frame.md`](./SPEC-ultrawide-fluid-frame.md) | Ultra-wide Fluid Content Frame (Phase 1b of pane-fill) | SHIPPED — merged to `main` as #284 (`cb15eec`, 2026-07); `src/lib/layout.ts` carries `max-w-[max(1536px,92vw)]`, `frameContentPx` lives in `src/grid/appGridLayout.ts`, the R3 centring rule is in `index.css` (`@media (min-width:… |
 | [`SPEC-v24-health-meter-banding.md`](./SPEC-v24-health-meter-banding.md) | Homepad v24 — Health-Panel Meter: Status-Banded Tick Strip | SHIPPED — v15.1.0 (impl PR #361, merged 2026-07-14). Walt + Kare co-signed 2026-07-14. |
-| [`SPEC-v25-gatus-key-tile-health.md`](./SPEC-v25-gatus-key-tile-health.md) | homepad v25 — Gatus Endpoint Key on Tiles | SHIPPED — v15.2.0 (`5e82db3`). `Service.gatusKey` on the tile editor. Status line read "Approved … cleared for Stitch" until 2026-09-22. |
+| [`SPEC-v25-gatus-key-tile-health.md`](./SPEC-v25-gatus-key-tile-health.md) | homepad v25 — Gatus Endpoint Key on Tiles | SHIPPED — v15.2.0 (`5e82db3`). `Service.gatusKey` on the tile editor. Status line read "Approved … cleared for Stitch" until 2026-09-22. AC-002 amended 2026-10-12 (#367, code wins): `gatus_key` is optional on the client. |
 | [`SPEC-v26-admin-env-config.md`](./SPEC-v26-admin-env-config.md) | homepad v26 — Admin Env-Config Viewer | SHIPPED — v15.3.0 (`28411d3`, PR #374). Live at `src/library/SettingsPanel.tsx` + `GET /api/admin/env-config`. Status line read "Ready for Stitch" until 2026-09-22. |
 | [`cap3-recently-opened.md`](./cap3-recently-opened.md) | "Recently Opened" Row — Capability #3 | BUILT 2026-09-20 — see §8 for the two deviations from this spec's original guidance. Awaiting QA. |
 | [`cap4-sparkline-dot-tooltip.md`](./cap4-sparkline-dot-tooltip.md) | Sparkline Dot Hover Tooltip — Capability #4 | BUILT 2026-09-22 (restored) — see §8. Originally shipped 2026-06-23 (PR #145), |
 | [`cap5-status-change-toasts.md`](./cap5-status-change-toasts.md) | Status-Change Toast Alerts — Capability #5 | SHIPPED — prod. The AC-015 ghost-toast defect (#147) was fixed in v12.0.3 (`a0b5fd5`); no outstanding work. |
 | [`SPEC-status-degraded-threshold.md`](./SPEC-status-degraded-threshold.md) | "Slow" threshold — `statusDegradedMs` | SHIPPED — v16.2.0 (PR #444). Spec written retroactively 2026-10-11 (#449) from the code on both sides; OQ-1 (no way back to "unset") open. |
-| [`v29-favorite-star-arrange-only.md`](./v29-favorite-star-arrange-only.md) | The favorite ★ is a control only in Arrange mode | SHIPPED — #506 (`0bae21c`), released in 16.7.0. Opened Arrange apps to every user; supersedes SPEC-density-to-my-settings AC-008/TC-006. §3.3 (non-admin tile drag) open → M5. *(Added to this index 2026-10-11 — it was missing.)* |
+| [`v29-favorite-star-arrange-only.md`](./v29-favorite-star-arrange-only.md) | The favorite ★ is a control only in Arrange mode | SHIPPED — #506 (`0bae21c`), released in 16.7.0, in production via 16.7.1. Opened Arrange apps to every user; supersedes SPEC-density-to-my-settings AC-008/TC-006. §3.3 (non-admin tile drag) open → M5. *(Added to this index 2026-10-11 — it was missing.)* |
 | [`cap6-uptime-display-toggle.md`](./cap6-uptime-display-toggle.md) | Uptime Display Toggle — Capability #6 | v1 SHIPPED (prod v13.5.0, global admin setting). **v2 SHIPPED — prod v16.4.0, 2026-09-20** (the setting is per-user; the admin row now seeds new accounts). OQ-1 resolved. v2 product/design sign-off waived 2026-09-20 under the o… |
 | [`large-monitor-grid.md`](./large-monitor-grid.md) | Large-Monitor Grid & Layout Alignment | SHIPPED — v12.7.1 / v12.7.2 (#194, #195, #196). Walt (product) ✓ · Kare (design) ✓ |
 | [`not-monitored-state.md`](./not-monitored-state.md) | Distinct "Not Monitored" Tile State | Shipped — prod (PR #48/#49/#50/#100, 2026-06-18) |

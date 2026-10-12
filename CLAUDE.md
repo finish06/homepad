@@ -11,7 +11,7 @@ This project follows **Agent Driven Development (ADD)** — specs drive agents,
 humans architect and decide, trust-but-verify ensures quality.
 
 - **PRD:** docs/prd.md
-- **Specs:** specs/ (39 specs — `specs/README.md` is the authoritative index)
+- **Specs:** specs/ (40 specs — `specs/README.md` is the authoritative index)
 - **Plans:** docs/plans/
 - **Config:** .add/config.json
 

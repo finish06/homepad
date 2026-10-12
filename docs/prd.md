@@ -8,7 +8,7 @@
 > This PRD was generated during `/add:init` adoption of an existing, shipped
 > project. It documents what homepad *is* at v16.2.0 rather than proposing
 > something new. The authoritative feature-level source of truth remains
-> `specs/` (39 specs, indexed in `specs/README.md`).
+> `specs/` (40 specs, indexed in `specs/README.md`).
 
 ## 1. Problem Statement
 
@@ -118,12 +118,12 @@ status and detail.
 
 | Horizon | Milestone | Goal | Status |
 |---|---|---|---|
-| **Now** | [M1 — 16.7.0 release + quick wins](milestones/M1-release-16-7-quick-wins.md) | Ship the 10 unreleased commits; clear 10 verified quick wins and 5 spec-cleanup decisions | NOT_STARTED |
 | **Now** | [M2 — QA pipeline reliability](milestones/M2-qa-pipeline-reliability.md) | One reviewer per PR, a reserved staging slot, a QA browser env that fails only for real | IN_PROGRESS (lease dispatched) |
 | **Next** | [M3 — Robustness & security](milestones/M3-robustness-security.md) | Iframe sandbox (#334), ErrorBoundary for lazy overlays (#341) | NOT_STARTED |
 | **Next** | [M4 — Accessibility debt](milestones/M4-accessibility-debt.md) | AA everywhere, starting with the dark-mode login (#379) | NOT_STARTED |
 | **Later** | [M5 — Non-admin arrange](milestones/M5-non-admin-arrange.md) | Per-user tile drag for non-admins (v29 §3.3) — needs a spec first | NOT_STARTED |
 | **Later** | [M6 — Layout & design evolution](milestones/M6-layout-design-evolution.md) | Kare-led layout and visual decisions | NOT_STARTED |
+| **Done** | [M1 — 16.7.0 release + quick wins](milestones/M1-release-16-7-quick-wins.md) | Ship the 10 unreleased commits; clear 10 verified quick wins and 5 spec-cleanup decisions | COMPLETE (2026-10-12 — 16.7.1 in production) |
 
 **Decisions are folded into milestones**, not held in a separate queue (Caleb,
 2026-10-11): #368 #172 #295 #449 #200 → M1; #487 → M2; #488 #477 → M4; #403 → M6.
@@ -167,3 +167,5 @@ it.
 |------|---------|--------|---------|
 | 2026-09-15 | 0.1.0 | Caleb Dunn | Initial retroactive PRD from /add:init adoption |
 | 2026-10-11 | 0.2.0 | roadmap | First roadmap: six milestones (M1–M2 Now, M3–M4 Next, M5–M6 Later) built from a backlog triage that closed 26 of 71 issues with evidence |
+| 2026-10-12 | 0.2.1 | cycle | M1 COMPLETE after cycle-1: 16.7.0 and 16.7.1 released, 16.7.1 in production, 16 issues closed. Active milestone → M2 |
+| 2026-10-12 | 0.2.2 | roadmap | M1 archived: Now → Done (milestone file kept). Now holds M2 only. Spec count corrected 39 → 40 |

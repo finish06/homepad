@@ -29,6 +29,12 @@
 - 2026-10-11 (L-002): `ci-docs-approver` can approve but NOT merge (405, review-only
   scope), so a docs PR can sit green AND approved indefinitely.
 
+- 2026-10-12 (L-011): Playwright launches Chromium with `--hide-scrollbars`, so a width
+  gate measures as if scrollbars take no space. #518: the #428 group was 303px in the gate
+  (macOS and the CI image) but 273px in QA's browser, where page + modal scrollbars take
+  15px each. Width gates opt out (`ignoreDefaultArgs: ['--hide-scrollbars']`) and add a
+  classic-scrollbar case; reproduce QA's numbers before fixing.
+
 ## Architecture Decisions
 - 2026-09-15: ADD adopts the existing `specs/` directory and house spec format rather
   than introducing a parallel ADD-format spec tree, because `specs/README.md` is already
@@ -89,5 +95,10 @@
   guard, no self-merges); the knowledge loop was unused. Caleb's decision: start BOTH
   mechanisms. Scores: collaboration 4.1-6.0 band (human), ADD effectiveness 4.3,
   swarm 7.0.
+
+- 2026-10-12 (L-012, cycle-1 complete): 2 days, 6 items in serial order, 7 PRs, 16 issues
+  closed with evidence, one QA block (#518) fixed in-PR, 16.7.1 in production. Sizing was
+  the weak spot (#428, #367 weren't quick wins). The cycle log and handoff were written
+  once at close-out instead of after each merge — do it per merge next cycle.
 
 ## Profile Update Candidates

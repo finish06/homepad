@@ -133,6 +133,31 @@
       "source": "/add:retro 2026-10-11",
       "title": "A QA brief must assert the SHA, not the version",
       "body": "Only a release PR bumps package.json, so on a feature or docs PR the branch reports the SAME version as prod and 'confirm /version.json matches this PR' green-lights a staging box running literally anything. The identity assertion must name the artifact, not a label that travels with it \u2014 same rule as pinning a promotion digest, since homepad:<sha>-beta and homepad:<semver> are different builds of the same source."
+    },
+    {
+      "id": "L-011",
+      "date": "2026-10-12",
+      "type": "technical",
+      "category": "testing",
+      "severity": "high",
+      "scope": "project",
+      "classified_by": "agent",
+      "source": "/add:cycle --complete cycle-1 (#518)",
+      "title": "Playwright's --hide-scrollbars blinds width gates to classic scrollbars",
+      "body": "The #428 gate passed at 375px on macOS and in the CI image while QA measured unequal segments: Playwright launches Chromium with --hide-scrollbars, so the group was 303px; in QA's browser the page and modal-body scrollbars took 15px each (273px). Width-sensitive gate specs should use test.use({launchOptions:{ignoreDefaultArgs:['--hide-scrollbars']}}) and add a case with styled ::-webkit-scrollbar plus overflow-y:scroll on the scroll containers. Reproduce QA's numbers before fixing."
+    },
+    {
+      "id": "L-012",
+      "date": "2026-10-12",
+      "type": "retro",
+      "checkpoint_type": "retro",
+      "category": "process",
+      "severity": "medium",
+      "scope": "project",
+      "classified_by": "agent",
+      "source": "/add:cycle --complete cycle-1",
+      "title": "Cycle 1 complete: two releases, 16 issues, 16.7.1 in production in two days",
+      "body": "Metrics: 2026-10-11 \u2192 2026-10-12; 6 work items (A,D,B,C,E,F) all DONE in the planned serial order; 7 PRs; 16 issues closed with evidence; one QA block (#518), fixed in-PR. Worked: strict serialization through the staging slot (no overwritten builds); negative controls on every new guard; verifying rollouts from the log line and prod from /version.json at prod. Harder: sizing (#428 and #367 were not quick wins); a stale background watcher was misread as #516 merging, corrected before acting on it; handoff/cycle log were written once at close-out rather than after each merge, as the plan required. Next cycle: update the log at each merge; give promotion requests the staging-release -beta digest of the tagged commit, not the one prod-release prints."
     }
   ]
 }
