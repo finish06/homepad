@@ -16,6 +16,11 @@ import { mockApi, makeStatusTiles } from './mockApi';
 
 const WIDTHS = [
   { name: 'medium', width: 1024, height: 900 },
+  // #487: QA reported "8px off centre at 1400px". Measured 2026-10-12: 0.0px from
+  // the header row's centre, and 7.5px left of the WINDOW's centre once a classic
+  // 15px scrollbar takes its share. The row (the visible content) is the frame
+  // this gate uses, and the trigger is centred in it.
+  { name: 'qa-1400', width: 1400, height: 900 },
   { name: 'large', width: 1440, height: 900 },
   { name: 'ultrawide', width: 2560, height: 1080 },
 ];
