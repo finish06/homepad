@@ -95,3 +95,9 @@ checkpoints both start. This is the first handoff this project has ever had.
 - #521 (plan) merged. **#522 (A, #452) in QA** at `5a48b15`. B (#423) built at `3ab5b64`, held behind A.
 - Running log: branch `docs/cycle-2-log`, pushed after each merge, one PR at cycle end.
 
+## Update 2026-10-12 — cycle-2: agent work done, blocked on QA/Joe
+
+- Merged: #521 #522 #523 #525 #526 #527. **16.7.2 tagged** (`521086f`). Promotable digest: `sha256:6f86fe07…8c20` (the -beta build). **Prod stays 16.7.1.**
+- Closed: #452 #455 #423 #487 #524. **Open:** #507 (pod gate run), #414 (staging curl), and every infra question routed to Joe (no replies all cycle).
+- The NATS notify has returned 403 on every release since 16.7.0.
+
