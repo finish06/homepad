@@ -427,7 +427,7 @@ export default function TileEditModal({
                     data-testid={`tile-click-action-${seg.value}`}
                     aria-pressed={active}
                     onClick={() => setClickAction(seg.value)}
-                    className={`inline-flex min-h-[44px] flex-1 items-center justify-center whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                    className={`inline-flex min-h-[44px] flex-1 min-[375px]:min-w-0 items-center justify-center whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-medium transition ${
                       active
                         ? 'bg-indigo-600 text-white'
                         : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
