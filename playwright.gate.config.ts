@@ -1,4 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
+import { decideGateCdp, GATE_CDP_ENV } from './tests/browser-gate/sidecar';
+
+// #524: decide ONCE, here in the main process, whether the gate attaches to a
+// QA pod's CDP sidecar. Workers inherit the decision via the environment
+// instead of each racing its own probe (see tests/browser-gate/sidecar.ts).
+const GATE_CDP = (process.env[GATE_CDP_ENV] = decideGateCdp(process.env));
 
 // Dedicated config for the #35 real-browser GATE (separate from the broader
 // tests/e2e suite, which expects a live API). This one runs ONLY the
@@ -15,6 +21,10 @@ export default defineConfig({
   expect: { timeout: 5_000 },
   reporter: process.env.CI ? 'github' : 'list',
   retries: process.env.CI ? 1 : 0,
+  // One sidecar can't serve several workers at once: under 3 it stalled actions
+  // for 30s and made the old per-worker probe miss (#524). With the sidecar,
+  // run serially. Without it (CI, laptops), keep Playwright's default.
+  workers: GATE_CDP !== 'off' ? 1 : undefined,
   use: {
     baseURL: BASE_URL,
     trace: 'on-first-retry',

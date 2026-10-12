@@ -1,4 +1,5 @@
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, type Browser, type PlaywrightWorkerArgs } from '@playwright/test';
+import { decideGateCdp } from './sidecar';
 import { execSync } from 'node:child_process';
 
 // Browser acquisition for the #35 real-browser gate.
@@ -18,17 +19,13 @@ import { execSync } from 'node:child_process';
 //
 // Escape hatch: set PW_CDP_ENDPOINT to point at a different CDP endpoint, or to
 // `off` to force Playwright's normal launch path even if something is on :9222.
-const CDP_ENDPOINT = process.env.PW_CDP_ENDPOINT ?? 'http://127.0.0.1:9222';
-
-function sidecarReachable(endpoint: string): boolean {
-  if (process.env.PW_CDP_ENDPOINT === 'off') return false;
-  try {
-    execSync(`curl -sf --max-time 2 ${endpoint}/json/version`, { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-}
+//
+// #524: WHETHER to attach is decided once, in playwright.gate.config.ts, and
+// arrives here via the environment (see sidecar.ts). It used to be a per-worker
+// 2s probe that, under load, quietly fell back to a browser the pod can't run.
+// The fallback is gone: once a sidecar was detected, a worker attaches to it or
+// fails loudly saying so.
+const CDP_ENDPOINT = decideGateCdp(process.env);
 
 // #344: resolve the sidecar's raw ws:// debugger URL and connect to THAT directly.
 // connectOverCDP(<http url>) makes playwright do its own /json/version discovery +
@@ -39,7 +36,7 @@ function sidecarReachable(endpoint: string): boolean {
 function resolveWsEndpoint(endpoint: string): string {
   if (/^wss?:\/\//i.test(endpoint)) return endpoint;
   try {
-    const out = execSync(`curl -sf --max-time 2 ${endpoint.replace(/\/+$/, '')}/json/version`, {
+    const out = execSync(`curl -sf --max-time 5 ${endpoint.replace(/\/+$/, '')}/json/version`, {
       encoding: 'utf8',
     });
     const ws = JSON.parse(out).webSocketDebuggerUrl;
@@ -49,21 +46,39 @@ function resolveWsEndpoint(endpoint: string): string {
   }
 }
 
-// Only override the built-in `browser` fixture when there's actually a sidecar to
-// attach to; otherwise re-export the stock `test`, leaving Playwright's normal
+async function attach(playwright: PlaywrightWorkerArgs['playwright'], endpoint: string): Promise<Browser> {
+  let last: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await playwright.chromium.connectOverCDP(resolveWsEndpoint(endpoint), { timeout: 30_000 });
+    } catch (err) {
+      last = err;
+      await new Promise((r) => setTimeout(r, 1000 * attempt));
+    }
+  }
+  throw new Error(
+    `The CDP sidecar at ${endpoint} was detected when the gate started, but this worker ` +
+      `could not attach to it after 3 attempts. Not falling back to Playwright's bundled ` +
+      `browser, which a QA pod can't run (#524/#507). Last error: ${String(last)}`,
+  );
+}
+
+// Only override the built-in `browser` fixture when the gate decided to use the
+// sidecar; otherwise re-export the stock `test`, leaving Playwright's normal
 // launch (and all of its launchOptions handling) completely untouched.
-export const test = sidecarReachable(CDP_ENDPOINT)
-  ? base.extend({
-      browser: [
-        async ({ playwright }, use) => {
-          const browser = await playwright.chromium.connectOverCDP(resolveWsEndpoint(CDP_ENDPOINT));
-          await use(browser);
-          // Disconnects from the shared sidecar (does not kill it).
-          await browser.close();
-        },
-        { scope: 'worker' },
-      ],
-    })
-  : base;
+export const test =
+  CDP_ENDPOINT !== 'off'
+    ? base.extend({
+        browser: [
+          async ({ playwright }, use) => {
+            const browser = await attach(playwright, CDP_ENDPOINT);
+            await use(browser);
+            // Disconnects from the shared sidecar (does not kill it).
+            await browser.close();
+          },
+          { scope: 'worker' },
+        ],
+      })
+    : base;
 
 export { expect };
