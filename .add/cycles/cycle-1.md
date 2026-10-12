@@ -2,8 +2,8 @@
 
 **Milestone:** M1 — 16.7.0 release + quick wins
 **Maturity:** ga
-**Status:** PLANNED
-**Started:** TBD
+**Status:** IN_PROGRESS
+**Started:** 2026-10-12
 **Completed:** TBD
 **Duration Budget:** ~1 cycle (M1's whole appetite). Throughput is bounded by the **strictly serialized staging slot**, not by coding time — one PR in QA at a time.
 **Planned:** 2026-10-11, with Caleb. He is **away** for the cycle: work runs autonomously; production promotion waits for him.
@@ -113,3 +113,8 @@ Caleb is **away**. Elevated autonomy within these lines:
 | Time | Item | Status | Notes |
 |---|---|---|---|
 | 2026-10-11 | planning | done | Plan agreed; five decisions recorded on their issues |
+| 2026-10-12 03:11Z | **A** 16.7.0 | **done** | #512 merged by ada → `9b4a7c5`. staging-release log: `image updated` → `successfully rolled out`. Tagged `v16.7.0` (lightweight, matching v16.6.0). prod-release builds + validates and does NOT deploy (re-read, not remembered); it fires `joe.deploy.homepad.tag.16.7.0` — Joe told explicitly that is not a promotion. **Promotion held for Caleb.** |
+| 2026-10-12 03:18Z | **D** #503 | **merged** | #514 merged by gracie → `9b148b2`. Self-test: its own mr-staging (run 5955) executed the new trap, used the `WORK` dir, rolled out, no exit 23. **Scope widened on evidence:** the advisory's "no data exposure" was untrue of `/tmp/kc` (staging kubeconfig), which leaked on every failure path incl. rollout timeout — fixed together. Trap is `rc=$?; set +e; …; exit $rc`: both simpler forms were measured turning a successful deploy red. First harness was blind to temp files; the negative control exposed it. staging-release on merge (run 5960, first run of the new staging-release.yml) in progress. |
+| 2026-10-12 | **B** spec text | PR #515 open | All checks green. **Deviation from plan:** opened alongside D, not after it — docs-only PRs skip the staging deploy, and the serialization was only ever about the slot. Needs Joe to land (ci-docs-approver can approve, not merge). |
+| 2026-10-12 | **C** code quick wins | committed `232af5a`, PR held | Held for D's staging-release. #441 found to double-fire only on QUEUED updates (a lone change is computed eagerly) — a single-change test passes on the bug. #172 triage note was wrong: AC-003 holds. **#367 pulled out** — contradicts a documented choice in api.ts; spec-vs-code, logged on the issue for Caleb. |
+| 2026-10-12 | new issue | **#513** filed → M4 | Found while correcting v21 for #318: ★/pencil 44px hit areas overlap at compact (456px²) and list (860px²) — the pencil wins. Admin-only, arrange-only. Not fixed this cycle. |

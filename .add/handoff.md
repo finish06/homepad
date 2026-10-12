@@ -57,3 +57,13 @@ checkpoints both start. This is the first handoff this project has ever had.
 - **Staging is unreachable from the LAN** for verification: every `*.10.17.2.213.nip.io`
   host returns Traefik's `404 page not found` from this Mac, though deploys succeed.
   Vantage point, not an outage — but it means #414 needs in-cluster checking (M2).
+
+## Update 2026-10-12 — cycle-1 in flight (Caleb away)
+
+- **16.7.0 merged and tagged** (`v16.7.0` → `9b4a7c5`). **Not promoted** — Caleb's call on return; he may go straight to 16.7.1.
+- **#514 (#503) merged**, self-tested on the real runner. Its staging-release was the first run of the new `staging-release.yml`.
+- **#515 (spec text) open**, docs-only, needs Joe to land.
+- **Item C committed (`232af5a` on `fix/quick-wins-cycle1`), PR held** for #514's staging-release to finish.
+- **Remaining:** E (#428 segmented control), then F (16.7.1).
+- **Decisions waiting for Caleb:** #367 (`gatus_key` optional vs spec), promotion of 16.7.0/16.7.1, #449 OQ-1 (no way back to "unset").
+- **Shell trap that cost time:** in zsh, `set -- $VAR` does not word-split — use `read -r a b <<< "$VAR"`. It produced a check that printed all zeros because no log was fetched.
