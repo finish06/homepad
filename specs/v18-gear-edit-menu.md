@@ -47,9 +47,9 @@ A user never has to hunt across surfaces. The Gear is the single, discoverable e
 | **D6** | "Add custom app" (admin) is a **direct action** in the Gear menu. Opens ServiceForm immediately, **without requiring editMode to be active first**. The user adds a custom app, the form closes, and they're back to their normal (or arrange, or edit) view. | Requiring editMode to add one app is unnecessary friction. The ServiceForm is self-contained. |
 | **D7** | The Gear icon shows a **highlighted/active appearance** whenever ANY editing mode is active — arrange OR editMode. This gives a persistent ambient signal that editing is on, even with the menu closed. | Users can see at a glance whether a mode is active without opening the menu. Matches the existing active styling already on the Gear. |
 | **D8** | UserMenu "My Dashboard" section: **remove** the admin-only "Edit dashboard" button. Admins get "Go to my dashboard" (same as non-admins). The personal section is now symmetric for all roles. | The Gear handles all admin editing. The UserMenu "My Dashboard" section is purely navigational — "Go to my dashboard" — for both roles. No admin-specific item needed there. |
-| **D9** | Gear menu closes on: outside click, Escape key, and after any direct action (Add apps, Add custom app). It does **not** close when a toggle item (Arrange tiles, Edit tiles) is clicked — the user may want to toggle and then use another item. Wait, it DOES close after a toggle too — to keep behavior predictable. Re-open the menu to see current state. | Standard dropdown menu behavior. Consistent with UserMenu. |
+| **D9** | Gear menu closes on: outside click, Escape key, and after any direct action (Add apps, Add custom app). It **also closes after a toggle item** (Arrange tiles, Edit tiles) — every click closes it, so behaviour is predictable; re-open the menu to see the new checkmark state. *(Clarified 2026-10-11, #200: this row and the paragraph below originally argued with themselves before reaching this answer. The shipped behaviour is pinned by `gear-menu.test.tsx`, "clicking fires onToggleEdit and closes the menu".)* | Standard dropdown menu behavior. Consistent with UserMenu. |
 
-Wait — on D9 revised: **the Gear menu closes after every click** (both toggles and direct actions). Toggles update state immediately; the user can re-open the menu to see the new checkmark state. Predictable, simple.
+**D9, final:** the Gear menu closes after every click — toggles and direct actions alike. Toggles update state immediately.
 
 ---
 
@@ -241,7 +241,7 @@ export default function AppHeader({
   onToggleEditMode = () => {},
   onOpenLibrary,           // new — triggers LibraryBrowse via parent
   onOpenCustomAppForm,     // new — triggers ServiceForm via parent (admin)
-  onToggleEdit,            // KEEP for UserMenu (admin settings still there)
+  onToggleEdit,            // drives the Gear's Arrange item only — NOT threaded to UserMenu (§4.2–4.3); corrected 2026-10-11, #200
   onOpenAdminSettings,
   onGoToDashboard,
   onLogout,

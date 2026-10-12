@@ -380,7 +380,7 @@ surfaces (see §8.5).
 Grounded in `Code/design-system/DESIGN-SYSTEM.md` and read off the **shipped**
 homepad chrome, not invented: the launcher-panel modal family
 (`src/index.css` `.launcher-overlay` / `.launcher-panel` / `.alert-history-header`),
-the shipped three-segment `ThemeControl` (`src/ThemeControl.tsx`), and the shipped
+the shipped three-segment `ThemeControl` (`src/theme/ThemeControl.tsx` — moved there by the 2026-08-31 feature-folder restructure; corrected 2026-10-11, #427), and the shipped
 `.app-spinner`. Every color/size below is either an existing token reused verbatim or
 a measured value with its contrast ratio stated. Two surfaces:
 

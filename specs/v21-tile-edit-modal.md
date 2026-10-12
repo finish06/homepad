@@ -306,8 +306,14 @@ the right rail (★ top, ✎ bottom) and leaving the left edge to system status 
 - **No collision with the ★ (proven geometrically, and measured).** The ★ hit area is centered at 21px
   from the tile top, spanning y ≈ −1…43px. The pencil hit area is centered 21px from the tile bottom;
   on the ≥120px-tall tile it spans y ≈ 77…121px. **Measured vertical gap between the two hit areas: 34px**
-  — no overlap. (Because both are corner-anchored, the guarantee holds for any tile ≥86px tall; homepad
-  tiles are ≥120, AC-007.) Horizontally the ★ and pencil share the right rail but never the same row, so
+  — no overlap. (Because both are corner-anchored, the guarantee holds for any tile ≥86px tall.)
+  **Corrected 2026-10-11 (#318, #513):** this originally read "homepad tiles are ≥120, AC-007".
+  The citation was wrong — v21's AC-007 is category reassignment, and no AC anywhere establishes a
+  120px minimum; it is the Large tile's CSS `min-height`. And the premise is no longer true: tile
+  density shipped after this spec, and **compact (the default) tiles are 68px, list tiles 44px**.
+  Measured in a real browser, the two 44px hit areas overlap there — 456px² at compact, 860px² at
+  list — and the pencil wins the overlap, taking the lower part of the ★'s target. The guarantee
+  holds at **Large density only**. Tracked as #513. Horizontally the ★ and pencil share the right rail but never the same row, so
   neither steals the other's tap. `aria-label="Edit [tile name]"`, standard `<button>`, `touch-action:
   manipulation` (kills the 300 ms tap delay), in natural tab order after the ★.
 - **Tile edit-mode treatment:** a **2px inset indigo (`--accent`) ring** (`outline:2px solid;

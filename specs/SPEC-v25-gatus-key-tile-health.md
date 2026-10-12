@@ -250,10 +250,13 @@ parallels:
 - State: `const [gatusKey, setGatusKey] = useState(service.gatus_key ?? '')` on
   modal open — prefills from the read model (new in v25).
 - Dirty: include `gatusKey !== (service.gatus_key ?? '')` in the dirty check.
-- Patch payload: include `gatus_key: gatusKey.trim()` unconditionally in the PATCH
-  (the storage layer ignores unchanged-but-present fields through the nil-pointer
-  semantics of `ServiceUpdate.GatusKey`, but since the frontend always sends the
-  current trimmed value on save, a round-trip on an unchanged field is harmless).
+- Patch payload: include `gatus_key` **only when it changed** — `if (gatusKey.trim() !==
+  (service.gatus_key ?? '')) patch.gatus_key = gatusKey.trim()` (`TileEditModal.tsx`), the
+  same pattern as `clickAction`. *(Revised 2026-10-11, #368 — Caleb: the code wins. This bullet
+  originally said to send it unconditionally, reasoning that "a round-trip on an unchanged field is
+  harmless". It is not harmless with two admins: re-sending the stale prefilled value overwrites a
+  Gatus key another admin changed in the meantime. Sending only on change cannot. AC-006/AC-007 are
+  unaffected — saving a changed value sends it, saving blank sends `""`.)*
 - ServiceForm.tsx: no change. The comment "API never returns gatus_key, so edit
   mode starts it blank" will no longer be accurate; update it or remove it.
 
