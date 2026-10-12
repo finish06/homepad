@@ -2112,9 +2112,11 @@
   .settings-kv-group-row {
     margin-top: 8px;
   }
-  .settings-kv-group-row:first-child {
-    margin-top: 0;
-  }
+  /* #377 — a `.settings-kv-group-row:first-child { margin-top: 0 }` rule lived here
+     and never matched: the <dl> always renders the uptime toggle and Slow-threshold
+     rows first, so no group caption is ever its first child. Removed rather than
+     "fixed" — the 8px it would have cancelled is what separates the env section
+     from those two controls. */
   .settings-kv-group-dd {
     display: none;
   }

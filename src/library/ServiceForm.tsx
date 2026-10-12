@@ -47,9 +47,15 @@ export default function ServiceForm({
   const [url, setUrl] = useState(service?.url ?? '');
   const [description, setDescription] = useState(service?.description ?? '');
   const [icon, setIcon] = useState(service?.icon ?? '');
-  // The API never returns gatus_key, so edit mode starts it blank. Left blank on
-  // an edit it is omitted from the PATCH (the existing key is preserved); typing
-  // a value sets or changes it. On add it is sent verbatim (blank = unmonitored).
+  // On add (the only mode the app renders — App.tsx mounts this form without a
+  // `service`) the key is sent verbatim; blank = unmonitored.
+  //
+  // Edit mode is reachable only from tests: tiles are edited in TileEditModal. It
+  // starts the field blank and omits a blank value from the PATCH, so an edit can
+  // never clear an existing key. Corrected 2026-10-11 (#366): this used to say "the
+  // API never returns gatus_key", which stopped being true in v25 — the read model
+  // carries it. If edit mode is ever wired up, prefill `service?.gatus_key` and send
+  // only on change, as TileEditModal does (decided on #368).
   const [gatusKey, setGatusKey] = useState('');
   // The catalog category the app belongs to ('' → Uncategorized). On add the
   // create endpoint can't set a category (#84), so a chosen one is filed via a

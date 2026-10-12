@@ -400,6 +400,41 @@ describe('v16 — Slow threshold (statusDegradedMs)', () => {
   });
 });
 
+// cap6 AC-029 (#295) — the admin "Show uptime display" switch reverts on a failed
+// save. §9.2 specified this from the start and the code implements it
+// (UptimeToggleRow: `setOptimistic(value)` in the catch), but it had no AC row and
+// no test: the 'reverts to the persisted value' test in the Slow-threshold block
+// belongs to that row, not this switch. Mirrors it, for the switch.
+describe('cap6 AC-029 — the uptime switch reverts when its save fails', () => {
+  it('snaps back to the persisted state and says so', async () => {
+    const onSaveSettings = vi.fn().mockRejectedValue(new Error('500'));
+    await renderPanel({ showUptimeDisplay: true, onSaveSettings });
+    const user = userEvent.setup();
+    const sw = screen.getByRole('switch', { name: /uptime/i });
+    expect(sw).toHaveAttribute('aria-checked', 'true');
+
+    await user.click(sw);
+
+    expect(onSaveSettings).toHaveBeenCalledWith({ showUptimeDisplay: false });
+    expect(await screen.findByText("Couldn't save — try again.")).toBeInTheDocument();
+    // The optimistic thumb must not be left showing a state the server rejected.
+    expect(sw).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('stays at the new state when the save succeeds — the revert is not unconditional', async () => {
+    // Without this, a switch that ALWAYS snapped back would pass the test above.
+    const onSaveSettings = vi.fn().mockResolvedValue(undefined);
+    await renderPanel({ showUptimeDisplay: true, onSaveSettings });
+    const user = userEvent.setup();
+    const sw = screen.getByRole('switch', { name: /uptime/i });
+
+    await user.click(sw);
+
+    expect(await screen.findByText('Saved ✓')).toBeInTheDocument();
+    expect(sw).toHaveAttribute('aria-checked', 'false');
+  });
+});
+
 // ── SPEC-health-bar-visibility-toggle — personal scope + the toggle ─────────
 //
 // OQ-1 (a): the panel takes a `scope`. `personal` is reachable by every role

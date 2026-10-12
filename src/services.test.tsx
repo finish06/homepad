@@ -50,6 +50,39 @@ describe('mergeStatuses change detection (cap5)', () => {
     expect(mergeStatuses([svc('a', 'NOT_MONITORED')], [svc('a', 'UP')]).changes).toEqual([]);
   });
 
+  // #172 / v17 AC-003 — the alert-history log records EVERY transition, including
+  // those touching UNKNOWN / NOT_MONITORED, even though T-004/T-005 show they raise
+  // no toast. cap5 filtered these out of `changes` (toasts) only; `transitions` is
+  // pushed before the toastable filter (services.tsx). These pin that split, which
+  // had no test: a refactor moving the push inside the filter would silently empty
+  // the alert history of exactly the flips an operator most needs to see.
+  it('T-006: UNKNOWN↔UP produces a transition but no toast (AC-003 vs AC-004)', () => {
+    const up = mergeStatuses([svc('a', 'UNKNOWN')], [svc('a', 'UP')]);
+    expect(up.changes).toEqual([]);
+    expect(up.transitions).toHaveLength(1);
+    expect(up.transitions[0]).toMatchObject({ id: 'a', from: 'UNKNOWN', to: 'UP' });
+
+    const down = mergeStatuses([svc('a', 'UP')], [svc('a', 'UNKNOWN')]);
+    expect(down.changes).toEqual([]);
+    expect(down.transitions[0]).toMatchObject({ from: 'UP', to: 'UNKNOWN' });
+  });
+
+  it('T-007: NOT_MONITORED↔UP produces a transition but no toast (AC-003 vs AC-005)', () => {
+    const on = mergeStatuses([svc('a', 'NOT_MONITORED')], [svc('a', 'UP')]);
+    expect(on.changes).toEqual([]);
+    expect(on.transitions).toHaveLength(1);
+    expect(on.transitions[0]).toMatchObject({ from: 'NOT_MONITORED', to: 'UP' });
+
+    const off = mergeStatuses([svc('a', 'UP')], [svc('a', 'NOT_MONITORED')]);
+    expect(off.changes).toEqual([]);
+    expect(off.transitions[0]).toMatchObject({ from: 'UP', to: 'NOT_MONITORED' });
+  });
+
+  it('T-008: an unchanged status produces no transition at all', () => {
+    // The other half of the contract — "every transition" must not mean "every poll".
+    expect(mergeStatuses([svc('a', 'UNKNOWN')], [svc('a', 'UNKNOWN')]).transitions).toEqual([]);
+  });
+
   it('still merges status into next (regression: identity preserved)', () => {
     const cur = [svc('a', 'UP'), svc('b', 'DOWN')];
     const { next } = mergeStatuses(cur, [svc('a', 'DOWN'), svc('b', 'DOWN')]);

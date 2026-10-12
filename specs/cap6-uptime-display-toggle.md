@@ -143,6 +143,7 @@ superseded with the column.
 | AC-027a | AC-026 and AC-027 are tested **in the direction that can fail**: set the admin default **OFF**, create an account, assert it comes up **OFF**. Testing with the default ON proves nothing — a stale column default alone would pass it. | Must |
 | AC-028 | The System panel row is **relabelled** to say it is a default for new accounts, not a global switch. An admin must not be able to read that row as "turn sparklines off for everyone", because it no longer does that. Copy accepted 2026-09-20. | Must |
 | AC-028a | The relabel is accompanied by **inline help text** stating the change applies to accounts created afterwards. The label alone is insufficient: an admin toggles the row, checks their own dashboard, sees nothing change, and concludes it is broken. The row must explain its own lack of visible effect. | Must |
+| AC-029 | When saving the System panel's uptime row (the **default for new accounts**, per AC-028) fails — non-2xx or network error — its switch **reverts to the prior persisted state** and the row shows `Couldn't save — try again.` A successful save keeps the new state and shows `Saved ✓`. *(Added 2026-10-11, #295: designed in §9.2 from the start and implemented in `UptimeToggleRow`, but it had no AC row and no test. Pinned by `SettingsPanel.test.tsx` → "cap6 AC-029", negative-controlled in both directions — deleting the revert fails one test, reverting on success fails the other.)* | Should |
 
 ---
 

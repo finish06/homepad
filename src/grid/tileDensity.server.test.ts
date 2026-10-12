@@ -5,6 +5,7 @@
 // written through to PATCH /api/me, and the feature degrades to the per-device
 // store when the server has no field (older backend) or the write fails.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { StrictMode } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { setDensityPref } from '../api';
 import { useTileDensity } from './tileDensity';
@@ -89,5 +90,65 @@ describe('SPEC-tile-density OQ-9 — per-user, server-side density', () => {
       result.current[1]('list');
     });
     expect(mockedSet).not.toHaveBeenCalled();
+  });
+});
+
+// #441 — `set()` used to call saveDensity() and setDensityPref() INSIDE the
+// setDensity((cur) => …) updater. React 18 StrictMode double-invokes state
+// updater functions in development precisely to expose side effects like these,
+// so every density change wrote localStorage twice and PATCHed /api/me twice.
+// Harmless today (both writes are idempotent), but an updater must be pure:
+// the next side effect added there would not be idempotent, and nothing would
+// say so. These run under StrictMode on purpose — without it React invokes the
+// updater once and the bug is invisible.
+describe('#441 — set() persists exactly once, even under StrictMode', () => {
+  const storageWrites = (spy: ReturnType<typeof vi.spyOn>) =>
+    spy.mock.calls.filter(([k]) => k === 'homepad:tile-density').length;
+
+  it('a change writes the device cache once and PATCHes the server once', () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    const { result } = renderHook(() => useTileDensity('compact'), { wrapper: StrictMode });
+    setItem.mockClear();
+    mockedSet.mockClear();
+
+    act(() => result.current[1]('list'));
+
+    expect(result.current[0]).toBe('list');
+    expect(storageWrites(setItem)).toBe(1);
+    expect(mockedSet).toHaveBeenCalledTimes(1);
+    expect(mockedSet).toHaveBeenCalledWith('list');
+    setItem.mockRestore();
+  });
+
+  it('setting the current value is still a no-op — no write, no PATCH', () => {
+    // The fix moves the side effects out of the updater, which is where the
+    // `cur === d` short-circuit lived. This pins that the short-circuit survived.
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    const { result } = renderHook(() => useTileDensity('compact'), { wrapper: StrictMode });
+    setItem.mockClear();
+    mockedSet.mockClear();
+
+    act(() => result.current[1]('compact'));
+
+    expect(storageWrites(setItem)).toBe(0);
+    expect(mockedSet).not.toHaveBeenCalled();
+    setItem.mockRestore();
+  });
+
+  it('two quick changes persist each value once, in order', () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    const { result } = renderHook(() => useTileDensity('compact'), { wrapper: StrictMode });
+    setItem.mockClear();
+    mockedSet.mockClear();
+
+    act(() => {
+      result.current[1]('list');
+      result.current[1]('large');
+    });
+
+    expect(result.current[0]).toBe('large');
+    expect(mockedSet.mock.calls.map(([d]) => d)).toEqual(['list', 'large']);
+    expect(storageWrites(setItem)).toBe(2);
+    setItem.mockRestore();
   });
 });
