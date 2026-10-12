@@ -126,4 +126,6 @@ A → B → C → E. Each merges only on QA-pool approval, and the next opens on
 | 2026-10-12 | A2 — #524 | reproduced | pod-sim with the sidecar capped at 0.35 CPU, 3 workers, main: **47/99 fail** (30s action stalls, plus the fallback's `Executable doesn't exist`). My first pod-sim missed this because the sidecar was never loaded. Fix built on `fix/gate-sidecar-524`; the same-setup run is in progress |
 | 2026-10-12 | C — #487 (#525) | merged | ada approved at `ba0aa37` and measured 0.0px at 1400px on staging herself; `2ae46f2`; staging run 6022 rolled out. #487 closed |
 | 2026-10-12 | A2 — #524 (#526) | in QA | `8051524`. Same starved-sidecar setup: main 47/99 fail, branch **99/99** (1 worker). With the sidecar gone after detection, every test fails loudly ("Not falling back … #524/#507") and none with a launch error. Off-pod is unchanged: 4 workers, 99/99 on macOS and the CI image |
+| 2026-10-12 | A2 — #524 (#526) | merged | ada approved at `8051524`; `bae5af0`; staging run 6027 rolled out. #524 closed. **#507 auto-closed and was reopened**: the approval had no pod gate run, and that run is #507's evidence. Asked for it with #527's QA |
+| 2026-10-12 | E — 16.7.2 (#527) | in QA | `eaca704`. Nothing user-visible, and both changelogs say so. Alignment 6/6; 1015 unit; gate 100/100; e2e 12 (+2 existing skips) |
 
