@@ -7,6 +7,26 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [16.7.1] — 2026-10-12 — Choosing how a tile opens, at a glance
+
+No migrations. Frontend only. Upgrading from 16.7.0 is a single step.
+
+**How a tile opens is now three buttons, not a dropdown.** In the tile editor,
+*Click action* shows New tab, Same tab and Inline overlay side by side, so you can
+see every option and which one is set without opening a menu. One line under the
+buttons explains the selected choice. For Inline overlay, that line also warns that
+some sites refuse to be embedded and that a fallback link appears when they do. The
+buttons are full-size touch targets on iPad and phone, and work from the keyboard.
+Nothing is saved until you press Save, the same as before.
+
+**Under the hood.** A change to tile size is now saved outside React's render step,
+so a rendering retry can't send it twice or out of order. Several behaviours that
+were already correct (alert history, settings that revert when a save fails,
+two-line tile names) now have tests that fail if they regress. A CSS rule that
+could never apply was removed. Staging deploys now clean up their temporary files
+and credentials on every exit path. Several design specs were corrected to match
+what actually shipped.
+
 ## [16.7.0] — 2026-10-12 — Favorites stay put until you mean to change them
 
 No migrations. Frontend only. Upgrading from 16.6.x is a single step.

@@ -2,6 +2,20 @@
   "pending": [],
   "versions": [
     {
+      "version": "16.7.1",
+      "date": "2026-10-12",
+      "changes": [
+        {
+          "type": "enhancement",
+          "text": "In the tile editor, Click action is now three buttons — New tab, Same tab, Inline overlay — with one line explaining the selected choice, instead of a dropdown."
+        },
+        {
+          "type": "bug-fix",
+          "text": "A tile size change is saved outside React's render step, so a rendering retry can't send it twice or out of order."
+        }
+      ]
+    },
+    {
       "version": "16.7.0",
       "date": "2026-10-12",
       "changes": [
