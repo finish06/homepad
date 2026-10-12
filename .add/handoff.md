@@ -74,3 +74,12 @@ checkpoints both start. This is the first handoff this project has ever had.
 - Reply-to name for cross-session messages: give the exact session name (`ListAgents`),
   not "the homepad session".
 
+## Update 2026-10-12 — roadmap: M1 archived
+
+- PRD §6: **M1 moved Now → Done** (Caleb, `/add:roadmap --edit`). Now = M2 only; Next = M3, M4;
+  Later = M5, M6. The milestone file is kept; its Horizon reads DONE.
+- Docs synced: spec count 39 → 40 (CLAUDE.md, PRD); `specs/README.md` and spec status lines
+  record what shipped in 16.7.x (#428 segmented control, v29 in prod, v25 AC-002 amended).
+- The "Where things stand" block at the top of this file is from 2026-10-11 — read the
+  dated updates below it for current state.
+

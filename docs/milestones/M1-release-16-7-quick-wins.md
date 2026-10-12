@@ -2,7 +2,7 @@
 
 **Target Maturity:** GA (maintain)
 **Status:** COMPLETE
-**Horizon:** NOW
+**Horizon:** DONE (archived 2026-10-12)
 **Started:** 2026-10-11 (cycle-1)
 **Completed:** 2026-10-12, in one cycle (its whole appetite)
 **Created:** 2026-10-11 — from the backlog triage that closed 26 of 71 open issues with evidence (see `.add/handoff.md`)

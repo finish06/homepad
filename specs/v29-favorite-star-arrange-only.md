@@ -1,6 +1,6 @@
 # Spec: the favorite ★ is only selectable in Arrange mode
 
-**Status:** BUILT 2026-10-01, shipped in PR #506 (merged to `main` as `0bae21c`)
+**Status:** SHIPPED — released in 16.7.0, in production since 2026-10-12 as part of 16.7.1. Built 2026-10-01, shipped in PR #506 (merged to `main` as `0bae21c`)
 — requested by Caleb; the admin/personal question answered by him the same day
 (§3). Kare §9 not authored; §3.2 is a product call on an indicator-vs-control
 split, flagged for review rather than deferred.

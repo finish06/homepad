@@ -3,7 +3,7 @@
 **Spec ID:** SPEC-tile-click-action-20260710
 **Created:** 2026-07-10
 **Author:** Walt (product lead)
-**Status:** SHIPPED — v14.0.0 (`d400156`, PR #333). `Service.clickAction` — new_tab | same_tab | iframe.
+**Status:** SHIPPED — v14.0.0 (`d400156`, PR #333). `Service.clickAction` — new_tab | same_tab | iframe. **Kare §8.1 segmented control SHIPPED — v16.7.1** (PR #517, #428; equal widths under classic scrollbars, #518). Two deliberate divergences await Kare: unequal segment widths at 320px, and the hint at #525252 rather than #475069.
 **Repos:** `Code/homepad` (UI) + `Code/homepad-api` (data model + API)
 **Estimate:** ~5–8 hours Stitch
 **Target version:** v13.12.0 (feature = minor; v21 → v13.10.0, v22 → v13.11.0)
