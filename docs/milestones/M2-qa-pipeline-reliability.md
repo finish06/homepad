@@ -57,7 +57,7 @@ Every issue listed here was **re-checked against `main` at `57733eb` on 2026-10-
 
 | Cycle | Features Advanced | Status | Outcome |
 |-------|-------------------|--------|---------|
-| — | — | — | Not yet started |
+| cycle-2 | #452 (+#455 #507), #423, #487, #414; infra routed to Joe; 16.7.2 | PLANNED | `.add/cycles/cycle-2.md` — A→B→C→E serial; 11/20 PRs already single-reviewer |
 
 ## Retrospective Notes
 

@@ -83,3 +83,10 @@ checkpoints both start. This is the first handoff this project has ever had.
 - The "Where things stand" block at the top of this file is from 2026-10-11 — read the
   dated updates below it for current state.
 
+## Update 2026-10-12 — cycle-2 planned (M2)
+
+- Plan: `.add/cycles/cycle-2.md`. Caleb is **away**; it runs autonomously. 16.7.2 gets tagged at the end and is **not promoted**.
+- Order: A #452 (6 gate specs bypass `./fixtures`; this is the root cause of #455/#507) → B #423 admin-modal gates
+  → C #487 (measure centring at 1400px) → E 16.7.2. D #414 closes on Joe's in-cluster staging check.
+- Starts once #520 merges. Update the log **after every merge** this time.
+
