@@ -7,6 +7,34 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [16.7.0] — 2026-10-12 — Favorites stay put until you mean to change them
+
+No migrations. Frontend only. Upgrading from 16.6.x is a single step.
+
+**The favorite ★ only toggles in Arrange apps.** It used to be live on every tile
+all the time, in the tile's own corner, so a slightly-off tap meant to open an app
+could unpin a favorite instead — with no undo. Now the star is a control only while
+you are arranging. Outside Arrange apps a favorite still shows its ★, so you can see
+what is pinned; it just can't be knocked off by accident. Tiles you haven't
+favorited show no star at all while you browse.
+
+**Everyone can use Arrange apps now.** Favorites are yours, not the admin's, so the
+mode that holds the star has to be open to everybody — in 16.6.0 it was admin-only.
+For non-admins it does one thing: pin and unpin your favorites. Arranging the shared
+catalog, renaming or deleting categories, and editing tiles all stay with admins.
+
+**Tapping a favorite's corner opens the app.** The star has an enlarged touch area
+so it is easy to hit while arranging. Left as it was, that area would have swallowed
+taps meant for the tile while you browse. It doesn't — that corner opens the app
+like the rest of the tile.
+
+**Under the hood.** Staging deploys could fail at random *after* they had already
+succeeded — a shell detail in our own deploy step, now fixed. A check that keeps an
+internal hostname out of the public app had been quietly skipping itself instead of
+running; it now runs, and fails loudly if it can't. And the app's download size now
+has a budget, set from how much the last nine releases actually grew, so an
+accidental bloat is caught before it ships.
+
 ## [16.6.0] — 2026-09-25 — Tile size moves into your settings
 
 No migrations. Frontend only. Upgrading from 16.5.x is a single step.

@@ -2,6 +2,24 @@
   "pending": [],
   "versions": [
     {
+      "version": "16.7.0",
+      "date": "2026-10-12",
+      "changes": [
+        {
+          "type": "enhancement",
+          "text": "The favorite ★ only toggles in Arrange apps, so a stray tap while browsing can’t unpin a favorite. Favorites still show their ★; tiles you haven’t favorited show none."
+        },
+        {
+          "type": "enhancement",
+          "text": "Arrange apps is now available to everyone — favorites are personal. For non-admins it pins and unpins favorites; editing the shared catalog stays admin-only."
+        },
+        {
+          "type": "bug-fix",
+          "text": "Tapping the corner of a favorited tile opens the app, rather than landing on the star’s touch area."
+        }
+      ]
+    },
+    {
       "version": "16.6.0",
       "date": "2026-09-25",
       "changes": [
