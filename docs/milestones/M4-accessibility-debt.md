@@ -16,6 +16,7 @@ Meet WCAG AA everywhere homepad is used, starting with the one issue marked majo
 - [ ] #379: login in **dark mode** meets AA (labels and inputs ≥4.5:1), measured in a real-browser gate. The v19 gate measures light mode only
 - [ ] #262 / #263: the shared `.status-dot` — still used by the command launcher and alert history — meets 3:1 non-text contrast, and UNKNOWN no longer gets the danger glow
 - [ ] #187: avatar hover covers the full 44px target, not just the inner disc
+- [ ] #513: the ★ and edit-pencil 44px hit areas are disjoint **at every density**, pinned by a real-browser gate (v21 §8.1's guarantee holds only at Large today)
 - [ ] #375 / #376: env-config `<dl>` conformance and a correctly scoped `aria-busy`
 - [ ] #477: sparkline dots are keyboard-focusable (placement needs Kare)
 - [ ] #488: decision on the settings copy for Show uptime display + Tile density
@@ -32,7 +33,8 @@ One to two cycles; #477 waits on Kare.
 |---------|------|----------|--------|-------|
 | Dark-mode login | — | SHAPED | #379 — major | — |
 | Shared status dot | — | SHAPED | #262 #263 | — |
-| Avatar hover target | — | SHAPED | #187 | — |
+| Avatar hover target | — | SHAPED | #187 |
+| ★ / edit-pencil hit areas overlap at compact & list | specs/v21-tile-edit-modal.md §8.1 | SHAPED | **#513** — found 2026-10-11 during cycle-1; the pencil wins the overlap and takes the lower part of the ★'s target at the **default** density. Admin-only, arrange mode only | — |
 | Env-config semantics | — | SHAPED | #375 #376 | — |
 | Sparkline keyboard focus | specs/cap4 (AC-006) | SHAPED | #477 — needs Kare | — |
 | Settings copy | — | SHAPED | #488 — decision | — |

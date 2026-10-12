@@ -22,7 +22,7 @@ homepad. Historical specs for shipped versions v2–v10 are in
 
 ---
 
-## Shipped (36)
+## Shipped (38)
 
 | File | Feature | Status (verified 2026-09-22) |
 |------|---------|------|
@@ -44,6 +44,8 @@ homepad. Historical specs for shipped versions v2–v10 are in
 | [`cap3-recently-opened.md`](./cap3-recently-opened.md) | "Recently Opened" Row — Capability #3 | BUILT 2026-09-20 — see §8 for the two deviations from this spec's original guidance. Awaiting QA. |
 | [`cap4-sparkline-dot-tooltip.md`](./cap4-sparkline-dot-tooltip.md) | Sparkline Dot Hover Tooltip — Capability #4 | BUILT 2026-09-22 (restored) — see §8. Originally shipped 2026-06-23 (PR #145), |
 | [`cap5-status-change-toasts.md`](./cap5-status-change-toasts.md) | Status-Change Toast Alerts — Capability #5 | SHIPPED — prod. The AC-015 ghost-toast defect (#147) was fixed in v12.0.3 (`a0b5fd5`); no outstanding work. |
+| [`SPEC-status-degraded-threshold.md`](./SPEC-status-degraded-threshold.md) | "Slow" threshold — `statusDegradedMs` | SHIPPED — v16.2.0 (PR #444). Spec written retroactively 2026-10-11 (#449) from the code on both sides; OQ-1 (no way back to "unset") open. |
+| [`v29-favorite-star-arrange-only.md`](./v29-favorite-star-arrange-only.md) | The favorite ★ is a control only in Arrange mode | SHIPPED — #506 (`0bae21c`), released in 16.7.0. Opened Arrange apps to every user; supersedes SPEC-density-to-my-settings AC-008/TC-006. §3.3 (non-admin tile drag) open → M5. *(Added to this index 2026-10-11 — it was missing.)* |
 | [`cap6-uptime-display-toggle.md`](./cap6-uptime-display-toggle.md) | Uptime Display Toggle — Capability #6 | v1 SHIPPED (prod v13.5.0, global admin setting). **v2 SHIPPED — prod v16.4.0, 2026-09-20** (the setting is per-user; the admin row now seeds new accounts). OQ-1 resolved. v2 product/design sign-off waived 2026-09-20 under the o… |
 | [`large-monitor-grid.md`](./large-monitor-grid.md) | Large-Monitor Grid & Layout Alignment | SHIPPED — v12.7.1 / v12.7.2 (#194, #195, #196). Walt (product) ✓ · Kare (design) ✓ |
 | [`not-monitored-state.md`](./not-monitored-state.md) | Distinct "Not Monitored" Tile State | Shipped — prod (PR #48/#49/#50/#100, 2026-06-18) |
