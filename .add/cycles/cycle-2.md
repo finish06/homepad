@@ -124,4 +124,6 @@ A → B → C → E. Each merges only on QA-pool approval, and the next opens on
 | 2026-10-12 19:06Z | B — #423 (#523) | merged | gracie approved at `6f01957`; `5c0f757`; staging run 6013 rolled out. #423 closed. **Gracie's pod run** found the full suite fails in the pod under 3 workers, and filed **#524**. #455 was closed by gracie (the bypass is fixed); **#507 stays open**, because the silent per-worker fallback is its remaining cause |
 | 2026-10-12 | C — #487 (#525) | in QA | cherry-picked onto main as `ba0aa37` |
 | 2026-10-12 | A2 — #524 | reproduced | pod-sim with the sidecar capped at 0.35 CPU, 3 workers, main: **47/99 fail** (30s action stalls, plus the fallback's `Executable doesn't exist`). My first pod-sim missed this because the sidecar was never loaded. Fix built on `fix/gate-sidecar-524`; the same-setup run is in progress |
+| 2026-10-12 | C — #487 (#525) | merged | ada approved at `ba0aa37` and measured 0.0px at 1400px on staging herself; `2ae46f2`; staging run 6022 rolled out. #487 closed |
+| 2026-10-12 | A2 — #524 (#526) | in QA | `8051524`. Same starved-sidecar setup: main 47/99 fail, branch **99/99** (1 worker). With the sidecar gone after detection, every test fails loudly ("Not falling back … #524/#507") and none with a launch error. Off-pod is unchanged: 4 workers, 99/99 on macOS and the CI image |
 
