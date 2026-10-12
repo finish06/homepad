@@ -116,4 +116,5 @@ A → B → C → E. Each merges only on QA-pool approval, and the next opens on
 | 2026-10-12 | A — #452 (#522) | in QA | `5a48b15`. Pod-sim (no browser, Chrome 148 CDP sidecar): main fails 35/35 with #455's exact error; the branch passes 35/35, full gate 85/85. Asked QA for a real pod run to close #455/#507 |
 | 2026-10-12 | B — #423 | built, held | `3ab5b64` on `feat/admin-modal-gates-423`, stacked on A. 14 tests, 7 negative controls, 99/99 on mac, CI image and pod-sim. PR opens after A merges and rolls out |
 | 2026-10-12 | (lesson) | — | A negative control whose mutation breaks typecheck leaves the **previous** `dist/` in place, and the gate silently tests that. The harness now `rm -rf dist` and fails loudly on a build error |
+| 2026-10-12 | C — #487 | built, held | `2437659` on `feat/centre-1400-487`, stacked on B. At 1400px: 0.0px from the row centre; 7.5px from the **window** centre with a classic scrollbar. That's the "8px", and it isn't a defect. Measurement posted on #487. A 24px-shift negative control fails every width |
 
