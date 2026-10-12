@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from './fixtures';
+import type { Page } from '@playwright/test';
 import { mockApi, makeStatusTiles } from './mockApi';
 
 // SPEC-health-bar-visibility-toggle — the per-user bar visibility, real-browser GATE.

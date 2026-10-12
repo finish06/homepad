@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { mockApi, makeStatusTiles } from './mockApi';
 
 // 16.5.1 — the header search trigger must sit on the header's true centre line.
