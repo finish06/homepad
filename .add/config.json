@@ -170,7 +170,7 @@
   },
   "planning": {
     "current_milestone": "M2-qa-pipeline-reliability",
-    "current_cycle": null,
+    "current_cycle": "cycle-2",
     "wip_limit": 5,
     "parallel_agents": 5,
     "cycle_history": [
@@ -181,6 +181,13 @@
         "status": "COMPLETE",
         "plan": ".add/cycles/cycle-1.md",
         "completed": "2026-10-12"
+      },
+      {
+        "cycle": "cycle-2",
+        "milestone": "M2-qa-pipeline-reliability",
+        "planned": "2026-10-12",
+        "status": "PLANNED",
+        "plan": ".add/cycles/cycle-2.md"
       }
     ]
   },
