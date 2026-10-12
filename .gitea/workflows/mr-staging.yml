@@ -46,6 +46,23 @@ jobs:
           deploy-cmd: |
             # Kubeconfig lands 0600 (default umask leaves /tmp/kc world-readable
             # for the rest of the job otherwise) and is removed after the rollout.
+            # Cleanup runs on EVERY exit path, success or failure (#503). The two
+            # deploy temp files AND /tmp/kc — the staging kubeconfig, i.e. cluster
+            # credentials — used to be removed by `rm -f` lines that `bash -e` skips
+            # the moment any command before them fails (curl, kubectl apply, or the
+            # common one: `rollout status` timing out). The advisory covered the temp
+            # files; the kubeconfig had the same failure mode and was the one that
+            # mattered.
+            #
+            # `rc=$?; set +e; …; exit $rc` is deliberate, not decoration. Under
+            # `bash -e`, errexit stays ACTIVE inside an EXIT trap, so a failing
+            # cleanup command would abort the trap with status 1 — turning a
+            # successful deploy red, which is the #502 failure mode again. Capturing
+            # the status and switching errexit off first means cleanup can never
+            # change the outcome. Verified: success -> 0, failure(7) -> 7,
+            # curl-23 -> 23, with a deliberately failing cleanup command.
+            WORK="$(mktemp -d)"
+            trap 'rc=$?; set +e; rm -rf "$WORK"; rm -f /tmp/kc; exit $rc' EXIT
             install -m 600 /dev/null /tmp/kc
             printf '%s' "$KUBECONFIG_STAGING" > /tmp/kc && export KUBECONFIG=/tmp/kc
             # catthehacker runner image ships no kubectl — install the pinned
@@ -76,17 +93,14 @@ jobs:
             # timing-dependent on how much follows the `---`, which is why
             # consecutive runs on an identical manifest disagreed (#499 and #500
             # passed, #501 failed).
-            MANIFEST="$(mktemp)"; CONFIGMAP_DOC="$(mktemp)"
-            curl -sSf http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main/homepad-staging/03-web.yaml -o "$MANIFEST"
-            sed '/^---$/q' "$MANIFEST" > "$CONFIGMAP_DOC"
-            kubectl -n homepad-staging apply -f "$CONFIGMAP_DOC"
-            rm -f "$MANIFEST" "$CONFIGMAP_DOC"
+            curl -sSf http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main/homepad-staging/03-web.yaml -o "$WORK/manifest.yaml"
+            sed '/^---$/q' "$WORK/manifest.yaml" > "$WORK/configmap.yaml"
+            kubectl -n homepad-staging apply -f "$WORK/configmap.yaml"
             kubectl -n homepad-staging set image deploy/homepad-web web="$IMAGE_REF"
             # Restart even when the image tag is unchanged so a ConfigMap-only
             # change still reaches the pods (mounted configs don't hot-reload).
             kubectl -n homepad-staging rollout restart deploy/homepad-web
             kubectl -n homepad-staging rollout status deploy/homepad-web --timeout=120s
-            rm -f /tmp/kc
         env:
           REGISTRY_USERNAME:  ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASSWORD:  ${{ secrets.REGISTRY_PASSWORD }}
