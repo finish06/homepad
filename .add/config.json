@@ -169,8 +169,8 @@
     "archival_max_severity": "medium"
   },
   "planning": {
-    "current_milestone": "M2-qa-pipeline-reliability",
-    "current_cycle": null,
+    "current_milestone": "M7-growth-install-funnel",
+    "current_cycle": "cycle-3",
     "wip_limit": 5,
     "parallel_agents": 5,
     "cycle_history": [
@@ -189,6 +189,13 @@
         "status": "COMPLETE",
         "plan": ".add/cycles/cycle-2.md",
         "completed": "2026-10-13"
+      },
+      {
+        "cycle": "cycle-3",
+        "milestone": "M7-growth-install-funnel",
+        "planned": "2026-10-13",
+        "status": "IN_PROGRESS",
+        "plan": ".add/cycles/cycle-3.md"
       }
     ]
   },
