@@ -1,256 +1,110 @@
 <p align="center">
-  <img src="./docs/banner.svg" alt="homepad — self-hosted launcher for your homelab" width="100%">
+  <img src="./docs/banner.svg" alt="Homepad" width="100%">
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white" alt="Go 1.25">
-  <img src="https://img.shields.io/badge/React%20%2B%20Vite-18%20%C2%B7%205-61DAFB?logo=react&logoColor=white" alt="React + Vite">
-  <img src="https://img.shields.io/badge/Tailwind%20CSS-3-38BDF8?logo=tailwindcss&logoColor=white" alt="Tailwind CSS">
-  <img src="https://img.shields.io/badge/version-15.6.0-blue" alt="v15.6.0">
-  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
+  <strong>The self-hosted homelab dashboard for the whole household.</strong><br>
+  Every service in one place, with live health, and a personal view for everyone under your roof.
 </p>
-
-# homepad
-
-**homepad** is a self-hosted launcher / homepage for a homelab: one page that
-lists every service in a shared catalog, shows a **live status badge** for each
-(UP / DEGRADED / DOWN / UNKNOWN), and lets each user keep their own favorites and
-tile order. Status data is pulled server-side from [Gatus](https://github.com/TwiN/gatus) —
-the browser never talks to Gatus directly.
-
-This repo is the **web frontend** (React + Vite + TypeScript + Tailwind). It
-pairs with the Go backend at [`homepad-api`](https://github.com/finish06/homepad-api).
-
-> **Spec:** [`specs/v1-launcher.md`](./specs/v1-launcher.md) — canonical for both repos.
-> **Test plan:** [`specs/test-plan-v1.md`](./specs/test-plan-v1.md)
-
-## Features
-
-- **Two ways to log in** — local email + password (bcrypt sessions), *and*
-  "Log in with PocketID" (homelab OIDC) when the backend has it enabled. The
-  OIDC button is additive and fails closed (hidden) if OIDC is off.
-- **Shared service catalog** — every authenticated user sees the same tiles
-  (name, icon, description, launch URL), rendered in the order the API returns.
-- **Live status badges** — each tile shows UP (green) / DEGRADED (amber) /
-  DOWN (red) / UNKNOWN (gray), driven by the backend's Gatus poller (status is
-  never staler than ~60s).
-- **Per-user favorites** — star a service; favorites persist across sessions
-  (optimistic toggle with rollback on failure).
-- **Personal ordering** — reorder your tiles with move up / down; the order is
-  saved per user and survives logout (optimistic + rollback).
-- **Admin catalog CRUD** — admins create / edit / delete catalog entries;
-  non-admins get a 403.
-- **Gatus is server-side only** — no Gatus URL ever ships in the JS bundle or
-  reaches the browser (verified: `grep -ri gatus dist/` is empty).
-- **Admin/personal scope clarity** — the UserMenu shows a distinct ADMIN
-  section label (shield icon, amber) with per-item scope tags ("personal" /
-  "global"), the Settings modal is titled "Admin Panel" with a global-scope
-  subtitle, and non-admins see a note explaining their dashboard is their
-  settings.
-- **UserMenu dropdown z-index** — the sticky header is at `z-20`,
-  clearing the tile drag-grips' `z-10` so the dropdown is always accessible;
-  a real-browser Playwright gate guards against regression.
-
-Acceptance criteria **A1–A11** from the spec are all implemented; A7/A8 (live
-responsive + Lighthouse budgets) and full browser e2e are verified on the
-deployed stack. See [CHANGELOG.md](./CHANGELOG.md) for the full version history.
-
-## Architecture
-
-```mermaid
-flowchart LR
-  user(["🧑 Browser"])
-
-  subgraph cluster["k3s · stitch namespace"]
-    web["web<br/>nginx · serves the SPA"]
-    api["homepad-api<br/>Go HTTP API"]
-    poller["status poller"]
-    pg[("Postgres<br/>users · catalog · favorites · layout")]
-  end
-
-  gatus["Gatus<br/>uptime probes"]
-  pocketid["PocketID<br/>OIDC provider"]
-
-  user -->|HTTPS| web
-  web -->|"/api/*"| api
-  api --> pg
-  api --- poller
-  poller -.->|poll status, server-side only| gatus
-  user <-.->|OIDC: code + PKCE| pocketid
-  api <-.->|discovery · token · JWKS| pocketid
-```
-
-The browser only ever talks to `web` (the SPA) and, same-domain, to `/api/*`.
-Gatus is reachable **only** from the backend poller — never from a browser
-session (spec AC A11).
-
-## Authentication
-
-Both login paths land on the **same** `homepad_session` cookie, so the rest of
-the app is identical regardless of how you signed in.
-
-```mermaid
-sequenceDiagram
-  autonumber
-  participant B as Browser
-  participant A as homepad-api
-  participant P as PocketID (OIDC)
-  participant DB as Postgres
-
-  rect rgb(15,23,42)
-  note over B,DB: Local — email / password
-  B->>A: POST /api/login (email, password)
-  A->>DB: look up user, verify bcrypt hash
-  A-->>B: Set-Cookie homepad_session → 200
-  end
-
-  rect rgb(2,6,23)
-  note over B,P: PocketID — Authorization Code + PKCE
-  B->>A: GET /api/auth/oidc/login
-  A-->>B: 302 → PocketID authorize<br/>(state, nonce, PKCE S256 challenge)
-  B->>P: authorize + consent
-  P-->>B: 302 → /api/auth/oidc/callback?code&state
-  B->>A: GET /api/auth/oidc/callback?code&state
-  A->>P: exchange code + PKCE verifier → tokens
-  P-->>A: id_token (+ JWKS for verify)
-  A->>A: verify RS256 sig · iss / aud / exp / nonce
-  A->>DB: link-by-email or provision user<br/>(admin iff in OIDC_ADMIN_GROUP)
-  A-->>B: Set-Cookie homepad_session → 302 /
-  end
-```
-
-`GET /api/auth/config` returns `{"oidcEnabled":bool}` so the web app knows
-whether to render the PocketID button. When OIDC is disabled the two `/oidc/*`
-endpoints are unregistered (404) and homepad is local-only.
-
-## Screenshots
-
-> Real captures from the live **v15** deploy.
 
 <p align="center">
-  <img src="./docs/screenshots/catalog.png" alt="homepad service catalog — apps grouped by category with live icons" width="100%">
-  <br><em>The catalog — your apps grouped by category, each with its own icon.</em>
+  <a href="https://gethomepad.dev">Website</a> ·
+  <a href="https://demo.gethomepad.dev">Live demo</a> ·
+  <a href="#quickstart">Quickstart</a> ·
+  <a href="#how-it-compares">Compare</a> ·
+  <a href="./docs/development.md">Develop</a>
 </p>
-
-| Admin &amp; personal scope | Sign in |
-| --- | --- |
-| ![User menu showing the admin section with PERSONAL and GLOBAL scope tags](./docs/screenshots/usermenu.png) | ![Sign-in screen](./docs/screenshots/login.png) |
-
-<p align="center"><em>homepad makes scope explicit at the point of use: an <strong>Admin</strong> section in the menu, with <strong>personal</strong> vs <strong>global</strong> tags on each action so you always know who a change affects.</em></p>
 
 <p align="center">
-  <img src="./docs/screenshots/mobile.png" alt="homepad on mobile (390×844)" width="280">
-  <br><em>Responsive at 390×844 (iPhone 13).</em>
+  <a href="https://github.com/finish06/homepad/tags"><img src="https://img.shields.io/github/v/tag/finish06/homepad?label=release&sort=semver" alt="Latest release"></a>
+  <a href="https://github.com/finish06/homepad/pkgs/container/homepad"><img src="https://img.shields.io/badge/ghcr.io-amd64%20%7C%20arm64-2496ED?logo=docker&logoColor=white" alt="Docker images for amd64 and arm64"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License"></a>
+  <a href="https://github.com/finish06/homepad/stargazers"><img src="https://img.shields.io/github/stars/finish06/homepad?style=social" alt="GitHub stars"></a>
 </p>
 
-## Layout
+<p align="center">
+  <img src="./docs/screenshots/desktop-dark.webp" alt="Homepad dashboard in dark mode: 52 self-hosted apps grouped into Monitoring, Dashboards, Photos and Media, every tile showing Online with its response time, under an 'All systems operational' banner" width="100%">
+</p>
 
-```
-src/                React app (App, Catalog, api client) + Vitest specs
-tests/e2e/          Playwright specs, one per acceptance criterion
-specs/              Source-of-truth spec + test plan (lives in this repo)
-docs/               README assets (banner, screenshots)
-lighthouserc.cjs    Lighthouse CI thresholds (AC A8)
-```
+## Try it in 10 seconds
 
-## Run locally
+**[demo.gethomepad.dev](https://demo.gethomepad.dev)**, log in with `homepad@gethomepad.dev` / `homepad1`. There's no signup. The demo may take about 15 seconds to wake up.
 
-```bash
-npm install
-npm run dev          # vite dev server on :5173, proxies /api → :8080
-```
+## Quickstart
 
-For the full app to do anything useful, also run `Code/homepad-api` locally
-(`make run`).
-
-## Self-hosting with Docker Compose
-
-The fastest way to run the whole stack — frontend, Go API, Postgres, and a
-Gatus status source — on your own machine. One command, no Kubernetes.
-
-**Prerequisites:** Docker Engine 24+ with the Compose plugin (`docker compose
-version`).
+You need Docker with Compose v2.23 or newer. Nothing else to clone or build:
 
 ```bash
-git clone https://github.com/finish06/homepad.git
-cd homepad
-cp .env.example .env          # then edit POSTGRES_PASSWORD (at minimum)
-docker compose -f compose.build.yaml up --build -d
+mkdir homepad && cd homepad
+curl -fsSLO https://raw.githubusercontent.com/finish06/homepad/main/compose.yaml
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" > .env
+docker compose up -d
 ```
 
-Then open **http://localhost:8080**. The **first account you register becomes
-the admin** — create it, then set `HOMEPAD_REGISTRATION=invite_only` in `.env`
-and `docker compose up -d` again to lock down sign-ups.
+Open **http://localhost:8080** and register: **the first account becomes the admin.** Then set `HOMEPAD_REGISTRATION=invite_only` in `.env` and run `docker compose up -d` again, so only you can add accounts.
 
-Check status and logs:
+Next steps:
+- **Add your apps.** Pick from the built-in App Library of 50+ self-hosted apps with icons, or add your own.
+- **Live status.** Connect [Gatus](https://gatus.io): add `COMPOSE_PROFILES=gatus` and `GATUS_BASE_URL=http://gatus:8080` to `.env` to run one alongside. See [docs/monitoring.md](./docs/monitoring.md).
+- **Single sign-on.** See [SSO](#single-sign-on) below.
+- **Update** with `docker compose pull && docker compose up -d`.
 
-```bash
-docker compose ps            # `web` shows healthy once the full chain is up
-docker compose logs -f api   # look for "migrations applied"
-```
+Images: `ghcr.io/finish06/homepad` and `ghcr.io/finish06/homepad-api`, for linux/amd64 and linux/arm64 (so a Raspberry Pi works). They're pinned by `HOMEPAD_VERSION` in `.env`.
 
-What each service does:
+## Why Homepad
 
-| Service    | Image / build                    | Purpose                                            |
-| ---------- | -------------------------------- | -------------------------------------------------- |
-| `web`      | built from this repo's Dockerfile | nginx serving the built SPA; proxies `/api` → api |
-| `api`      | built from `homepad-api`          | Go backend; runs DB migrations on boot            |
-| `postgres` | `postgres:16-alpine`              | all persistent data (accounts, dashboards, icons) |
-| `gatus`    | `ghcr.io/twin/gatus`              | uptime source the dashboard status tiles read from |
+Most homelab dashboards are built for one admin staring at one config file. Homepad is built for **a household**: one shared catalog of services, and everyone gets their own view of it.
 
-All configuration lives in `.env` (see `.env.example` for the full list with
-defaults). Notes:
+- **Per-person views.** Each person has their own favorites, tile order, theme and density, all over one shared catalog that the admin manages in the browser. No YAML. Each tile opens in a new tab, the same tab, or an embedded overlay.
+- **Live health, without leaking your network.** Each tile shows UP / DEGRADED / DOWN and its response time, plus recent uptime. Health comes from [Gatus](https://gatus.io) and is resolved **server-side**: your internal hostnames and your Gatus URL never reach the browser.
+- **Real login, built in.** Local accounts, or OIDC with PKCE and an admin group claim: PocketID, Authelia, Authentik, Keycloak and so on. No reverse-proxy auth bolt-on.
+- **Installs like an app.** A real PWA. Add it to the home screen of the family iPad or your phone; touch-sized targets; light and dark.
+- **Fast to get around.** ⌘K search across every service, apps grouped into sections, and large, compact or list density.
 
-- **Persistence.** Everything is stored in Postgres, kept in the named volume
-  `homepad_pg`. That's the only stateful volume — the web and api containers are
-  disposable. Back up (or `docker compose down -v` to wipe) that volume.
-- **The API build source.** The Go backend is a separate repo.
-  `compose.build.yaml` builds it from `HOMEPAD_API_CONTEXT` (default: the public
-  GitHub repo); the quickstart `compose.yaml` pulls the published image instead. To build from a
-  local checkout, clone both repos side by side and set
-  `HOMEPAD_API_CONTEXT=../homepad-api`.
-- **HTTPS.** Over plain-HTTP localhost, `COOKIE_SECURE=false` (the default in
-  `.env.example`) is required or the login cookie is dropped. Set it `true` only
-  when you serve Homepad behind a TLS-terminating proxy.
-- **Status tiles.** Gatus is optional. In the quickstart, enable it with
-  `COMPOSE_PROFILES=gatus`; `compose.build.yaml` always runs it from
-  `deploy/compose/gatus.yaml`. Both ship two example checks: replace them with
-  your own services.
+<p align="center">
+  <img src="./docs/screenshots/desktop-light.webp" alt="Homepad dashboard in light mode" width="68%">
+  &nbsp;
+  <img src="./docs/screenshots/phone-dark.webp" alt="Homepad on a phone, dark mode" width="24%">
+</p>
 
-### Enabling OIDC / SSO
+## How it compares
 
-Homepad runs entirely on local accounts by default. To add single sign-on, set
-in `.env`:
+We only list the columns where Homepad wins. If you want 100+ live service widgets, [Homepage](https://gethomepage.dev) does that best, and it pairs happily next to Homepad.
+
+|  | Homepad | Homepage | Homarr | Dashy | Heimdall |
+|---|:-:|:-:|:-:|:-:|:-:|
+| Per-user views (favorites, order) | ✓ | ✕ | ⚠ | ✕ | ✕ |
+| Server-side status (no hostnames in the browser) | ✓ | ⚠ | ⚠ | ⚠ | ✕ |
+| Native OIDC login | ✓ | ✕ | ⚠ | ✕ | ✕ |
+| Installable PWA | ✓ | ✕ | ✕ | ⚠ | ✕ |
+
+## Single sign-on
+
+Local accounts work out of the box. To add OIDC, set in `.env`:
 
 ```dotenv
 OIDC_ENABLED=true
-OIDC_ISSUER=https://your-provider.example.com
+OIDC_ISSUER=https://auth.example.com
 OIDC_CLIENT_ID=homepad
 OIDC_CLIENT_SECRET=...
-OIDC_REDIRECT_URL=http://localhost:8080/api/auth/oidc/callback
-OIDC_ADMIN_GROUP=admins        # optional: group whose members become admins
+OIDC_REDIRECT_URL=https://homepad.example.com/api/auth/oidc/callback
+OIDC_ADMIN_GROUP=admins        # optional: members of this group become admins
 ```
 
-Register the callback URL above with your provider, then
-`docker compose up -d`. With `OIDC_ENABLED=false` the SSO endpoints stay
-unregistered and the login screen shows local sign-in only.
+Register the redirect URL with your provider, then run `docker compose up -d`. With `OIDC_ENABLED=false`, the SSO endpoints aren't registered and the login screen shows local sign-in only.
 
-## Test
+## Running it for real
 
-```bash
-npm test                       # Vitest component/unit suite
-npm run test:e2e:install       # one-time Playwright browsers
-npm run test:e2e               # full E2E suite (desktop + mobile)
-npm run build && npm run lhci   # Lighthouse perf budgets (AC A8)
-```
+- **HTTPS.** Put Homepad behind your reverse proxy (Traefik, Caddy, nginx, Pangolin…) and set `COOKIE_SECURE=true`. Leave it `false` only for plain `http://localhost`, or the login cookie is dropped.
+- **Port.** Set `HOMEPAD_WEB_PORT` (default 8080).
+- **Data.** Everything lives in the `homepad_pg` Postgres volume; the web and API containers are disposable. Back that volume up.
+- **All settings** are documented in [`.env.example`](./.env.example).
 
-## Deploy
+## Project
 
-K8s manifests are owned by Joe (homie / SRE bot), not in this repo. This repo ships:
+- **Docs:** [monitoring](./docs/monitoring.md) · [development](./docs/development.md) · [changelog](./CHANGELOG.md)
+- **Backend:** [finish06/homepad-api](https://github.com/finish06/homepad-api) (Go + Postgres)
+- **Contributing:** issues and PRs are welcome. Start with [docs/development.md](./docs/development.md).
+- **License:** [MIT](./LICENSE)
 
-- `Dockerfile` (multi-stage Vite build → nginx static serve)
-- `nginx.conf` (SPA fallback + caching headers)
-- The "Deployment contract" section in [`specs/v1-launcher.md`](./specs/v1-launcher.md)
-
-Same-domain path routing: `homepad.calebdunn.tech/` → this app,
-`homepad.calebdunn.tech/api/*` → `homepad-api`.
+If Homepad is useful to your household, a ⭐ helps other homelabbers find it.
