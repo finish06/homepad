@@ -31,6 +31,7 @@ No new code PRs. No merges, no promotion (16.7.2 stays unpromoted).
 | 01:50Z | Ping Joe (4th) | sent | Delivery noted joe_tmux_1 is a **new session under the old name** (restarted). No issue movement since 21:16Z |
 | 01:57Z | Joe answered #507 #414 #528 | — | **The link works.** #528: Joe issued a new homepad-only bridge key (multi-prefix) as a repo-level secret and did not widen the org key; verified at the bridge, end-to-end on the next tag. Closed. #414: all 3 claimed symptoms fixed (in-cluster curl plus the homelab ConfigMap). Closed. **CSP is absent** on staging and prod; filed #529 (needs a spec; lives in Code/homelab). #507: Gracie dispatched at 01:54Z on 521086f; result expected within ~1h |
 | 02:05Z | (lesson) | — | `curl -H @- -d @-` both read stdin, so every call 422d and nothing posted. Body goes in a file |
+| 02:15Z | #507 closed; routed items answered; homepad-api#72 filed; **cycle-2 COMPLETE** | DONE | Gracie pod 100/100 on 521086f. Joe gave an owner or answer on #493 #254 #256 #261. The guard gap behind #256 was filed in homepad-api. Close-out applied; L-013..L-016 added |
 
 ## M3 re-verification (main 521086f, read-only)
 

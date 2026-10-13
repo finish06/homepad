@@ -2,9 +2,9 @@
 
 **Milestone:** M2 — QA pipeline reliability
 **Maturity:** ga
-**Status:** IN_PROGRESS
+**Status:** COMPLETE
 **Started:** 2026-10-12
-**Completed:** TBD
+**Completed:** 2026-10-13
 **Duration Budget:** ~1 cycle (half of M2's two-cycle appetite). As in cycle-1, the **strictly serialized staging slot** bounds throughput, not coding time.
 **Planned:** 2026-10-12, with Caleb. He is **away**: the cycle runs autonomously, and nothing touches production.
 
@@ -79,12 +79,12 @@ A → B → C → E. Each merges only on QA-pool approval, and the next opens on
 ## Validation Criteria
 
 ### Cycle Success Criteria
-- [ ] #452, #455, #507, #423, #487 and #414 closed with evidence (#455 and #507 on a QA-pod run, not a local one)
-- [ ] Every gate spec goes through `./fixtures`, **enforced by a test**, not by a comment
-- [ ] Every new guard negative-controlled; gate green on macOS and in the CI image
-- [ ] 16.7.2 tagged and built, digest (the `-beta` staging build) recorded, **not promoted**
-- [ ] Each routed item has an answer or a named owner from Joe, recorded on its issue
-- [ ] **Cycle log and handoff updated after every merge** (missed in cycle-1, L-012)
+- [x] #452, #455, #507, #423, #487 and #414 closed with evidence (#455 and #507 on a QA-pod run, not a local one). #507: gracie's pod, `521086f`, no flags, 100/100. #414: Joe's in-cluster curl
+- [x] Every gate spec goes through `./fixtures`, **enforced by a test**, not by a comment
+- [x] Every new guard negative-controlled; gate green on macOS and in the CI image
+- [x] 16.7.2 tagged and built, digest (the `-beta` staging build) recorded, **not promoted**
+- [x] Each routed item has an answer or a named owner from Joe, recorded on its issue (2026-10-13 01:56-01:58Z; see the close row)
+- [x] **Cycle log and handoff updated after every merge** (missed in cycle-1, L-012)
 
 ## Agent Autonomy & Checkpoints
 
@@ -130,4 +130,10 @@ A → B → C → E. Each merges only on QA-pool approval, and the next opens on
 | 2026-10-12 | E — 16.7.2 (#527) | in QA | `eaca704`. Nothing user-visible, and both changelogs say so. Alignment 6/6; 1015 unit; gate 100/100; e2e 12 (+2 existing skips) |
 | 2026-10-12 | E — 16.7.2 (#527) | merged + tagged | gracie approved at `eaca704` (staging serves v16.7.2); `521086f`; staging run 6032 rolled out. Tag `v16.7.2` → prod-release run 6033 green; Gitea release subtitled, and its body matches CHANGELOG. **Promotable digest (the staging `-beta` build of `521086f`): `sha256:6f86fe073600aea16cb26efab16dba57030e16bbdb20d563f8492836e4fe8c20`.** Not promoted. NATS notify **403 again** (third release) |
 | 2026-10-12 | status | blocked on others | All agent items are done. Open: **#507** (needs a real pod gate run; none reported in 3 QA passes), **#414** (Joe's in-cluster staging curl), and **every routed item unanswered** (lease/#271, #493, #254, #256/#261, NATS 403). Not marked complete; that decision is Caleb's |
-
+| 2026-10-12 21:16Z → 2026-10-13 01:50Z | (routing) | — | Four sends to joe_tmux_1 were "delivered", yet Joe received none; two of Joe's messages never reached me. The 4th send reported that joe_tmux_1 was a **new session under the old name**. Joe answered every issue within minutes of that send. Lesson in L-014 |
+| 2026-10-13 01:56Z | #528 | closed | Joe: a new homepad-only bridge key with **multiple prefixes** (`friend.qa.task.` + `joe.deploy.homepad.`), set as a repo-level secret. The org QA key was deliberately not widened (it would let any Code repo forge `joe.deploy.*`). Verified at the bridge with 202/403/401. End-to-end proof is the next `v*` tag's notify |
+| 2026-10-13 01:56Z | #414 | closed | Joe's in-cluster `curl -sI` on staging and prod: all 4 headers present, `Server: nginx` with no version; version.json `no-store` is set in the homelab ConfigMap. Root cause: the deployed nginx config is the homelab `homepad-web-nginx` ConfigMap, not the image's. **CSP absent** → filed #529 (needs a spec; a homelab change) |
+| 2026-10-13 01:57Z | #507 | closed | **gracie's pod**: `521086f`, `npm ci && npm run build && npm run test:gate`, no flags. The sidecar was detected and pinned 1 worker. **100/100**, 19 files, 2m14s, all exit 0 |
+| 2026-10-13 01:58Z | routed items | answered | **#493**: owner Joe, active. Correction: "lease PR #271" was wrong (#271 is a spec PR); there is no lease PR in homepad. The cheap first step is briefs asserting the deployed SHA. #492 (task lease) is distinct from #493 (slot lease). **#254**: Joe; repro on current main first; any fix is a repo change for Stitch. **#256**: Joe reseeds; the guard is Stitch's. **#261**: `qa@test.local` logs in; there is no admin test account, so **Caleb picks** which account preflight owns |
+| 2026-10-13 02:01Z | #256 → homepad-api#72 | filed | homepad-api's #67 prod-truncation guard covers only `internal/testsupport`. The `internal/storage` tests (`requireDatabaseURL`, unguarded) `TRUNCATE categories, users … CASCADE`, `DROP COLUMN` and run `Migrate` on any DSN. The 4 `stg-Test*` users in staging come from `seedStoreUser`. Pointed at prod, they would wipe the catalog again |
+| 2026-10-13 02:10Z | close | **COMPLETE** | All six criteria met. 6 PRs (#521 #522 #523 #525 #526 #527), 1 release (16.7.2, not promoted), closed: #452 #455 #423 #487 #524 #507 #414 #528. Filed: #529, homepad-api#72 |

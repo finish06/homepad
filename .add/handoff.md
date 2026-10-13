@@ -1,9 +1,36 @@
 # Session Handoff — homepad
 
-**Written:** 2026-10-11T14:12:28Z
-**By:** interactive session (Claude Opus 5)
-**Mechanism adopted:** 2026-10-11 retro — Caleb directed that handoffs AND learning
-checkpoints both start. This is the first handoff this project has ever had.
+**Written:** 2026-10-13T02:15Z
+**By:** homepad-21 (Claude Opus 5.5), away mode (Caleb away 12h from 2026-10-12 22:30Z)
+
+## Where things stand
+
+- **Cycle-2 COMPLETE** (2026-10-13). `gitea/main` = `521086f` (16.7.2). v16.7.2 is tagged with its Gitea release; **not promoted** (no user-visible change). Promotable digest: `sha256:6f86fe073600aea16cb26efab16dba57030e16bbdb20d563f8492836e4fe8c20` (staging `-beta` build of `521086f`).
+- Prod runs 16.7.1 (`29cded3`).
+- **No cycle is active.** M2 stays IN_PROGRESS; its remaining items are owned by Joe and Stitch (below). M3 was re-verified at `521086f`: see `.add/away-log.md`.
+- Branch `docs/cycle-2-log` holds the close-out; its PR needs QA approval to merge.
+
+## In flight, not mine
+
+| Item | Owner | State |
+|---|---|---|
+| #493 staging-slot reservation | Joe | active; first step is briefs asserting the deployed SHA, then a lease. Distinct from #492 (task lease) |
+| homepad-api#72: storage tests unguarded (TRUNCATE on any DSN) | Stitch (via Joe) | filed 2026-10-13; blocks the #256/#261 reseed |
+| #254 sidecar cache | Joe | repro on current main first |
+| #528 NATS notify | Joe | fixed at the bridge; **check the next `v*` tag's notify prints 202** |
+| #529 CSP | needs a spec (M3) | a homelab ConfigMap change; Joe will stage it once directives are decided |
+| fleet-feed: QA dispatch probably 403ing (same NATS key collision) | Joe, on Caleb's word | not homepad |
+
+## Open, needs a human
+
+1. **#261**: which admin test account should QA preflight own? Either create `admin@test.local` (role admin), or promote and reset `qa-admin@test.local`. Joe applies it once the homepad-api#72 guard lands.
+2. **Promote 16.7.2?** Optional; nothing user-visible.
+3. **Plan cycle-3.** M3 is ready: #341 and #451 can go straight to TDD; #334 needs the iframe sandbox decision; #335 should be measured first (its fallback likely misses frames blocked by X-Frame-Options); #529 needs a spec.
+4. Still open from before: #449 OQ-1, #513, and Kare on #517 (the 320px widths and the hint colour).
+
+---
+
+## Earlier handoff (2026-10-11), kept for reference
 
 ## Where things stand
 

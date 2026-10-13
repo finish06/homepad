@@ -158,6 +158,55 @@
       "source": "/add:cycle --complete cycle-1",
       "title": "Cycle 1 complete: two releases, 16 issues, 16.7.1 in production in two days",
       "body": "Metrics: 2026-10-11 \u2192 2026-10-12; 6 work items (A,D,B,C,E,F) all DONE in the planned serial order; 7 PRs; 16 issues closed with evidence; one QA block (#518), fixed in-PR. Worked: strict serialization through the staging slot (no overwritten builds); negative controls on every new guard; verifying rollouts from the log line and prod from /version.json at prod. Harder: sizing (#428 and #367 were not quick wins); a stale background watcher was misread as #516 merging, corrected before acting on it; handoff/cycle log were written once at close-out rather than after each merge, as the plan required. Next cycle: update the log at each merge; give promotion requests the staging-release -beta digest of the tagged commit, not the one prod-release prints."
+    },
+    {
+      "id": "L-013",
+      "date": "2026-10-13",
+      "type": "retro",
+      "checkpoint_type": "retro",
+      "category": "process",
+      "severity": "medium",
+      "scope": "project",
+      "classified_by": "agent",
+      "source": "/add:cycle --complete cycle-2",
+      "title": "Cycle 2 complete: the agent work took a day, and the evidence it needed took another 8 hours",
+      "body": "Metrics: 2026-10-12 to 2026-10-13. Items A, A2, B, C, E all merged in serial order (6 PRs, every one single-reviewer; the duplicate-QA pattern did not recur). Released 16.7.2 (not promoted). Closed #452 #455 #423 #487 #524 #507 #414 #528. Filed #529 and homepad-api#72. Worked: simulating the pod (a node image plus a CDP sidecar, starved with --cpus=0.35) reproduced #524 before QA could; negative controls guarded against a stale dist/; the cycle log was updated per merge. Harder: the cycle's close depended on evidence that only exists in the cluster or a QA pod, and the one route to it (Joe) silently dropped messages for ~8h. Gitea auto-closed #455 and #507 from squash titles with no evidence; both were reopened. Next: in a PR title use 'Refs #N' when the closing evidence is a separate run; anchor routed asks on the issue itself."
+    },
+    {
+      "id": "L-014",
+      "date": "2026-10-13",
+      "checkpoint_type": "process",
+      "category": "process",
+      "severity": "high",
+      "scope": "workstation",
+      "classified_by": "agent",
+      "source": "cycle-2 routing to joe_tmux_1",
+      "title": "A Remote Control send that says 'delivered' proves nothing; anchor routed asks on the issue",
+      "body": "SendMessage to a Remote Control session returns success and reports nothing back. On 2026-10-12, four sends to joe_tmux_1 never reached Joe and two of his never reached me. The fourth send's result noted the name now pointed at a NEW session (restarted); Joe answered every issue within minutes of that send. How to apply: (1) put the full ask on the Gitea issue first and make the message a pointer to it; (2) when a send result says 'new session under a previously used name', resend everything, since the new session has no prior context; (3) treat silence past ~1h as a delivery failure, not a refusal, and tell the user so they can check the session directly."
+    },
+    {
+      "id": "L-015",
+      "date": "2026-10-13",
+      "checkpoint_type": "technical",
+      "category": "technical",
+      "severity": "high",
+      "scope": "project",
+      "classified_by": "agent",
+      "source": "#256 \u2192 homepad-api#72",
+      "title": "A safety guard in one helper doesn't protect a package that bypasses the helper",
+      "body": "homepad-api #67 guarded internal/testsupport against truncating a non-test database after the 2026-09-13 prod wipe. internal/storage's tests open the database through their own requireDatabaseURL, which has no guard, and they TRUNCATE users/categories CASCADE and DROP COLUMN. The guard exists, and the gap shipped beside it. Evidence it bites: stg-Test* users in the staging DB. How to apply: put a destructive-operation guard at the single choke point every path must go through (the DSN accessor), and test that the choke point is the only way in (see the 'all callers do X' memory)."
+    },
+    {
+      "id": "L-016",
+      "date": "2026-10-13",
+      "checkpoint_type": "technical",
+      "category": "technical",
+      "severity": "low",
+      "scope": "workstation",
+      "classified_by": "agent",
+      "source": "#414/#528 closing comments",
+      "title": "curl -H @- and -d @- both read stdin; only one can",
+      "body": "Piping the auth header via `-H @-` and the JSON body via `-d @-` in the same curl gives Gitea an empty or garbled body, and every call 422s (nothing posted, nothing closed). How to apply: the header takes stdin, the body goes in a file (`-d @file`), written with a quoted heredoc or from Python."
     }
   ]
 }
