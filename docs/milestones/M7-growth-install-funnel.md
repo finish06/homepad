@@ -17,11 +17,17 @@ From this baseline there is little to lose, and every visitor we win is lost at 
 
 | Metric | Value | Source |
 |---|---|---|
-| gethomepad.dev visitors / 30d | requested from Joe | Umami (`013fa9d0-…`) |
+| gethomepad.dev visitors / 30d (09-13 → 10-13) | **32** (prior 30d: 20); pageviews 42; bounce 91%; avg visit 14s | Umami, Joe's pull (getHomepad #26) |
+| gethomepad.dev engaged sessions / 30d | `scroll-depth` 41 · `github-click` 21 · `demo-click` 4 | Umami events |
+| Bot share (estimate) | ~42% of city-resolved visitors are in cloud-DC cities, so the human baseline is ~15–20 / 30d | Joe, #26 §6 |
+| Referrers (90d) | github.com 6, google 3, bing 2; ~93% direct/none; **no UTM ever** | Umami |
+| Zero-visitor days | 18 of the last 31 | Umami |
 | GitHub stars / forks | 0 / 0 | api.github.com |
 | GitHub unique visitors / 14d | 9 (27 views); referrers: Google 1, chatgpt.com 1 | repo traffic API |
-| GHCR `homepad` downloads | single digits | package page |
-| GHCR `homepad-api` | **does not exist** | ghcr.io |
+| GitHub clones / 14d | 488 by 166 unique cloners: mostly automation (Actions checkouts, mirrors), not people | repo traffic API |
+| GHCR total downloads | homepad 1 · homepad-api 1 (both images went public or first released 2026-10-13) | package pages |
+
+**Target (2026-11-12):** ≥ 96 visitors / 30d on Umami's counter (3 × 32). Because ~40% of today's counter is bots, the goal is also tracked on a bot-resistant proxy: **`scroll-depth` sessions ≥ 3× 41** and **`install-copy` + `demo-click`**. The launch posts carry `utm_*` tags (launch kit), so the weekly pull can attribute each channel.
 
 ## Funnel defects found (2026-10-13)
 
