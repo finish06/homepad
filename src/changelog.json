@@ -2,6 +2,16 @@
   "pending": [],
   "versions": [
     {
+      "version": "16.7.4",
+      "date": "2026-10-13",
+      "changes": [
+        {
+          "type": "bugfix",
+          "text": "A new install's App Library now starts with 52 well-known self-hosted apps. It used to start with a list of the maintainer's own services."
+        }
+      ]
+    },
+    {
       "version": "16.7.3",
       "date": "2026-10-13",
       "changes": [
