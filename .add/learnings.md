@@ -35,6 +35,14 @@
   15px each. Width gates opt out (`ignoreDefaultArgs: ['--hide-scrollbars']`) and add a
   classic-scrollbar case; reproduce QA's numbers before fixing.
 
+- 2026-10-13 (L-015): A safety guard in one helper doesn't protect a package that bypasses
+  it. homepad-api #67 guards `internal/testsupport` against truncating a non-test database, but
+  `internal/storage` tests open the database through an unguarded `requireDatabaseURL` and
+  `TRUNCATE users … CASCADE`; that's how the `stg-Test*` users got into staging (homepad-api#72).
+  Guard the single choke point every path goes through.
+- 2026-10-13 (L-016): `curl -H @- -d @-` both read stdin, so every Gitea call 422s and
+  nothing is posted. The header takes stdin; the body goes in a file.
+
 ## Architecture Decisions
 - 2026-09-15: ADD adopts the existing `specs/` directory and house spec format rather
   than introducing a parallel ADD-format spec tree, because `specs/README.md` is already
@@ -84,6 +92,13 @@
 - 2026-10-11 (L-010): A QA brief must assert the SHA, never the version — only a release PR
   bumps `package.json`, so "version matches" green-lights any build.
 
+- 2026-10-13 (L-014): A Remote Control send that says "delivered" proves nothing. Four sends
+  to joe_tmux_1 never reached Joe, and two of his never reached me; the fourth send's result
+  noted the name pointed at a **new session**, and Joe answered every issue within minutes.
+  Put the full ask on the Gitea issue first, make the message a pointer, resend everything
+  when a send reports a new session under an old name, and treat silence past ~1h as a
+  delivery failure.
+
 ## Agent Checkpoints
 - 2026-09-15 (post-verify, adoption): Gates 1-2 pass, 804/804 unit tests pass,
   browser gate 49/50. Evidence score 11/12 → GA.
@@ -100,5 +115,11 @@
   closed with evidence, one QA block (#518) fixed in-PR, 16.7.1 in production. Sizing was
   the weak spot (#428, #367 weren't quick wins). The cycle log and handoff were written
   once at close-out instead of after each merge — do it per merge next cycle.
+
+- 2026-10-13 (L-013, cycle-2 complete): the agent items (A, A2, B, C, E) merged in a day,
+  6 PRs, all single-reviewer; 16.7.2 released, not promoted; 8 issues closed with evidence.
+  The close then waited ~8h on cluster and pod evidence behind a route that silently dropped
+  messages. Gitea auto-closed #455 and #507 from squash titles; use "Refs #N" in PR titles
+  when the closing evidence is a separate run.
 
 ## Profile Update Candidates

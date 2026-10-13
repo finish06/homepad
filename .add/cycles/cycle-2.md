@@ -2,9 +2,9 @@
 
 **Milestone:** M2 — QA pipeline reliability
 **Maturity:** ga
-**Status:** PLANNED
-**Started:** TBD
-**Completed:** TBD
+**Status:** COMPLETE
+**Started:** 2026-10-12
+**Completed:** 2026-10-13
 **Duration Budget:** ~1 cycle (half of M2's two-cycle appetite). As in cycle-1, the **strictly serialized staging slot** bounds throughput, not coding time.
 **Planned:** 2026-10-12, with Caleb. He is **away**: the cycle runs autonomously, and nothing touches production.
 
@@ -34,6 +34,7 @@
 | B | **#423**: real-browser gates for **AdminSettings** and the **custom-app form** (mocked API, admin role) | SHAPED | DONE | Agent | ~1d | Each opens, validates, saves (asserting the request body) and closes in a real browser at iPad 768 and phone 375. Each gate fails when the behaviour it pins is removed |
 | C | **#487**: measure LauncherTrigger centring at **1400px**; add 1400 to `header-search-centered.spec.ts` | SHAPED | DONE | Agent | ~1h | The drift is measured and recorded on #487. If it exceeds the spec's tolerance, that's a real defect: file it, keep the case red-then-green. If not, close with the number |
 | D | **#414**: close-out | SHAPED | DONE | Agent + Joe | ~15m | Prod headers (above) plus an in-cluster `curl -I` of staging from Joe or the QA pool. Closed only on both |
+| A2 | **#524 (rest of #507)**: decide once, in the config, whether the gate attaches to the pod's CDP sidecar; never fall back per worker; 1 worker when attached. *Added mid-cycle, from QA's #523 run* | NEW | DONE | Agent | ~3h | Reproduce QA's failure in pod-sim with a starved sidecar, and pass the same setup after the fix. Decision logic unit-tested; static guards negative-controlled |
 | E | **Release 16.7.2**: after A–C merge; tag `v16.7.2` | PLANNED | DONE (tagged, built) | Agent | ~1h + QA | Alignment test green. prod-release builds and validates. The digest recorded is the **staging-release `-beta` build of the tagged commit** (L-012 / homelab `50527cb`). **Not promoted** |
 
 ### Routed to Joe this cycle (tracked, not owned)
@@ -78,12 +79,12 @@ A → B → C → E. Each merges only on QA-pool approval, and the next opens on
 ## Validation Criteria
 
 ### Cycle Success Criteria
-- [ ] #452, #455, #507, #423, #487 and #414 closed with evidence (#455 and #507 on a QA-pod run, not a local one)
-- [ ] Every gate spec goes through `./fixtures`, **enforced by a test**, not by a comment
-- [ ] Every new guard negative-controlled; gate green on macOS and in the CI image
-- [ ] 16.7.2 tagged and built, digest (the `-beta` staging build) recorded, **not promoted**
-- [ ] Each routed item has an answer or a named owner from Joe, recorded on its issue
-- [ ] **Cycle log and handoff updated after every merge** (missed in cycle-1, L-012)
+- [x] #452, #455, #507, #423, #487 and #414 closed with evidence (#455 and #507 on a QA-pod run, not a local one). #507: gracie's pod, `521086f`, no flags, 100/100. #414: Joe's in-cluster curl
+- [x] Every gate spec goes through `./fixtures`, **enforced by a test**, not by a comment
+- [x] Every new guard negative-controlled; gate green on macOS and in the CI image
+- [x] 16.7.2 tagged and built, digest (the `-beta` staging build) recorded, **not promoted**
+- [x] Each routed item has an answer or a named owner from Joe, recorded on its issue (2026-10-13 01:56-01:58Z; see the close row)
+- [x] **Cycle log and handoff updated after every merge** (missed in cycle-1, L-012)
 
 ## Agent Autonomy & Checkpoints
 
@@ -112,3 +113,27 @@ A → B → C → E. Each merges only on QA-pool approval, and the next opens on
 | Time | Item | Status | Notes |
 |---|---|---|---|
 | 2026-10-12 | planning | done | Plan agreed with Caleb: scope, away, release 16.7.2 |
+| 2026-10-12 | plan (#521) | merged | gracie approved at `8688159`. Docs-only, so no staging slot used |
+| 2026-10-12 | A — #452 (#522) | in QA | `5a48b15`. Pod-sim (no browser, Chrome 148 CDP sidecar): main fails 35/35 with #455's exact error; the branch passes 35/35, full gate 85/85. Asked QA for a real pod run to close #455/#507 |
+| 2026-10-12 | B — #423 | built, held | `3ab5b64` on `feat/admin-modal-gates-423`, stacked on A. 14 tests, 7 negative controls, 99/99 on mac, CI image and pod-sim. PR opens after A merges and rolls out |
+| 2026-10-12 | (lesson) | — | A negative control whose mutation breaks typecheck leaves the **previous** `dist/` in place, and the gate silently tests that. The harness now `rm -rf dist` and fails loudly on a build error |
+| 2026-10-12 | C — #487 | built, held | `2437659` on `feat/centre-1400-487`, stacked on B. At 1400px: 0.0px from the row centre; 7.5px from the **window** centre with a classic scrollbar. That's the "8px", and it isn't a defect. Measurement posted on #487. A 24px-shift negative control fails every width |
+| 2026-10-12 18:16Z | A — #452 (#522) | merged | ada approved at `5a48b15`; `6abab3e`; staging run 6008 rolled out. #452 closed. **#455 auto-closed** from the squash title, so I reopened it pending a real QA-pod run (the approval didn't include one) |
+| 2026-10-12 | B — #423 (#523) | in QA | cherry-picked onto main as `6f01957`; gate 99/99, guard 41/41. Pod run requested |
+| 2026-10-12 | (lessons) | — | (1) The PR watcher used `set -- $st`, which zsh doesn't word-split (L-007's sibling); it never fired. Use `read`. (2) Backticks inside a double-quoted `python3 -c` were run by the shell: they executed a SHA and `npm run test:gate`, and blanked those words in a posted comment. Fixed via a quoted heredoc. **Always use quoted heredocs for API bodies** |
+| 2026-10-12 19:06Z | B — #423 (#523) | merged | gracie approved at `6f01957`; `5c0f757`; staging run 6013 rolled out. #423 closed. **Gracie's pod run** found the full suite fails in the pod under 3 workers, and filed **#524**. #455 was closed by gracie (the bypass is fixed); **#507 stays open**, because the silent per-worker fallback is its remaining cause |
+| 2026-10-12 | C — #487 (#525) | in QA | cherry-picked onto main as `ba0aa37` |
+| 2026-10-12 | A2 — #524 | reproduced | pod-sim with the sidecar capped at 0.35 CPU, 3 workers, main: **47/99 fail** (30s action stalls, plus the fallback's `Executable doesn't exist`). My first pod-sim missed this because the sidecar was never loaded. Fix built on `fix/gate-sidecar-524`; the same-setup run is in progress |
+| 2026-10-12 | C — #487 (#525) | merged | ada approved at `ba0aa37` and measured 0.0px at 1400px on staging herself; `2ae46f2`; staging run 6022 rolled out. #487 closed |
+| 2026-10-12 | A2 — #524 (#526) | in QA | `8051524`. Same starved-sidecar setup: main 47/99 fail, branch **99/99** (1 worker). With the sidecar gone after detection, every test fails loudly ("Not falling back … #524/#507") and none with a launch error. Off-pod is unchanged: 4 workers, 99/99 on macOS and the CI image |
+| 2026-10-12 | A2 — #524 (#526) | merged | ada approved at `8051524`; `bae5af0`; staging run 6027 rolled out. #524 closed. **#507 auto-closed and was reopened**: the approval had no pod gate run, and that run is #507's evidence. Asked for it with #527's QA |
+| 2026-10-12 | E — 16.7.2 (#527) | in QA | `eaca704`. Nothing user-visible, and both changelogs say so. Alignment 6/6; 1015 unit; gate 100/100; e2e 12 (+2 existing skips) |
+| 2026-10-12 | E — 16.7.2 (#527) | merged + tagged | gracie approved at `eaca704` (staging serves v16.7.2); `521086f`; staging run 6032 rolled out. Tag `v16.7.2` → prod-release run 6033 green; Gitea release subtitled, and its body matches CHANGELOG. **Promotable digest (the staging `-beta` build of `521086f`): `sha256:6f86fe073600aea16cb26efab16dba57030e16bbdb20d563f8492836e4fe8c20`.** Not promoted. NATS notify **403 again** (third release) |
+| 2026-10-12 | status | blocked on others | All agent items are done. Open: **#507** (needs a real pod gate run; none reported in 3 QA passes), **#414** (Joe's in-cluster staging curl), and **every routed item unanswered** (lease/#271, #493, #254, #256/#261, NATS 403). Not marked complete; that decision is Caleb's |
+| 2026-10-12 21:16Z → 2026-10-13 01:50Z | (routing) | — | Four sends to joe_tmux_1 were "delivered", yet Joe received none; two of Joe's messages never reached me. The 4th send reported that joe_tmux_1 was a **new session under the old name**. Joe answered every issue within minutes of that send. Lesson in L-014 |
+| 2026-10-13 01:56Z | #528 | closed | Joe: a new homepad-only bridge key with **multiple prefixes** (`friend.qa.task.` + `joe.deploy.homepad.`), set as a repo-level secret. The org QA key was deliberately not widened (it would let any Code repo forge `joe.deploy.*`). Verified at the bridge with 202/403/401. End-to-end proof is the next `v*` tag's notify |
+| 2026-10-13 01:56Z | #414 | closed | Joe's in-cluster `curl -sI` on staging and prod: all 4 headers present, `Server: nginx` with no version; version.json `no-store` is set in the homelab ConfigMap. Root cause: the deployed nginx config is the homelab `homepad-web-nginx` ConfigMap, not the image's. **CSP absent** → filed #529 (needs a spec; a homelab change) |
+| 2026-10-13 01:57Z | #507 | closed | **gracie's pod**: `521086f`, `npm ci && npm run build && npm run test:gate`, no flags. The sidecar was detected and pinned 1 worker. **100/100**, 19 files, 2m14s, all exit 0 |
+| 2026-10-13 01:58Z | routed items | answered | **#493**: owner Joe, active. Correction: "lease PR #271" was wrong (#271 is a spec PR); there is no lease PR in homepad. The cheap first step is briefs asserting the deployed SHA. #492 (task lease) is distinct from #493 (slot lease). **#254**: Joe; repro on current main first; any fix is a repo change for Stitch. **#256**: Joe reseeds; the guard is Stitch's. **#261**: `qa@test.local` logs in; there is no admin test account, so **Caleb picks** which account preflight owns |
+| 2026-10-13 02:01Z | #256 → homepad-api#72 | filed | homepad-api's #67 prod-truncation guard covers only `internal/testsupport`. The `internal/storage` tests (`requireDatabaseURL`, unguarded) `TRUNCATE categories, users … CASCADE`, `DROP COLUMN` and run `Migrate` on any DSN. The 4 `stg-Test*` users in staging come from `seedStoreUser`. Pointed at prod, they would wipe the catalog again |
+| 2026-10-13 02:10Z | close | **COMPLETE** | All six criteria met. 6 PRs (#521 #522 #523 #525 #526 #527), 1 release (16.7.2, not promoted), closed: #452 #455 #423 #487 #524 #507 #414 #528. Filed: #529, homepad-api#72 |

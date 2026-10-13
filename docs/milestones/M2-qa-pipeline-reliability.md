@@ -14,11 +14,11 @@ Make every PR's QA cycle cheap and trustworthy: one reviewer per PR, a staging s
 ## Success Criteria
 
 - [ ] The QA lease is live, and over the next 20 merged PRs **no PR is worked by two pool members** — measured by joining reviews **and** issue comments, because a reviews-only query is blind to the losing reviewer (L-003)
-- [ ] Staging-slot reservation (#493): a PR's staging deploy can't be overwritten by another PR while QA is running against it, and briefs assert the SHA
-- [ ] QA-pod Playwright environment fixed: #507 (missing `libglib`), #455, #452, #254
-- [ ] Real-browser gates added for the admin modals that have none — AdminSettings and the custom-app form (#423; TileEdit already has two)
-- [ ] #414 verified **in-cluster** (staging security headers) and closed or fixed — it can't be checked from the LAN, where the ingress returns Traefik 404s for every host
-- [ ] #256 and #261 (July staging env) confirmed obsolete or fixed by QA; #487 resolved
+- [ ] Staging-slot reservation (#493); owner **Joe**, active. First step is detection (briefs assert the deployed SHA), then the lease. Distinct from #492 (task lease): a PR's staging deploy can't be overwritten by another PR while QA is running against it, and briefs assert the SHA
+- [ ] QA-pod Playwright environment fixed: #507 ✅ (pod 100/100, 2026-10-13), #455 ✅, #452 ✅, #254 (Joe: repro on current main first)
+- [x] Real-browser gates added for the admin modals that have none (#523) — AdminSettings and the custom-app form (#423; TileEdit already has two)
+- [x] #414 verified **in-cluster** (staging security headers) and closed or fixed — it can't be checked from the LAN, where the ingress returns Traefik 404s for every host
+- [ ] #256 and #261 (July staging env) confirmed obsolete or fixed by QA; #487 resolved ✅. **#256 is live**: unguarded storage tests write into staging (homepad-api#72, guard first). Then **#261** needs Caleb to pick the admin test account, then a Joe reseed
 
 ## Appetite
 
@@ -32,10 +32,10 @@ Two cycles. Much of this lives in ci-shared and QA infrastructure, so it moves a
 |---------|------|----------|--------|-------|
 | QA task lease | ci-shared | IN_PROGRESS | Dispatched to Stitch as `stitch-qa-lease-20260929`; must expire and fail open | — |
 | Staging-slot reservation | — | SHAPED | #493 — 'one defect behind 10 QA advisories' | — |
-| QA-pod Playwright env | — | SHAPED | #507 #455 #452 #254 | — |
-| Admin-modal browser coverage | — | SHAPED | #423 — AdminSettings and the custom-app form | — |
-| Staging security headers | — | SHAPED | #414 — needs in-cluster verification | — |
-| Old staging-env advisories | — | SHAPED | #256 #261 #487 | — |
+| QA-pod Playwright env | — | DOWNHILL | #452 #455 #507 closed; #254 to repro | cycle-2 |
+| Admin-modal browser coverage | — | DONE | #423, closed by #523 | cycle-2 |
+| Staging security headers | — | DONE | #414 closed in-cluster; CSP split out as #529 (M3) | cycle-2 |
+| Old staging-env advisories | — | UPHILL | #487 closed; #256 is live (homepad-api#72); #261 needs a decision | cycle-2 |
 
 Every issue listed here was **re-checked against `main` at `57733eb` on 2026-10-11** and is still true. Issues that turned out to be fixed, obsolete or duplicates were closed with evidence rather than carried in.
 
@@ -57,7 +57,7 @@ Every issue listed here was **re-checked against `main` at `57733eb` on 2026-10-
 
 | Cycle | Features Advanced | Status | Outcome |
 |-------|-------------------|--------|---------|
-| cycle-2 | #452 (+#455 #507), #423, #487, #414; infra routed to Joe; 16.7.2 | PLANNED | `.add/cycles/cycle-2.md` — A→B→C→E serial; 11/20 PRs already single-reviewer |
+| cycle-2 | #452 (+#455 #507), #423, #487, #414; infra routed to Joe; 16.7.2 | COMPLETE (2026-10-13) | `.add/cycles/cycle-2.md` — A→B→C→E serial; 11/20 PRs already single-reviewer |
 
 ## Retrospective Notes
 
