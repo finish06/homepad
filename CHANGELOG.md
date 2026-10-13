@@ -7,6 +7,36 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [16.7.3] — 2026-10-13 — Install it with one file
+
+No migrations. Nothing changes inside the app; this release is about getting it
+running.
+
+**Installing Homepad no longer means building it.** Until now, running Homepad
+yourself meant cloning the repo and building both the web app and the API from
+source. Now there are published images for both, and installing is four lines:
+
+```bash
+mkdir homepad && cd homepad
+curl -fsSLO https://raw.githubusercontent.com/finish06/homepad/main/compose.yaml
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" > .env
+docker compose up -d
+```
+
+The images are `ghcr.io/finish06/homepad` and `ghcr.io/finish06/homepad-api`,
+tagged by version (`16.7.3`, `16.7`, `16`), and built for both amd64 and arm64,
+so ARM boards such as a Raspberry Pi work too. Gatus, for live status, is now
+optional: turn it on with one line in `.env`. If you build from source, that
+file is now `compose.build.yaml`.
+
+**The Docker setup now sends the same security headers as the hosted app**, and
+its health check works. The check asked for `localhost`, which inside the
+container means IPv6, while the web server only listens on IPv4, so Docker
+never reported the app as healthy.
+
+**A new README** that starts with what Homepad is, a screenshot, the demo and the
+install, with the developer material moved to `docs/development.md`.
+
 ## [16.7.2] — 2026-10-12 — Testing the admin screens, and testing where QA actually runs
 
 No migrations. No change to the app itself: nothing you see or do is different
