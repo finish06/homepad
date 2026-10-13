@@ -28,6 +28,7 @@ No new code PRs. No merges, no promotion (16.7.2 stays unpromoted).
 | 22:30Z | Away started | — | Watcher bliov9s1u running since 21:16Z; no blocker movement |
 | 22:45Z | M3 re-verification vs main 521086f | DONE | All 4 still open and still true; details below. One new finding on #335 |
 | 22:55Z | Pre-stage cycle-2 close-out | DONE | `.add/cycles/cycle-2-closeout-draft.md`: 4/6 issues; routed-items criterion unmet |
+| 01:50Z | Ping Joe (4th) | sent | Delivery noted joe_tmux_1 is a **new session under the old name** (restarted). No issue movement since 21:16Z |
 
 ## M3 re-verification (main 521086f, read-only)
 
