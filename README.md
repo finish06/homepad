@@ -175,7 +175,7 @@ version`).
 git clone https://github.com/finish06/homepad.git
 cd homepad
 cp .env.example .env          # then edit POSTGRES_PASSWORD (at minimum)
-docker compose up --build -d
+docker compose -f compose.build.yaml up --build -d
 ```
 
 Then open **http://localhost:8080**. The **first account you register becomes
@@ -204,15 +204,18 @@ defaults). Notes:
 - **Persistence.** Everything is stored in Postgres, kept in the named volume
   `homepad_pg`. That's the only stateful volume — the web and api containers are
   disposable. Back up (or `docker compose down -v` to wipe) that volume.
-- **The API build source.** The Go backend is a separate repo. Compose builds it
-  from `HOMEPAD_API_CONTEXT` (default: the public GitHub repo). To build from a
+- **The API build source.** The Go backend is a separate repo.
+  `compose.build.yaml` builds it from `HOMEPAD_API_CONTEXT` (default: the public
+  GitHub repo); the quickstart `compose.yaml` pulls the published image instead. To build from a
   local checkout, clone both repos side by side and set
   `HOMEPAD_API_CONTEXT=../homepad-api`.
 - **HTTPS.** Over plain-HTTP localhost, `COOKIE_SECURE=false` (the default in
   `.env.example`) is required or the login cookie is dropped. Set it `true` only
   when you serve Homepad behind a TLS-terminating proxy.
-- **Status tiles.** `deploy/compose/gatus.yaml` ships two example endpoints so
-  the tiles have data immediately — replace them with your own services.
+- **Status tiles.** Gatus is optional. In the quickstart, enable it with
+  `COMPOSE_PROFILES=gatus`; `compose.build.yaml` always runs it from
+  `deploy/compose/gatus.yaml`. Both ship two example checks: replace them with
+  your own services.
 
 ### Enabling OIDC / SSO
 

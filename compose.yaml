@@ -1,12 +1,23 @@
-# Homepad — full self-host stack for `docker compose up`.
+# Homepad: quickstart. Published images, one file, no repo checkout needed.
 #
-#   cp .env.example .env      # then edit POSTGRES_PASSWORD (at minimum)
-#   docker compose up --build -d
-#   open http://localhost:8080
+#   curl -fsSLO https://raw.githubusercontent.com/finish06/homepad/main/compose.yaml
+#   echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" > .env
+#   docker compose up -d
 #
-# Services: web (nginx + built Vite SPA), api (Go backend, migrates on boot),
-# postgres (data), gatus (status source the dashboard tiles read from).
-# See the "Self-hosting with Docker Compose" section of README.md for details.
+# Then open http://localhost:8080 and register. The FIRST account becomes the
+# admin. Then set HOMEPAD_REGISTRATION=invite_only in .env (only an admin can
+# create accounts after that) and run `docker compose up -d` again.
+#
+# Live status (optional): Homepad reads service health from Gatus
+# (https://gatus.io). To run one alongside, add these two lines to .env:
+#   COMPOSE_PROFILES=gatus
+#   GATUS_BASE_URL=http://gatus:8080
+# then edit the `gatus-config` block at the bottom to list your own services.
+# Or point GATUS_BASE_URL at a Gatus you already run. Without Gatus, every tile
+# still works; tiles just don't show a health dot.
+#
+# Building from source instead (contributors): see compose.build.yaml.
+# All settings: https://github.com/finish06/homepad/blob/main/.env.example
 
 name: homepad
 
@@ -15,12 +26,9 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-homepad}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (copy from .env.example)}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env, e.g. echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" > .env}
       POSTGRES_DB: ${POSTGRES_DB:-homepad}
     volumes:
-      # The ONLY stateful volume in the stack — Homepad keeps all persistent
-      # data (accounts, dashboards, services, icons) in Postgres. The api and
-      # web containers are stateless; nothing else needs a volume.
       - homepad_pg:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-homepad} -d ${POSTGRES_DB:-homepad}"]
@@ -31,30 +39,21 @@ services:
     restart: unless-stopped
 
   api:
-    # Built from the companion repo (the Go backend lives separately). Defaults
-    # to the public GitHub repo so a fresh clone of just this repo can build the
-    # whole stack; override HOMEPAD_API_CONTEXT in .env to point at a local
-    # checkout (e.g. ../homepad-api) or an in-cluster Git URL.
-    build:
-      context: ${HOMEPAD_API_CONTEXT:-https://github.com/finish06/homepad-api.git#main}
+    image: ghcr.io/finish06/homepad-api:${HOMEPAD_VERSION:-16.7.3}
     depends_on:
       postgres:
         condition: service_healthy
-      gatus:
-        condition: service_started
     environment:
       PORT: "8080"
-      DATABASE_URL: postgres://${POSTGRES_USER:-homepad}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-homepad}?sslmode=disable
-      # Plain-HTTP localhost: the session cookie must NOT be Secure-only or the
-      # browser drops it and login silently fails. The api defaults this to true
-      # (prod runs behind TLS) — for http://localhost it MUST be false.
+      DATABASE_URL: postgres://${POSTGRES_USER:-homepad}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-homepad}?sslmode=disable
+      # Plain http://localhost needs a non-Secure session cookie, or the browser
+      # drops it and login silently fails. Set true once you serve Homepad over HTTPS.
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       HOMEPAD_REGISTRATION: ${HOMEPAD_REGISTRATION:-open}
-      SESSION_SECRET: ${SESSION_SECRET:-}
-      # Status tiles read from Gatus (compose service name `gatus`, port 8080).
-      GATUS_BASE_URL: ${GATUS_BASE_URL:-http://gatus:8080}
-      # --- OIDC / SSO (OPTIONAL) — leave OIDC_ENABLED=false to run with local
-      #     accounts only. Set it true and fill the rest to enable SSO. ---
+      GATUS_BASE_URL: ${GATUS_BASE_URL:-}
+      GATUS_DEGRADED_MS: ${GATUS_DEGRADED_MS:-1000}
+      # Single sign-on (optional): PocketID, Authelia, Authentik, Keycloak or any
+      # OIDC provider. Leave OIDC_ENABLED=false for local accounts only.
       OIDC_ENABLED: ${OIDC_ENABLED:-false}
       OIDC_DISCOVERY_URL: ${OIDC_DISCOVERY_URL:-}
       OIDC_ISSUER: ${OIDC_ISSUER:-}
@@ -62,40 +61,119 @@ services:
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
       OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-}
       OIDC_ADMIN_GROUP: ${OIDC_ADMIN_GROUP:-}
-    # No container healthcheck: the api image is distroless/static (no shell,
-    # no wget/curl) so it can't probe itself. Its readiness is gated end-to-end
-    # by the web healthcheck below, which proxies through to /api/system/config.
+    # No healthcheck here: the api image is distroless (no shell to probe with).
+    # The web healthcheck below proxies through to the api instead.
     restart: unless-stopped
 
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/finish06/homepad:${HOMEPAD_VERSION:-16.7.3}
     depends_on:
-      api:
-        condition: service_started
+      - api
     ports:
       - "${HOMEPAD_WEB_PORT:-8080}:80"
-    volumes:
-      # Override the image's nginx.conf (which omits the /api proxy — prod does
-      # that at the ingress) with the compose conf that proxies /api → api:8080.
-      - ./deploy/compose/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    configs:
+      - source: nginx-config
+        target: /etc/nginx/conf.d/default.conf
     healthcheck:
-      # End-to-end check: hits the SPA through nginx AND proxies to the api's
-      # public config endpoint, so `web` only reports healthy once web + proxy +
-      # api + db are all serving. (busybox wget: non-zero exit on any failure.)
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/api/system/config || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/api/system/config || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
-      start_period: 40s
+      start_period: 20s
     restart: unless-stopped
 
   gatus:
-    image: ${GATUS_IMAGE:-ghcr.io/twin/gatus:latest}
-    volumes:
-      - ./deploy/compose/gatus.yaml:/config/config.yaml:ro
+    image: ghcr.io/twin/gatus:${GATUS_VERSION:-v5.37.0}
+    profiles: [gatus]
+    configs:
+      - source: gatus-config
+        target: /config/config.yaml
     restart: unless-stopped
 
 volumes:
   homepad_pg:
+
+configs:
+  # The web image's own nginx config serves the app but doesn't route /api: in
+  # a cluster, the ingress does that. Here, the web container proxies /api to
+  # the api service itself. `$$` is compose's escape for a literal `$`.
+  nginx-config:
+    content: |
+      server {
+        listen 80;
+        server_name _;
+        server_tokens off;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+        location /api/ {
+          proxy_pass http://api:8080;
+          proxy_http_version 1.1;
+          proxy_set_header Host $$host;
+          proxy_set_header X-Real-IP $$remote_addr;
+          proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $$scheme;
+          proxy_set_header X-Forwarded-Host $$host;
+        }
+
+        location / {
+          try_files $$uri $$uri/ /index.html;
+        }
+
+        # nginx doesn't inherit add_header into a location that sets its own,
+        # so the four security headers repeat in each of these.
+        location ~* \.(?:js|css|woff2?|png|jpg|jpeg|svg|webp|avif|ico)$$ {
+          expires 30d;
+          add_header Cache-Control "public, max-age=2592000, immutable";
+          add_header X-Content-Type-Options "nosniff" always;
+          add_header X-Frame-Options "SAMEORIGIN" always;
+          add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+          add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+        }
+        location = /index.html {
+          add_header Cache-Control "no-cache";
+          add_header X-Content-Type-Options "nosniff" always;
+          add_header X-Frame-Options "SAMEORIGIN" always;
+          add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+          add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+        }
+        # The app polls /version.json to notice a new release; never cache it.
+        location = /version.json {
+          add_header Cache-Control "no-store";
+          add_header X-Content-Type-Options "nosniff" always;
+        }
+        # Without this, .webmanifest is served as octet-stream and the PWA
+        # can't be installed.
+        location = /manifest.webmanifest {
+          types { }
+          default_type application/manifest+json;
+          add_header X-Content-Type-Options "nosniff" always;
+        }
+      }
+
+  # Used only with COMPOSE_PROFILES=gatus. Replace the two example checks with
+  # your own services. A tile's Gatus key is Gatus's endpoint key: <group>_<name>,
+  # e.g. homepad_homepad-web for the first check below.
+  # Docs: https://gatus.io/docs
+  gatus-config:
+    content: |
+      storage:
+        type: memory
+      endpoints:
+        - name: homepad-web
+          group: homepad
+          url: "http://web:80/"
+          interval: 30s
+          conditions:
+            - "[STATUS] == 200"
+        - name: homepad-api
+          group: homepad
+          url: "http://api:8080/health"
+          interval: 30s
+          conditions:
+            - "[STATUS] == 200"
