@@ -7,6 +7,19 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [16.7.4] — 2026-10-13 — A clean App Library for new installs
+
+No migrations. Existing installs see no change.
+
+**A new install's App Library now starts with 52 well-known self-hosted apps**,
+such as Jellyfin, Immich, Home Assistant, Grafana and Paperless-ngx, grouped by
+category and linked to each project's site. Until now it started with a list of
+the maintainer's own services, which meant nothing to anyone else. The App
+Library is only filled on a brand-new, empty install, so an existing Homepad
+keeps its library exactly as it is.
+
+The quickstart `compose.yaml` now pins `16.7.4` for both images.
+
 ## [16.7.3] — 2026-10-13 — Install it with one file
 
 No migrations. Nothing changes inside the app; this release is about getting it
