@@ -15,9 +15,12 @@ the name of its Gatus endpoint.
 
 ## 1. Run Gatus
 
-If you started Homepad with the bundled Docker Compose stack, **Gatus is already
-running** — the `gatus` service in `compose.yaml` — and its config is
-`deploy/compose/gatus.yaml`. Skip to step 3.
+If you use the quickstart `compose.yaml`, add `COMPOSE_PROFILES=gatus` and
+`GATUS_BASE_URL=http://gatus:8080` to `.env` and run `docker compose up -d`.
+That starts the bundled Gatus; its checks are the `gatus-config` block at the
+bottom of `compose.yaml`. If you build from source with `compose.build.yaml`,
+Gatus always runs and its config is `deploy/compose/gatus.yaml`. Either way, skip
+to step 3.
 
 Otherwise, run Gatus anywhere the Homepad API can reach it. A minimal config:
 
