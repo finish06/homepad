@@ -85,3 +85,11 @@ From this baseline there is little to lose, and every visitor we win is lost at 
 |---|---|
 | 2026-10-13 | Goal set. GitHub metadata fixed on both repos: homepage gethomepad.dev, a user-facing description, 12 topics |
 | 2026-10-13 | 16.7.3 and 16.7.4 released (public multi-arch images, one-file install, user README, public App Library seed). Site 0.4.0 live. GitHub Releases created. Demo live status redesigned to option A (homelab snapshot), waiting on Joe/Gus. Launch kit drafted. Baseline hint from Joe: the demo had zero visitors on 18 of the last 31 days |
+
+## Weekly tracking
+
+Automated by Joe's `homelab/umami-weekly` (kube1 cron, read-only, every Monday until 2026-11-12), posting to getHomepad #26.
+
+| Date | Visitors / 30d | vs target 96 | scroll-depth / 30d | demo-click | github-click | DC-city share | GitHub stars | Notes |
+|---|---|---|---|---|---|---|---|---|
+| 2026-10-13 | 34 | 35% | 45 | 5 | 22 | 42% | 0 | Pre-launch. List PRs opened: awesome-startpage #61, awesome-pwa #549 |
