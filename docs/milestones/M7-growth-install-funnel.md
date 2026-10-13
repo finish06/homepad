@@ -40,22 +40,22 @@ From this baseline there is little to lose, and every visitor we win is lost at 
 ## Success Criteria
 
 - [ ] Umami: 30-day visitors at ≥ 3× the baseline by 2026-11-12, measured by Joe's pull
-- [ ] A stranger installs with **one command** and sees a working dashboard. Verified on a clean Docker host, with a log
-- [ ] Public, version-tagged images for **both** web and API on GHCR (`:16.7.x`, `:latest`)
-- [ ] The README leads with a screenshot, the one-command install and the comparison
-- [ ] The site's install steps match the README; CTAs are tracked as Umami events; SEO basics are in place
-- [ ] A launch kit drafted for Caleb (r/selfhosted, r/homelab, selfh.st, Show HN, AlternativeTo); posting dates and results logged here
+- [x] A stranger installs with **one command** and sees a working dashboard. Verified on a clean Docker host, with a log (16.7.4, 2026-10-13: healthy in 16s, arm64)
+- [x] Public, version-tagged images for **both** web and API on GHCR (`:16.7.x`, `:latest`), amd64 and arm64
+- [x] The README leads with a screenshot, the one-command install and the comparison
+- [x] The site's install steps match the README; CTAs are tracked as Umami events; SEO basics are in place (getHomepad 0.4.0)
+- [~] A launch kit drafted for Caleb (r/selfhosted, r/homelab, selfh.st, Show HN, AlternativeTo); posting dates and results logged here
 - [ ] GitHub stars and GHCR pulls tracked weekly in this file
 
 ## Features
 
 | Feature | Repo | Position | Notes |
 |---|---|---|---|
-| Public API image on GHCR (+ semver tags on both) | homepad-api, homepad | SHAPED | Copy homepad's `ghcr-release.yml`; add `v*` tag handling |
-| Quickstart compose (published images, Gatus optional) | homepad | SHAPED | nginx config inlined via compose `configs:`, so the published image is enough and prod's ConfigMap is untouched |
-| README rewrite | homepad, homepad-api | SHAPED | Move developer content to `docs/development.md` |
-| Site funnel + SEO | getHomepad | SHAPED | Audit in progress |
-| Launch kit | — | SHAPED | Drafts for Caleb; posting is his |
+| Public API image on GHCR (+ semver tags on both) | homepad-api, homepad | DONE | Copy homepad's `ghcr-release.yml`; add `v*` tag handling |
+| Quickstart compose (published images, Gatus optional) | homepad | DONE | nginx config inlined via compose `configs:`, so the published image is enough and prod's ConfigMap is untouched |
+| README rewrite | homepad, homepad-api | DONE (homepad) | Move developer content to `docs/development.md` |
+| Site funnel + SEO | getHomepad | DONE | 0.4.0 live |
+| Launch kit | — | DOWNHILL | Drafts for Caleb; posting is his |
 | Competitive features (import from Homepage config, Docker discovery) | homepad, homepad-api | IDEA | Only after the launch shows what people ask for; each needs a spec |
 
 ## Risks
@@ -78,3 +78,4 @@ From this baseline there is little to lose, and every visitor we win is lost at 
 | Date | Event |
 |---|---|
 | 2026-10-13 | Goal set. GitHub metadata fixed on both repos: homepage gethomepad.dev, a user-facing description, 12 topics |
+| 2026-10-13 | 16.7.3 and 16.7.4 released (public multi-arch images, one-file install, user README, public App Library seed). Site 0.4.0 live. GitHub Releases created. Demo live status redesigned to option A (homelab snapshot), waiting on Joe/Gus. Launch kit drafted. Baseline hint from Joe: the demo had zero visitors on 18 of the last 31 days |
