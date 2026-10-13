@@ -17,11 +17,17 @@ From this baseline there is little to lose, and every visitor we win is lost at 
 
 | Metric | Value | Source |
 |---|---|---|
-| gethomepad.dev visitors / 30d | requested from Joe | Umami (`013fa9d0-…`) |
+| gethomepad.dev visitors / 30d (09-13 → 10-13) | **32** (prior 30d: 20); pageviews 42; bounce 91%; avg visit 14s | Umami, Joe's pull (getHomepad #26) |
+| gethomepad.dev engaged sessions / 30d | `scroll-depth` 41 · `github-click` 21 · `demo-click` 4 | Umami events |
+| Bot share (estimate) | ~42% of city-resolved visitors are in cloud-DC cities, so the human baseline is ~15–20 / 30d | Joe, #26 §6 |
+| Referrers (90d) | github.com 6, google 3, bing 2; ~93% direct/none; **no UTM ever** | Umami |
+| Zero-visitor days | 18 of the last 31 | Umami |
 | GitHub stars / forks | 0 / 0 | api.github.com |
 | GitHub unique visitors / 14d | 9 (27 views); referrers: Google 1, chatgpt.com 1 | repo traffic API |
-| GHCR `homepad` downloads | single digits | package page |
-| GHCR `homepad-api` | **does not exist** | ghcr.io |
+| GitHub clones / 14d | 488 by 166 unique cloners: mostly automation (Actions checkouts, mirrors), not people | repo traffic API |
+| GHCR total downloads | homepad 1 · homepad-api 1 (both images went public or first released 2026-10-13) | package pages |
+
+**Target (2026-11-12):** ≥ 96 visitors / 30d on Umami's counter (3 × 32). Because ~40% of today's counter is bots, the goal is also tracked on a bot-resistant proxy: **`scroll-depth` sessions ≥ 3× 41** and **`install-copy` + `demo-click`**. The launch posts carry `utm_*` tags (launch kit), so the weekly pull can attribute each channel.
 
 ## Funnel defects found (2026-10-13)
 
@@ -40,22 +46,22 @@ From this baseline there is little to lose, and every visitor we win is lost at 
 ## Success Criteria
 
 - [ ] Umami: 30-day visitors at ≥ 3× the baseline by 2026-11-12, measured by Joe's pull
-- [ ] A stranger installs with **one command** and sees a working dashboard. Verified on a clean Docker host, with a log
-- [ ] Public, version-tagged images for **both** web and API on GHCR (`:16.7.x`, `:latest`)
-- [ ] The README leads with a screenshot, the one-command install and the comparison
-- [ ] The site's install steps match the README; CTAs are tracked as Umami events; SEO basics are in place
-- [ ] A launch kit drafted for Caleb (r/selfhosted, r/homelab, selfh.st, Show HN, AlternativeTo); posting dates and results logged here
+- [x] A stranger installs with **one command** and sees a working dashboard. Verified on a clean Docker host, with a log (16.7.4, 2026-10-13: healthy in 16s, arm64)
+- [x] Public, version-tagged images for **both** web and API on GHCR (`:16.7.x`, `:latest`), amd64 and arm64
+- [x] The README leads with a screenshot, the one-command install and the comparison
+- [x] The site's install steps match the README; CTAs are tracked as Umami events; SEO basics are in place (getHomepad 0.4.0)
+- [~] A launch kit drafted for Caleb (r/selfhosted, r/homelab, selfh.st, Show HN, AlternativeTo); posting dates and results logged here
 - [ ] GitHub stars and GHCR pulls tracked weekly in this file
 
 ## Features
 
 | Feature | Repo | Position | Notes |
 |---|---|---|---|
-| Public API image on GHCR (+ semver tags on both) | homepad-api, homepad | SHAPED | Copy homepad's `ghcr-release.yml`; add `v*` tag handling |
-| Quickstart compose (published images, Gatus optional) | homepad | SHAPED | nginx config inlined via compose `configs:`, so the published image is enough and prod's ConfigMap is untouched |
-| README rewrite | homepad, homepad-api | SHAPED | Move developer content to `docs/development.md` |
-| Site funnel + SEO | getHomepad | SHAPED | Audit in progress |
-| Launch kit | — | SHAPED | Drafts for Caleb; posting is his |
+| Public API image on GHCR (+ semver tags on both) | homepad-api, homepad | DONE | Copy homepad's `ghcr-release.yml`; add `v*` tag handling |
+| Quickstart compose (published images, Gatus optional) | homepad | DONE | nginx config inlined via compose `configs:`, so the published image is enough and prod's ConfigMap is untouched |
+| README rewrite | homepad, homepad-api | DONE (homepad) | Move developer content to `docs/development.md` |
+| Site funnel + SEO | getHomepad | DONE | 0.4.0 live |
+| Launch kit | — | DOWNHILL | Drafts for Caleb; posting is his |
 | Competitive features (import from Homepage config, Docker discovery) | homepad, homepad-api | IDEA | Only after the launch shows what people ask for; each needs a spec |
 
 ## Risks
@@ -78,3 +84,12 @@ From this baseline there is little to lose, and every visitor we win is lost at 
 | Date | Event |
 |---|---|
 | 2026-10-13 | Goal set. GitHub metadata fixed on both repos: homepage gethomepad.dev, a user-facing description, 12 topics |
+| 2026-10-13 | 16.7.3 and 16.7.4 released (public multi-arch images, one-file install, user README, public App Library seed). Site 0.4.0 live. GitHub Releases created. Demo live status redesigned to option A (homelab snapshot), waiting on Joe/Gus. Launch kit drafted. Baseline hint from Joe: the demo had zero visitors on 18 of the last 31 days |
+
+## Weekly tracking
+
+Automated by Joe's `homelab/umami-weekly` (kube1 cron, read-only, every Monday until 2026-11-12), posting to getHomepad #26.
+
+| Date | Visitors / 30d | vs target 96 | scroll-depth / 30d | demo-click | github-click | DC-city share | GitHub stars | Notes |
+|---|---|---|---|---|---|---|---|---|
+| 2026-10-13 | 34 | 35% | 45 | 5 | 22 | 42% | 0 | Pre-launch. List PRs opened: awesome-startpage #61, awesome-pwa #549 |
