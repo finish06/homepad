@@ -118,6 +118,7 @@ status and detail.
 
 | Horizon | Milestone | Goal | Status |
 |---|---|---|---|
+| **Now** | [M7 — Growth: install funnel + launch](milestones/M7-growth-install-funnel.md) | 3× gethomepad.dev traffic in 30 days: one-command install, then a launch | IN_PROGRESS (2026-10-13) |
 | **Now** | [M2 — QA pipeline reliability](milestones/M2-qa-pipeline-reliability.md) | One reviewer per PR, a reserved staging slot, a QA browser env that fails only for real | IN_PROGRESS (lease dispatched) |
 | **Next** | [M3 — Robustness & security](milestones/M3-robustness-security.md) | Iframe sandbox (#334), ErrorBoundary for lazy overlays (#341) | NOT_STARTED |
 | **Next** | [M4 — Accessibility debt](milestones/M4-accessibility-debt.md) | AA everywhere, starting with the dark-mode login (#379) | NOT_STARTED |
@@ -169,3 +170,4 @@ it.
 | 2026-10-11 | 0.2.0 | roadmap | First roadmap: six milestones (M1–M2 Now, M3–M4 Next, M5–M6 Later) built from a backlog triage that closed 26 of 71 issues with evidence |
 | 2026-10-12 | 0.2.1 | cycle | M1 COMPLETE after cycle-1: 16.7.0 and 16.7.1 released, 16.7.1 in production, 16 issues closed. Active milestone → M2 |
 | 2026-10-12 | 0.2.2 | roadmap | M1 archived: Now → Done (milestone file kept). Now holds M2 only. Spec count corrected 39 → 40 |
+| 2026-10-13 | 0.2.3 | roadmap | M7 (growth: install funnel + launch) added to Now, ahead of M3 (Caleb's 30-day goal). Cycle-2 closed; 16.7.2 in production |
