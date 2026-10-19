@@ -93,3 +93,4 @@ Automated by Joe's `homelab/umami-weekly` (kube1 cron, read-only, every Monday u
 | Date | Visitors / 30d | vs target 96 | scroll-depth / 30d | demo-click | github-click | DC-city share | GitHub stars | Notes |
 |---|---|---|---|---|---|---|---|---|
 | 2026-10-13 | 34 | 35% | 45 | 5 | 22 | 42% | 0 | Pre-launch. List PRs opened: awesome-startpage #61, awesome-pwa #549 |
+| 2026-10-19 | 31 | 32% | 53 | 6 | 13 | 16% | 0 | Pre-launch. IGNORE_IP set 10-15, so the owner's visits no longer count (38 → 31). Demo shows live status from 10-17 (homepad-api #76). Site 0.4.1 has images recaptured from the live demo (getHomepad #29). awesome-startpage #61 merged; awesome-pwa #549 still open. First referral with a UTM: `chatgpt.com` (1). |
