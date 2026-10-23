@@ -3,7 +3,7 @@
 **Version:** 0.2.0
 **Created:** 2026-10-20
 **Author:** Caleb Dunn (via /add:spec)
-**Status:** APPROVED (product, 2026-10-22) — implementation gated on the Kare §9 UX artifact
+**Status:** APPROVED (product and UX, 2026-10-22)
 **Repo:** `Code/homepad` (frontend) + `Code/homepad-api` (Go backend)
 **Estimate:** ~3–4 days (persistent sessions, accounts admin, per-kid allow-list, server-side filtering, UI, tests)
 **Depends on:** shared catalog model (SPEC-245-224), v12-settings-boundary-clarity, per-user preferences (`PATCH /api/me`)
@@ -92,7 +92,7 @@ Managing adult accounts (create, delete, reset password) stays out of scope, apa
 | AC-005 | `GET /api/categories` for a kid returns only categories that contain at least one allowed service (OQ-2). | Must |
 | AC-006 | Icon reads (`GET /api/services/{id}/icon/*`) and favorite writes (`POST`/`DELETE /api/favorites/{id}`) for a service off the kid's list return 404, not 403, so a kid can't probe which IDs exist. | Must |
 | AC-007 | A kid session gets 403 on every catalog, category, library, layout, icon-write, admin and settings mutation. `PATCH /api/me` accepts only `themePref` (D3). | Must |
-| AC-008 | A kid's UI has no edit mode, no App Library, no "Add app", no Admin section and no tile-edit affordance. The user menu shows only Appearance (theme) and the kid's name. | Must |
+| AC-008 | A kid's UI has no edit mode, no App Library, no "Add app", no Admin section and no tile-edit affordance. The user menu shows only the kid's name, Appearance (theme) and Sign out (UX K-2). | Must |
 | AC-009 | "Sign in this device as [kid]" replaces the admin's session on that device with a kid session, and needs the admin's session to start. | Must |
 | AC-010 | Sessions persist across API restarts and deploys. The cookie carries `Max-Age`: kid 180 days and adult 30 days, both sliding. | Must |
 | AC-011 | Only a hash of each session token is stored, never the raw token. | Must |
@@ -169,7 +169,7 @@ The filtering lives in one storage-layer function: `VisibleServiceIDs(ctx, user)
 
 ## 9. Design (Kare)
 
-UX artifact: [`specs/ux/kid-accounts-ux.md`](./ux/kid-accounts-ux.md) (DRAFT 2026-10-22, awaiting Caleb on K-1…K-3). It must be APPROVED before implementation (UI gate, GA). Surfaces:
+UX artifact: [`specs/ux/kid-accounts-ux.md`](./ux/kid-accounts-ux.md) (APPROVED 2026-10-22). Surfaces:
 
 1. the Accounts list;
 2. the kid editor, with the app checklist for 50+ apps and select-all per section;
@@ -189,7 +189,7 @@ UX artifact: [`specs/ux/kid-accounts-ux.md`](./ux/kid-accounts-ux.md) (DRAFT 202
 | Role | Name | Status |
 |---|---|---|
 | Product | Caleb | Approved 2026-10-22 (OQ-1…OQ-4 at the proposed defaults) |
-| Design | Kare | Drafted 2026-10-22 (`specs/ux/kid-accounts-ux.md`) |
+| Design | Kare | Approved 2026-10-22 (`specs/ux/kid-accounts-ux.md`) |
 
 ## 12. Revision History
 

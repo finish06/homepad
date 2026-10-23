@@ -2,7 +2,7 @@
 
 **Spec:** [`SPEC-kid-accounts.md`](../SPEC-kid-accounts.md) §9 (v0.2.0, APPROVED 2026-10-22)
 **Author:** Kare (design), drafted 2026-10-22
-**Status:** DRAFT — awaiting Caleb's sign-off. Implementation (`/add:plan`, then the build) starts on APPROVED.
+**Status:** APPROVED — Caleb, 2026-10-22 (K-1…K-3 at the recommendations).
 
 This doc designs the four surfaces in spec §9. Everything else reuses what exists: the Admin Panel shell (`SettingsPanel`), the user menu, `Modal`, and the dashboard grid.
 
@@ -128,7 +128,7 @@ This is the existing dashboard in a **kid shell**, gated on `role === 'kid'`:
   - ⌘K search, over allowed apps only;
   - favorites (the star on long-press or hover, as today);
   - Recently Opened.
-- **Health bar:** off by default (OQ-3). If an admin later turns it on for a kid, it counts only that kid's apps.
+- **Health bar:** off for kids (OQ-3). Whenever it does render (AC-019), it counts only that kid's apps.
 - **User menu:**
   - the kid's name and color dot, with no role pill (the word "kid" is for the admin, not shown to the child);
   - Appearance (theme);
@@ -171,13 +171,13 @@ iPad landscape (1180×820)                 iPad portrait (820×1180)
 
 ## 8. Decisions for Caleb
 
-- **K-1: Where Accounts sits.** I put it first in the Admin Panel, with its own menu item. The alternative is a separate panel. *Recommend: in the Admin Panel; one fewer surface.*
-- **K-2: Sign out on the kid's menu.** Visible, per D4. The alternative is hiding it behind a long-press. *Recommend: visible. Otherwise an admin on that device has no way back without a second device.*
-- **K-3: Default density for kids.** *Recommend: large.*
+- **K-1: Where Accounts sits.** I put it first in the Admin Panel, with its own menu item. The alternative is a separate panel. **Decided: in the Admin Panel.**
+- **K-2: Sign out on the kid's menu.** Visible, per D4. The alternative is hiding it behind a long-press. **Decided: visible.**
+- **K-3: Default density for kids.** **Decided: large.**
 
 ## Sign-off
 
 | Role | Name | Status |
 |---|---|---|
 | Design | Kare | Drafted 2026-10-22 |
-| Product | Caleb | Pending (K-1…K-3) |
+| Product | Caleb | Approved 2026-10-22 (K-1 in Admin Panel, K-2 visible Sign out, K-3 large) |
