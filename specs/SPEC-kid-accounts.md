@@ -1,9 +1,9 @@
 # Spec: Kid Accounts — a managed dashboard for kids on the family iPad
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Created:** 2026-10-20
 **Author:** Caleb Dunn (via /add:spec)
-**Status:** DRAFT — awaiting Caleb's approval and Kare §9 (UI feature)
+**Status:** APPROVED (product, 2026-10-22) — implementation gated on the Kare §9 UX artifact
 **Repo:** `Code/homepad` (frontend) + `Code/homepad-api` (Go backend)
 **Estimate:** ~3–4 days (persistent sessions, accounts admin, per-kid allow-list, server-side filtering, UI, tests)
 **Depends on:** shared catalog model (SPEC-245-224), v12-settings-boundary-clarity, per-user preferences (`PATCH /api/me`)
@@ -72,12 +72,12 @@ Managing adult accounts (create, delete, reset password) stays out of scope, apa
 
 ---
 
-## 3. Open Questions
+## 3. Open Questions (resolved)
 
-- **OQ-1: New apps added to the catalog later.** Default: not visible to kids until ticked; the allow-list is explicit. Alternative: a per-kid "also show new apps in sections I've allowed" toggle. *Proposed: explicit only for v1.*
-- **OQ-2: Categories.** A kid sees only sections that contain at least one allowed app, so empty sections are hidden. *Proposed: yes.*
-- **OQ-3: Health bar for kids.** The summary ("All systems operational · N services") would count only the kid's allowed apps. Alternatively, hide the bar for kids by default (`showHealthBar=false` at creation). *Proposed: count allowed apps only, and default the bar off for kids.*
-- **OQ-4: Iframe click action.** A tile set to open in an embedded overlay still loads the app's real URL; that's fine, because hiding doesn't block. *No change proposed.*
+- **OQ-1: New apps added to the catalog later.** Default: not visible to kids until ticked; the allow-list is explicit. Alternative: a per-kid "also show new apps in sections I've allowed" toggle. **Decided (2026-10-22): explicit only for v1.**
+- **OQ-2: Categories.** A kid sees only sections that contain at least one allowed app, so empty sections are hidden. **Decided (2026-10-22): yes.**
+- **OQ-3: Health bar for kids.** The summary ("All systems operational · N services") would count only the kid's allowed apps. Alternatively, hide the bar for kids by default (`showHealthBar=false` at creation). **Decided (2026-10-22): count allowed apps only, and default the bar off for kids.**
+- **OQ-4: Iframe click action.** A tile set to open in an embedded overlay still loads the app's real URL; that's fine, because hiding doesn't block. **Decided (2026-10-22): no change.**
 
 ---
 
@@ -188,7 +188,7 @@ Needs a UX artifact at `specs/ux/kid-accounts-ux.md` before implementation (UI g
 
 | Role | Name | Status |
 |---|---|---|
-| Product | Caleb | Pending |
+| Product | Caleb | Approved 2026-10-22 (OQ-1…OQ-4 at the proposed defaults) |
 | Design | Kare | Pending (§9) |
 
 ## 12. Revision History
@@ -196,3 +196,4 @@ Needs a UX artifact at `specs/ux/kid-accounts-ux.md` before implementation (UI g
 | Date | Version | Change |
 |---|---|---|
 | 2026-10-20 | 0.1.0 | Draft from Caleb's request and the D1–D4 interview answers. |
+| 2026-10-22 | 0.2.0 | Approved by Caleb; OQ-1…OQ-4 resolved at the proposed defaults. |
