@@ -169,7 +169,7 @@ The filtering lives in one storage-layer function: `VisibleServiceIDs(ctx, user)
 
 ## 9. Design (Kare)
 
-Needs a UX artifact at `specs/ux/kid-accounts-ux.md` before implementation (UI gate, GA). Surfaces:
+UX artifact: [`specs/ux/kid-accounts-ux.md`](./ux/kid-accounts-ux.md) (DRAFT 2026-10-22, awaiting Caleb on K-1…K-3). It must be APPROVED before implementation (UI gate, GA). Surfaces:
 
 1. the Accounts list;
 2. the kid editor, with the app checklist for 50+ apps and select-all per section;
@@ -189,7 +189,7 @@ Needs a UX artifact at `specs/ux/kid-accounts-ux.md` before implementation (UI g
 | Role | Name | Status |
 |---|---|---|
 | Product | Caleb | Approved 2026-10-22 (OQ-1…OQ-4 at the proposed defaults) |
-| Design | Kare | Pending (§9) |
+| Design | Kare | Drafted 2026-10-22 (`specs/ux/kid-accounts-ux.md`) |
 
 ## 12. Revision History
 
