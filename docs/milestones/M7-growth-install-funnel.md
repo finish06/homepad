@@ -94,3 +94,4 @@ Automated by Joe's `homelab/umami-weekly` (kube1 cron, read-only, every Monday u
 |---|---|---|---|---|---|---|---|---|
 | 2026-10-13 | 34 | 35% | 45 | 5 | 22 | 42% | 0 | Pre-launch. List PRs opened: awesome-startpage #61, awesome-pwa #549 |
 | 2026-10-19 | 31 | 32% | 53 | 6 | 13 | 16% | 0 | Pre-launch. IGNORE_IP set 10-15, so the owner's visits no longer count (38 → 31). Demo shows live status from 10-17 (homepad-api #76). Site 0.4.1 has images recaptured from the live demo (getHomepad #29). awesome-startpage #61 merged; awesome-pwa #549 still open. First referral with a UTM: `chatgpt.com` (1). |
+| 2026-10-26 | 38 | 40% | 76 | 9 | 15 | 14% | 0 | Still pre-launch; organic growth only (+7 in a week). GitHub 14d views fell to 16 / 11 unique. Kid accounts spec, UX and plan approved and merged (#541), targeting 17.0.0. awesome-pwa #549 still open. r/selfhosted launch post pending Caleb (suggested Wed 10-28). |
