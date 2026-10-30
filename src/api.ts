@@ -12,10 +12,17 @@ export type ThemePref = 'system' | 'light' | 'dark';
 // first letter. Optional so older payloads / fixtures read as "no name".
 // densityPref (v16, OQ-9) is optional on the wire so a frontend ahead of its
 // backend keeps working: absent → the per-device cache / default applies.
+// SPEC-kid-accounts — the three roles. A `kid` is created by an admin, sees only
+// its allow-list (filtered server-side), and may change only its theme and its
+// favorites; the frontend gates the kid shell on this value (spec §8).
+export type Role = 'admin' | 'user' | 'kid';
+
 export type User = {
   id: string;
+  // Empty for a kid: kids have no email (they sign in only via "Sign in this
+  // device as …").
   email: string;
-  role: string;
+  role: Role;
   themePref: ThemePref;
   densityPref?: 'large' | 'compact' | 'list';
   // SPEC-health-bar-visibility-toggle — per-user visibility of the health
@@ -26,6 +33,11 @@ export type User = {
   // an older backend that omits the field still type-checks and falls back.
   showUptimeDisplay?: boolean;
   name?: string;
+  // SPEC-kid-accounts §7 — the same display name under the spec's name (a kid
+  // always has one), and the account's avatar color: one of the accent ids, ""
+  // when unset. Both optional so an older backend still type-checks.
+  displayName?: string;
+  avatarColor?: string;
 };
 
 export type ServiceStatus = 'UP' | 'DOWN' | 'DEGRADED' | 'UNKNOWN' | 'NOT_MONITORED';
@@ -651,4 +663,107 @@ export async function refreshStatus(): Promise<RefreshStatusResult> {
 // update — same shape as setFavorite/setLayout.
 export async function setThemePref(pref: ThemePref): Promise<boolean> {
   return boolRequest('/api/me', 200, { method: 'PATCH', json: { themePref: pref } });
+}
+
+// ---------------------------------------------------------------------------
+// SPEC-kid-accounts §7 — the admin Accounts API (all admin-only server-side;
+// every {id} is a kid — an adult's id is a 404). The contract is homepad-api's
+// internal/api/admin_accounts.go, which wins over the spec table where they
+// differ: the lists are bare JSON arrays, list rows carry avatarColor plus
+// `email` (adults only) or `appCount`/`deviceCount` (kids only), PATCH refuses
+// `password`, and a duplicate kid name (case-insensitive) is a 409.
+// ---------------------------------------------------------------------------
+
+// One row of GET /api/admin/accounts, and the body of the kid create/update
+// responses. `lastSeenAt` is the most recent use of any live session (null if
+// none). `avatarColor` is an accent id (theme/accent.ts); the server defaults a
+// kid to `blue`, and an adult's may be "".
+export type Account = {
+  id: string;
+  name: string;
+  role: Role;
+  lastSeenAt: string | null;
+  email?: string;
+  avatarColor: string;
+  appCount?: number;
+  deviceCount?: number;
+};
+
+// One signed-in device of a kid. `id` is the session's opaque handle — never the
+// token or its hash — and is what revokeKidSession takes.
+export type KidDevice = {
+  id: string;
+  userAgent: string;
+  createdAt: string;
+  lastSeenAt: string;
+};
+
+const kidPath = (id: string) => `/api/admin/kids/${encodeURIComponent(id)}`;
+
+// jsonOrThrow — the rejecting-read convention adminEnvConfig uses: any non-200
+// (or a network failure) throws, so the caller renders its error state instead
+// of an empty list that would read as "no accounts".
+async function jsonOrThrow<T>(path: string): Promise<T> {
+  const { status, res } = await request(path);
+  if (!res) throw new Error('network error');
+  if (status !== 200) throw new Error(await errorText(res));
+  return (await res.json()) as T;
+}
+
+// listAccounts — every account (UX §2). Adults are listed only (spec §10).
+export async function listAccounts(): Promise<Account[]> {
+  return jsonOrThrow<Account[]>('/api/admin/accounts');
+}
+
+// createKid — a kid needs only a name (AC-001). 201 with the new account; a 409
+// means another kid already has that name (case-insensitive), a 400 that the
+// name is not 1–40 characters.
+export async function createKid(name: string, avatarColor: string): Promise<Result & { account?: Account }> {
+  return resultRequest('/api/admin/kids', 201, { method: 'POST', json: { name, avatarColor } }, (d) => ({
+    account: d as Account,
+  }));
+}
+
+// updateKid — rename or recolor a kid. Only the fields given are sent; the
+// server refuses `password` (kids sign in only through sign-in-here).
+export async function updateKid(
+  id: string,
+  patch: { name?: string; avatarColor?: string },
+): Promise<Result & { account?: Account }> {
+  return resultRequest(kidPath(id), 200, { method: 'PATCH', json: patch }, (d) => ({ account: d as Account }));
+}
+
+// deleteKid — removes the kid with its sessions, favorites and allow-list
+// (AC-014). True on 204.
+export async function deleteKid(id: string): Promise<boolean> {
+  return boolRequest(kidPath(id), 204, { method: 'DELETE' });
+}
+
+// kidServices — the ids on a kid's allow-list.
+export async function kidServices(id: string): Promise<string[]> {
+  const data = await jsonOrThrow<{ serviceIds?: string[] | null }>(`${kidPath(id)}/services`);
+  return data.serviceIds ?? [];
+}
+
+// setKidServices — a whole-set replace, like setLayout. `serviceIds` is always
+// sent: the server treats a missing key as a 400, and `[]` as "no apps".
+export async function setKidServices(id: string, serviceIds: string[]): Promise<boolean> {
+  return boolRequest(`${kidPath(id)}/services`, 204, { method: 'PUT', json: { serviceIds } });
+}
+
+// kidSessions — a kid's signed-in devices, most recently used first.
+export async function kidSessions(id: string): Promise<KidDevice[]> {
+  return jsonOrThrow<KidDevice[]>(`${kidPath(id)}/sessions`);
+}
+
+// revokeKidSession — signs one device out; its next request is a 401 (AC-012).
+export async function revokeKidSession(id: string, sessionId: string): Promise<boolean> {
+  return boolRequest(`${kidPath(id)}/sessions/${encodeURIComponent(sessionId)}`, 204, { method: 'DELETE' });
+}
+
+// signInHere — ends the CALLER's admin session on this device and sets the
+// kid's session cookie in the same response (AC-009). The server does the swap;
+// on true the caller reloads into the kid's dashboard.
+export async function signInHere(id: string): Promise<boolean> {
+  return boolRequest(`${kidPath(id)}/sign-in-here`, 204, { method: 'POST' });
 }
