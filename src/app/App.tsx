@@ -18,7 +18,7 @@ import AppGrid from '../grid/AppGrid';
 import { useTileDensity } from '../grid/tileDensity';
 import { useHealthBarPref } from './healthBarPref';
 import { useUptimeDisplayPref } from './uptimeDisplayPref';
-import type { SettingsScope } from '../library/SettingsPanel';
+import type { SettingsScope, SettingsSection } from '../library/SettingsPanel';
 import StatusBar from './StatusBar';
 import CommandLauncher from '../launcher/CommandLauncher';
 import { LauncherProvider, useLauncher } from '../launcher/launcher';
@@ -135,6 +135,9 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // OQ-1 (a) — one panel, two scopes. The entry point decides which: personal
   // settings are offered to every role, admin settings only under the shield.
   const [settingsScope, setSettingsScope] = useState<SettingsScope>('admin');
+  // SPEC-kid-accounts UX §1 — the section the panel opens scrolled to: set by
+  // Administration → "Accounts", cleared by every other entry point.
+  const [settingsSection, setSettingsSection] = useState<SettingsSection | undefined>(undefined);
   // cap6 — the global uptime-display toggle. Seeded ON so the first paint (before
   // the config resolves) matches today's behavior; systemConfig() then corrects it.
   const [sysConfig, setSysConfig] = useState<SystemConfig>({ showUptimeDisplay: true, statusDegradedMs: 1000 });
@@ -229,10 +232,17 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
           onOpenCustomAppForm={() => setCustomFormOpen(true)}
           onOpenAdminSettings={() => {
             setSettingsScope('admin');
+            setSettingsSection(undefined);
             setSettingsOpen(true);
           }}
           onOpenMySettings={() => {
             setSettingsScope('personal');
+            setSettingsSection(undefined);
+            setSettingsOpen(true);
+          }}
+          onOpenAccounts={() => {
+            setSettingsScope('admin');
+            setSettingsSection('accounts');
             setSettingsOpen(true);
           }}
           onGoToDashboard={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -318,6 +328,8 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             <SettingsPanel
               isAdmin={isAdmin}
               scope={settingsScope}
+              initialSection={settingsSection}
+              currentUserId={user.id}
               showHealthBar={showHealthBar}
               onSetHealthBar={setShowHealthBar}
               showUptimeDisplay={sysConfig.showUptimeDisplay}

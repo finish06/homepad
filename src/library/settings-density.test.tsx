@@ -19,6 +19,10 @@ vi.mock('../api', () => ({
   deleteLibraryApp: vi.fn(),
   setLibraryOrder: vi.fn(),
   adminEnvConfig: vi.fn(),
+  // SPEC-kid-accounts — the admin scope now opens with the Accounts section,
+  // which lists accounts on mount. An empty list keeps these suites about what
+  // they test.
+  listAccounts: vi.fn(() => Promise.resolve([])),
 }));
 
 function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> = {}) {

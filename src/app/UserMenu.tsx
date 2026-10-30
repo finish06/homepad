@@ -16,9 +16,13 @@ export default function UserMenu({
   onOpenMySettings,
   onGoToDashboard,
   onLogout,
+  onOpenAccounts,
 }: {
   user: User;
   onOpenAdminSettings: () => void;
+  // SPEC-kid-accounts UX §1 — Administration → "Accounts" opens the Admin Panel
+  // scrolled to its Accounts section. Optional: the item renders only when given.
+  onOpenAccounts?: () => void;
   // SPEC-health-bar-visibility-toggle OQ-1 (a) — opens SettingsPanel in personal
   // scope. Offered to EVERY role: it carries only the user's own preferences.
   onOpenMySettings: () => void;
@@ -203,6 +207,21 @@ export default function UserMenu({
                 Admin settings
                 <span className="menu-scope-tag menu-scope-tag--global">global</span>
               </button>
+              {/* SPEC-kid-accounts K-1 — people managing kids won't look under
+                  "Admin settings", so Accounts gets its own item. */}
+              {onOpenAccounts && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="menu-accounts"
+                  onClick={() => choose(onOpenAccounts)}
+                  className="menu-item"
+                >
+                  <PeopleIcon />
+                  Accounts
+                  <span className="menu-scope-tag menu-scope-tag--global">global</span>
+                </button>
+              )}
             </>
           )}
 
@@ -267,6 +286,14 @@ function LibraryIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="menu-icon">
       <path strokeLinecap="round" strokeLinejoin="round" d="M4 5h6v14H4zM10 7l5-1 4 14-5 1z" />
+    </svg>
+  );
+}
+
+function PeopleIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="menu-icon">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 6.5M18.5 14.5A6.5 6.5 0 0 1 21.5 20" />
     </svg>
   );
 }

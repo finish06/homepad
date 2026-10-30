@@ -270,6 +270,7 @@ describe('App checklist (UX §3)', () => {
     renderEditor();
     await ready();
     const photos = section('Photos');
+    await userEvent.click(within(photos).getByRole('button', { name: /photos/i }));
     const tri = within(photos).getByRole('checkbox', { name: /select all in photos/i });
     await userEvent.click(tri);
     expect(tri).toHaveAttribute('aria-checked', 'true');
