@@ -677,3 +677,35 @@ describe('Kid editor — accessibility (UX §6)', () => {
     expect(await axe(document.body)).toHaveNoViolations();
   });
 });
+
+describe('Focus stays inside the modal layers (aria-modal)', () => {
+  it('Tab from the last control wraps to the first, and Shift+Tab back', async () => {
+    vi.mocked(kidSessions).mockResolvedValue([]);
+    renderEditor(MAYA);
+    await ready();
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Ente' })); // dirty → Save enabled
+    const save = screen.getByRole('button', { name: 'Save' });
+    const close = screen.getByRole('button', { name: 'Close Maya' });
+    save.focus();
+    await userEvent.tab();
+    expect(close).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    expect(save).toHaveFocus();
+  });
+
+  it('the sign-in confirm keeps Tab between its own buttons', async () => {
+    renderEditor(MAYA);
+    await ready();
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in this device as Maya' }));
+    const dlg = screen.getByRole('alertdialog');
+    const cancel = within(dlg).getByRole('button', { name: 'Cancel' });
+    const go = within(dlg).getByRole('button', { name: 'Sign in as Maya' });
+    expect(cancel).toHaveFocus();
+    await userEvent.tab();
+    expect(go).toHaveFocus();
+    await userEvent.tab();
+    expect(cancel).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    expect(go).toHaveFocus();
+  });
+});
