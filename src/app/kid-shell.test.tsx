@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import App from './App';
@@ -262,5 +262,23 @@ describe('AC-018 — adults see no change', () => {
     expect(screen.getByTestId('alert-bell')).toBeInTheDocument();
     expect(screen.getByTestId('status-bar')).toBeInTheDocument();
     expect(screen.queryByTestId('kid-favorites-toggle')).toBeNull();
+  });
+});
+
+describe('Kid shell — the admin changes the list remotely (AC-002, TC-003)', () => {
+  it('the next poll shows the new app and drops the removed one, without a reload', async () => {
+    await bootKid();
+    expect(screen.getByText('Immich')).toBeInTheDocument();
+    // The admin unticks Immich and ticks Navidrome, in a section the kid had none of.
+    const next = [SERVED[0], SERVED[1], svc('navidrome', 'Navidrome', 'c-music')];
+    vi.mocked(api.servicesWithStatus).mockResolvedValue({ status: 200, services: next });
+    vi.mocked(api.categories).mockResolvedValue([CATS[0], { id: 'c-music', name: 'Music', sortIndex: 2 }]);
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(await screen.findByText('Navidrome')).toBeInTheDocument();
+    expect(screen.queryByText('Immich')).toBeNull();
+    expect(screen.getAllByTestId('box-title').map((b) => b.textContent)).toEqual(['Media', 'Music']);
   });
 });
