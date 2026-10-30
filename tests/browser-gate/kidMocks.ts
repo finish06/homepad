@@ -147,6 +147,8 @@ export type KidMock = {
   favorites: string[];
   // Make the next GET /api/me and /api/services answer 401 (a revoked device).
   revoke: () => void;
+  // An admin changed this kid's apps: serve this allow-list from now on.
+  setAllowed: (ids: string[]) => void;
 };
 
 // mockKidSession — a signed-in kid seeing `allowed`. Call it INSTEAD of mockApi.
@@ -156,12 +158,15 @@ export async function mockKidSession(
   opts: { user?: ReturnType<typeof kidUser> } = {},
 ): Promise<KidMock> {
   const user = opts.user ?? kidUser();
-  const state: KidMock = { forbidden: [], mePatches: [], favorites: [], revoke: () => {} };
+  const state: KidMock = { forbidden: [], mePatches: [], favorites: [], revoke: () => {}, setAllowed: () => {} };
   let revoked = false;
   state.revoke = () => {
     revoked = true;
   };
-  const { services, categories } = visibleTo(allowed);
+  let { services, categories } = visibleTo(allowed);
+  state.setAllowed = (ids) => {
+    ({ services, categories } = visibleTo(ids));
+  };
 
   await page.route('**/api/**', async (route) => {
     const req = route.request();

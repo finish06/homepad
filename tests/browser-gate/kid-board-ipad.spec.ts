@@ -119,6 +119,19 @@ test('a device signed out from Accounts shows the normal login screen (TC-005)',
   await expect(page.getByText(/removed/i)).toHaveCount(0);
 });
 
+test('an admin’s change to the list shows on the next poll, with no reload (TC-003)', async ({ page }) => {
+  const mock = await openBoard(page, 820, 1180);
+  await expect(page.getByText('Immich')).toBeVisible();
+  // Untick Immich, tick Khan Academy (a section Maya had none of).
+  mock.setAllowed(['plex', 'jellyfin', 'abs', 'kavita', 'khan']);
+  const marker = await page.evaluate(() => ((window as unknown as { __noReload: number }).__noReload = Date.now()));
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText('Khan Academy')).toBeVisible();
+  await expect(page.getByText('Immich')).toHaveCount(0);
+  await expect(page.getByTestId('box-title')).toHaveText(['Media', 'Learning']);
+  expect(await page.evaluate(() => (window as unknown as { __noReload?: number }).__noReload)).toBe(marker);
+});
+
 test('Sign out returns to the login screen', async ({ page }) => {
   await openBoard(page, 1180, 820);
   await page.getByTestId('user-menu-trigger').click();

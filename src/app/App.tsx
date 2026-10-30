@@ -83,7 +83,12 @@ export default function App() {
             {/* SPEC-kid-accounts AC-012 — a kid device an admin signed out gets
                 401 on its next poll and shows the login screen. Adults keep
                 v13's quiet stop (AC-018: no change for them). */}
-            <ServicesProvider onUnauthorized={user.role === 'kid' ? () => setUser(null) : undefined}>
+            <ServicesProvider
+              onUnauthorized={user.role === 'kid' ? () => setUser(null) : undefined}
+              // AC-002 / TC-003 — an admin's change to a kid's apps shows on the
+              // kid's next poll, with no reload.
+              syncMembership={user.role === 'kid'}
+            >
               <Home user={user} onLogout={() => setUser(null)} />
             </ServicesProvider>
           </AlertHistoryProvider>
@@ -302,6 +307,10 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             </p>
           ) : (
             <AppGrid
+              // AC-002 — the grid reads its sections once, on mount. When a
+              // kid's poll adopts a changed app list, remount it so a newly
+              // allowed app's section is read too (and an emptied one drops).
+              key={isKid ? `kid-${services?.membershipVersion ?? 0}` : 'grid'}
               isAdmin={isAdmin}
               editMode={editMode}
               showUptimeDisplay={showUptimeDisplay}
