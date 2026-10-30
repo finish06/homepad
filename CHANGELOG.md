@@ -7,6 +7,60 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [17.0.0] — 2026-10-30 — Kid accounts, and sign-ins that survive a restart
+
+**Everyone is signed out once when you upgrade.** Sign-ins used to be kept in
+the API's memory; they are now kept in Postgres. The ones in memory can't be
+carried over, so deploying 17.0.0 signs every account out, one time. Everyone
+signs in again as usual, and from then on restarts and upgrades don't sign
+anyone out. This is why the version is 17.0.0.
+
+**Upgrading:** needs homepad-api 17.0.0, which runs two automatic migrations:
+`0017` adds a `sessions` table, and `0018` adds the kid role and each kid's app
+list. Neither changes existing accounts, apps or dashboards. Deploy the API and
+web images as a pair, API first. Rolling back to 16.7.x signs everyone out
+again and turns kid accounts off; the new tables can stay where they are.
+
+**Kid accounts.** An admin can now give a child their own dashboard with only
+the apps you choose, usually on the family iPad. A kid account is a name and a
+color: no email and no password. In **Administration → Accounts**, tap **+ Add a
+kid**, tick the apps that kid can see (grouped by your sections, with search),
+and save. Then, on the iPad, open the kid and tap **Sign in this device as
+*name***. That signs you out on the iPad and signs the kid in, in one step. A
+kid stays signed in for 180 days, and every use pushes that out again.
+
+**What a kid sees.** Their apps, in their sections, as large tiles. They can
+open an app, search their apps, pick favorites with the ☆ button, change the
+theme and accent color, and sign out: their menu is their name, Appearance and
+**Sign out**. There is no edit mode, no App Library, no adding or editing tiles,
+nothing from the Admin Panel, and the health panel is off. The server refuses
+those changes for a kid too, not just the screen. Apps you add to the catalog
+later stay hidden from every kid until you tick them, and a change to a kid's
+list reaches their dashboard within about a minute, without a reload. The kid
+editor also lists each device the kid is signed in on, with **Sign out** for a
+lost or handed-down iPad.
+
+**Homepad hides apps; it doesn't block them.** The server never sends a kid an
+app that isn't on their list: not on the dashboard, not in search, not in the
+status data. But Homepad is a launcher, not a filter. A kid who types an app's
+address into Safari, or follows a bookmark, gets there, and only that app's own
+login stands in the way. To block websites or keep the iPad on Homepad, use the
+iPad's Screen Time and Guided Access. Also set `HOMEPAD_REGISTRATION=invite_only`:
+with registration open, a kid who signs out can create an ordinary adult
+account, and that sees every app. Setup steps and the details are in
+[docs/kid-accounts.md](./docs/kid-accounts.md).
+
+**Sign-ins survive restarts.** Restarting or upgrading the API no longer signs
+anyone out. An adult's sign-in lasts 30 days and is renewed as it's used. Only
+a hash of each sign-in token is stored, never the token itself.
+
+**Uploaded icons show for everyone.** An icon uploaded for an app only showed
+for the account that owns the shared catalog, the first admin. Every other
+account, including a second admin, saw the placeholder instead. Now everyone
+sees it.
+
+The quickstart `compose.yaml` now pins `17.0.0` for both images.
+
 ## [16.7.4] — 2026-10-13 — A clean App Library for new installs
 
 No migrations. Existing installs see no change.
