@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { signInHere } from '../api';
 import { reloadPage } from '../lib/reload';
 import Modal from '../ui/Modal';
+import { trapTab } from '../ui/trapTab';
 import { possessive } from './device';
 
 // SPEC-kid-accounts UX §4 (TASK-404) — "Sign in this device as Maya?". This is
@@ -25,6 +26,7 @@ export default function SignInHereConfirm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const bodyId = useId();
 
@@ -56,13 +58,18 @@ export default function SignInHereConfirm({
       escapeDismisses={false}
     >
       <div
+        ref={dialogRef}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={bodyId}
         className="add-offer-panel kid-confirm-panel"
         onKeyDown={(e) => {
-          if (e.key === 'Escape') {
+          // Both keys stop here: the kid editor beneath must see neither.
+          if (e.key === 'Tab') {
+            e.stopPropagation();
+            trapTab(e, dialogRef.current);
+          } else if (e.key === 'Escape') {
             e.stopPropagation();
             onCancel();
           }

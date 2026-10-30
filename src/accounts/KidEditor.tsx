@@ -21,6 +21,7 @@ import { useResolvedTheme } from '../theme/theme';
 import { ACCENTS, type AccentId } from '../theme/accent';
 import { avatarColorId } from '../lib/avatarColor';
 import Modal from '../ui/Modal';
+import { trapTab } from '../ui/trapTab';
 import { describeDevice, formatAgo, formatDay, possessive } from './device';
 import SignInHereConfirm from './SignInHereConfirm';
 
@@ -88,6 +89,7 @@ export default function KidEditor({
   const theme = useResolvedTheme();
   const uid = useId();
   const nameRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const keepRef = useRef<HTMLButtonElement>(null);
 
   // The kid as saved. null until an "Add a kid" has been created — after that
@@ -331,6 +333,10 @@ export default function KidEditor({
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Tab') {
+      trapTab(e, dialogRef.current);
+      return;
+    }
     if (e.key !== 'Escape') return;
     // Stop here so the Admin Panel underneath (a window listener) never sees it:
     // one press, one layer.
@@ -356,6 +362,7 @@ export default function KidEditor({
       escapeDismisses={false}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={`${uid}-title`}
