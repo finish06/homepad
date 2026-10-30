@@ -710,9 +710,17 @@ async function jsonOrThrow<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+// A 200 that isn't the documented shape (an older backend's SPA fallback, a
+// proxy page) rejects like any other failure, so the caller shows its error
+// state; handed on as-is, a non-array reached `.map` and unmounted the panel.
+function arrayOrThrow<T>(data: unknown): T[] {
+  if (!Array.isArray(data)) throw new Error('unexpected response');
+  return data as T[];
+}
+
 // listAccounts — every account (UX §2). Adults are listed only (spec §10).
 export async function listAccounts(): Promise<Account[]> {
-  return jsonOrThrow<Account[]>('/api/admin/accounts');
+  return arrayOrThrow<Account>(await jsonOrThrow<unknown>('/api/admin/accounts'));
 }
 
 // createKid — a kid needs only a name (AC-001). 201 with the new account; a 409
@@ -739,10 +747,13 @@ export async function deleteKid(id: string): Promise<boolean> {
   return boolRequest(kidPath(id), 204, { method: 'DELETE' });
 }
 
-// kidServices — the ids on a kid's allow-list.
+// kidServices — the ids on a kid's allow-list. `null` is the server's empty
+// list (a nil Go slice); a MISSING key is not "no apps" and rejects, so the
+// editor can never save an empty list over a real one it failed to read.
 export async function kidServices(id: string): Promise<string[]> {
-  const data = await jsonOrThrow<{ serviceIds?: string[] | null }>(`${kidPath(id)}/services`);
-  return data.serviceIds ?? [];
+  const data = await jsonOrThrow<{ serviceIds?: unknown }>(`${kidPath(id)}/services`);
+  if (data.serviceIds === null) return [];
+  return arrayOrThrow<string>(data.serviceIds);
 }
 
 // setKidServices — a whole-set replace, like setLayout. `serviceIds` is always
@@ -753,7 +764,7 @@ export async function setKidServices(id: string, serviceIds: string[]): Promise<
 
 // kidSessions — a kid's signed-in devices, most recently used first.
 export async function kidSessions(id: string): Promise<KidDevice[]> {
-  return jsonOrThrow<KidDevice[]>(`${kidPath(id)}/sessions`);
+  return arrayOrThrow<KidDevice>(await jsonOrThrow<unknown>(`${kidPath(id)}/sessions`));
 }
 
 // revokeKidSession — signs one device out; its next request is a 401 (AC-012).
