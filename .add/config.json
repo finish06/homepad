@@ -77,7 +77,7 @@
     },
     "staging": {
       "deploy_trigger": "merge request / staging-release.yml",
-      "url": "https://homepad-staging.10.17.2.213.nip.io",
+      "url": "http://homepad-staging.10.17.2.213.nip.io",
       "verify": [
         "e2e_tests",
         "browser_gate"
