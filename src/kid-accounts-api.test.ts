@@ -222,3 +222,26 @@ describe('signInHere — POST /api/admin/kids/{id}/sign-in-here', () => {
     await expect(signInHere('k1')).resolves.toBe(false);
   });
 });
+
+// A 200 that is not the documented shape (an older backend's SPA fallback, a
+// proxy page, a test catch-all answering `{}`) must reject into the caller's
+// error state. Returned as-is, a non-array reached `.map` in the Accounts
+// section and, with no error boundary, unmounted the whole Admin Panel.
+describe('malformed 200 responses reject instead of crashing the caller', () => {
+  it('listAccounts rejects a non-array body', async () => {
+    mockFetch({}, 200);
+    await expect(listAccounts()).rejects.toThrow('unexpected response');
+  });
+
+  it('kidSessions rejects a non-array body', async () => {
+    mockFetch({ sessions: [] }, 200);
+    await expect(kidSessions('k1')).rejects.toThrow('unexpected response');
+  });
+
+  it('kidServices rejects a body without serviceIds, so an editor never mistakes it for "no apps"', async () => {
+    mockFetch({}, 200);
+    await expect(kidServices('k1')).rejects.toThrow('unexpected response');
+    mockFetch({ serviceIds: 'plex' }, 200);
+    await expect(kidServices('k1')).rejects.toThrow('unexpected response');
+  });
+});
