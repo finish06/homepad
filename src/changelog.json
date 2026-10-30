@@ -2,6 +2,28 @@
   "pending": [],
   "versions": [
     {
+      "version": "17.0.0",
+      "date": "2026-10-30",
+      "changes": [
+        {
+          "type": "feature",
+          "text": "Kid accounts: an admin can add a kid with just a name (no email or password) and pick which apps they see, in Administration → Accounts."
+        },
+        {
+          "type": "feature",
+          "text": "On the kid’s iPad, “Sign in this device as …” signs them in for 180 days. Kids get large tiles, favorites, appearance and Sign out, and nothing to edit. Homepad hides other apps; it doesn’t block their web addresses."
+        },
+        {
+          "type": "enhancement",
+          "text": "Restarts and upgrades no longer sign you out. A sign-in lasts 30 days and renews as you use it. Upgrading to 17.0.0 signs everyone out one time; just sign in again."
+        },
+        {
+          "type": "bug-fix",
+          "text": "Icons uploaded for apps now show for every account, not just the first admin."
+        }
+      ]
+    },
+    {
       "version": "16.7.4",
       "date": "2026-10-13",
       "changes": [
