@@ -60,6 +60,10 @@ export type ServicesContextValue = {
   //   'still-stale' Gatus answered but as_of did not move → nothing changed
   // The counter is NEVER reset for the last two (AC-V24-ST5).
   refresh: () => Promise<RefreshOutcome>;
+  // SPEC-kid-accounts AC-002 — bumped each time a syncMembership poll adopted a
+  // served list with different members, so a consumer that caches derived data
+  // (the grid's sections) knows to re-read it. Optional: 0/absent = never.
+  membershipVersion?: number;
 };
 
 export type RefreshOutcome = 'refreshed' | 'unreachable' | 'still-stale';
@@ -106,13 +110,34 @@ export function mergeStatuses(
   return { next: changed ? next : current, changes, transitions };
 }
 
+function sameMembers(a: Service[], b: Service[]): boolean {
+  if (a.length !== b.length) return false;
+  const ids = new Set(a.map((s) => s.id));
+  return b.every((s) => ids.has(s.id));
+}
+
 function sameChecks(a?: Service['uptimeChecks'], b?: Service['uptimeChecks']): boolean {
   if (a === b) return true;
   if (!a || !b || a.length !== b.length) return false;
   return a.every((c, i) => c.success === b[i].success && c.timestamp === b[i].timestamp);
 }
 
-export function ServicesProvider({ children }: { children: ReactNode }) {
+export function ServicesProvider({
+  children,
+  onUnauthorized,
+  syncMembership = false,
+}: {
+  children: ReactNode;
+  // SPEC-kid-accounts AC-012 — told when a poll answers 401 (the session was
+  // ended elsewhere, e.g. an admin signed this device out), so the app can show
+  // the login screen. Optional: without it a 401 just stops polling (AC-011).
+  onUnauthorized?: () => void;
+  // SPEC-kid-accounts AC-002 / TC-003 — when the served list's MEMBERS change
+  // (an admin ticked or unticked a kid's app), adopt it on this poll instead of
+  // merging status into the old set. Kid shell only: for everyone else the
+  // v13 contract (status-only merge, identity and order kept) is unchanged.
+  syncMembership?: boolean;
+}) {
   const [items, setItems] = useState<Service[] | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
   // cap5 — flips from the most-recent poll; empty until a non-initial poll sees one.
@@ -131,6 +156,11 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
   const alerts = useAlertHistory();
   const alertsRef = useRef(alerts);
   alertsRef.current = alerts;
+  const onUnauthorizedRef = useRef(onUnauthorized);
+  onUnauthorizedRef.current = onUnauthorized;
+  const syncRef = useRef(syncMembership);
+  syncRef.current = syncMembership;
+  const [membershipVersion, setMembershipVersion] = useState(0);
 
   // The poll body lives in a ref so refresh() below can trigger the same load
   // path the interval uses, without re-subscribing the effect.
@@ -150,6 +180,7 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       if (status === 401) {
         stopped.current = true; // AC-011 — stop silently
+        onUnauthorizedRef.current?.();
         return;
       }
       // AC-008 — a transient failure is ignored: keep the last good data and the
@@ -162,6 +193,12 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
       if (initial || !cur) {
         setItems(fresh);
         setLastUpdatedAt(Date.now());
+        return;
+      }
+      if (syncRef.current && !sameMembers(cur, fresh)) {
+        setItems(fresh);
+        setLastUpdatedAt(Date.now());
+        setMembershipVersion((v) => v + 1);
         return;
       }
       const { next, changes, transitions } = mergeStatuses(cur, fresh);
@@ -228,6 +265,7 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
         // AC-015 — let the consumer drain the queue after enqueuing.
         clearRecentChanges: () => setRecentChanges([]),
         refresh,
+        membershipVersion,
       }}
     >
       {children}

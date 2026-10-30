@@ -207,6 +207,66 @@
       "source": "#414/#528 closing comments",
       "title": "curl -H @- and -d @- both read stdin; only one can",
       "body": "Piping the auth header via `-H @-` and the JSON body via `-d @-` in the same curl gives Gitea an empty or garbled body, and every call 422s (nothing posted, nothing closed). How to apply: the header takes stdin, the body goes in a file (`-d @file`), written with a quoted heredoc or from Python."
+    },
+    {
+      "id": "L-017",
+      "date": "2026-10-30",
+      "checkpoint_type": "retro",
+      "category": "process",
+      "severity": "high",
+      "scope": "project",
+      "classified_by": "human",
+      "source": "retro-2026-10-30",
+      "title": "A time-gated next step needs a scheduled trigger, or it stalls until Caleb asks",
+      "body": "The 24h staging soak for homepad-api #81 ended 2026-10-27 21:18Z, but Phase 2 didn't start until Caleb asked on 10-29: two days lost. Caleb's retro feedback (collab 7.0): 'I have to follow up too often'. How to apply: whenever a step waits on time (a soak, a QA turnaround, a date), schedule a check-in for when the wait ends (CronCreate or ScheduleWakeup in the session), and act on it without waiting to be asked. Never end a turn with 'I'll do X when Y' unless something will actually wake me when Y happens."
+    },
+    {
+      "id": "L-018",
+      "date": "2026-10-30",
+      "checkpoint_type": "retro",
+      "category": "process",
+      "severity": "high",
+      "scope": "project",
+      "classified_by": "human",
+      "source": "retro-2026-10-30",
+      "title": "Unblock dependencies on other agents early: escalate on a clock, or route around them",
+      "body": "Caleb: 'better follow up to completion and interaction with other agents, or solutions to work around needing other agents.' Evidence: a Gitea comment to Joe sat unseen for 14h, and Joe answered 6 minutes after a direct SendMessage ping; #545 (docs-only) waited 4+ days for QA. How to apply: (1) post every Joe request on Gitea AND by SendMessage to joe_tmux_1, together; (2) if there's no reply within 4h, re-ping, and if still none within 24h, tell Caleb with a concrete workaround; (3) don't let a low-value PR block a high-value one (fold a docs row into the next PR instead of waiting); (4) verify state myself where read-only access allows (e.g. staging over http), rather than asking an agent."
+    },
+    {
+      "id": "L-019",
+      "date": "2026-10-30",
+      "checkpoint_type": "retro",
+      "category": "anti-pattern",
+      "severity": "high",
+      "scope": "project",
+      "classified_by": "agent",
+      "source": "2026-10-27 staging false alarm",
+      "title": "Staging is http-only; an https 404 is not an outage",
+      "body": "homepad-staging.10.17.2.213.nip.io is served only on Traefik's web entrypoint. Over https every path returns Traefik's 'no router' 404. I reported staging down and pinged Joe twice; Joe found it healthy. How to apply: probe http:// /version.json (200) and /api/me (401) before calling staging down. CLAUDE.md and .add/config.json listed https:// \u2014 corrected."
+    },
+    {
+      "id": "L-020",
+      "date": "2026-10-30",
+      "checkpoint_type": "retro",
+      "category": "process",
+      "severity": "medium",
+      "scope": "workstation",
+      "classified_by": "human",
+      "source": "retro-2026-10-30",
+      "title": "Build work goes to an Opus agent at high effort, with a full brief and side-effect rules",
+      "body": "Standing rule from Caleb. Kid-accounts phases built this way each passed QA on the first try. The briefs must include: a worktree on a new branch; TDD; no merge or deploy; check git status before every commit (one agent committed a 17 MB binary); don't start or stop Docker or other services (one did, which auto-started unrelated containers). Verify the agent's claims (PR, SHA, CI, diff) before reporting."
+    },
+    {
+      "id": "L-021",
+      "date": "2026-10-30",
+      "checkpoint_type": "retro",
+      "category": "process",
+      "severity": "high",
+      "scope": "project",
+      "classified_by": "agent",
+      "source": "M7 growth",
+      "title": "A growth plan that depends on the owner's posts needs those posts scheduled first, not last",
+      "body": "Every M7 funnel fix shipped by 10-17, but visitors went 32 \u2192 35 over 17 days, because no launch post went out; the posts can only come from Caleb's accounts. How to apply: in a time-boxed growth goal, put the owner-dependent action on a dated calendar in week 1, and if its date passes, raise it as the top blocker in every update, with a ready-to-paste draft attached."
     }
   ]
 }

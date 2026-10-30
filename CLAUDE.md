@@ -86,7 +86,7 @@ qa-kit/         CDP smoke tooling
 ### Environments
 
 - **Local:** Vite on :5173, API proxied to :8080
-- **Staging:** https://homepad-staging.10.17.2.213.nip.io
+- **Staging:** http://homepad-staging.10.17.2.213.nip.io
 - **Production:** k3s behind Pangolin ingress. The URL is in
   `docs/environments.local.md` — gitignored (`*.local.md`), because the GitHub
   mirror of this repo is public. Tagging `vX.Y.Z` triggers `prod-release.yml`,

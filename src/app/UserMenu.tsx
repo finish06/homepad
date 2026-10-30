@@ -3,6 +3,7 @@ import type { User } from '../api';
 import ThemeControl from '../theme/ThemeControl';
 import AccentControl from '../theme/AccentControl';
 import { userInitials } from '../lib/initials';
+import { avatarColorId, avatarSwatch } from '../lib/avatarColor';
 
 // v7 §6 — the single account affordance that replaces the old six-control bar.
 // Avatar trigger toggles a dropdown carrying identity, role, the theme control
@@ -16,9 +17,13 @@ export default function UserMenu({
   onOpenMySettings,
   onGoToDashboard,
   onLogout,
+  onOpenAccounts,
 }: {
   user: User;
   onOpenAdminSettings: () => void;
+  // SPEC-kid-accounts UX §1 — Administration → "Accounts" opens the Admin Panel
+  // scrolled to its Accounts section. Optional: the item renders only when given.
+  onOpenAccounts?: () => void;
   // SPEC-health-bar-visibility-toggle OQ-1 (a) — opens SettingsPanel in personal
   // scope. Offered to EVERY role: it carries only the user's own preferences.
   onOpenMySettings: () => void;
@@ -29,6 +34,10 @@ export default function UserMenu({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const isAdmin = user.role === 'admin';
+  // SPEC-kid-accounts UX §5 / K-2 — a kid's menu is its name and color dot,
+  // Appearance and a visible Sign out. Gated on the role, not on missing data.
+  const isKid = user.role === 'kid';
+  const kidName = user.displayName || user.name || 'Me';
 
   // Close on outside click; Esc closes and returns focus to the trigger (§8).
   useEffect(() => {
@@ -91,14 +100,27 @@ export default function UserMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account menu"
-        title={user.email}
+        title={isKid ? kidName : user.email}
         onClick={() => setOpen((o) => !o)}
         // #182 — the trigger box carries the >=44px touch target; the §6.2
         // 34×34 gradient disc lives on the inner span so the visual token is
         // unchanged while the hit area meets the design-system minimum.
-        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-indigo-500${
+          isKid ? ' kid-menu-trigger' : ''
+        }`}
       >
-        <span className="user-avatar user-avatar-disc">{userInitials(user)}</span>
+        {isKid ? (
+          // UX §5 — "◉ Maya ▾": the child recognises their own dashboard by it.
+          <>
+            <KidDot color={user.avatarColor} />
+            <span className="kid-menu-name">{kidName}</span>
+            <span aria-hidden="true" className="kid-menu-caret">
+              ▾
+            </span>
+          </>
+        ) : (
+          <span className="user-avatar user-avatar-disc">{userInitials(user)}</span>
+        )}
       </button>
 
       {open && (
@@ -110,118 +132,183 @@ export default function UserMenu({
           onKeyDown={onMenuKeyDown}
           className="user-menu"
         >
-          {/* 1. Identity header */}
-          <div className="px-3 pb-2.5 pt-2.5">
-            <div data-testid="user-menu-email" className="user-menu-email">
-              {user.email}
-            </div>
-            <span data-testid="user-menu-role" className="role-pill">
-              {user.role}
-            </span>
-          </div>
-
-          <div className="menu-sep" />
-
-          {/* 3. Appearance — reuse the existing theme control + state */}
-          <div className="menu-label">Appearance</div>
-          <div className="px-2 pb-1">
-            <ThemeControl />
-          </div>
-          {/* Glass v2 — the ROYGBIV accent picker re-hues the backdrop blobs.
-              Client-only (localStorage), applies instantly; see accent.ts. */}
-          <div className="px-2 pb-1">
-            <AccentControl />
-          </div>
-
-          <div className="menu-sep" />
-
-          {/* v18 §4.3 — My Dashboard: a PERSONAL, purely navigational section,
-              now SYMMETRIC for all roles. The admin "Edit dashboard" toggle moved
-              to the Gear menu ("Edit tiles"), so this section carries only
-              "Go to my dashboard" for both admins and non-admins. Non-admins keep
-              the explanatory note beneath it. */}
-          <div data-testid="menu-my-dashboard-section" className="menu-section-label">
-            My Dashboard
-          </div>
-          {/* #96 — a real action, not a dead label: "Go to my dashboard" closes
-              the menu and returns the user to the home screen (where favorites,
-              reorder, and "+ Add apps" live). */}
-          <button
-            type="button"
-            role="menuitem"
-            data-testid="menu-go-dashboard"
-            onClick={() => choose(onGoToDashboard ?? (() => {}))}
-            className="menu-item"
-          >
-            <GridIcon />
-            Go to my dashboard
-            <span className="menu-scope-tag">personal</span>
-          </button>
-          {/* SPEC-health-bar-visibility-toggle OQ-1 (a) — the personal settings
-              surface. It sits in My Dashboard, NOT under the Administration
-              shield: v12 §4.1 D3/D4 reserve that shield for global state, and
-              these are one user's own preferences. Rendered for every role. */}
-          <button
-            type="button"
-            role="menuitem"
-            data-testid="menu-my-settings"
-            onClick={() => choose(onOpenMySettings)}
-            className="menu-item"
-          >
-            <SlidersIcon />
-            My settings
-            <span className="menu-scope-tag">personal</span>
-          </button>
-          {!isAdmin && (
-            <p data-testid="menu-dashboard-note" className="menu-dashboard-note">
-              These tiles and categories are the shared homelab catalog, managed
-              by your admin. Favorite the ones you use most and arrange them on
-              your home screen.
-            </p>
-          )}
-
-          {/* v12 §4.1 D3/D4 — Administration: GLOBAL, admin-only. The shield +
-              amber label now means exactly one thing — global state — and
-              carries only "Admin settings." */}
-          {isAdmin && (
+          {isKid ? (
             <>
-              <div className="menu-sep" />
-              <div data-testid="menu-administration-section" className="menu-administration-section">
-                <ShieldIcon />
-                Administration
+              {/* K-2 — the kid's name and color dot. No role pill and no email:
+                  "kid" is a word for the admin, not for the child. */}
+              <div className="kid-menu-identity px-3 pb-2.5 pt-2.5">
+                <KidDot color={user.avatarColor} />
+                <span data-testid="user-menu-name" className="user-menu-email">
+                  {kidName}
+                </span>
               </div>
-              {/* Admin settings — v9.3 §7.3 App Library mgmt + read-only system.
-                  Controls global, cross-user state. */}
+              <div className="menu-sep" />
+              <div className="menu-label">Appearance</div>
+              <div className="px-2 pb-1">
+                <ThemeControl />
+              </div>
+              <div className="px-2 pb-1">
+                <AccentControl />
+              </div>
+              <div className="menu-sep" />
+              {/* K-2 — visible, not hidden behind a long-press: it is how an
+                  admin gets this device back (UX §4), and leaving the dashboard
+                  is no threat under D4. */}
               <button
                 type="button"
                 role="menuitem"
-                data-testid="menu-admin-settings"
-                onClick={() => choose(onOpenAdminSettings)}
+                data-testid="menu-logout"
+                onClick={() => choose(onLogout)}
+                className="menu-item menu-item-danger"
+              >
+                <LogoutIcon />
+                Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              {/* 1. Identity header */}
+              <div className="px-3 pb-2.5 pt-2.5">
+                <div data-testid="user-menu-email" className="user-menu-email">
+                  {user.email}
+                </div>
+                <span data-testid="user-menu-role" className="role-pill">
+                  {user.role}
+                </span>
+              </div>
+
+              <div className="menu-sep" />
+
+              {/* 3. Appearance — reuse the existing theme control + state */}
+              <div className="menu-label">Appearance</div>
+              <div className="px-2 pb-1">
+                <ThemeControl />
+              </div>
+              {/* Glass v2 — the ROYGBIV accent picker re-hues the backdrop blobs.
+                  Client-only (localStorage), applies instantly; see accent.ts. */}
+              <div className="px-2 pb-1">
+                <AccentControl />
+              </div>
+
+              <div className="menu-sep" />
+
+              {/* v18 §4.3 — My Dashboard: a PERSONAL, purely navigational section,
+                  now SYMMETRIC for all roles. The admin "Edit dashboard" toggle moved
+                  to the Gear menu ("Edit tiles"), so this section carries only
+                  "Go to my dashboard" for both admins and non-admins. Non-admins keep
+                  the explanatory note beneath it. */}
+              <div data-testid="menu-my-dashboard-section" className="menu-section-label">
+                My Dashboard
+              </div>
+              {/* #96 — a real action, not a dead label: "Go to my dashboard" closes
+                  the menu and returns the user to the home screen (where favorites,
+                  reorder, and "+ Add apps" live). */}
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="menu-go-dashboard"
+                onClick={() => choose(onGoToDashboard ?? (() => {}))}
                 className="menu-item"
               >
-                <LibraryIcon />
-                Admin settings
-                <span className="menu-scope-tag menu-scope-tag--global">global</span>
+                <GridIcon />
+                Go to my dashboard
+                <span className="menu-scope-tag">personal</span>
+              </button>
+              {/* SPEC-health-bar-visibility-toggle OQ-1 (a) — the personal settings
+                  surface. It sits in My Dashboard, NOT under the Administration
+                  shield: v12 §4.1 D3/D4 reserve that shield for global state, and
+                  these are one user's own preferences. Rendered for every role. */}
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="menu-my-settings"
+                onClick={() => choose(onOpenMySettings)}
+                className="menu-item"
+              >
+                <SlidersIcon />
+                My settings
+                <span className="menu-scope-tag">personal</span>
+              </button>
+              {!isAdmin && (
+                <p data-testid="menu-dashboard-note" className="menu-dashboard-note">
+                  These tiles and categories are the shared homelab catalog, managed
+                  by your admin. Favorite the ones you use most and arrange them on
+                  your home screen.
+                </p>
+              )}
+
+              {/* v12 §4.1 D3/D4 — Administration: GLOBAL, admin-only. The shield +
+                  amber label now means exactly one thing — global state — and
+                  carries only "Admin settings." */}
+              {isAdmin && (
+                <>
+                  <div className="menu-sep" />
+                  <div data-testid="menu-administration-section" className="menu-administration-section">
+                    <ShieldIcon />
+                    Administration
+                  </div>
+                  {/* Admin settings — v9.3 §7.3 App Library mgmt + read-only system.
+                      Controls global, cross-user state. */}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid="menu-admin-settings"
+                    onClick={() => choose(onOpenAdminSettings)}
+                    className="menu-item"
+                  >
+                    <LibraryIcon />
+                    Admin settings
+                    <span className="menu-scope-tag menu-scope-tag--global">global</span>
+                  </button>
+                  {/* SPEC-kid-accounts K-1 — people managing kids won't look under
+                      "Admin settings", so Accounts gets its own item. */}
+                  {onOpenAccounts && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      data-testid="menu-accounts"
+                      onClick={() => choose(onOpenAccounts)}
+                      className="menu-item"
+                    >
+                      <PeopleIcon />
+                      Accounts
+                      <span className="menu-scope-tag menu-scope-tag--global">global</span>
+                    </button>
+                  )}
+                </>
+              )}
+
+              <div className="menu-sep" />
+
+              {/* 8. Log out — danger style */}
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="menu-logout"
+                onClick={() => choose(onLogout)}
+                className="menu-item menu-item-danger"
+              >
+                <LogoutIcon />
+                Log out
               </button>
             </>
           )}
-
-          <div className="menu-sep" />
-
-          {/* 8. Log out — danger style */}
-          <button
-            type="button"
-            role="menuitem"
-            data-testid="menu-logout"
-            onClick={() => choose(onLogout)}
-            className="menu-item menu-item-danger"
-          >
-            <LogoutIcon />
-            Log out
-          </button>
         </div>
       )}
     </div>
+  );
+}
+
+// The kid's avatar dot, in the account's accent color (blue when unset).
+function KidDot({ color }: { color?: string }) {
+  return (
+    <span
+      data-testid="kid-dot"
+      data-color={avatarColorId(color)}
+      aria-hidden="true"
+      className="kid-dot"
+      style={{ backgroundColor: avatarSwatch(color) }}
+    />
   );
 }
 
@@ -267,6 +354,14 @@ function LibraryIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="menu-icon">
       <path strokeLinecap="round" strokeLinejoin="round" d="M4 5h6v14H4zM10 7l5-1 4 14-5 1z" />
+    </svg>
+  );
+}
+
+function PeopleIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="menu-icon">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 6.5M18.5 14.5A6.5 6.5 0 0 1 21.5 20" />
     </svg>
   );
 }

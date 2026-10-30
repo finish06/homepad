@@ -295,6 +295,34 @@ function ArrangeIcon() {
   );
 }
 
+// SPEC-kid-accounts — favorites are per-user and a kid may set them (D3), but
+// v29 makes the ★ a control only in a deliberate mode, so a stray tap on an
+// iPad can't silently unpin. Kids have no Gear to reach "Arrange apps", so the
+// mode gets this one toggle. For a non-admin the mode grants the ★ and nothing
+// else (AppGrid: `editing` stays admin-only), so it can't offer a write that
+// would 403.
+function KidFavoritesToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      data-testid="kid-favorites-toggle"
+      aria-pressed={on}
+      aria-label="Pick favorites"
+      title={on ? 'Done picking favorites' : 'Pick favorites'}
+      onClick={onClick}
+      className={`kid-fav-toggle flex h-11 w-11 items-center justify-center rounded-full outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+        on
+          ? 'bg-amber-100 text-amber-700 dark:bg-amber-400/20 dark:text-amber-300'
+          : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200'
+      }`}
+    >
+      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill={on ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinejoin="round" d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />
+      </svg>
+    </button>
+  );
+}
+
 export default function AppHeader({
   user,
   editMode = false,
@@ -303,6 +331,7 @@ export default function AppHeader({
   onOpenCustomAppForm = () => {},
   onOpenAdminSettings,
   onOpenMySettings,
+  onOpenAccounts,
   onGoToDashboard,
   onLogout,
   alertCount,
@@ -316,6 +345,7 @@ export default function AppHeader({
   onOpenCustomAppForm?: () => void;
   onOpenAdminSettings: () => void;
   onOpenMySettings: () => void;
+  onOpenAccounts?: () => void;
   onGoToDashboard: () => void;
   onLogout: () => void;
   alertCount: number;
@@ -327,6 +357,11 @@ export default function AppHeader({
   const [gearOpen, setGearOpen] = useState(false);
   const gearRef = useRef<HTMLButtonElement>(null);
   const isAdmin = user.role === 'admin';
+  // SPEC-kid-accounts UX §5 — the kid header is the wordmark, ⌘K and the kid's
+  // menu. No Gear (edit mode, Add apps, Add custom app), no alert bell and no
+  // freshness label: a child has nothing to act on there. The one personal
+  // write a kid has, favorites (D3), gets its own toggle.
+  const isKid = user.role === 'kid';
 
   // Escape's focus-restore is handled inside GearMenu; closing here just drops
   // the open-state so an outside click doesn't yank focus back to the gear.
@@ -350,31 +385,38 @@ export default function AppHeader({
         </div>
         <LauncherTrigger />
         <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
-          <LastUpdated />
-          <div className="relative">
-            <GearMenuTrigger
-              anyModeActive={editMode}
-              open={gearOpen}
-              triggerRef={gearRef}
-              onClick={() => setGearOpen((o) => !o)}
-            />
-            {gearOpen && (
-              <GearMenu
-                isAdmin={isAdmin}
-                editMode={editMode}
-                triggerRef={gearRef}
-                onAddApps={onOpenLibrary}
-                onAddCustomApp={onOpenCustomAppForm}
-                onToggleEdit={onToggleEdit}
-                onClose={closeGear}
-              />
-            )}
-          </div>
-          <AlertBell count={alertCount} onClick={onAlertClick} bellRef={bellRef} />
+          {isKid ? (
+            <KidFavoritesToggle on={editMode} onClick={onToggleEdit} />
+          ) : (
+            <>
+              <LastUpdated />
+              <div className="relative">
+                <GearMenuTrigger
+                  anyModeActive={editMode}
+                  open={gearOpen}
+                  triggerRef={gearRef}
+                  onClick={() => setGearOpen((o) => !o)}
+                />
+                {gearOpen && (
+                  <GearMenu
+                    isAdmin={isAdmin}
+                    editMode={editMode}
+                    triggerRef={gearRef}
+                    onAddApps={onOpenLibrary}
+                    onAddCustomApp={onOpenCustomAppForm}
+                    onToggleEdit={onToggleEdit}
+                    onClose={closeGear}
+                  />
+                )}
+              </div>
+              <AlertBell count={alertCount} onClick={onAlertClick} bellRef={bellRef} />
+            </>
+          )}
           <UserMenu
             user={user}
             onOpenAdminSettings={onOpenAdminSettings}
-          onOpenMySettings={onOpenMySettings}
+            onOpenMySettings={onOpenMySettings}
+            onOpenAccounts={onOpenAccounts}
             onGoToDashboard={onGoToDashboard}
             onLogout={onLogout}
           />

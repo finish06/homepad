@@ -18,7 +18,7 @@ import AppGrid from '../grid/AppGrid';
 import { useTileDensity } from '../grid/tileDensity';
 import { useHealthBarPref } from './healthBarPref';
 import { useUptimeDisplayPref } from './uptimeDisplayPref';
-import type { SettingsScope } from '../library/SettingsPanel';
+import type { SettingsScope, SettingsSection } from '../library/SettingsPanel';
 import StatusBar from './StatusBar';
 import CommandLauncher from '../launcher/CommandLauncher';
 import { LauncherProvider, useLauncher } from '../launcher/launcher';
@@ -80,7 +80,15 @@ export default function App() {
         // push transitions into the log.
         <LauncherProvider>
           <AlertHistoryProvider>
-            <ServicesProvider>
+            {/* SPEC-kid-accounts AC-012 — a kid device an admin signed out gets
+                401 on its next poll and shows the login screen. Adults keep
+                v13's quiet stop (AC-018: no change for them). */}
+            <ServicesProvider
+              onUnauthorized={user.role === 'kid' ? () => setUser(null) : undefined}
+              // AC-002 / TC-003 — an admin's change to a kid's apps shows on the
+              // kid's next poll, with no reload.
+              syncMembership={user.role === 'kid'}
+            >
               <Home user={user} onLogout={() => setUser(null)} />
             </ServicesProvider>
           </AlertHistoryProvider>
@@ -102,6 +110,9 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // mutating endpoint is independently admin-gated server-side, so this toggle
   // is a convenience surface, not the security boundary.
   const isAdmin = user.role === 'admin';
+  // SPEC-kid-accounts §8 — the kid shell. Gated on the role, never on missing
+  // data, so a kid is never shown an affordance the server would 403.
+  const isKid = user.role === 'kid';
   // SPEC-app-grid §7 — Edit Dashboard mode: admin-only + client-ephemeral (a
   // reload returns to view mode). When on, AppGrid's boxes become drag-to-reorder
   // sortables; the header Gear toggles it. Every mutating endpoint is
@@ -135,6 +146,9 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // OQ-1 (a) — one panel, two scopes. The entry point decides which: personal
   // settings are offered to every role, admin settings only under the shield.
   const [settingsScope, setSettingsScope] = useState<SettingsScope>('admin');
+  // SPEC-kid-accounts UX §1 — the section the panel opens scrolled to: set by
+  // Administration → "Accounts", cleared by every other entry point.
+  const [settingsSection, setSettingsSection] = useState<SettingsSection | undefined>(undefined);
   // cap6 — the global uptime-display toggle. Seeded ON so the first paint (before
   // the config resolves) matches today's behavior; systemConfig() then corrects it.
   const [sysConfig, setSysConfig] = useState<SystemConfig>({ showUptimeDisplay: true, statusDegradedMs: 1000 });
@@ -229,10 +243,17 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
           onOpenCustomAppForm={() => setCustomFormOpen(true)}
           onOpenAdminSettings={() => {
             setSettingsScope('admin');
+            setSettingsSection(undefined);
             setSettingsOpen(true);
           }}
           onOpenMySettings={() => {
             setSettingsScope('personal');
+            setSettingsSection(undefined);
+            setSettingsOpen(true);
+          }}
+          onOpenAccounts={() => {
+            setSettingsScope('admin');
+            setSettingsSection('accounts');
             setSettingsOpen(true);
           }}
           onGoToDashboard={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -242,7 +263,13 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
           bellRef={bellRef}
         />
 
-        <StatusBar showHealthBar={showHealthBar} />
+        {/* SPEC-kid-accounts OQ-3 / AC-019 — a kid's health panel is off unless
+            the account says otherwise (kids are created with it off and cannot
+            change it). When it does render, it counts the served list, which is
+            already only that kid's apps, and offers no re-poll (kid-forbidden). */}
+        {(!isKid || user.showHealthBar === true) && (
+          <StatusBar showHealthBar={showHealthBar} canRetry={!isKid} />
+        )}
 
         <section className={`${CONTENT_WIDTH} py-6`}>
           {/* v19 §4.5 / #277 — the shared-catalog edit warning. editMode is
@@ -272,7 +299,28 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               leaving an empty band is what AC-006 forbids. SPEC-tile-density OQ-9
               put the switch here "matching the v16 artboard"; Caleb reversed that
               placement 2026-09-23 (OQ-1 — a product call over a design one). */}
-          <AppGrid isAdmin={isAdmin} editMode={editMode} showUptimeDisplay={showUptimeDisplay} density={density} />
+          {isKid && services?.items?.length === 0 ? (
+            // UX §5 — the kid's empty state: plain words, no buttons. There is
+            // nothing a child can do about it but ask.
+            <p data-testid="kid-empty" className="kid-empty">
+              No apps yet. Ask a grown-up to add some.
+            </p>
+          ) : (
+            <AppGrid
+              // AC-002 — the grid reads its sections once, on mount. When a
+              // kid's poll adopts a changed app list, remount it so a newly
+              // allowed app's section is read too (and an emptied one drops).
+              key={isKid ? `kid-${services?.membershipVersion ?? 0}` : 'grid'}
+              isAdmin={isAdmin}
+              editMode={editMode}
+              showUptimeDisplay={showUptimeDisplay}
+              // UX K-3 — kids get large tiles, the biggest touch targets. The
+              // server creates kids with densityPref=large; this holds it even
+              // over a device cache left by another account, and a kid has no
+              // control that could write it (PATCH /api/me is themePref-only).
+              density={isKid ? 'large' : density}
+            />
+          )}
         </section>
 
         {/* SPEC-app-grid §7 — service management stays on the existing surfaces.
@@ -307,17 +355,22 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             simply has nothing to match (an empty list), never its own fetch. */}
         <CommandLauncher services={services?.items ?? []} />
 
-        {/* cap5 — ambient status-change toasts; reads recentChanges from context. */}
-        <ToastContainer />
-
-        {/* v17 — async-review alert history; reads the log from context. */}
-        <AlertHistoryPanel open={alertOpen} events={alerts?.events ?? []} onClose={closeAlerts} />
+        {/* cap5 — ambient status-change toasts; v17 — the alert history. Neither
+            is for a kid (UX §5 keeps tiles, ⌘K, favorites and Recently Opened):
+            "Plex is DOWN" is the admin's business, and the kid header has no
+            bell to open the history with. */}
+        {!isKid && <ToastContainer />}
+        {!isKid && (
+          <AlertHistoryPanel open={alertOpen} events={alerts?.events ?? []} onClose={closeAlerts} />
+        )}
 
         {settingsOpen && (
           <Suspense fallback={null}>
             <SettingsPanel
               isAdmin={isAdmin}
               scope={settingsScope}
+              initialSection={settingsSection}
+              currentUserId={user.id}
               showHealthBar={showHealthBar}
               onSetHealthBar={setShowHealthBar}
               showUptimeDisplay={sysConfig.showUptimeDisplay}

@@ -1,6 +1,7 @@
 import Modal from '../ui/Modal';
 import { useEffect, useRef, useState } from 'react';
 import TileDensityToggle from '../grid/TileDensityToggle';
+import AccountsSection from '../accounts/AccountsSection';
 import type { TileDensity } from '../grid/tileDensity';
 import {
   adminEnvConfig,
@@ -36,6 +37,10 @@ import {
 // Administration shield still means "global state" and nothing else.
 export type SettingsScope = 'personal' | 'admin';
 
+// SPEC-kid-accounts UX §1 — a section the panel opens scrolled to. Only
+// Accounts today, reached from Administration → "Accounts".
+export type SettingsSection = 'accounts';
+
 export default function SettingsPanel({
   isAdmin,
   scope = 'admin',
@@ -49,9 +54,15 @@ export default function SettingsPanel({
   onSetDensity,
   onSaveSettings,
   onClose,
+  currentUserId,
+  initialSection,
 }: {
   isAdmin: boolean;
   scope?: SettingsScope;
+  // SPEC-kid-accounts — who is signed in (the Accounts list marks them "you"),
+  // and the section to open scrolled to.
+  currentUserId?: string;
+  initialSection?: SettingsSection;
   showUptimeDisplay: boolean;
   statusDegradedMs: number;
   showHealthBar: boolean;
@@ -133,6 +144,10 @@ export default function SettingsPanel({
             </p>
           ) : (
             <>
+              {/* SPEC-kid-accounts K-1 — Accounts is the first section, above
+                  System: global state, so it lives under the Admin Panel's
+                  "affects everyone" heading rather than in a panel of its own. */}
+              <AccountsSection currentUserId={currentUserId} scrollIntoView={initialSection === 'accounts'} />
               <SystemSettings
                 showUptimeDisplay={showUptimeDisplay}
                 statusDegradedMs={statusDegradedMs}
