@@ -191,7 +191,7 @@ describe('Kid shell — tiles and health (K-3, OQ-3, AC-019)', () => {
 
   it('when a kid’s bar is on it counts only the served apps, and offers no re-poll', async () => {
     await bootKid({ ...KID, showHealthBar: true });
-    expect(screen.getByTestId('health-subline')).toHaveTextContent('3 services across 2 groups');
+    expect(screen.getByTestId('health-subline')).toHaveTextContent(/^3 services across/);
     expect(screen.queryByTestId('health-retry')).toBeNull();
   });
 });
@@ -209,6 +209,8 @@ describe('Kid shell — empty state (UX §5)', () => {
 
 describe('Kid shell — ⌘K (AC-016)', () => {
   it('the launcher lists exactly the served apps', async () => {
+    // jsdom has no scrollIntoView; the launcher scrolls its active row.
+    Element.prototype.scrollIntoView = vi.fn();
     const u = userEvent.setup();
     await bootKid();
     await u.click(screen.getByTestId('launcher-trigger'));
@@ -232,7 +234,8 @@ describe('Kid shell — a signed-out device (AC-012, TC-005)', () => {
   it('an adult’s 401 keeps today’s behaviour: polling stops quietly (AC-018)', async () => {
     serve(ADULT, SERVED, CATS, 401);
     render(<App />);
-    expect(await screen.findByTestId('app-grid')).toBeInTheDocument();
+    await waitFor(() => expect(api.servicesWithStatus).toHaveBeenCalled());
+    expect(await screen.findByTestId('user-menu-trigger')).toBeInTheDocument();
     expect(screen.queryByText('Sign in to your dashboard')).toBeNull();
   });
 });

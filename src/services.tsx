@@ -112,7 +112,16 @@ function sameChecks(a?: Service['uptimeChecks'], b?: Service['uptimeChecks']): b
   return a.every((c, i) => c.success === b[i].success && c.timestamp === b[i].timestamp);
 }
 
-export function ServicesProvider({ children }: { children: ReactNode }) {
+export function ServicesProvider({
+  children,
+  onUnauthorized,
+}: {
+  children: ReactNode;
+  // SPEC-kid-accounts AC-012 — told when a poll answers 401 (the session was
+  // ended elsewhere, e.g. an admin signed this device out), so the app can show
+  // the login screen. Optional: without it a 401 just stops polling (AC-011).
+  onUnauthorized?: () => void;
+}) {
   const [items, setItems] = useState<Service[] | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
   // cap5 — flips from the most-recent poll; empty until a non-initial poll sees one.
@@ -131,6 +140,8 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
   const alerts = useAlertHistory();
   const alertsRef = useRef(alerts);
   alertsRef.current = alerts;
+  const onUnauthorizedRef = useRef(onUnauthorized);
+  onUnauthorizedRef.current = onUnauthorized;
 
   // The poll body lives in a ref so refresh() below can trigger the same load
   // path the interval uses, without re-subscribing the effect.
@@ -150,6 +161,7 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       if (status === 401) {
         stopped.current = true; // AC-011 — stop silently
+        onUnauthorizedRef.current?.();
         return;
       }
       // AC-008 — a transient failure is ignored: keep the last good data and the

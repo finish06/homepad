@@ -94,7 +94,15 @@ function formatAgo(ageMs: number): string {
 // else: the verdict (LED, headline, subline) and the freshness label always
 // render, so a display preference can never conceal an outage (AC-003/AC-013).
 // Defaults to true so an omitted prop keeps today's behaviour (AC-001).
-export default function StatusBar({ showHealthBar = true }: { showHealthBar?: boolean } = {}) {
+//
+// SPEC-kid-accounts — `canRetry` (default true) gates "Retry now". The re-poll
+// it sends (POST /api/status/refresh) is refused to a kid session, so the kid
+// shell passes false: the stale verdict still reports, but offers no action
+// that could only 403.
+export default function StatusBar({
+  showHealthBar = true,
+  canRetry = true,
+}: { showHealthBar?: boolean; canRetry?: boolean } = {}) {
   const ctx = useServicesContext();
   const [peek, setPeek] = useState<PeekStatus | null>(null);
   // SPEC-v24 §12.2 — "Not now" on the NOT MONITORED state. Deliberately component
@@ -307,7 +315,7 @@ export default function StatusBar({ showHealthBar = true }: { showHealthBar?: bo
                 {formatAgo(ageMs)}
               </span>
             )}
-            {stale && (
+            {stale && canRetry && (
               <div className="health-notice-actions">
                 {/* AC-V24-ST4 — prods the backend poller via the context; the
                     words for a non-fresh outcome live in retryNote (ST5). */}

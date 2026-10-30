@@ -2540,6 +2540,58 @@
     min-height: 38px;
   }
 
+  /* SPEC-kid-accounts UX §5 — the kid shell: "◉ Maya ▾" as the menu trigger,
+     the dot in the menu identity, and the empty state. */
+  .kid-menu-trigger {
+    gap: 8px;
+    padding: 0 12px 0 10px;
+    border-radius: 9999px;
+    font-size: 14px;
+    font-weight: 650;
+    color: #0f172a;
+  }
+  .kid-menu-trigger:hover {
+    background: rgba(15, 23, 42, 0.05);
+  }
+  .dark .kid-menu-trigger {
+    color: #e6e9f2;
+  }
+  .dark .kid-menu-trigger:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .kid-menu-name {
+    max-width: 12ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .kid-menu-caret {
+    font-size: 11px;
+    opacity: 0.6;
+  }
+  .kid-dot {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.12);
+  }
+  .kid-menu-identity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .kid-empty {
+    padding: 15vh 16px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+    color: #475069;
+  }
+  .dark .kid-empty {
+    color: #aab2c5;
+  }
+
   /* SPEC-kid-accounts UX §2 — the Accounts section (first in the Admin Panel).
      Rows reuse the settings-row look; a kid row is ONE button, the whole row
      the target, never under 44px (UX §2, AC-015). */
