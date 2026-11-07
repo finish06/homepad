@@ -2,7 +2,7 @@
 
 **Spec:** [`SPEC-household-basics.md`](../SPEC-household-basics.md) §9 (v0.1.0, Draft)
 **Author:** Kare (design), drafted 2026-11-07
-**Status:** Draft — awaiting Caleb (spec §0 Q1–Q12, and H-1…H-4 below).
+**Status:** Approved — Caleb, 2026-11-07: all recommended defaults.
 
 This doc designs the four surfaces in spec §9. Everything else reuses what exists: the auth card (`AuthForm`), the Admin Panel's Accounts section (`AccountsSection`), `Modal`, and the inline error and skeleton patterns from SPEC-kid-accounts UX §2.
 

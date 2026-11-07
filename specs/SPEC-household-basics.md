@@ -3,7 +3,7 @@
 **Version:** 0.1.0
 **Created:** 2026-11-07
 **Author:** Claude (spec step for Caleb's approved next-work list, item 2)
-**Status:** Draft — awaiting Caleb's answers to §0 (Q1–Q12)
+**Status:** Approved — Caleb, 2026-11-07: all recommended defaults (Q1–Q12 = A; H-1…H-4 as proposed).
 **Repo:** `Code/homepad` (frontend, quickstart, docs) + `Code/homepad-api` (Go backend) + `demo-seed` branch config (demo only)
 **Estimate:** ~3–4 days (invites API + migration, catalog-owner fix, account limit, auth-config + login/setup screen, Add-an-adult UI, docs, tests)
 **Depends on:** SPEC-kid-accounts (17.0.0: Accounts section, persistent hashed sessions, route classes), SPEC-245-224 (shared catalog owner)
