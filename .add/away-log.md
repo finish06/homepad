@@ -97,3 +97,35 @@ worktree; the owner's `release/v16.2.0` checkout was left untouched.
 | 2026-11-07T15:30 | v17 review | done | docs/reviews/2026-11-07-v17-review.md — 1 fixed defect, 3 low/advisory, 2 info |
 | 2026-11-07T15:32 | comment hygiene | done | stale 1–8/1–6 comments + dead MAX_WIDTH (separate branch) |
 | 2026-11-07T15:35 | PRs | BLOCKED | no Gitea token in this environment; branches pushed, compare URLs in return briefing |
+
+---
+
+## Return briefing (session 3)
+
+**Done:**
+- ADD/spec state reconciled to v17.0.0 (`SPEC-kid-accounts` status, config tag,
+  cycle-3 log, handoff).
+- `main` verified: tsc clean, 0 lint errors, build OK, **1175/1175**, coverage
+  96.82% lines / 91.18% branches / 92.73% functions (threshold 90).
+- **One real defect found and fixed**: the #441 density tests failed on Node 26
+  because they spied on `Storage.prototype` (the local Web Storage shim installs a
+  standalone class). Learning L-022.
+- `docs/reviews/2026-11-07-v17-review.md` — kid accounts + persistent sessions:
+  1 fixed, 3 low/advisory, 2 info; no blockers found.
+- Stale width comments + dead `MAX_WIDTH` removed.
+
+**Open branches (pushed, PRs not opened — no Gitea token in this environment):**
+- `chore/away-20261107` -> https://gitea.kube.calebdunn.tech/Code/homepad/pulls/new/chore/away-20261107
+- `fix/node26-storage-spy` -> https://gitea.kube.calebdunn.tech/Code/homepad/pulls/new/fix/node26-storage-spy
+- `chore/comment-hygiene-20261107` -> https://gitea.kube.calebdunn.tech/Code/homepad/pulls/new/chore/comment-hygiene-20261107
+
+Open them one at a time (the one-staging-slot rule).
+
+**Waiting on a human:**
+1. **The overdue retro** — this session was the 2nd bypass in 30 days (warned).
+   The next bypass needs `--i-know-this-is-a-pattern`; the one after is refused.
+2. QA/merge the three branches.
+3. M7 launch posts (owner's accounts); demo-status snapshot (Joe/Gus).
+4. Kid board width polish (design call); homepad-api #84 (icons 404 for non-owners).
+
+**Prod:** already on 17.0.0 (`/version.json` = `fc5a191`); nothing deployed.
