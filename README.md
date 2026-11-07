@@ -54,13 +54,16 @@ Images: `ghcr.io/finish06/homepad` and `ghcr.io/finish06/homepad-api`, for linux
 
 ## Why Homepad
 
-Most homelab dashboards are built for one admin staring at one config file. Homepad is built for **a household**: one shared catalog of services, and everyone gets their own view of it.
+Homepad is a dashboard for a household. The admin keeps one list of apps. Everyone in the house signs in and gets their own view of it.
 
-- **Per-person views.** Each person has their own favorites, tile order, theme and density, all over one shared catalog that the admin manages in the browser. No YAML. Each tile opens in a new tab, the same tab, or an embedded overlay.
-- **Live health, without leaking your network.** Each tile shows UP / DEGRADED / DOWN and its response time, plus recent uptime. Health comes from [Gatus](https://gatus.io) and is resolved **server-side**: your internal hostnames and your Gatus URL never reach the browser.
-- **Real login, built in.** Local accounts, or OIDC with PKCE and an admin group claim: PocketID, Authelia, Authentik, Keycloak and so on. No reverse-proxy auth bolt-on.
-- **Installs like an app.** A real PWA. Add it to the home screen of the family iPad or your phone; touch-sized targets; light and dark.
-- **Fast to get around.** ⌘K search across every service, apps grouped into sections, and large, compact or list density.
+- **Sign in, built in.** Local accounts, or OIDC with PKCE from a provider such as PocketID. Members of your admin group become admins. See [Single sign-on](#single-sign-on).
+- **Edit in the browser.** The admin adds and edits apps, sections and icons in the browser. Pick from the App Library or add your own. Each tile opens in a new tab, the same tab, or an overlay.
+- **A view for each person.** Each person keeps their own favorites, tile order, theme and tile size.
+- **Light, dark or system.** Each person picks Light, Dark or System. System follows the device as it changes. The theme is set before the page draws, so it does not flash on load.
+- **Live status, checked on the server.** Each tile can show UP, DEGRADED or DOWN, its response time and recent uptime, from [Gatus](https://gatus.io). The API asks Gatus. The browser gets only each tile's result, never the addresses Gatus checks. Admins can see the Gatus address in Settings.
+- **Kid accounts.** A kid account is a name and a color, with only the apps you pick. See [docs/kid-accounts.md](./docs/kid-accounts.md).
+- **Installs like an app.** Add it to the home screen of a phone or iPad. Touch-sized targets.
+- **Fast to get around.** ⌘K search across every app, apps grouped into sections, and Large, Compact or List tiles.
 
 <p align="center">
   <img src="./docs/screenshots/desktop-light.webp" alt="Homepad dashboard in light mode" width="68%">
@@ -70,14 +73,25 @@ Most homelab dashboards are built for one admin staring at one config file. Home
 
 ## How it compares
 
-We only list the columns where Homepad wins. If you want 100+ live service widgets, [Homepage](https://gethomepage.dev) does that best, and it pairs happily next to Homepad.
+Each cell was checked on 2026-11-07 against the project's own docs and code: Homepage 2.7, Homarr 2.12, Dashy 4.9 and Heimdall 2.8. If something here is wrong or out of date, please open an issue.
 
 |  | Homepad | Homepage | Homarr | Dashy | Heimdall |
 |---|:-:|:-:|:-:|:-:|:-:|
-| Per-user views (favorites, order) | ✓ | ✕ | ⚠ | ✕ | ✕ |
-| Server-side status (no hostnames in the browser) | ✓ | ⚠ | ⚠ | ⚠ | ✕ |
-| Native OIDC login | ✓ | ✕ | ⚠ | ✕ | ✕ |
-| Installable PWA | ✓ | ✕ | ✕ | ⚠ | ✕ |
+| Each person signs in to their own dashboard | ✓ | ✕ ¹ | ✓ | ⚠ ² | ✓ |
+| Add and edit apps in the browser | ✓ | ✕ | ✓ | ✓ | ✓ |
+| Built-in OIDC sign-in | ✓ | ✓ ¹ | ✓ | ✓ | ✕ ⁴ |
+| Live status, checked on the server | ✓ | ✓ | ✓ | ✓ | ✕ ⁴ |
+| The address being checked stays off the browser | ✓ | ✕ ³ | ✕ ³ | ✕ ³ | ✕ |
+| Installs to the home screen (PWA) | ✓ | ✓ | ✓ | ✓ | ✕ |
+
+✓ yes · ⚠ partly, see the note · ✕ no
+
+1. Homepage has an optional login since 2.0: one shared password, or OIDC. Everyone who signs in sees the same page. Apps are set in YAML files.
+2. Dashy lists users in its config file. The admin can hide sections or items for some users. Everyone else sees the same dashboard.
+3. Homepage, Homarr and Dashy run status checks on the server. The address each check uses is also sent to the page. Homepad sends the page only the result.
+4. Heimdall has local users and can trust a sign-in header from a proxy. It has no up or down status checks.
+
+Homepage has more than 100 service widgets and can run next to Homepad. Homepad has no service widgets.
 
 ## Single sign-on
 
