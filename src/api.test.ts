@@ -54,18 +54,18 @@ afterEach(() => {
 describe('authConfig', () => {
   it('reports oidcEnabled:true from /api/auth/config', async () => {
     const fn = mockFetch(JSON.stringify({ oidcEnabled: true }), 200);
-    await expect(authConfig()).resolves.toEqual({ oidcEnabled: true });
+    await expect(authConfig()).resolves.toMatchObject({ oidcEnabled: true });
     expect(fn).toHaveBeenCalledWith('/api/auth/config', { credentials: 'include' });
   });
 
   it('reports oidcEnabled:false when the API says so', async () => {
     mockFetch(JSON.stringify({ oidcEnabled: false }), 200);
-    await expect(authConfig()).resolves.toEqual({ oidcEnabled: false });
+    await expect(authConfig()).resolves.toMatchObject({ oidcEnabled: false });
   });
 
   it('treats a non-200 as oidcEnabled:false', async () => {
     mockFetch(null, 500);
-    await expect(authConfig()).resolves.toEqual({ oidcEnabled: false });
+    await expect(authConfig()).resolves.toMatchObject({ oidcEnabled: false });
   });
 
   it('treats a fetch failure as oidcEnabled:false', async () => {
@@ -73,7 +73,7 @@ describe('authConfig', () => {
       throw new Error('network down');
     });
     vi.stubGlobal('fetch', fn);
-    await expect(authConfig()).resolves.toEqual({ oidcEnabled: false });
+    await expect(authConfig()).resolves.toMatchObject({ oidcEnabled: false });
   });
 });
 

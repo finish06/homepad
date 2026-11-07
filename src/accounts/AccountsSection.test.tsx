@@ -12,6 +12,8 @@ import { categories, createKid, kidServices, kidSessions, listAccounts, services
 
 vi.mock('../api', () => ({
   listAccounts: vi.fn(),
+  listInvites: vi.fn(() => Promise.resolve([])),
+  authConfig: vi.fn(() => Promise.resolve({ oidcEnabled: false, registration: 'invite_only', setupNeeded: false })),
   services: vi.fn(),
   categories: vi.fn(),
   kidServices: vi.fn(),
@@ -80,7 +82,7 @@ describe('Accounts list (UX §2)', () => {
 
     expect(rows[1]).toHaveTextContent('Alex');
     expect(rows[1]).toHaveTextContent('alex@example.com');
-    expect(within(rows[1]).getByText('user')).toHaveClass('role-pill');
+    expect(within(rows[1]).getByText('member')).toHaveClass('role-pill');
 
     expect(rows[2]).toHaveTextContent('12 apps · 1 device');
     expect(rows[3]).toHaveTextContent('6 apps · no devices');
@@ -105,11 +107,11 @@ describe('Accounts list (UX §2)', () => {
     expect(dots[1]).toHaveAttribute('data-color', 'teal');
   });
 
-  it('says that adults are listed only, and kids are managed here', async () => {
+  it('no longer carries the old "adults are listed only" footnote (SPEC-household-basics UX §3.1)', async () => {
     vi.mocked(listAccounts).mockResolvedValue([ADMIN, MAYA]);
     render(<AccountsSection currentUserId="u-admin" />);
     await screen.findAllByTestId('account-row');
-    expect(screen.getByText('Adults are listed only. Kids are managed here.')).toBeInTheDocument();
+    expect(screen.queryByText('Adults are listed only. Kids are managed here.')).not.toBeInTheDocument();
   });
 
   it('has a section heading and an "Add a kid" button', async () => {

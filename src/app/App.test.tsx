@@ -61,7 +61,7 @@ const ADMIN: User = { id: 'a1', email: 'lilo@ohana.io', role: 'admin', themePref
 
 beforeEach(() => {
   mockedMe.mockResolvedValue(null);
-  mockedAuthConfig.mockResolvedValue({ oidcEnabled: false });
+  mockedAuthConfig.mockResolvedValue({ oidcEnabled: false, registration: 'open', setupNeeded: false });
   mockedSetThemePref.mockResolvedValue(true);
 });
 
@@ -201,7 +201,7 @@ describe('login a11y — design system', () => {
   // #177 (Blocker, finding #2): every interactive target on the login card must
   // be >=44x44px. Measured before fix: Sign in 36px, inputs 38px, Register 20px.
   it('A177 — all login interactive targets carry a >=44px hit area', async () => {
-    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true });
+    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true, registration: 'open', setupNeeded: false });
     render(<App />);
     await dropLoading();
 
@@ -222,7 +222,7 @@ describe('login a11y — design system', () => {
   // (dark 5.59:1, light 4.74:1), so it passes AA in BOTH schemes rather than only
   // clearing it on white. Guard the migration off the neutral utilities.
   it('A178 — the "or" divider uses the glass token treatment, not a raw neutral', async () => {
-    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true });
+    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true, registration: 'open', setupNeeded: false });
     render(<App />);
     await dropLoading();
     await screen.findByRole('button', { name: /pocketid/i });
@@ -311,7 +311,7 @@ describe('v27 — login glass restyle', () => {
   // the click (userEvent+fakeTimers hangs — use fireEvent, real timers for setup).
   it('resets the PocketID button after a 30s timeout with a retry message', async () => {
     vi.stubGlobal('location', { assign: vi.fn() });
-    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true });
+    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true, registration: 'open', setupNeeded: false });
     render(<App />);
     await dropLoading();
     const btn = await screen.findByRole('button', { name: /log in with pocketid/i });
@@ -515,7 +515,7 @@ describe('PocketID login button', () => {
   const pocketId = () => screen.queryByRole('button', { name: /log in with pocketid/i });
 
   it('shows the button when oidc is enabled', async () => {
-    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true });
+    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true, registration: 'open', setupNeeded: false });
     render(<App />);
     await dropLoading();
     expect(await screen.findByRole('button', { name: /log in with pocketid/i })).toBeInTheDocument();
@@ -524,7 +524,7 @@ describe('PocketID login button', () => {
   });
 
   it('hides the button when oidc is disabled', async () => {
-    mockedAuthConfig.mockResolvedValue({ oidcEnabled: false });
+    mockedAuthConfig.mockResolvedValue({ oidcEnabled: false, registration: 'open', setupNeeded: false });
     render(<App />);
     await dropLoading();
     // give the config effect a chance to resolve before asserting absence
@@ -537,7 +537,7 @@ describe('PocketID login button', () => {
     // jsdom's location.assign is non-configurable; swap the whole object.
     const assign = vi.fn();
     vi.stubGlobal('location', { assign });
-    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true });
+    mockedAuthConfig.mockResolvedValue({ oidcEnabled: true, registration: 'open', setupNeeded: false });
     render(<App />);
     await dropLoading();
 
