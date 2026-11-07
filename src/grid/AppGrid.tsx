@@ -55,7 +55,7 @@ const IframeOverlay = lazy(() => import('./IframeOverlay'));
 
 // AppGrid (SPEC-app-grid, Amendment A1) — the primary dashboard layout: glass
 // boxes (= categories) that pack left→right with flex-wrap. Each box's width
-// (1–8) drives ONLY its content width via one `--w` CSS variable; the tool tiles
+// (a 3/4/6/12 span) drives ONLY its floor width via one `--w` CSS variable; the tool tiles
 // inside are a FIXED 190px auto-fill track, so a tile is the same width in every
 // box (Caleb's invariant, AC-001-A1). The flex-wrap page pack and the ≤640px
 // 2-column cap are pure CSS (index.css `.app-grid`). This component owns the data
@@ -1437,12 +1437,11 @@ function onIconError(e: React.SyntheticEvent<HTMLImageElement>) {
   if (fb && img.src !== fb) img.src = fb;
 }
 
-// The admin width selector: eight 1–8 buttons (A1 range); the active one carries
-// fill + weight (never color alone, §6.3). Each button is a ≥44px hit area (CSS).
-// D-3: a --w whose box would render wider than the current viewport is offered
-// DISABLED (aria-disabled + a "Wider than this screen" title) so the admin never
-// sets an off-screen box on their own display. Below 640px the box is CSS-forced
-// full-width (D-4), so the fit check is skipped there — every width is selectable.
+// The admin width selector: the four legal spans (¼ · ⅓ · ½ · 1); the active
+// one carries fill + weight (never color alone, §6.3). Each button is a ≥44px
+// hit area (CSS). A span is a fraction of the row, so every option fits every
+// screen — the old D-3 "wider than this screen" disable has nothing left to
+// disable. Below 640px the box is CSS-forced full-width (D-4).
 function WidthSelector({
   width,
   onPick,

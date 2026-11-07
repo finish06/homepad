@@ -16,7 +16,6 @@ export const PADDING_PX = 16;
 export const COLUMNS = 12;
 export const SPANS = [3, 4, 6, 12] as const;
 export type Span = (typeof SPANS)[number];
-export const MAX_WIDTH = 12;
 // Half width — the same share of the row the old default (3 of 6) had.
 export const DEFAULT_WIDTH: Span = 6;
 
@@ -47,7 +46,7 @@ export function boxWidthPx(w: number, contentWidth: number): number {
 // SPEC-pane-fill-reflow (Phase 1, R3) — contentMaxPx is a box's content-max GROW
 // CAP: the exact width to lay all `n` apps out in ONE row (n fixed 190px tiles +
 // (n-1) gaps + 2×16 pad). Same slot formula as boxWidthPx but DELIBERATELY
-// UNCLAMPED: boxWidthPx clamps --w to the admin 1–8 range, whereas a box can hold
+// UNCLAMPED: boxWidthPx snaps --w to a span (3/4/6/12), whereas a box can hold
 // more than 8 apps and must report its true single-row width so R3 can grow it to
 // reveal every column. An empty box (0 apps) has no content, so its cap is 0 (the
 // --w floor is the box's minimum; the caller maxes cap against it).

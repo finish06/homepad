@@ -108,9 +108,10 @@ export type Category = {
   id: string;
   name: string;
   sortIndex: number;
-  // The App Grid box width 1–6 (SPEC-app-grid §3B): drives the box's page-column
-  // span and its links-per-row. Optional on the type (fixtures/pre-migration
-  // servers may omit it); `categories()` backfills the default 3.
+  // The App Grid box span on the 12-column grid (SPEC-app-grid §10.4): 3
+  // (quarter), 4 (third), 6 (half) or 12 (full), driving the box's share of the
+  // row. Optional on the type (fixtures/pre-migration servers may omit it);
+  // `categories()` backfills the default 6 (half).
   gridWidth?: number;
   // Optional on the type: a pre-migration server omits them and hand-built
   // Category literals (tests, fixtures) needn't set them. `categories()` always
@@ -472,7 +473,8 @@ export async function categories(): Promise<Category[]> {
 }
 
 // saveCategoryWidth persists one box's App Grid width via the category PATCH
-// endpoint (SPEC-app-grid §3B — the server validates 1–6 and admin/owner scope).
+// endpoint (SPEC-app-grid §10.4 — the server validates the 3/4/6/12 spans and
+// admin/owner scope).
 // Returns true on 200 so the caller can roll back an optimistic width change.
 export async function saveCategoryWidth(id: string, gridWidth: number): Promise<boolean> {
   return boolRequest(`/api/categories/${id}`, 200, { method: 'PATCH', json: { gridWidth } });
