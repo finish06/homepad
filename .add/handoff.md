@@ -30,7 +30,9 @@
 - M7 launch posts need the owner's accounts; demo-status snapshot is with Joe/Gus.
 - Note for next session: Gitea's git-over-SSH transport cannot create PRs (push
   options are repo-only, verified on 1.27.3). The stored osxkeychain HTTPS
-  credential reaches the repo API and is sufficient for PR creation.
+  credential reaches the repo API and is sufficient for PR creation (it reads
+  `/api/v1/repos/...` 200 and creates PRs, even though `/api/v1/user` answers 403 —
+  the token lacks `read:user`; don't read that as a dead credential).
 
 ## Next steps
 1. **Run the overdue retro** — the next compliance bypass needs
