@@ -13,6 +13,8 @@ test('TC-001 — an admin creates a kid, picks four apps, and hands this device 
   await page.getByTestId('user-menu-trigger').click();
   await page.getByTestId('menu-accounts').click();
   await expect(page.getByRole('heading', { name: 'Accounts' })).toBeVisible();
+  // Wait for the launcher-panel-in CSS animation to complete before clicking.
+  await page.evaluate(() => Promise.all(document.getAnimations().map(a => a.finished)));
 
   const addKidBtn = page.getByRole('button', { name: '+ Add a kid' });
   await addKidBtn.scrollIntoViewIfNeeded();
@@ -28,6 +30,8 @@ test('TC-001 — an admin creates a kid, picks four apps, and hands this device 
   await samBtn.click();
   const editor = page.getByRole('dialog', { name: 'Sam' });
   await expect(editor.getByText('New apps you add later stay hidden until you tick them.')).toBeVisible();
+  // Wait for the editor dialog animation to settle before interacting with contents.
+  await page.evaluate(() => Promise.all(document.getAnimations().map(a => a.finished)));
   await expect(editor.getByTestId('kid-zero-warning')).toHaveText('Sam will see an empty dashboard.');
   const search = editor.getByRole('searchbox', { name: 'Search apps' });
   for (const app of ['Jellyfin', 'Audiobookshelf', 'Immich', 'Khan Academy']) {
