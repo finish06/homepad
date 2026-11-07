@@ -107,6 +107,9 @@ const LAZY_CHUNKS = [
   // demand from the Admin Panel (and the import from the admin empty state).
   'RestoreModal',
   'HomepageImportModal',
+  // SPEC-status-widgets — the clock/weather strip renders only once an admin
+  // turns one of them on, so its JS stays out of the entry.
+  'GlanceStrip',
 ] as const;
 
 const dist = resolve(process.cwd(), 'dist');
@@ -167,6 +170,27 @@ describe('bundle budget — the built artifact stays within its byte budget', ()
       .filter((f) => f.endsWith('.css') && f !== entry)
       .map((f) => readFileSync(resolve(assets, f), 'utf8'));
     expect(lazy.some((css) => /\.bi-plan-row\b/.test(css)), 'no lazy stylesheet carries the bi-* rules').toBe(true);
+  });
+
+  // SPEC-status-widgets AC-032 / Q10 (a) — the admin widget forms (tile editor
+  // Widget section, Admin Panel → Widgets) ship in a lazy CSS chunk that loads
+  // with those editors. Every viewer downloads the entry stylesheet on first
+  // paint; none of them needs these rules. `.widget-config` is the root class of
+  // both admin surfaces, so its presence is the signal.
+  it('the admin widget styles stay out of the entry stylesheet', () => {
+    const entry = readdirSync(assets).find((f) => /^index-[A-Za-z0-9_-]+\.css$/.test(f));
+    expect(entry, 'no entry stylesheet in dist/assets').toBeDefined();
+    expect(readFileSync(resolve(assets, entry!), 'utf8')).not.toContain('.widget-config');
+  });
+
+  it('a lazy CSS chunk carries the admin widget styles', () => {
+    const lazyCss = readdirSync(assets).filter((f) => f.endsWith('.css') && !/^index-/.test(f));
+    const holders = lazyCss.filter((f) => readFileSync(resolve(assets, f), 'utf8').includes('.widget-config'));
+    expect(
+      holders.length,
+      `expected a non-entry CSS chunk with .widget-config (src/widgets/widget-admin.css, imported by the ` +
+        `lazy editors). Found CSS: ${lazyCss.join(', ') || 'none'}`,
+    ).toBeGreaterThan(0);
   });
 
   it.each(LAZY_CHUNKS)('%s ships as its own async chunk, not inside the entry', (name) => {

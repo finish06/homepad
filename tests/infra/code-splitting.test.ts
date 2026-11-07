@@ -35,6 +35,21 @@ describe('code-splitting — on-demand overlays are lazy chunks', () => {
     expect(src).not.toMatch(/^import ServiceForm from/m);
   });
 
+  // SPEC-status-widgets — the glance strip (clock, weather, its icons) renders
+  // only when an admin turned one on, so it is a lazy chunk too.
+  it('App.tsx lazy-loads the glance strip', () => {
+    const src = read('app/App.tsx');
+    expect(src).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"][./a-z]*\/GlanceStrip['"]\)\s*\)/i);
+    expect(src).not.toMatch(/^import GlanceStrip from/m);
+  });
+
+  // SPEC-status-widgets AC-033 — the admin widget calls are only reachable from
+  // the lazy editors, never from an entry module.
+  it('only the lazy editors import the admin widget API', () => {
+    const entryish = ['app/App.tsx', 'grid/AppGrid.tsx', 'services.tsx', 'launcher/CommandLauncher.tsx', 'api.ts'];
+    for (const f of entryish) expect(read(f), f).not.toMatch(/widgetAdminApi/);
+  });
+
   it('AppGrid.tsx lazy-loads the tile-edit modal and the inline iframe overlay', () => {
     const src = read('grid/AppGrid.tsx');
     expect(src).toMatch(/import\s*\{[^}]*\blazy\b[^}]*\}\s*from ['"]react['"]/);
