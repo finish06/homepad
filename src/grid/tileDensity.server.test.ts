@@ -102,11 +102,15 @@ describe('SPEC-tile-density OQ-9 — per-user, server-side density', () => {
 // say so. These run under StrictMode on purpose — without it React invokes the
 // updater once and the bug is invisible.
 describe('#441 — set() persists exactly once, even under StrictMode', () => {
+  // Spy on the INSTANCE, not Storage.prototype: on Node 26+ the Web Storage
+  // shim (src/test/setup.ts) installs a standalone MemoryStorage class whose
+  // setItem never passes through Storage.prototype, so a prototype spy counts
+  // zero writes and these tests fail only on the newer local runtime.
   const storageWrites = (spy: ReturnType<typeof vi.spyOn>) =>
     spy.mock.calls.filter(([k]) => k === 'homepad:tile-density').length;
 
   it('a change writes the device cache once and PATCHes the server once', () => {
-    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    const setItem = vi.spyOn(localStorage, 'setItem');
     const { result } = renderHook(() => useTileDensity('compact'), { wrapper: StrictMode });
     setItem.mockClear();
     mockedSet.mockClear();
@@ -123,7 +127,7 @@ describe('#441 — set() persists exactly once, even under StrictMode', () => {
   it('setting the current value is still a no-op — no write, no PATCH', () => {
     // The fix moves the side effects out of the updater, which is where the
     // `cur === d` short-circuit lived. This pins that the short-circuit survived.
-    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    const setItem = vi.spyOn(localStorage, 'setItem');
     const { result } = renderHook(() => useTileDensity('compact'), { wrapper: StrictMode });
     setItem.mockClear();
     mockedSet.mockClear();
@@ -136,7 +140,7 @@ describe('#441 — set() persists exactly once, even under StrictMode', () => {
   });
 
   it('two quick changes persist each value once, in order', () => {
-    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    const setItem = vi.spyOn(localStorage, 'setItem');
     const { result } = renderHook(() => useTileDensity('compact'), { wrapper: StrictMode });
     setItem.mockClear();
     mockedSet.mockClear();
