@@ -3,7 +3,7 @@
 **Version:** 0.1.0
 **Created:** 2026-11-07
 **Author:** Caleb Dunn (via /add:spec — the interview is replaced by §0, Open questions)
-**Status:** Draft — awaiting Caleb's answers to §0 and UX sign-off
+**Status:** Approved — Caleb, 2026-11-07: all recommended defaults (Q1–Q12 = a; W-1…W-4 as proposed. Migration number: 0020 (household-basics takes 0019)).
 **Repo:** `Code/homepad` (frontend) + `Code/homepad-api` (Go backend)
 **Estimate:** Phase 1 ~4–5 days (widget manager, secret store, address guard, 3 service providers, clock, weather, web search, admin UI, tests). Phase 2 ~2–3 days (3 more providers).
 **Depends on:** shared catalog model (SPEC-245-224), kid accounts route classes (SPEC-kid-accounts §7), tile density (SPEC-tile-density), live status refresh (v13), admin settings (`system_settings`, cap6)
@@ -546,7 +546,7 @@ See §6.4. Tests:
 
 ## 9. Data model
 
-Migration `0019_widgets` (or the next free number when built). Idempotent, like every migration here, because they re-run on boot.
+Migration `0020_widgets` (household-basics takes 0019). Idempotent, like every migration here, because they re-run on boot.
 
 ```sql
 CREATE TABLE IF NOT EXISTS service_widgets (

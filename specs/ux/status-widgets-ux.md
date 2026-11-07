@@ -2,7 +2,7 @@
 
 **Spec:** [`SPEC-status-widgets.md`](../SPEC-status-widgets.md) §14 (v0.1.0, Draft)
 **Author:** Kare (design), drafted 2026-11-07
-**Status:** Draft — awaiting Caleb (spec §0 Q1…Q12) and the W-1…W-4 calls in §12.
+**Status:** Approved — Caleb, 2026-11-07: all recommended defaults.
 
 This doc designs the six surfaces in spec §14. It assumes the recommended answers in spec §0. Where another answer would change a surface, the section says so.
 
