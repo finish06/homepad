@@ -93,7 +93,8 @@ jobs:
             # timing-dependent on how much follows the `---`, which is why
             # consecutive runs on an identical manifest disagreed (#499 and #500
             # passed, #501 failed).
-            curl -sSf http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main/homepad-staging/03-web.yaml -o "$WORK/manifest.yaml"
+            curl -sSf -H "Authorization: token $GITEA_READ_TOKEN" \
+              http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main/homepad-staging/03-web.yaml -o "$WORK/manifest.yaml"
             sed '/^---$/q' "$WORK/manifest.yaml" > "$WORK/configmap.yaml"
             kubectl -n homepad-staging apply -f "$WORK/configmap.yaml"
             kubectl -n homepad-staging set image deploy/homepad-web web="$IMAGE_REF"
@@ -107,3 +108,4 @@ jobs:
           NATS_PUBLISH_URL:   ${{ secrets.NATS_PUBLISH_URL }}
           NATS_PUBLISH_TOKEN: ${{ secrets.NATS_PUBLISH_TOKEN }}
           KUBECONFIG_STAGING: ${{ secrets.KUBECONFIG_STAGING }}
+          GITEA_READ_TOKEN:   ${{ secrets.GITEA_READ_TOKEN }}
