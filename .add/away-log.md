@@ -53,3 +53,47 @@ No new code PRs. No merges, no promotion (16.7.2 stays unpromoted).
   - The fix is small and unambiguous: clear it when `stale` flips to false, plus a unit test.
 
 For cycle-3 planning, #341 and #451 can go straight to TDD. #334 needs a decision. #335 should be measured first (the gate check above), then decided: fix the detection or change the copy.
+
+---
+
+# Away Mode Log — session 3
+
+**Started:** 2026-11-07T15:20:03-06:00
+**Expected Return:** 2026-11-07T19:20:03-06:00
+**Duration:** 4h
+**Autonomy:** autonomous · maturity ga · quality strict (90% coverage)
+**Base:** `chore/away-20261107` off `origin/main` (`9c7ce48`, v17.0.0) in a separate
+worktree; the owner's `release/v16.2.0` checkout was left untouched.
+**Retro:** BYPASSED by Caleb's explicit decision ("Go - B") when presented with the
+8-day cadence block. Recorded as `compliance-bypass-20261107` in `.add/learnings.json`
+(second bypass in 30 days -> warned). The block is not resolved by the bypass.
+
+## Work Plan (agreed)
+
+1. Reconcile ADD state with shipped reality: SPEC-kid-accounts status, config
+   `changelog.lastVersionTag`, cycle-3 progress, handoff.
+2. Verify v17.0.0 (lint, types, unit tests, build) on a clean worktree.
+3. Code review of the v17.0.0 kid-accounts / persistent-session surfaces; write
+   `docs/reviews/2026-11-07-v17-review.md`.
+4. Comment/dead-code hygiene on main (stale 1–8/1–6 comments, unused `MAX_WIDTH`).
+
+## Explicitly queued, not attempted
+
+- Prod/staging deploys (prod already reports 17.0.0; promotion is Joe/Gus + Caleb).
+- M7 launch posts (need Caleb's accounts).
+- Demo status pipeline (Joe/Gus).
+- Kid board layout polish (design call).
+- homepad-api #84 and the demo-seed PgStore/sweeper rebase (cross-repo/backend).
+- Any merge to `main`; retiring old release branches.
+
+## Progress Log
+
+| Time | Task | Status | Notes |
+|------|------|--------|-------|
+| 2026-11-07T15:20:03-06:00 | away session opened | done | plan confirmed ("Go - B"); retro bypass recorded |
+| 2026-11-07T15:26 | ADD state reconciled | done | SPEC-kid-accounts -> SHIPPED v17.0.0; config lastVersionTag -> v17.0.0; cycle-3 log updated; handoff refreshed |
+| 2026-11-07T15:28 | verify main | done | tsc clean, 0 lint errors, build OK, 1175/1175, coverage 96.82/91.18/92.73 (threshold 90) |
+| 2026-11-07T15:21 | Node 26 test defect | FIXED | #441 tests spied on Storage.prototype; the shim installs MemoryStorage. Spy the instance. Learning L-022 |
+| 2026-11-07T15:30 | v17 review | done | docs/reviews/2026-11-07-v17-review.md — 1 fixed defect, 3 low/advisory, 2 info |
+| 2026-11-07T15:32 | comment hygiene | done | stale 1–8/1–6 comments + dead MAX_WIDTH (separate branch) |
+| 2026-11-07T15:35 | PRs | BLOCKED | no Gitea token in this environment; branches pushed, compare URLs in return briefing |

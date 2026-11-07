@@ -267,6 +267,29 @@
       "source": "M7 growth",
       "title": "A growth plan that depends on the owner's posts needs those posts scheduled first, not last",
       "body": "Every M7 funnel fix shipped by 10-17, but visitors went 32 \u2192 35 over 17 days, because no launch post went out; the posts can only come from Caleb's accounts. How to apply: in a time-boxed growth goal, put the owner-dependent action on a dated calendar in week 1, and if its date passes, raise it as the top blocker in every update, with a ready-to-paste draft attached."
+    },
+    {
+      "id": "compliance-bypass-20261107",
+      "type": "compliance-bypass",
+      "date": "2026-11-07T15:20:03-06:00",
+      "command": "/add:away 4h",
+      "rule": "retro-cadence",
+      "threshold_tripped": "days since last retro > 7 (retro-2026-10-30 is 8 days old; only 1 commit has landed since: 9c7ce48)",
+      "authorised_by": "Caleb, explicitly: 'Go - B' when presented with the block and the alternatives (run the retro first, or force the bypass)",
+      "prior_bypasses_30d": 1,
+      "note": "Second bypass in 30 days -> WARNED per the abuse ladder; the 2026-10-10 bypass is still inside the 30-day window. The substance of the block stands and is not resolved here: the retro is a day overdue with almost no commit activity, and the prior retro observed that the day threshold measures elapsed time rather than whether the knowledge loop is running (.add/observations.md, 2026-10-11). The next bypass requires --i-know-this-is-a-pattern, and the one after that is refused."
+    },
+    {
+      "id": "L-022",
+      "date": "2026-11-07",
+      "checkpoint_type": "verification-catch",
+      "category": "gotcha",
+      "severity": "medium",
+      "scope": "project",
+      "classified_by": "agent",
+      "source": "v17.0.0 verification on Node 26",
+      "title": "Spy on the localStorage INSTANCE, not Storage.prototype, on Node 26+",
+      "body": "`vi.spyOn(Storage.prototype,'setItem')` counts zero writes on Node 26 because src/test/setup.ts installs a standalone `MemoryStorage implements Storage` class whose setItem never touches Storage.prototype. The #441 density tests therefore fail only on the newer local runtime (CI is Node 22 and passes), which reads as a code bug. How to apply: spy on the instance (`vi.spyOn(localStorage,'setItem')`) so the assertion is runtime-independent; when a suite is green in CI but red locally, check whether the test's instrument (prototype spy, jsdom API) is what the shim replaced before touching the implementation."
     }
   ]
 }

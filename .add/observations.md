@@ -18,3 +18,12 @@
 - `[swarm]` Agent-to-agent verification repeatedly caught real errors in both directions
   (see retro-2026-10-11.md "What Went Well"). The mechanism that failed was not trust but
   **task claiming** — 10/28 PRs double-worked with no lease.
+
+## 2026-11-07
+
+- `[away]` 4h session: reconciled ADD/spec state to v17.0.0, verified `main`
+  (1175/1175, 96.8% lines) and reviewed the kid-accounts release; found and fixed
+  one real local-run defect (Node 26 storage spy). ~2.5h agent time.
+- `[process]` The retro-cadence day threshold blocked this session with 1 commit in
+  8 days — the second time it has measured elapsed time rather than loop health
+  (see 2026-10-11). Raise a checkpoint-count trigger at the next retro.

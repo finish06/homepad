@@ -1,9 +1,9 @@
 # Spec: Kid Accounts — a managed dashboard for kids on the family iPad
 
-**Version:** 0.2.0
+**Version:** 0.2.1
 **Created:** 2026-10-20
 **Author:** Caleb Dunn (via /add:spec)
-**Status:** APPROVED (product and UX, 2026-10-22)
+**Status:** SHIPPED — v17.0.0 (`fc5a191`, 2026-10-30). Frontend Phase 4 in homepad PR #546; backend homepad-api #81 (persistent sessions) + #83 (kid role, server-side filtering, admin API). *(Status line read "APPROVED (product and UX, 2026-10-22)" until 2026-11-07.)*
 **Repo:** `Code/homepad` (frontend) + `Code/homepad-api` (Go backend)
 **Estimate:** ~3–4 days (persistent sessions, accounts admin, per-kid allow-list, server-side filtering, UI, tests)
 **Depends on:** shared catalog model (SPEC-245-224), v12-settings-boundary-clarity, per-user preferences (`PATCH /api/me`)
@@ -197,3 +197,4 @@ UX artifact: [`specs/ux/kid-accounts-ux.md`](./ux/kid-accounts-ux.md) (APPROVED 
 |---|---|---|
 | 2026-10-20 | 0.1.0 | Draft from Caleb's request and the D1–D4 interview answers. |
 | 2026-10-22 | 0.2.0 | Approved by Caleb; OQ-1…OQ-4 resolved at the proposed defaults. |
+| 2026-11-07 | 0.2.1 | Status line corrected to SHIPPED (v17.0.0); no spec content change. |
