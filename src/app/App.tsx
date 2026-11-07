@@ -28,6 +28,9 @@ import ChangelogOverlay from './ChangelogOverlay';
 import UpdateBanner from './UpdateBanner';
 import { ThemeProvider } from '../theme/theme';
 import { CONTENT_WIDTH } from '../lib/layout';
+import { ShowWidgetsContext, WidgetsInfoContext } from '../widgets/context';
+import { useShowWidgetsPref } from '../widgets/showWidgetsPref';
+import { useWidgetsInfo } from '../widgets/useWidgetsInfo';
 
 // v14.0.1 optimize — these three surfaces only ever mount after a user action
 // (open the Library, open the custom-app form, open admin Settings), so they are
@@ -56,6 +59,10 @@ function readInviteToken(): string | null {
 }
 // SPEC-backup-import B-2 — the admin empty state opens the Homepage import here.
 const HomepageImportModal = lazy(() => import('../library/backup/HomepageImportModal'));
+// SPEC-status-widgets — the glance strip (clock, weather, its icons) is a lazy
+// chunk too: it renders only once the admin turns the clock or weather on, so
+// a dashboard without it never downloads it. Its CSS stays in the entry.
+const GlanceStrip = lazy(() => import('./GlanceStrip'));
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -177,6 +184,13 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // System setting. sysConfig.showUptimeDisplay still exists but only seeds NEW
   // accounts server-side; nothing on the grid reads it any more.
   const [showUptimeDisplay, setShowUptimeDisplay] = useUptimeDisplayPref(user.showUptimeDisplay);
+  // SPEC-status-widgets — "Show widgets" (AC-031, per user) and the info
+  // widgets read (clock, weather, web search). A kid never sees tile widget
+  // data (Q3 a) and has no switch, but does get the strip (UX §2.5).
+  const [showWidgetsPref] = useShowWidgetsPref(user.showWidgets);
+  const [widgetsInfo] = useWidgetsInfo();
+  const showStrip =
+    !!widgetsInfo && (widgetsInfo.clock.enabled || widgetsInfo.weather.enabled) && (isKid || showWidgetsPref);
   // Library browse + add-custom-app remain (service management, not layout),
   // lifted here so the header Gear can trigger them and their result flows into
   // the shared services context that AppGrid renders from.
@@ -289,7 +303,8 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // launcher (no second fetch, §3/A12). CommandLauncher renders the overlay when
   // opened and filters that same array.
   return (
-    <>
+    <WidgetsInfoContext.Provider value={widgetsInfo}>
+    <ShowWidgetsContext.Provider value={!isKid && showWidgetsPref}>
       <main className="app-surface min-h-screen font-sans">
         <AppHeader
           user={user}
@@ -323,6 +338,14 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             the account says otherwise (kids are created with it off and cannot
             change it). When it does render, it counts the served list, which is
             already only that kid's apps, and offers no re-poll (kid-forbidden). */}
+        {showStrip && (
+          <div className={CONTENT_WIDTH}>
+            <Suspense fallback={null}>
+              <GlanceStrip info={widgetsInfo} />
+            </Suspense>
+          </div>
+        )}
+
         {(!isKid || user.showHealthBar === true) && (
           <StatusBar showHealthBar={showHealthBar} canRetry={!isKid} />
         )}
@@ -434,7 +457,10 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
 
         {/* Feeds the launcher the shared catalog array; while still loading it
             simply has nothing to match (an empty list), never its own fetch. */}
-        <CommandLauncher services={services?.items ?? []} />
+        <CommandLauncher
+          services={services?.items ?? []}
+          webSearch={widgetsInfo?.search.enabled ? widgetsInfo.search : null}
+        />
 
         {/* cap5 — ambient status-change toasts; v17 — the alert history. Neither
             is for a kid (UX §5 keeps tiles, ⌘K, favorites and Recently Opened):
@@ -493,6 +519,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
         </button>
       </footer>
       <ChangelogOverlay open={changelogOpen} onClose={() => setChangelogOpen(false)} />
-    </>
+    </ShowWidgetsContext.Provider>
+    </WidgetsInfoContext.Provider>
   );
 }
