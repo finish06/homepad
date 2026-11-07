@@ -79,6 +79,10 @@ function serve(user: User, info: WidgetsInfo | null, services: Service[] = [SONA
   );
 }
 
+// jsdom lacks scrollIntoView; the launcher keeps the selection in view with it.
+beforeEach(() => {
+  Element.prototype.scrollIntoView = vi.fn();
+});
 beforeEach(() => localStorage.clear());
 afterEach(() => {
   vi.unstubAllGlobals();

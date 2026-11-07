@@ -4,7 +4,7 @@
 // the only row and starts selected. Kids get it only when the server says so
 // (search.enabled already reflects the kid switch), so the launcher just
 // renders what it is handed.
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import CommandLauncher from './CommandLauncher';
 import LauncherTrigger from './LauncherTrigger';
@@ -45,6 +45,10 @@ function setup(webSearch: { name: string; url: string } | null = DDG) {
 
 const type = (input: HTMLInputElement, value: string) => fireEvent.change(input, { target: { value } });
 
+// jsdom lacks scrollIntoView; the launcher keeps the selection in view with it.
+beforeEach(() => {
+  Element.prototype.scrollIntoView = vi.fn();
+});
 afterEach(() => vi.restoreAllMocks());
 
 describe('the web search row (AC-030)', () => {

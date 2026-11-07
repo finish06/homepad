@@ -4305,6 +4305,80 @@
     min-height: 14px;
     margin-top: -4px;
   }
+  /* SPEC-status-widgets UX §4 — the glance strip: one slim row on the page
+     surface, no card. Clock left, weather right (or left when alone). The place
+     and the high/low drop first as the screen narrows. */
+  .glance-strip {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-height: 44px;
+    padding-top: 8px;
+    color: var(--v-txt);
+  }
+  .glance-clock,
+  .glance-weather,
+  .glance-weather-read {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+  }
+  .glance-clock + .glance-weather {
+    margin-left: auto;
+  }
+  .glance-weather-read {
+    align-items: center;
+    gap: 8px;
+  }
+  .glance-time {
+    font-size: 22px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .glance-temp {
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .glance-date,
+  .glance-meta {
+    font-size: 13px;
+    color: var(--v-muted);
+    white-space: nowrap;
+  }
+  .glance-icon {
+    width: 22px;
+    height: 22px;
+    flex: none;
+  }
+  .glance-credit {
+    font-size: 11px;
+    color: var(--v-muted);
+  }
+  .glance-date-short {
+    display: none;
+  }
+  @media (max-width: 1023px) {
+    .glance-date-long,
+    .glance-place {
+      display: none;
+    }
+    .glance-date-short {
+      display: inline;
+    }
+  }
+  @media (max-width: 639px) {
+    .glance-time {
+      font-size: 18px;
+    }
+    .glance-date-short,
+    .glance-range {
+      display: none;
+    }
+  }
+  .launcher-web-glyph {
+    color: var(--v-muted);
+  }
   .app-grid-tool-statusline[data-widget] {
     display: flex;
     min-width: 0;

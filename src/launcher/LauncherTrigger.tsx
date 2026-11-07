@@ -1,4 +1,6 @@
+import { useContext } from 'react';
 import { useLauncher } from './launcher';
+import { WidgetsInfoContext } from '../widgets/context';
 
 // v8 §4.2 — the on-screen launcher affordance, placed between the v7 wordmark
 // and the avatar (D6). Touch/mouse users (no keyboard) open the launcher here;
@@ -21,6 +23,8 @@ function isMac(): boolean {
 
 export default function LauncherTrigger() {
   const { open, openLauncher } = useLauncher();
+  // SPEC-status-widgets UX §5 — while web search is on, the pill says so.
+  const web = useContext(WidgetsInfoContext)?.search.enabled === true;
   return (
     <button
       type="button"
@@ -45,7 +49,7 @@ export default function LauncherTrigger() {
       </svg>
       {/* Label + chord hint: hidden on phones (icon-only), shown at ≥640px (§9). */}
       <span data-testid="launcher-trigger-hint" className="launcher-trigger-hint hidden sm:flex">
-        <span className="launcher-trigger-placeholder">Search…</span>
+        <span className="launcher-trigger-placeholder">{web ? 'Search apps and the web' : 'Search…'}</span>
         <kbd className="launcher-trigger-kbd">{isMac() ? '⌘K' : 'Ctrl K'}</kbd>
       </span>
     </button>

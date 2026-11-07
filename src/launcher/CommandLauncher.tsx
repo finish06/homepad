@@ -66,7 +66,20 @@ function buildSections(query: string, services: Service[]): Section[] {
   return ranked.length > 0 ? [{ label: null, items: ranked }] : [];
 }
 
-export default function CommandLauncher({ services }: { services: Service[] }) {
+// SPEC-status-widgets AC-030 — the web search row's DOM id (aria-activedescendant).
+const WEB_ID = 'launcher-option-web';
+
+export type WebSearch = { name: string; url: string };
+
+export default function CommandLauncher({
+  services,
+  webSearch = null,
+}: {
+  services: Service[];
+  // The admin's provider (GET /api/widgets/info), or null when web search is off
+  // for this viewer. For a kid the server already applied the kid switch.
+  webSearch?: WebSearch | null;
+}) {
   const { open, closeLauncher } = useLauncher();
   const theme = useResolvedTheme();
   const [query, setQuery] = useState('');
@@ -97,20 +110,26 @@ export default function CommandLauncher({ services }: { services: Service[] }) {
 
   const sections = buildSections(query, services);
   const flat = sections.flatMap((s) => s.items);
-  const hasResults = flat.length > 0;
-  const selectedIndex = hasResults ? Math.min(selected, flat.length - 1) : -1;
-  const activeId = selectedIndex >= 0 ? optionId(flat[selectedIndex].id) : undefined;
-  const noMatches = query.trim() !== '' && !hasResults;
+  // AC-030 — with a query, the web row is the last row, after the app matches;
+  // with none of those it is the only row, so it starts selected.
+  const q = query.trim();
+  const web = webSearch && q !== '' ? webSearch : null;
+  const total = flat.length + (web ? 1 : 0);
+  const hasResults = total > 0;
+  const selectedIndex = hasResults ? Math.min(selected, total - 1) : -1;
+  const idAt = (i: number) => (i === flat.length ? WEB_ID : optionId(flat[i].id));
+  const activeId = selectedIndex >= 0 ? idAt(selectedIndex) : undefined;
+  const noMatches = q !== '' && !hasResults;
   // §8 — the result count, announced politely to screen readers on every query
   // change (and "no services match" for the empty state).
   const liveMessage = noMatches
-    ? `No services match ${query.trim()}.`
-    : `${flat.length} result${flat.length === 1 ? '' : 's'}`;
+    ? `No services match ${q}.`
+    : `${total} result${total === 1 ? '' : 's'}`;
 
   // Keep the selected row scrolled into view as the selection moves (§6.4).
   useEffect(() => {
     if (!open || selectedIndex < 0) return;
-    document.getElementById(optionId(flat[selectedIndex].id))?.scrollIntoView({ block: 'nearest' });
+    document.getElementById(idAt(selectedIndex))?.scrollIntoView({ block: 'nearest' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIndex, open]);
 
@@ -149,7 +168,7 @@ export default function CommandLauncher({ services }: { services: Service[] }) {
     if (selectedIndex < 0) return; // no-op when there are no results (A11)
     // Activate the real <a target=_blank rel="noreferrer noopener"> so the
     // browser handles the new tab exactly like a tile (§6.5, D7), then close.
-    document.getElementById(optionId(flat[selectedIndex].id))?.click();
+    document.getElementById(idAt(selectedIndex))?.click();
     closeLauncher();
   }
 
@@ -161,12 +180,12 @@ export default function CommandLauncher({ services }: { services: Service[] }) {
         break;
       case 'ArrowDown':
         e.preventDefault();
-        if (hasResults) setSelected((i) => (Math.min(i, flat.length - 1) + 1) % flat.length);
+        if (hasResults) setSelected((i) => (Math.min(i, total - 1) + 1) % total);
         break;
       case 'ArrowUp':
         e.preventDefault();
         if (hasResults)
-          setSelected((i) => (Math.min(i, flat.length - 1) - 1 + flat.length) % flat.length);
+          setSelected((i) => (Math.min(i, total - 1) - 1 + total) % total);
         break;
       case 'Home':
         if (hasResults) {
@@ -177,7 +196,7 @@ export default function CommandLauncher({ services }: { services: Service[] }) {
       case 'End':
         if (hasResults) {
           e.preventDefault();
-          setSelected(flat.length - 1);
+          setSelected(total - 1);
         }
         break;
       case 'Enter':
@@ -217,7 +236,7 @@ export default function CommandLauncher({ services }: { services: Service[] }) {
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
             onKeyDown={onInputKeyDown}
-            placeholder="Search services…"
+            placeholder={webSearch ? 'Search apps and the web' : 'Search services…'}
             autoComplete="off"
             spellCheck={false}
             autoCapitalize="off"
@@ -280,6 +299,28 @@ export default function CommandLauncher({ services }: { services: Service[] }) {
                 })}
               </div>
             ))
+          )}
+          {web && (
+            <a
+              id={WEB_ID}
+              data-testid="launcher-web-row"
+              data-selected={selectedIndex === flat.length ? 'true' : 'false'}
+              role="option"
+              aria-selected={selectedIndex === flat.length}
+              href={safeHref(web.url.replace('{query}', encodeURIComponent(q)))}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="launcher-row"
+            >
+              <SearchGlyph className="launcher-row-icon launcher-web-glyph" />
+              <span className="launcher-row-name">Search the web for “{q}”</span>
+              <span className="launcher-row-category">{web.name} ↗</span>
+              {selectedIndex === flat.length && (
+                <span aria-hidden="true" className="launcher-row-enter">
+                  ⏎
+                </span>
+              )}
+            </a>
           )}
         </div>
 
@@ -354,9 +395,9 @@ function ResultRow({
   );
 }
 
-function SearchGlyph() {
+function SearchGlyph({ className = 'launcher-search-glyph' }: { className?: string }) {
   return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" className="launcher-search-glyph">
+    <svg aria-hidden="true" viewBox="0 0 20 20" className={className}>
       <path
         d="M9 3a6 6 0 104.47 10.03l3.25 3.24a1 1 0 001.41-1.41l-3.24-3.25A6 6 0 009 3zm0 2a4 4 0 110 8 4 4 0 010-8z"
         fill="currentColor"
