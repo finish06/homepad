@@ -115,7 +115,7 @@ export async function mockApi(
   await page.route('**/api/**', (route) => route.fulfill({ status: 200, json: {} }));
 
   await page.route('**/api/me', (route) => route.fulfill({ json: { ...USER, role } }));
-  await page.route('**/api/auth/config', (route) => route.fulfill({ json: { oidcEnabled: false } }));
+  await page.route('**/api/auth/config', (route) => route.fulfill({ json: { oidcEnabled: false, registration: 'invite_only', setupNeeded: false } }));
   await page.route('**/api/services', (route) => route.fulfill({ json: { services } }));
   await page.route('**/api/categories', (route) => route.fulfill({ json: { categories } }));
   await page.route('**/api/me/collapsed-categories', (route) =>

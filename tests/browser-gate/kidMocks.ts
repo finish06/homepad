@@ -192,7 +192,7 @@ export async function mockKidSession(
     }
     if (path === '/api/me') return json(route, user);
     if (path === '/api/logout') return route.fulfill({ status: 204, body: '' });
-    if (path === '/api/auth/config') return json(route, { oidcEnabled: false });
+    if (path === '/api/auth/config') return json(route, { oidcEnabled: false, registration: 'invite_only', setupNeeded: false });
     if (path === '/api/system/config') return json(route, { showUptimeDisplay: true, statusDegradedMs: 1000 });
     if (path === '/api/services') return json(route, { services });
     if (path === '/api/categories') return json(route, { categories });
@@ -211,8 +211,22 @@ export async function mockKidSession(
   return state;
 }
 
+// SPEC-household-basics — a pending invite as GET /api/admin/invites lists it.
+export type MockInvite = {
+  id: string;
+  name: string;
+  role: 'admin' | 'user';
+  createdAt: string;
+  expiresAt: string;
+  createdBy: { id: string; name: string };
+};
+
 export type AdminMock = {
   accounts: MockAccount[];
+  // Pending invites, and every invite create body, in order.
+  invites: MockInvite[];
+  inviteCreates: unknown[];
+  revoked: string[];
   kidServices: Record<string, string[]>;
   sessions: Record<string, MockDevice[]>;
   // Bodies of every PUT …/services, keyed by kid id.
@@ -252,10 +266,21 @@ export function defaultAccounts(): Pick<AdminMock, 'accounts' | 'kidServices' | 
 export async function mockAdminAccounts(
   page: Page,
   seed: Partial<Pick<AdminMock, 'accounts' | 'kidServices' | 'sessions'>> = {},
-  opts: { accountsStatus?: number } = {},
+  opts: {
+    accountsStatus?: number;
+    // SPEC-household-basics: the registration mode and SSO flag the API
+    // reports, the HOMEPAD_MAX_ACCOUNTS cap (0 = none) and pending invites.
+    registration?: 'open' | 'invite_only';
+    oidcEnabled?: boolean;
+    maxAccounts?: number;
+    invites?: MockInvite[];
+  } = {},
 ): Promise<AdminMock> {
   const d = defaultAccounts();
   const state: AdminMock = {
+    invites: opts.invites ?? [],
+    inviteCreates: [],
+    revoked: [],
     accounts: seed.accounts ?? d.accounts,
     kidServices: seed.kidServices ?? d.kidServices,
     sessions: seed.sessions ?? d.sessions,
@@ -273,8 +298,42 @@ export async function mockAdminAccounts(
     if (kidSession) return route.fallback(); // the kid mock (registered later) answers
     const kidMatch = path.match(/^\/api\/admin\/kids\/([^/]+)(\/.*)?$/);
 
+    const atCap = () =>
+      !!opts.maxAccounts && state.accounts.length + state.invites.length >= opts.maxAccounts;
+    const capped = () => text(route, `account limit reached (limit ${opts.maxAccounts})`, 409);
+
     if (path === '/api/me') return json(route, ADMIN_USER);
-    if (path === '/api/auth/config') return json(route, { oidcEnabled: false });
+    if (path === '/api/auth/config') {
+      return json(route, {
+        oidcEnabled: opts.oidcEnabled ?? false,
+        registration: opts.registration ?? 'invite_only',
+        setupNeeded: false,
+      });
+    }
+    if (path === '/api/admin/invites' && method === 'GET') return json(route, state.invites);
+    if (path === '/api/admin/invites' && method === 'POST') {
+      const body = req.postDataJSON() as { name: string; role: 'admin' | 'user' };
+      state.inviteCreates.push(body);
+      if (atCap()) return capped();
+      const inv: MockInvite = {
+        id: `i-new-${nextId++}`,
+        name: body.name,
+        role: body.role,
+        createdAt: '2026-11-07T10:00:00Z',
+        expiresAt: '2026-11-14T12:00:00Z',
+        createdBy: { id: ADMIN_USER.id, name: ADMIN_USER.name },
+      };
+      state.invites.unshift(inv);
+      return json(route, { ...inv, token: `tok-${inv.id}` }, 201);
+    }
+    const inviteMatch = path.match(/^\/api\/admin\/invites\/([^/]+)$/);
+    if (inviteMatch && method === 'DELETE') {
+      const id = decodeURIComponent(inviteMatch[1]);
+      if (!state.invites.some((i) => i.id === id)) return text(route, 'invite not found', 404);
+      state.invites = state.invites.filter((i) => i.id !== id);
+      state.revoked.push(id);
+      return route.fulfill({ status: 204, body: '' });
+    }
     if (path === '/api/system/config') return json(route, { showUptimeDisplay: true, statusDegradedMs: 1000 });
     if (path === '/api/services') return json(route, { services });
     if (path === '/api/categories') return json(route, { categories });
@@ -285,6 +344,7 @@ export async function mockAdminAccounts(
       return json(route, state.accounts);
     }
     if (path === '/api/admin/kids' && method === 'POST') {
+      if (atCap()) return capped();
       const body = req.postDataJSON() as { name: string; avatarColor?: string };
       const name = (body.name ?? '').trim();
       if (!name || [...name].length > 40) return text(route, 'name must be 1-40 characters', 400);
