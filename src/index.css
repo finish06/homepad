@@ -4280,7 +4280,8 @@
 
   /* The v16 status line under (compact) / beside (list) the name. Mono, muted;
      DOWN/DEGRADED tint it their hue. Rendered only in compact/list (JS gate). */
-  .app-grid-tool-statusline {
+  .app-grid-tool-statusline,
+  .app-grid-tool-widget {
     font-family: 'SF Mono', ui-monospace, 'JetBrains Mono', Menlo, monospace;
     font-size: 10.5px;
     line-height: 1.35;
@@ -4289,8 +4290,36 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .dark .app-grid-tool-statusline {
+  .dark .app-grid-tool-statusline,
+  .dark .app-grid-tool-widget {
     color: #a3a3a3;
+  }
+  /* SPEC-status-widgets §2.2 — the widget line. Compact/List reuse the status
+     line (only its text changes); Large adds this one line under the name,
+     reserved on a widget tile so it never jumps. The first field never shrinks,
+     so it stays readable at 320px; the rest ellipses (AC-009). */
+  .app-grid-tool-widget {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    min-height: 14px;
+    margin-top: -4px;
+  }
+  .app-grid-tool-statusline[data-widget] {
+    display: flex;
+    min-width: 0;
+  }
+  .app-grid[data-density='list'] .app-grid-tool-statusline[data-widget] {
+    flex-shrink: 1;
+    max-width: 62%; /* the name keeps the rest of the row */
+  }
+  .tile-widget-first {
+    flex: none;
+  }
+  .tile-widget-rest {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .app-grid-tool-statusline[data-status='DOWN'] {
     color: var(--v-down);
