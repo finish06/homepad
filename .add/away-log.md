@@ -132,3 +132,18 @@ QA them one at a time (the one-staging-slot rule).
 4. Kid board width polish (design call); homepad-api #84 (icons 404 for non-owners).
 
 **Prod:** already on 17.0.0 (`/version.json` = `fc5a191`); nothing deployed.
+
+---
+
+## Session close — QA gate blocked on infra (2026-11-07T15:52-06:00)
+
+- #554: browser gate **passed** (2m58); CI/E2E ran; **mr-staging failed** (2m16)
+  at the deploy step's first command. #555 and #556 fail the same way.
+- Root cause: `Code/homelab` is **private** and the deploy step fetches
+  `homepad-staging/03-web.yaml` with an unauthenticated `curl` → 404 (exit 22).
+  Public repos still read anonymously (`Code/ci-shared` 200); homelab is 404
+  anonymous / 200 authenticated. Last green mr-staging: `fc5a191` on 2026-10-30;
+  the homelab repo was rewritten at 2026-11-07T21:04:19Z (joe-ops sweep baseline).
+- **Not fixed** — security-relevant owner decision: (a) make homelab public again,
+  or (b) add a read-only PAT and authenticate the fetch. No repo visibility changed.
+- PRs stay open; no merges and no deploys. Session ended at the owner's request.

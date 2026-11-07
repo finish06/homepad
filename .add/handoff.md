@@ -27,6 +27,12 @@
   not "fixed": the two API calls cannot be one transaction from the client.
 
 ## Blockers
+- **QA is blocked on all three PRs.** `mr-staging` fetches
+  `Code/homelab/homepad-staging/03-web.yaml` anonymously; that repo is private now,
+  so the fetch 404s before deploy/QA dispatch (regression from the 2026-11-07T21:04
+  sweep; the same gate passed on `fc5a191` on 2026-10-30). Owner decision pending:
+  make homelab public again, or add a read-only PAT and authenticate the fetch.
+  Learning L-023.
 - M7 launch posts need the owner's accounts; demo-status snapshot is with Joe/Gus.
 - Note for next session: Gitea's git-over-SSH transport cannot create PRs (push
   options are repo-only, verified on 1.27.3). The stored osxkeychain HTTPS

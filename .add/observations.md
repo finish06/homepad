@@ -27,3 +27,8 @@
 - `[process]` The retro-cadence day threshold blocked this session with 1 commit in
   8 days — the second time it has measured elapsed time rather than loop health
   (see 2026-10-11). Raise a checkpoint-count trigger at the next retro.
+- `[infra]` QA gate blocked on all three PRs: mr-staging's manifest fetch from
+  `Code/homelab` 404s because the repo is private (anonymous raw read), right after
+  the 21:04 sweep rewrote it. Code checks and the browser gate still ran; the
+  visibility fix is an owner decision (public vs authenticated fetch). Session
+  closed here at the owner's request.

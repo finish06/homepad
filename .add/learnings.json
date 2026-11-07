@@ -290,6 +290,18 @@
       "source": "v17.0.0 verification on Node 26",
       "title": "Spy on the localStorage INSTANCE, not Storage.prototype, on Node 26+",
       "body": "`vi.spyOn(Storage.prototype,'setItem')` counts zero writes on Node 26 because src/test/setup.ts installs a standalone `MemoryStorage implements Storage` class whose setItem never touches Storage.prototype. The #441 density tests therefore fail only on the newer local runtime (CI is Node 22 and passes), which reads as a code bug. How to apply: spy on the instance (`vi.spyOn(localStorage,'setItem')`) so the assertion is runtime-independent; when a suite is green in CI but red locally, check whether the test's instrument (prototype spy, jsdom API) is what the shim replaced before touching the implementation."
+    },
+    {
+      "id": "L-023",
+      "date": "2026-11-07",
+      "checkpoint_type": "verification-catch",
+      "category": "infrastructure",
+      "severity": "high",
+      "scope": "project",
+      "classified_by": "agent",
+      "source": "mr-staging on PR #554 (v17 follow-up)",
+      "title": "mr-staging fetches Code/homelab anonymously \u2014 making that repo private breaks QA for every PR",
+      "body": "The deploy step in .gitea/workflows/mr-staging.yml fetches homepad-staging/03-web.yaml from Code/homelab with a bare `curl -sSf` (no auth). When Code/homelab is private, Gitea answers 404 and the job dies at the first deploy command (curl exit 22) before any rollout or QA dispatch. Observed 2026-11-07 on PRs #554-#556 immediately after the homelab repo was rewritten by the 21:04 sweep; the same gate passed on fc5a191 (2026-10-30). How to apply: (1) treat a 404 at the manifest fetch as an infra/visibility regression, not a code failure; (2) verify by comparing anonymous vs authenticated raw reads (public repo 200, private 404/200); (3) the durable fix is an authenticated fetch with a read-only PAT, not making the deploy repo public \u2014 its manifests carry internal hostnames/IPs. Add a fail-fast check with a clear message if the manifest fetch 404s."
     }
   ]
 }
