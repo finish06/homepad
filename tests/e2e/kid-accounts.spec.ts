@@ -14,21 +14,27 @@ test('TC-001 — an admin creates a kid, picks four apps, and hands this device 
   await page.getByTestId('menu-accounts').click();
   await expect(page.getByRole('heading', { name: 'Accounts' })).toBeVisible();
 
-  await page.getByRole('button', { name: '+ Add a kid' }).click();
+  const addKidBtn = page.getByRole('button', { name: '+ Add a kid' });
+  await addKidBtn.scrollIntoViewIfNeeded();
+  await addKidBtn.click();
   const add = page.getByRole('dialog', { name: 'Add a kid' });
   await add.getByLabel('Name').fill('Sam');
   await add.getByRole('button', { name: 'Save' }).click();
   await expect(add).toBeHidden();
 
   const sam = page.getByTestId('account-row').filter({ hasText: 'Sam' });
-  await sam.getByRole('button').click();
+  const samBtn = sam.getByRole('button');
+  await samBtn.scrollIntoViewIfNeeded();
+  await samBtn.click();
   const editor = page.getByRole('dialog', { name: 'Sam' });
   await expect(editor.getByText('New apps you add later stay hidden until you tick them.')).toBeVisible();
   await expect(editor.getByTestId('kid-zero-warning')).toHaveText('Sam will see an empty dashboard.');
   const search = editor.getByRole('searchbox', { name: 'Search apps' });
   for (const app of ['Jellyfin', 'Audiobookshelf', 'Immich', 'Khan Academy']) {
     await search.fill(app);
-    await editor.getByRole('checkbox', { name: app }).check();
+    const appCheckbox = editor.getByRole('checkbox', { name: app });
+    await appCheckbox.scrollIntoViewIfNeeded();
+    await appCheckbox.check();
   }
   await editor.getByRole('button', { name: 'Save' }).click();
   await expect(editor).toBeHidden();
