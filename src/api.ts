@@ -38,6 +38,9 @@ export type User = {
   // when unset. Both optional so an older backend still type-checks.
   displayName?: string;
   avatarColor?: string;
+  // SPEC-status-widgets AC-031 — per-user "Show widgets" (on by default).
+  // Optional so an older backend that omits it reads as on.
+  showWidgets?: boolean;
 };
 
 export type ServiceStatus = 'UP' | 'DOWN' | 'DEGRADED' | 'UNKNOWN' | 'NOT_MONITORED';
@@ -92,7 +95,16 @@ export type Service = {
   // latency appears with no other frontend change once the backend emits it. The
   // backend field name must match `responseTimeMs` for that to hold.
   responseTimeMs?: number;
+  // SPEC-status-widgets §7.2 — the tile's widget values, fetched by the server.
+  // Absent when the service has no enabled widget, and always for a kid.
+  widget?: TileWidget;
 };
+
+// SPEC-status-widgets §7.2 — typed numbers only; the browser formats them.
+export type WidgetUnit = 'count' | 'percent' | 'bytes_per_sec' | 'ratio';
+export type WidgetField = { key: string; label: string; unit: WidgetUnit; value: number; total?: number };
+export type WidgetState = 'loading' | 'ok' | 'stale' | 'error';
+export type TileWidget = { kind: string; state: WidgetState; asOf: string | null; fields: WidgetField[] };
 
 // v23 — the per-tile click-action enum. Shared across api types, ToolLink, and
 // the TileEditModal selector so the three values stay in lockstep.
