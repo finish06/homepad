@@ -3,11 +3,11 @@
 **Written:** 2026-11-07 (end of `/add:away 4h`; session branch `chore/away-20261107` off `9c7ce48`)
 
 ## In progress
-- Away branches are pushed; **PRs were not opened** — this environment has no Gitea
-  token (`tea` absent, `gh` points at GitHub). Open them one at a time (staging slot rule).
-  - `docs/add-state-20261107` — ADD/spec state reconciled to v17.0.0 + v17 review doc
-  - `fix/node26-storage-spy` — the #441 tests on Node 26
-  - `chore/comment-hygiene-20261107` — stale width comments + dead `MAX_WIDTH`
+- PRs are open against `main` (all verified mergeable); QA one at a time per the
+  one-staging-slot rule:
+  - **#554** `chore/comment-hygiene-20261107` — stale width comments + dead `MAX_WIDTH`
+  - **#555** `fix/node26-storage-spy` — the #441 tests on Node 26
+  - **#556** `chore/away-20261107` — ADD/spec state reconciled + the v17 review doc
 
 ## Completed this session
 - Retro cadence: **bypassed** by explicit owner decision ("Go - B"), recorded as
@@ -27,8 +27,10 @@
   not "fixed": the two API calls cannot be one transaction from the client.
 
 ## Blockers
-- PR creation needs a Gitea token. Branch names + compare URLs are in the away log.
 - M7 launch posts need the owner's accounts; demo-status snapshot is with Joe/Gus.
+- Note for next session: Gitea's git-over-SSH transport cannot create PRs (push
+  options are repo-only, verified on 1.27.3). The stored osxkeychain HTTPS
+  credential reaches the repo API and is sufficient for PR creation.
 
 ## Next steps
 1. **Run the overdue retro** — the next compliance bypass needs
