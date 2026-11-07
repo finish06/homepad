@@ -44,4 +44,16 @@ describe('code-splitting — on-demand overlays are lazy chunks', () => {
     expect(src).not.toMatch(/^import TileEditModal from/m);
     expect(src).not.toMatch(/^import IframeOverlay from/m);
   });
+
+  // SPEC-backup-import — the two flows load on demand: from the Admin Panel's
+  // Backup and import section, and (the import) from the admin empty state.
+  it('BackupSection and App.tsx lazy-load the restore and import modals', () => {
+    const section = read('library/backup/BackupSection.tsx');
+    expect(section).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"]\.\/RestoreModal['"]\)\s*\)/);
+    expect(section).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"]\.\/HomepageImportModal['"]\)\s*\)/);
+    expect(section).not.toMatch(/^import (RestoreModal|HomepageImportModal) from/m);
+    const app = read('app/App.tsx');
+    expect(app).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"][./a-z]*\/backup\/HomepageImportModal['"]\)\s*\)/);
+    expect(app).not.toMatch(/^import HomepageImportModal from/m);
+  });
 });
