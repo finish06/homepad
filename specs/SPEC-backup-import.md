@@ -3,7 +3,7 @@
 **Version:** 0.1.0
 **Created:** 2026-11-07
 **Author:** Claude for Caleb Dunn (via /add:spec)
-**Status:** Draft — awaiting Caleb on OQ-1…OQ-9
+**Status:** Approved — Caleb, 2026-11-07: all recommended defaults (OQ-1 c, OQ-2 a, OQ-3 a, OQ-4 b, OQ-5 c, OQ-6 a, OQ-7 a, OQ-8 a, OQ-9 b; B-1…B-3 as proposed).
 **Repo:** `Code/homepad` (frontend) + `Code/homepad-api` (Go backend)
 **Estimate:** ~4–5 days (export, restore with preview, Homepage parser and mapping, Admin Panel UI, tests)
 **Depends on:** shared catalog model (SPEC-245-224), kid accounts (SPEC-kid-accounts, shipped 17.0.0), the shared-catalog write fix tracked in `Code/homepad-api#87`

@@ -2,7 +2,7 @@
 
 **Spec:** [`SPEC-backup-import.md`](../SPEC-backup-import.md) §11 (v0.1.0, Draft)
 **Author:** Claude for Kare (design), drafted 2026-11-07
-**Status:** Draft — awaiting Caleb on B-1…B-3, and on the spec's OQ-1…OQ-9.
+**Status:** Approved — Caleb, 2026-11-07: all recommended defaults.
 
 This doc designs the five surfaces in spec §11. Everything else reuses what exists: the Admin Panel shell (`SettingsPanel`), `Modal`, the dirty-form confirm from `ServiceForm`, and the section skeletons from the System section.
 
