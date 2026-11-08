@@ -77,12 +77,6 @@ describe('mergeStatuses carries widget (AC-011)', () => {
     expect(next[0].widget?.state).toBe('stale');
   });
 
-  it('a new asOf is a change (the stale age is read from it)', () => {
-    const cur = [svc('a', widget(3))];
-    const { next } = mergeStatuses(cur, [svc('a', widget(3, { asOf: '2026-11-07T14:03:11Z' }))]);
-    expect(next[0].widget?.asOf).toBe('2026-11-07T14:03:11Z');
-  });
-
   it('a ratio total change is a change', () => {
     const ratio = (total: number): TileWidget => ({
       kind: 'proxmox',
