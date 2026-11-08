@@ -124,10 +124,13 @@ function sameMembers(a: Service[], b: Service[]): boolean {
 }
 
 // AC-011 — a field-by-field compare, so a poll whose widget numbers didn't move
-// keeps the tile's object (and the whole array) and causes no render.
+// keeps the tile's object (and the whole array) and causes no render. asOf
+// moves on every successful server fetch but only a stale line shows it, so
+// it counts only when the state isn't ok.
 function sameWidget(a?: TileWidget, b?: TileWidget): boolean {
   if (a === b) return true;
-  if (!a || !b || a.kind !== b.kind || a.state !== b.state || a.asOf !== b.asOf) return false;
+  if (!a || !b || a.kind !== b.kind || a.state !== b.state) return false;
+  if (a.state !== 'ok' && a.asOf !== b.asOf) return false;
   if (a.fields.length !== b.fields.length) return false;
   return a.fields.every((x, i) => {
     const y = b.fields[i];
