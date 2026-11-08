@@ -155,6 +155,15 @@ describe('Homepage import preview and apply (AC-019)', () => {
     expect(err.message).toContain('did not find expected key');
   });
 
+  it("a YAML error carries the parser's detail", async () => {
+    mockFetch(
+      { code: 'yaml_syntax', message: "There's a problem on line 3: did not find expected key.", detail: 'did not find expected key', file: 'services', line: 3 },
+      400,
+    );
+    const err = await caught(previewHomepageImport({ services: 'x' }));
+    expect(err).toMatchObject({ code: 'yaml_syntax', detail: 'did not find expected key', line: 3 });
+  });
+
   it('a network failure is "network"', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new TypeError('offline'))));
     expect((await caught(applyHomepageImport({ services: 'x' }, 'h'))).code).toBe('network');
