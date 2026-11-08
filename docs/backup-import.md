@@ -127,10 +127,10 @@ gives this snippet:
 endpoints:
   - name: Sonarr
     group: Media
-    url: "http://sonarr.home.arpa/"
+    url: http://sonarr.home.arpa/
     interval: 60s
     conditions:
-      - "[STATUS] < 400"
+      - '[STATUS] < 400'
 ```
 
 A `ping` (for example `ping: 192.0.2.1`) becomes an `icmp://192.0.2.1` endpoint
