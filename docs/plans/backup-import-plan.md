@@ -84,12 +84,12 @@ type PlanItem = {
 };
 ```
 
-Error body: `{ code, message, file?, line?, count?, limit?, things?, plan? }`.
+Error body: `{ code, message, file?, line?, detail?, count?, limit?, things?, plan? }`. `detail` is the YAML parser's own words for a `yaml_syntax` error.
 
 Codes (copy in `src/library/importCopy.ts`, UX §6, plus the ones this plan adds):
 
 - **Errors:** `not_a_backup`, `schema_newer`, `invalid_json`, `not_homepage_services`, `not_homepage_bookmarks`, `not_homepage_settings`, `yaml_syntax` (with `line`), `too_deep`, `too_large`, `too_many` (with `count`, `limit`, `things`), `plan_changed`, `bad_mode`, `plan_missing`.
-- **Skip reasons:** `no_link`, `bad_scheme`, `href_uses_variable`, `already_here`, `duplicate`, `no_name`, `invalid_item`, `adult_no_account`, `icon_invalid`.
+- **Skip reasons:** `no_link`, `bad_scheme`, `href_uses_variable`, `already_here`, `duplicate`, `no_name`, `invalid_item`, `adult_no_account`, `icon_invalid`, `account_limit`.
 - **Warnings:** `widget_dropped`, `icon_local`, `icon_glyph` (with `detail`), `icon_unsupported`, `icon_invalid`, `description_variable`, `section_missing`, `kid_needs_device`, `status_on`, `ref_missing`, `unknown_fields`.
 
 ## Success Criteria
@@ -188,3 +188,5 @@ Phase 1 (TASK-101) in `homepad-api` on `feat/backup-import`, and Phase 3 (TASK-3
 
 - 2026-11-07: Initial plan, from the approved spec and UX.
 - 2026-11-07: TASK-301's calls live in `src/library/backup/transferApi.ts`, beside the components that use them, and go through `api.ts`'s `request()`. In `src/api.ts` they would ship in the entry chunk for every visitor; measured, the move keeps the entry JS at +440 B gzip for the whole feature. Download backup fetches the file as a Blob (`downloadBackup`) so the button can say "Preparing…" and show an error (UX §2), which a bare `<a download>` can't.
+- 2026-11-07: SPEC-household-basics (homepad-api #91) landed during the build. Its account lock had the key the import lock used, so the import lock moved to its own key, with a test that every advisory lock key is distinct. It caps every account insert at `HOMEPAD_MAX_ACCOUNTS`, so a restore now skips kids past the cap (`account_limit`) and holds the account lock for the apply. The catalog writes this build adds already go through the owner, as #91's do now.
+- 2026-11-07: `yaml_syntax` errors carry `detail` (the parser's words) beside the full-sentence `message`, and their `line` is the line the problem is on (yaml.v3 reports parser errors one line early).

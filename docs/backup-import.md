@@ -70,7 +70,8 @@ People are always merged, in both modes:
   skipped. Ask them to sign up first, then restore again.
 - **Kids** match by name. A kid in the file who isn't here is created. Sign
   their device in again from **Accounts**. A kid who isn't in the file is left
-  alone.
+  alone. If your Homepad has an account limit (`HOMEPAD_MAX_ACCOUNTS`), kids
+  past it are skipped, and the preview says so.
 - For each match, favorites from the file are added, and app order and folded
   sections are set from the file.
 
