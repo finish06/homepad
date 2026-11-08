@@ -143,8 +143,8 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // SPEC-status-widgets — "Show widgets" (AC-031, per user) and the info
   // widgets read (clock, weather, web search). A kid never sees tile widget
   // data (Q3 a) and has no switch, but does get the strip (UX §2.5).
-  const [showWidgetsPref] = useShowWidgetsPref(user.showWidgets);
-  const [widgetsInfo] = useWidgetsInfo();
+  const [showWidgetsPref, setShowWidgetsPref] = useShowWidgetsPref(user.showWidgets);
+  const [widgetsInfo, reloadWidgetsInfo] = useWidgetsInfo();
   const showStrip =
     !!widgetsInfo && (widgetsInfo.clock.enabled || widgetsInfo.weather.enabled) && (isKid || showWidgetsPref);
   // Library browse + add-custom-app remain (service management, not layout),
@@ -406,6 +406,9 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               onSetDensity={setDensity}
               statusDegradedMs={sysConfig.statusDegradedMs}
               onSaveSettings={onSaveSettings}
+              showWidgets={showWidgetsPref}
+              onSetShowWidgets={isKid ? undefined : setShowWidgetsPref}
+              onWidgetsChanged={reloadWidgetsInfo}
               onClose={() => setSettingsOpen(false)}
             />
           </Suspense>

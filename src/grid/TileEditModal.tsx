@@ -11,6 +11,7 @@ import {
   type Service,
 } from '../api';
 import { iconSrc, initialBadge, validateIconFile } from '../lib/icons';
+import WidgetSection, { useWidgetEditor } from '../widgets/WidgetSection';
 
 // v23 §4.2 — the per-option hint shown under the click-action selector.
 // Kare §8.1.2 — copy is "exact". The "(default)" marker lives in the description,
@@ -77,6 +78,9 @@ export default function TileEditModal({
   // v22 §5.1 — the active icon theme tab. ALWAYS opens on 'light' (AC-007),
   // regardless of the app theme or which variant(s) exist.
   const [activeTab, setActiveTab] = useState<IconVariant>('light');
+  // SPEC-status-widgets AC-024 — the Widget section's state. It shares this
+  // modal's one Save and its dirty check (UX §6.2).
+  const widget = useWidgetEditor(service);
 
   const headingId = useId();
   const titleId = useId();
@@ -129,7 +133,8 @@ export default function TileEditModal({
     iconUrl !== service.icon ||
     categoryId !== (service.categoryId ?? '') ||
     clickAction !== (service.clickAction ?? 'new_tab') ||
-    gatusKey !== (service.gatus_key ?? '');
+    gatusKey !== (service.gatus_key ?? '') ||
+    widget.dirty;
 
   const previewSvc: Service = { ...service, name: title, icon: iconUrl, iconLight, iconDark };
   // v22 §5.4 — the preview resolves the ACTIVE TAB's variant, not the app theme;
@@ -203,6 +208,18 @@ export default function TileEditModal({
       return;
     }
     setBusy(true);
+    // UX §6.2 — the widget is written FIRST. Every check the server makes for a
+    // 422 runs before anything is sent, and a widget failure stops the Save, so
+    // the tile part is never saved without it.
+    const w = await widget.save();
+    if (!w.ok) {
+      setBusy(false);
+      if (w.message) {
+        setError(w.message);
+        onToast(w.message, 'error');
+      }
+      return;
+    }
     const patch: Partial<Parameters<typeof updateService>[1]> = {};
     if (title.trim() !== service.name) patch.name = title.trim();
     if (url.trim() !== service.url) patch.url = url.trim();
@@ -240,6 +257,9 @@ export default function TileEditModal({
       // v25 — reflect the server-persisted slug (server-authoritative, like #342)
       // so a reopened modal prefills the saved key without waiting for a reload.
       gatus_key: r.service.gatus_key,
+      // A removed widget leaves the tile at once; a new or changed one shows
+      // on the next live poll, once the server has fetched it.
+      ...(w.removed ? { widget: undefined } : {}),
     });
     onToast('Tile updated.', 'success');
     onClose();
@@ -703,6 +723,8 @@ export default function TileEditModal({
               health monitoring.
             </p>
           </div>
+
+          <WidgetSection editor={widget} tileUrl={service.url} />
 
           {error && (
             <p className="tile-edit-error" role="alert" data-testid="tile-edit-error">
