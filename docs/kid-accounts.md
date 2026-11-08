@@ -8,7 +8,7 @@ The kid needs no email and no password. You manage everything from
 Kid accounts arrived in Homepad 17.0.0, together with homepad-api's kid accounts
 API. Both halves are needed.
 
-- [Before you start: close registration](#before-you-start-close-registration)
+- [Before you start: check that sign-up is closed](#before-you-start-check-that-sign-up-is-closed)
 - [Set up a kid's iPad](#set-up-a-kids-ipad)
 - [What a kid sees and can do](#what-a-kid-sees-and-can-do)
 - [Changing a kid's apps later](#changing-a-kids-apps-later)
@@ -17,19 +17,18 @@ API. Both halves are needed.
 - [Homepad hides apps; it doesn't block URLs](#homepad-hides-apps-it-doesnt-block-urls)
 - [Upgrading to 17.0.0: everyone is signed out once](#upgrading-to-1700-everyone-is-signed-out-once)
 
-## Before you start: close registration
-
-**Set `HOMEPAD_REGISTRATION=invite_only`** in `.env` and run
-`docker compose up -d`.
+## Before you start: check that sign-up is closed
 
 A kid's menu has a visible **Sign out**: it's how you get the iPad back for
-yourself. With registration left `open`, a kid who signs out can use **Create
-account** on the login screen to register an ordinary adult account, and an
-adult account sees every app in the catalog. With `invite_only`, the login
-screen can't create accounts, so signing out leads nowhere.
+yourself. If anyone can sign up, a kid who signs out can use **Create account**
+on the sign-in screen to make an ordinary adult account, and an adult account
+sees every app in the catalog.
 
-The quickstart already tells you to do this once your own admin account exists.
-If you skipped it, do it before setting up a kid.
+Sign-up is closed by default (`HOMEPAD_REGISTRATION=invite_only`), so the
+sign-in screen has no **Create account** and signing out leads nowhere. Check it
+in **Admin Panel → System → Registration mode**. If it says `open`, Accounts
+shows a warning: set `HOMEPAD_REGISTRATION=invite_only` in `.env` and run
+`docker compose up -d`.
 
 ## Set up a kid's iPad
 

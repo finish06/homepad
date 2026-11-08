@@ -7,6 +7,42 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [Unreleased] — Household basics: safe sign-up, adding an adult, every admin can edit
+
+**Sign-up is closed by default now.** `HOMEPAD_REGISTRATION` defaults to
+`invite_only` in `compose.yaml`, `compose.build.yaml`, `.env.example` and the
+API. The first account on a fresh install still signs up and is the admin; the
+sign-in screen shows **Set up Homepad** for it. After that, the sign-in screen
+has no **Create account**, so a kid who signs out has nothing to do there.
+
+**Check your mode** in **Admin Panel → System → Registration mode**:
+
+- `open` set in `.env` (or an older `compose.yaml`, which passed `open`): it
+  keeps working, and Accounts shows a warning. Set
+  `HOMEPAD_REGISTRATION=invite_only` and run `docker compose up -d` to close it.
+- `invite_only`: nothing changes, except the sign-in screen stops offering
+  **Create account**.
+- no `HOMEPAD_REGISTRATION` at all (for example a hand-written Kubernetes
+  manifest): **sign-up closes on upgrade.** Existing accounts are untouched.
+  Add adults with invite links.
+
+**Add an adult.** In **Administration → Accounts**, **+ Add an adult** makes a
+link for a member or an admin. It works once, for 7 days, and they pick their
+own email and password. Pending invites are listed there, and you can revoke
+one. The `user` role now reads **member**.
+
+**Every admin edits the same catalog.** A second admin's edits used to fail or
+vanish. Now they change the shared catalog, like the first admin's.
+
+**Kids see changes sooner.** A kid's dashboard checks for changes every 20
+seconds, so an app you tick shows within 30 seconds.
+
+**Account limit.** `HOMEPAD_MAX_ACCOUNTS` caps accounts plus pending invites.
+Unset means no limit.
+
+**Upgrading:** needs homepad-api with migration `0019` (an `invites` table).
+Deploy the API and web images as a pair, API first.
+
 ## [17.0.0] — 2026-10-30 — Kid accounts, and sign-ins that survive a restart
 
 **Everyone is signed out once when you upgrade.** Sign-ins used to be kept in

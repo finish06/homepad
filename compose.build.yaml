@@ -50,7 +50,11 @@ services:
       # browser drops it and login silently fails. The api defaults this to true
       # (prod runs behind TLS) — for http://localhost it MUST be false.
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
-      HOMEPAD_REGISTRATION: ${HOMEPAD_REGISTRATION:-open}
+      # invite_only (default): only the first account signs itself up; adults
+      # join through an admin's invite link. `open` lets anyone sign up.
+      HOMEPAD_REGISTRATION: ${HOMEPAD_REGISTRATION:-invite_only}
+      # Most accounts plus pending invites allowed. Empty or 0: no limit.
+      HOMEPAD_MAX_ACCOUNTS: ${HOMEPAD_MAX_ACCOUNTS:-}
       SESSION_SECRET: ${SESSION_SECRET:-}
       # Status tiles read from Gatus (compose service name `gatus`, port 8080).
       GATUS_BASE_URL: ${GATUS_BASE_URL:-http://gatus:8080}
