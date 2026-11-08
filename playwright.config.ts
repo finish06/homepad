@@ -34,8 +34,22 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
     },
     {
+      // iPhone 13 layout (390x664 CSS px, isMobile, hasTouch, WebKit, iOS UA)
+      // rasterized at 1x instead of the device's 3x.
+      //
+      // The CI runner has no GPU, so WebKit paints in software, and the app's
+      // glass panels and dialogs use backdrop-filter: blur(). At 3x (9x the
+      // pixels) one frame took 0.3 to 5 s on the runner even with zero
+      // animations running. Playwright's "stable" check waits on
+      // requestAnimationFrame, so every click and check waited seconds and
+      // kid-accounts TC-001 ran out of its 30 s budget at a different step
+      // each retry. Measured on the runner, same page: 3x 1.2 to 2.5 s per
+      // frame, 1x ~16 ms. reducedMotion: 'reduce' did not help (nothing was
+      // animating); removing backdrop-filter did. Nothing in this suite reads
+      // devicePixelRatio or compares pixels, so 1x tests the same behaviour.
+      // Pinned by tests/infra/e2e-mobile-project.test.ts.
       name: 'mobile',
-      use: { ...devices['iPhone 13'] },
+      use: { ...devices['iPhone 13'], deviceScaleFactor: 1 },
     },
   ],
   // Port 4174, NOT the 4173 that `npm run preview` and playwright.gate.config.ts
