@@ -20,7 +20,7 @@ async function frames(page: Page): Promise<string> {
   });
 }
 
-async function trialMs(page: Page, loc: ReturnType<Page['locator']>): Promise<number> {
+async function trialMs(loc: ReturnType<Page["locator"]>): Promise<number> {
   const t = Date.now();
   await loc.click({ trial: true, timeout: 60_000 });
   return Date.now() - t;
@@ -47,18 +47,18 @@ for (const [name, v] of Object.entries(variants)) {
       await page.goto('/');
       await expect(page.getByTestId('user-menu-trigger')).toBeVisible();
       const out: string[] = [];
-      out.push(`home: ${await frames(page)} trial=${await trialMs(page, page.getByTestId('user-menu-trigger'))}ms`);
+      out.push(`home: ${await frames(page)} trial=${await trialMs(page.getByTestId('user-menu-trigger'))}ms`);
       await page.getByTestId('user-menu-trigger').click({ timeout: 60_000 });
       await page.getByTestId('menu-accounts').click({ timeout: 60_000 });
       await expect(page.getByRole('heading', { name: 'Accounts' })).toBeVisible({ timeout: 30_000 });
       const addBtn = page.getByRole('button', { name: '+ Add a kid' });
-      out.push(`panel: ${await frames(page)} trial=${await trialMs(page, addBtn)}ms`);
+      out.push(`panel: ${await frames(page)} trial=${await trialMs(addBtn)}ms`);
       await addBtn.click({ timeout: 60_000 });
       const dlg = page.getByRole('dialog', { name: 'Add a kid' });
       await dlg.getByLabel('Name').fill('Sam');
       const save = dlg.getByRole('button', { name: 'Save' });
       await expect(save).toBeEnabled();
-      out.push(`dialog: ${await frames(page)} trial=${await trialMs(page, save)}ms`);
+      out.push(`dialog: ${await frames(page)} trial=${await trialMs(save)}ms`);
       expect(`DIAG ${name} :: ${out.join(' | ')}`).toBe('report');
     });
   });
