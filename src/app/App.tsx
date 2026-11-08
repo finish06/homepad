@@ -39,6 +39,8 @@ import { CONTENT_WIDTH } from '../lib/layout';
 const LibraryBrowse = lazy(() => import('../library/LibraryBrowse'));
 const ServiceForm = lazy(() => import('../library/ServiceForm'));
 const SettingsPanel = lazy(() => import('../library/SettingsPanel'));
+// SPEC-backup-import B-2 — the admin empty state opens the Homepage import here.
+const HomepageImportModal = lazy(() => import('../library/backup/HomepageImportModal'));
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -165,6 +167,10 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // list Catalog used to pass). AppGrid owns box widths independently; this is a
   // read-only list for the form dropdown.
   const [cats, setCats] = useState<Category[]>([]);
+  // SPEC-backup-import — the empty-dashboard import (B-2), and a counter bumped
+  // after any restore or import so the grid remounts and re-reads its sections.
+  const [importOpen, setImportOpen] = useState(false);
+  const [catalogVersion, setCatalogVersion] = useState(0);
 
   useEffect(() => {
     systemConfig().then(setSysConfig);
@@ -199,6 +205,14 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
       );
     });
     setCustomFormOpen(false);
+  }
+
+  // SPEC-backup-import §10 — after an apply, refetch services, categories and
+  // (by remounting the grid) its sections, as after any catalog edit.
+  function onCatalogChanged() {
+    setCatalogVersion((v) => v + 1);
+    fetchCategories().then(setCats);
+    void services?.reload?.();
   }
 
   // AC-014 — one overlay at a time: opening the ⌘K launcher closes the alert panel.
@@ -306,20 +320,45 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               No apps yet. Ask a grown-up to add some.
             </p>
           ) : (
-            <AppGrid
-              // AC-002 — the grid reads its sections once, on mount. When a
-              // kid's poll adopts a changed app list, remount it so a newly
-              // allowed app's section is read too (and an emptied one drops).
-              key={isKid ? `kid-${services?.membershipVersion ?? 0}` : 'grid'}
-              isAdmin={isAdmin}
-              editMode={editMode}
-              showUptimeDisplay={showUptimeDisplay}
-              // UX K-3 — kids get large tiles, the biggest touch targets. The
-              // server creates kids with densityPref=large; this holds it even
-              // over a device cache left by another account, and a kid has no
-              // control that could write it (PATCH /api/me is themePref-only).
-              density={isKid ? 'large' : density}
-            />
+            <>
+              {/* SPEC-backup-import UX §5 / B-2 — a new install's admin gets the
+                  Homepage import one click from the empty dashboard. Users and
+                  kids see no change (AC-032); the block goes once there is an app. */}
+              {isAdmin && services?.items?.length === 0 && (
+                <div data-testid="admin-empty" className="kid-empty">
+                  <p>No apps yet.</p>
+                  <div className="mt-4 flex flex-wrap justify-center gap-3">
+                    <button type="button" className="library-add" onClick={() => setCustomFormOpen(true)}>
+                      + Add an app
+                    </button>
+                    <button type="button" className="settings-ghost-btn" onClick={() => setBrowseOpen(true)}>
+                      Browse the App Library
+                    </button>
+                  </div>
+                  <p className="settings-note mt-4">
+                    Coming from Homepage?{' '}
+                    <button type="button" className="library-manage-link" onClick={() => setImportOpen(true)}>
+                      Import your services.yaml
+                    </button>
+                  </p>
+                </div>
+              )}
+              <AppGrid
+                // AC-002 — the grid reads its sections once, on mount. When a
+                // kid's poll adopts a changed app list, remount it so a newly
+                // allowed app's section is read too (and an emptied one drops).
+                // SPEC-backup-import — and after a restore or import.
+                key={isKid ? `kid-${services?.membershipVersion ?? 0}` : `grid-${catalogVersion}`}
+                isAdmin={isAdmin}
+                editMode={editMode}
+                showUptimeDisplay={showUptimeDisplay}
+                // UX K-3 — kids get large tiles, the biggest touch targets. The
+                // server creates kids with densityPref=large; this holds it even
+                // over a device cache left by another account, and a kid has no
+                // control that could write it (PATCH /api/me is themePref-only).
+                density={isKid ? 'large' : density}
+              />
+            </>
           )}
         </section>
 
@@ -380,8 +419,14 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               onSetDensity={setDensity}
               statusDegradedMs={sysConfig.statusDegradedMs}
               onSaveSettings={onSaveSettings}
+              onCatalogChanged={onCatalogChanged}
               onClose={() => setSettingsOpen(false)}
             />
+          </Suspense>
+        )}
+        {importOpen && (
+          <Suspense fallback={null}>
+            <HomepageImportModal onClose={() => setImportOpen(false)} onApplied={onCatalogChanged} />
           </Suspense>
         )}
       </main>

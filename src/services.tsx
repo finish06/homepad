@@ -64,6 +64,10 @@ export type ServicesContextValue = {
   // served list with different members, so a consumer that caches derived data
   // (the grid's sections) knows to re-read it. Optional: 0/absent = never.
   membershipVersion?: number;
+  // SPEC-backup-import — reload the list as a fresh baseline after a restore or
+  // an import rewrote the catalog (no status-change toasts for the reload).
+  // Optional so test doubles of this context need not provide it.
+  reload?: () => Promise<void>;
 };
 
 export type RefreshOutcome = 'refreshed' | 'unreachable' | 'still-stale';
@@ -266,6 +270,7 @@ export function ServicesProvider({
         clearRecentChanges: () => setRecentChanges([]),
         refresh,
         membershipVersion,
+        reload: () => loadRef.current(true),
       }}
     >
       {children}

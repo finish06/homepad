@@ -2,6 +2,7 @@ import Modal from '../ui/Modal';
 import { useEffect, useRef, useState } from 'react';
 import TileDensityToggle from '../grid/TileDensityToggle';
 import AccountsSection from '../accounts/AccountsSection';
+import BackupSection from './backup/BackupSection';
 import type { TileDensity } from '../grid/tileDensity';
 import {
   adminEnvConfig,
@@ -56,6 +57,7 @@ export default function SettingsPanel({
   onClose,
   currentUserId,
   initialSection,
+  onCatalogChanged,
 }: {
   isAdmin: boolean;
   scope?: SettingsScope;
@@ -63,6 +65,9 @@ export default function SettingsPanel({
   // and the section to open scrolled to.
   currentUserId?: string;
   initialSection?: SettingsSection;
+  // SPEC-backup-import — a restore or an import changed the catalog, so the
+  // dashboard behind the panel should refetch.
+  onCatalogChanged?: () => void;
   showUptimeDisplay: boolean;
   statusDegradedMs: number;
   showHealthBar: boolean;
@@ -76,6 +81,9 @@ export default function SettingsPanel({
   onClose: () => void;
 }) {
   const personal = scope === 'personal';
+  // SPEC-backup-import — bumped after a restore or an import, so the App Library
+  // and Accounts sections below remount and reload what the apply changed.
+  const [catalogVersion, setCatalogVersion] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -147,13 +155,26 @@ export default function SettingsPanel({
               {/* SPEC-kid-accounts K-1 — Accounts is the first section, above
                   System: global state, so it lives under the Admin Panel's
                   "affects everyone" heading rather than in a panel of its own. */}
-              <AccountsSection currentUserId={currentUserId} scrollIntoView={initialSection === 'accounts'} />
+              <AccountsSection
+                key={`accounts-${catalogVersion}`}
+                currentUserId={currentUserId}
+                scrollIntoView={catalogVersion === 0 && initialSection === 'accounts'}
+              />
               <SystemSettings
                 showUptimeDisplay={showUptimeDisplay}
                 statusDegradedMs={statusDegradedMs}
                 onSaveSettings={onSaveSettings}
               />
-              <LibraryManager />
+              <LibraryManager key={`library-${catalogVersion}`} />
+              {/* SPEC-backup-import B-1 — last: used rarely, and it changes the
+                  whole catalog, so it sits under the "affects everyone" heading
+                  below the sections people use every week. */}
+              <BackupSection
+                onApplied={() => {
+                  setCatalogVersion((v) => v + 1);
+                  onCatalogChanged?.();
+                }}
+              />
             </>
           )}
         </div>

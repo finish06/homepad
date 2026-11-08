@@ -6,6 +6,12 @@ import { BACKUP_FILE, mockTransfer, SERVICES_YAML } from './transferMocks';
 // real browser, at the iPad portrait width the UX was checked at (§7: "the modals
 // work at 820px wide") and at desktop. The API is mocked (transferMocks.ts).
 
+// The panels open with a short scale-in animation; measure after it ends, or a
+// 44px button reads as 43.
+async function settled(page: Page) {
+  await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));
+}
+
 async function openSection(page: Page, w: number, h: number) {
   await page.setViewportSize({ width: w, height: h });
   const mock = await mockTransfer(page);
@@ -16,10 +22,12 @@ async function openSection(page: Page, w: number, h: number) {
   await expect(panel).toBeVisible();
   const section = page.getByTestId('settings-backup');
   await section.scrollIntoViewIfNeeded();
+  await settled(page);
   return { mock, panel, section };
 }
 
 async function fitsViewport(el: Locator, w: number, h: number, what: string) {
+  await settled(el.page());
   const box = (await el.boundingBox())!;
   expect(box.x, `${what} starts off-screen`).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width, `${what} runs past the right edge`).toBeLessThanOrEqual(w + 0.5);
@@ -27,6 +35,7 @@ async function fitsViewport(el: Locator, w: number, h: number, what: string) {
 }
 
 async function tall(el: Locator, what: string) {
+  await settled(el.page());
   expect((await el.boundingBox())!.height, `${what} is under 44px`).toBeGreaterThanOrEqual(44);
 }
 
@@ -70,7 +79,7 @@ for (const [label, w, h] of [
       await expect(dialog.getByTestId('plan-group-toggle').first()).toHaveText(/Delete/);
       const replace = dialog.getByRole('button', { name: 'Replace', exact: true });
       await expect(replace).toBeDisabled();
-      await tall(dialog.getByRole('button', { name: 'Back' }), 'Back');
+      await tall(dialog.getByRole('button', { name: 'Back', exact: true }), 'Back');
       await dialog.getByLabel('Type REPLACE to confirm').fill('REPLACE');
       await replace.click();
       await expect(dialog.getByText('Restored.')).toBeVisible();

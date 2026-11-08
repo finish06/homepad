@@ -112,6 +112,9 @@ configs:
         add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
 
         location /api/ {
+          # SPEC-backup-import AC-027 — a restore can be up to 16 MB; nginx's
+          # 1 MB default would refuse it before the API sees it.
+          client_max_body_size 16m;
           proxy_pass http://api:8080;
           proxy_http_version 1.1;
           proxy_set_header Host $$host;

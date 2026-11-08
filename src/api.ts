@@ -190,7 +190,7 @@ export type LibraryAppInput = {
   suggestedCategory: string;
 };
 
-const jsonHeaders = { 'Content-Type': 'application/json' };
+export const jsonHeaders = { 'Content-Type': 'application/json' };
 
 async function errorText(res: Response): Promise<string> {
   const text = (await res.text()).trim();
@@ -207,14 +207,14 @@ async function errorText(res: Response): Promise<string> {
 // rollback path silently never ran. status 0 is the same "network/throw"
 // convention servicesWithStatus already documented.
 // ---------------------------------------------------------------------------
-type RequestOpts = {
+export type RequestOpts = {
   method?: string;
   json?: unknown;
   headers?: Record<string, string>;
   body?: BodyInit;
 };
 
-async function request(
+export async function request(
   path: string,
   opts: RequestOpts = {},
 ): Promise<{ status: number; res: Response | null }> {

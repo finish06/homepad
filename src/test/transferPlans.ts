@@ -1,4 +1,4 @@
-import type { Plan, PlanItem } from '../api';
+import type { Plan, PlanItem } from '../library/backup/transferApi';
 
 // SPEC-backup-import — Plan fixtures shaped exactly like homepad-api's wire
 // contract (docs/plans/backup-import-plan.md, "API contract"). Shared by the
