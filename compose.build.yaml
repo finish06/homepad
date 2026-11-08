@@ -54,6 +54,8 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:-}
       # Status tiles read from Gatus (compose service name `gatus`, port 8080).
       GATUS_BASE_URL: ${GATUS_BASE_URL:-http://gatus:8080}
+      # Widgets: encrypts the API keys widgets use (64 hex chars). Optional.
+      HOMEPAD_SECRET_KEY: ${HOMEPAD_SECRET_KEY:-}
       # --- OIDC / SSO (OPTIONAL) — leave OIDC_ENABLED=false to run with local
       #     accounts only. Set it true and fill the rest to enable SSO. ---
       OIDC_ENABLED: ${OIDC_ENABLED:-false}

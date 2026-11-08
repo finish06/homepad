@@ -52,12 +52,16 @@ bundle.
 - 12-column group grid with span-based sizing (SPEC-app-grid §10.4)
 - Tile density (Large / Compact / List), uptime sparklines, alert history
 - Admin settings surfaced in-app, with env-provided values badged as such
+- Status widgets (SPEC-status-widgets, amended 2026-11-07): one short line of
+  numbers per tile, fetched by the server, plus a clock and weather strip and
+  web search in ⌘K
 
 ### Out of Scope
 
 - Direct browser access to Gatus or any monitoring backend
 - Per-service metrics dashboards (homepad links out; it is a launcher, not a
-  monitoring UI)
+  monitoring UI). Charts, lists, history and detail pages stay out; the one
+  line of numbers per tile above is the whole of it.
 - Multi-tenant or multi-household isolation
 
 ## 5. Architecture
@@ -171,3 +175,4 @@ it.
 | 2026-10-12 | 0.2.1 | cycle | M1 COMPLETE after cycle-1: 16.7.0 and 16.7.1 released, 16.7.1 in production, 16 issues closed. Active milestone → M2 |
 | 2026-10-12 | 0.2.2 | roadmap | M1 archived: Now → Done (milestone file kept). Now holds M2 only. Spec count corrected 39 → 40 |
 | 2026-10-13 | 0.2.3 | roadmap | M7 (growth: install funnel + launch) added to Now, ahead of M3 (Caleb's 30-day goal). Cycle-2 closed; 16.7.2 in production |
+| 2026-11-07 | 0.2.4 | Caleb Dunn | §4 amended for SPEC-status-widgets (Q1 a): one line of server-fetched numbers per tile, a clock and weather strip, and ⌘K web search are in scope; charts, lists, history and detail pages stay out |
