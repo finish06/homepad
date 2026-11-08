@@ -133,7 +133,12 @@ describe('Homepage — step 1, Add files (UX §4.1, AC-019)', () => {
 
   it('an error in a collapsed optional file opens it and shows there', async () => {
     vi.mocked(previewHomepageImport).mockRejectedValue(
-      new TransferError('yaml_syntax', 400, 'yaml: line 1: did not find expected key', { file: 'bookmarks', line: 1 }),
+      // The API's real shape: a full sentence, and the parser's words in detail.
+      new TransferError('yaml_syntax', 400, "There's a problem on line 1: did not find expected key.", {
+        file: 'bookmarks',
+        line: 1,
+        detail: 'did not find expected key',
+      }),
     );
     setup();
     fireEvent.change(servicesBox(), { target: { value: SERVICES } });
