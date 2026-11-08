@@ -26,9 +26,11 @@ async function openAccounts(page: Page, w: number, h: number, opts: Parameters<t
   return mock;
 }
 
+// Layout height (offsetHeight), so the Admin Panel's entrance scale can't
+// shave a fraction off a target that is 44px in CSS.
 async function atLeast44(el: Locator, what: string) {
-  const box = (await el.boundingBox())!;
-  expect(box.height, `${what} is under 44px tall`).toBeGreaterThanOrEqual(44);
+  const h = await el.evaluate((n) => (n as HTMLElement).offsetHeight);
+  expect(h, `${what} is under 44px tall`).toBeGreaterThanOrEqual(44);
 }
 
 async function fitsViewport(el: Locator, w: number, h: number, what: string) {

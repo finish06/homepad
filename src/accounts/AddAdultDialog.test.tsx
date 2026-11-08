@@ -219,6 +219,8 @@ describe('the link, once (UX §3.3)', () => {
     renderDialog();
     await createAs('Alex');
     const copy = await screen.findByRole('button', { name: 'Copy link' });
+    // user-event's setup() swaps in its own clipboard stub; put the spy back.
+    setSecure(true);
     vi.useFakeTimers({ shouldAdvanceTime: true });
     await act(async () => {
       fireEvent.click(copy);
@@ -235,9 +237,16 @@ describe('the link, once (UX §3.3)', () => {
   it('a failed copy falls back to selecting the field', async () => {
     vi.mocked(createInvite).mockResolvedValue({ ok: true, status: 201, invite: CREATED });
     renderDialog();
-    vi.mocked(navigator.clipboard.writeText).mockRejectedValue(new Error('denied'));
     await createAs('Alex');
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'Copy link' }));
+    const copy = await screen.findByRole('button', { name: 'Copy link' });
+    // user-event's setup() swaps in its own clipboard stub; refuse the write.
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn(() => Promise.reject(new Error('denied'))) },
+      configurable: true,
+    });
+    await act(async () => {
+      fireEvent.click(copy);
+    });
     expect(await screen.findByText('Press ⌘C to copy.')).toBeInTheDocument();
     expect(document.activeElement).toBe(screen.getByLabelText('Invite link'));
   });

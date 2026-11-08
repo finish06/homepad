@@ -36,11 +36,13 @@ describe('AC-028 — HOMEPAD_MAX_ACCOUNTS can be set from .env', () => {
 });
 
 // The step this spec removes, in every wording the docs used for it.
+// (Telling an install that is still `open` how to close it is fine, and the
+// README and kid docs do; the step was "register, THEN switch".)
 const MANUAL_SWITCH = [
   /then set `?HOMEPAD_REGISTRATION=invite_only/i,
-  /set `?HOMEPAD_REGISTRATION=invite_only`? in `?\.env/i,
   /switch to invite_only/i,
   /\*\*Set `HOMEPAD_REGISTRATION=invite_only`\*\*/,
+  /once your own admin account exists/i,
 ];
 
 describe('AC-007 — no "switch to invite_only afterwards" step', () => {
