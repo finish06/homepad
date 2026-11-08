@@ -2,6 +2,7 @@
 #
 #   curl -fsSLO https://raw.githubusercontent.com/finish06/homepad/main/compose.yaml
 #   echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" > .env
+#   echo "HOMEPAD_SECRET_KEY=$(openssl rand -hex 32)" >> .env
 #   docker compose up -d
 #
 # Then open http://localhost:8080 and set up Homepad: the first account is the
@@ -58,6 +59,9 @@ services:
       HOMEPAD_MAX_ACCOUNTS: ${HOMEPAD_MAX_ACCOUNTS:-}
       GATUS_BASE_URL: ${GATUS_BASE_URL:-}
       GATUS_DEGRADED_MS: ${GATUS_DEGRADED_MS:-1000}
+      # Widgets: encrypts the API keys widgets use (64 hex chars). Optional;
+      # without it the clock and weather still work. See docs/widgets.md.
+      HOMEPAD_SECRET_KEY: ${HOMEPAD_SECRET_KEY:-}
       # Single sign-on (optional): PocketID, Authelia, Authentik, Keycloak or any
       # OIDC provider. Leave OIDC_ENABLED=false for local accounts only.
       OIDC_ENABLED: ${OIDC_ENABLED:-false}
