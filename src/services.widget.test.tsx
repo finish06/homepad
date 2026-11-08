@@ -56,6 +56,21 @@ describe('mergeStatuses carries widget (AC-011)', () => {
     expect(next).toBe(cur);
   });
 
+  // The server moves asOf on every successful fetch. An ok line never shows it,
+  // so a fresh fetch with the same numbers must not re-render the tile.
+  it('an ok widget whose asOf moved but whose numbers did not is unchanged', () => {
+    const cur = [svc('a', widget(3))];
+    const { next } = mergeStatuses(cur, [svc('a', widget(3, { asOf: '2026-11-07T14:03:11Z' }))]);
+    expect(next).toBe(cur);
+  });
+
+  it('a stale widget whose asOf moved is a change (its description shows the age)', () => {
+    const cur = [svc('a', widget(3, { state: 'stale' }))];
+    const { next } = mergeStatuses(cur, [svc('a', widget(3, { state: 'stale', asOf: '2026-11-07T14:03:11Z' }))]);
+    expect(next).not.toBe(cur);
+    expect(next[0].widget?.asOf).toBe('2026-11-07T14:03:11Z');
+  });
+
   it('a state change (ok → stale) is a change', () => {
     const cur = [svc('a', widget(3))];
     const { next } = mergeStatuses(cur, [svc('a', widget(3, { state: 'stale' }))]);
