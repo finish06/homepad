@@ -58,6 +58,7 @@ export function codeCopy(code: string, vars: Record<string, string | number | un
 export type CodedError = {
   code: string;
   message?: string;
+  detail?: string;
   line?: number;
   count?: number;
   limit?: number;
@@ -65,11 +66,12 @@ export type CodedError = {
 };
 
 // errorCopy — the words for a failed preview or apply. A YAML syntax error names
-// the line and the parser's own detail (minus its "yaml: line N:" prefix); a
-// shape error adds the line in brackets, as spec §4.5 shows it.
+// the line and the parser's own detail (the API's `detail`; failing that, the
+// message minus a "yaml: line N:" prefix); a shape error adds the line in
+// brackets, as spec §4.5 shows it.
 export function errorCopy(err: CodedError): string {
   if (err.code === 'yaml_syntax') {
-    const detail = (err.message ?? '')
+    const detail = (err.detail ?? err.message ?? '')
       .replace(/^yaml:\s*/i, '')
       .replace(/^line \d+:\s*/i, '')
       .replace(/\.$/, '');

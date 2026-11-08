@@ -55,6 +55,7 @@ export type HomepageTexts = { services: string; bookmarks?: string; settings?: s
 type TransferErrorExtra = {
   file?: HomepageFile;
   line?: number;
+  detail?: string;
   count?: number;
   limit?: number;
   things?: string;
@@ -70,6 +71,7 @@ export class TransferError extends Error {
   status: number;
   file?: HomepageFile;
   line?: number;
+  detail?: string;
   count?: number;
   limit?: number;
   things?: string;
@@ -94,10 +96,11 @@ async function transferFailure(status: number, res: Response | null): Promise<Tr
   try {
     const body = JSON.parse(text) as { code?: unknown; message?: unknown } & TransferErrorExtra;
     if (body && typeof body.code === 'string') {
-      const { file, line, count, limit, things, plan } = body;
+      const { file, line, detail, count, limit, things, plan } = body;
       return new TransferError(body.code, status, typeof body.message === 'string' ? body.message : body.code, {
         file,
         line,
+        detail: typeof detail === 'string' ? detail : undefined,
         count,
         limit,
         things,
