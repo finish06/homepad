@@ -1,0 +1,7 @@
+{
+  "code": "yaml_syntax",
+  "message": "There's a problem on line 3: did not find expected ',' or ']'.",
+  "file": "services",
+  "line": 3,
+  "detail": "did not find expected ',' or ']'"
+}
