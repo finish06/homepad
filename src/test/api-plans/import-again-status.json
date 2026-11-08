@@ -1,0 +1,79 @@
+{
+  "planHash": "f00a91ceb074a2bb8a7911680f669fc98c96693c5327a8e7b4cc614b6c9bf839",
+  "mode": "import",
+  "summary": {
+    "create": {
+      "sections": 0,
+      "apps": 0,
+      "icons": 0,
+      "offers": 0,
+      "kids": 0
+    },
+    "update": {
+      "sections": 0,
+      "apps": 2,
+      "icons": 0,
+      "offers": 0,
+      "people": 0,
+      "settings": 0
+    },
+    "delete": {
+      "sections": 0,
+      "apps": 0,
+      "offers": 0
+    },
+    "unchanged": 2,
+    "skipped": 0
+  },
+  "items": [
+    {
+      "kind": "app",
+      "name": "Sonarr",
+      "action": "update",
+      "section": "Media",
+      "fields": [
+        "gatusKey"
+      ],
+      "reason": "already_here",
+      "warnings": [
+        "status_on"
+      ]
+    },
+    {
+      "kind": "app",
+      "name": "Plex",
+      "action": "unchanged",
+      "section": "Media",
+      "reason": "already_here"
+    },
+    {
+      "kind": "app",
+      "name": "Router",
+      "action": "update",
+      "section": "Infra",
+      "fields": [
+        "gatusKey"
+      ],
+      "reason": "already_here",
+      "warnings": [
+        "status_on"
+      ]
+    },
+    {
+      "kind": "app",
+      "name": "Proxmox",
+      "action": "unchanged",
+      "section": "Infra / Core",
+      "reason": "already_here"
+    }
+  ],
+  "warnings": [],
+  "ignored": {
+    "fields": 0,
+    "settings": [],
+    "dropped": [
+      "widgets"
+    ]
+  },
+  "otherAccounts": 1
+}

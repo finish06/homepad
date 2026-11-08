@@ -1,0 +1,154 @@
+{
+  "planHash": "25f7ad6781718e88f9d353782c2f5926d6a45f51aa9251e409e7733d3bc5ee04",
+  "mode": "replace",
+  "summary": {
+    "create": {
+      "sections": 3,
+      "apps": 5,
+      "icons": 3,
+      "offers": 2,
+      "kids": 1
+    },
+    "update": {
+      "sections": 0,
+      "apps": 0,
+      "icons": 0,
+      "offers": 0,
+      "people": 1,
+      "settings": 1
+    },
+    "delete": {
+      "sections": 1,
+      "apps": 1,
+      "offers": 0
+    },
+    "unchanged": 0,
+    "skipped": 1
+  },
+  "items": [
+    {
+      "kind": "section",
+      "name": "Infra",
+      "action": "delete"
+    },
+    {
+      "kind": "app",
+      "name": "Old thing",
+      "action": "delete",
+      "section": "Infra"
+    },
+    {
+      "kind": "section",
+      "name": "Media",
+      "action": "create"
+    },
+    {
+      "kind": "section",
+      "name": "Network",
+      "action": "create"
+    },
+    {
+      "kind": "section",
+      "name": "Tools",
+      "action": "create"
+    },
+    {
+      "kind": "app",
+      "name": "Grafana",
+      "action": "create",
+      "section": "Tools"
+    },
+    {
+      "kind": "app",
+      "name": "Jellyfin",
+      "action": "create",
+      "section": "Media"
+    },
+    {
+      "kind": "icon",
+      "name": "Jellyfin",
+      "action": "create",
+      "variant": "light"
+    },
+    {
+      "kind": "icon",
+      "name": "Jellyfin",
+      "action": "create",
+      "variant": "dark"
+    },
+    {
+      "kind": "app",
+      "name": "Router",
+      "action": "create"
+    },
+    {
+      "kind": "app",
+      "name": "Sonarr",
+      "action": "create",
+      "section": "Media"
+    },
+    {
+      "kind": "icon",
+      "name": "Sonarr",
+      "action": "create",
+      "variant": "dark"
+    },
+    {
+      "kind": "app",
+      "name": "UniFi",
+      "action": "create",
+      "section": "Network"
+    },
+    {
+      "kind": "offer",
+      "name": "Immich",
+      "action": "create"
+    },
+    {
+      "kind": "offer",
+      "name": "Grafana",
+      "action": "create"
+    },
+    {
+      "kind": "settings",
+      "name": "System settings",
+      "action": "update",
+      "fields": [
+        "statusDegradedMs"
+      ]
+    },
+    {
+      "kind": "adult",
+      "name": "alex@example.com",
+      "action": "update",
+      "fields": [
+        "displayName",
+        "prefs",
+        "favorites",
+        "order",
+        "collapsedSections"
+      ]
+    },
+    {
+      "kind": "adult",
+      "name": "sam@example.com",
+      "action": "skip",
+      "reason": "adult_no_account"
+    },
+    {
+      "kind": "kid",
+      "name": "Maya",
+      "action": "create",
+      "warnings": [
+        "kid_needs_device"
+      ]
+    }
+  ],
+  "warnings": [],
+  "ignored": {
+    "fields": 0,
+    "settings": [],
+    "dropped": []
+  },
+  "otherAccounts": 1
+}
