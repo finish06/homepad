@@ -20,7 +20,14 @@ test('TC-001 — fresh install: Set up Homepad, then a sign-in with no "Create a
   expect(mock.registers).toEqual([{ email: 'caleb@ohana.test', password: 'longenough' }]);
 
   await page.getByTestId('user-menu-trigger').click();
-  await page.getByTestId('menu-logout').click();
+  // Sign out from the keyboard. On the CI runner's iPhone 13 (WebKit) project
+  // a pointer click on the menu's last item never passes Playwright's
+  // "stable" check (the same timeout kid-accounts TC-001 hits there); focus
+  // and Enter is a real user path that doesn't depend on it.
+  const signOut = page.getByTestId('menu-logout');
+  await expect(signOut).toBeVisible();
+  await signOut.focus();
+  await page.keyboard.press('Enter');
   await expect(page.getByText('Sign in to your dashboard')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
   await expect(page.getByRole('button', { name: /create account/i })).toHaveCount(0);
