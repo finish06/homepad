@@ -129,7 +129,7 @@ New package `internal/transfer`.
 
 | Task | Description | Effort | Depends on |
 |---|---|---|---|
-| TASK-301 | `src/api.ts`: `exportUrl(people)`, `previewRestore(file, mode)`, `applyRestore(file, mode, planHash)`, `previewHomepageImport(texts)`, `applyHomepageImport(texts, planHash)`, the `Plan` types, and a typed `TransferError` carrying `code`, `line`, `plan`. | 1h | contract above |
+| TASK-301 | `src/library/backup/transferApi.ts` (spec §10 says `src/api.ts`; see Plan history): `exportUrl(people)`, `downloadBackup(people)`, `previewRestore(file, mode)`, `applyRestore(file, mode, planHash)`, `previewHomepageImport(texts)`, `applyHomepageImport(texts, planHash)`, the `Plan` types, and a typed `TransferError` carrying `code`, `line`, `plan`. | 1h | contract above |
 | TASK-302 | `src/library/importCopy.ts`: one map from every code to its words (UX §6), with `{n}`/`{line}`/`{icon}` filling. | 0.5h | 301 |
 | TASK-303 | `BackupSection` (UX §2), last in the Admin Panel, admin only: Include people box and its two hints, Download backup with "Preparing…" and the inline error. | 1.5h | 301 |
 | TASK-304 | `RestoreModal` (UX §3): Choose (file input + drop, `exportedAt` read in the browser, the not-JSON check), mode radios, Preview → plan groups with marks and words, collapsed Unchanged, "Show all" past 20 rows, Nothing to change, the Replace group and typed `REPLACE`, Done, 409 banner with the new plan, failure state. | 4h | 302 |
@@ -187,3 +187,4 @@ Phase 1 (TASK-101) in `homepad-api` on `feat/backup-import`, and Phase 3 (TASK-3
 ## Plan history
 
 - 2026-11-07: Initial plan, from the approved spec and UX.
+- 2026-11-07: TASK-301's calls live in `src/library/backup/transferApi.ts`, beside the components that use them, and go through `api.ts`'s `request()`. In `src/api.ts` they would ship in the entry chunk for every visitor; measured, the move keeps the entry JS at +440 B gzip for the whole feature. Download backup fetches the file as a Blob (`downloadBackup`) so the button can say "Preparing…" and show an error (UX §2), which a bare `<a download>` can't.
