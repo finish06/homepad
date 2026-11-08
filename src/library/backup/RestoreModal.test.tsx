@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import RestoreModal from './RestoreModal';
-import { applyRestore, downloadBackup, previewRestore, TransferError, type Plan } from '../../api';
+import { applyRestore, downloadBackup, previewRestore, TransferError, type Plan } from './transferApi';
 import { asResult, emptyPlan, mergePlan, replacePlan } from '../../test/transferPlans';
 
 expect.extend(toHaveNoViolations);
@@ -10,8 +10,8 @@ expect.extend(toHaveNoViolations);
 // SPEC-backup-import UX §3 (TASK-304) — Restore from backup: Choose → Preview →
 // Done, the Replace confirm, the stale-preview 409 and the failure state.
 
-vi.mock('../../api', async (orig) => {
-  const real = await orig<typeof import('../../api')>();
+vi.mock('./transferApi', async (orig) => {
+  const real = await orig<typeof import('./transferApi')>();
   return { ...real, previewRestore: vi.fn(), applyRestore: vi.fn(), downloadBackup: vi.fn() };
 });
 

@@ -1,0 +1,404 @@
+/* SPEC-backup-import — the Backup and import section and its two flows.
+   Imported only by the lazy Backup and import code (BackupSection inside the
+   SettingsPanel chunk, and the two modal chunks), so none of this ships in the
+   entry stylesheet (bundle-budget.test.ts). Own bi-* class names: a new Tailwind
+   utility in these components would land in the entry CSS instead. Panels reuse
+   kid-editor-panel / add-offer-overlay from index.css for the card and scrim. */
+
+/* --- The Admin Panel section (UX §2) ----------------------------------- */
+.bi-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(15, 23, 42, 0.07);
+}
+.bi-section .settings-section-title + .bi-row {
+  margin-top: 8px;
+}
+.bi-row-text {
+  flex: 1;
+  min-width: 0;
+}
+.bi-row-title {
+  font-size: 14px;
+  font-weight: 650;
+  color: #0f172a;
+}
+.bi-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+}
+.bi-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: #4f46e5;
+}
+.bi-btn {
+  flex: none;
+  min-height: 44px;
+  min-width: 44px;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* --- Modal shell -------------------------------------------------------- */
+.bi-panel {
+  width: min(680px, calc(100vw - 32px));
+}
+.bi-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  outline: none;
+}
+.bi-step {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+.bi-body {
+  overflow-y: auto;
+  padding: 4px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  flex: 1;
+}
+.bi-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(15, 23, 42, 0.07);
+}
+.bi-foot-error {
+  flex-basis: 100%;
+  margin: 0 0 4px;
+}
+.bi-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(15, 23, 42, 0.07);
+}
+.bi-strip-text {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* --- Inputs ------------------------------------------------------------- */
+.bi-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.bi-drop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  border: 1.5px dashed rgba(15, 23, 42, 0.2);
+  border-radius: 10px;
+  font-size: 13px;
+  color: #475069;
+}
+.bi-file-input {
+  min-height: 44px;
+  font-size: 13px;
+  max-width: 100%;
+}
+.bi-meta {
+  margin-top: 0;
+}
+.bi-modes legend {
+  margin-bottom: 6px;
+}
+.bi-radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 0;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+}
+.bi-radio input {
+  margin-top: 2px;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  accent-color: #4f46e5;
+}
+.bi-file {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bi-yaml {
+  flex: none;
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+  white-space: pre;
+}
+.bi-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bi-note {
+  margin-top: 0;
+  color: #64748b;
+}
+
+/* --- Preview ------------------------------------------------------------ */
+.bi-summary {
+  font-size: 14px;
+  font-weight: 650;
+  color: #0f172a;
+}
+.bi-plan-warning {
+  margin-top: -8px;
+}
+.bi-banner {
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.35);
+}
+.bi-nothing {
+  font-size: 14px;
+  color: #334155;
+}
+.bi-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bi-group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 650;
+  color: #0f172a;
+}
+.bi-group-toggle::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 0.12s ease;
+}
+.bi-group-toggle[aria-expanded='true']::before {
+  transform: rotate(90deg);
+}
+.bi-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 14px;
+}
+.bi-plan-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-height: 32px;
+  font-size: 13px;
+  color: #334155;
+}
+.bi-mark {
+  width: 14px;
+  flex: none;
+  text-align: center;
+  font-weight: 700;
+}
+.bi-plan-row--create .bi-mark {
+  color: #047857;
+}
+.bi-plan-row--update .bi-mark {
+  color: #4338ca;
+}
+.bi-plan-row--delete .bi-mark,
+.bi-plan-row--skip .bi-mark {
+  color: #be123c;
+}
+.bi-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: contain;
+  flex: none;
+}
+.bi-row-name {
+  font-weight: 600;
+  color: #0f172a;
+}
+.bi-row-section {
+  color: #64748b;
+}
+.bi-row-note {
+  flex: 1 1 200px;
+  min-width: 0;
+  color: #64748b;
+}
+.bi-show-all {
+  align-self: flex-start;
+  min-height: 44px;
+  margin-left: 14px;
+}
+.bi-replace {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(225, 29, 72, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(225, 29, 72, 0.25);
+}
+.bi-replace-warn {
+  font-size: 13px;
+  color: #9f1239;
+}
+.bi-confirm-input {
+  flex: none;
+  min-height: 44px;
+  width: min(240px, 100%);
+}
+
+/* --- Status checks (UX §4.2) -------------------------------------------- */
+.bi-status {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+.bi-status-text {
+  font-size: 13px;
+  color: #334155;
+}
+.bi-snippet {
+  max-height: 220px;
+  overflow: auto;
+}
+.bi-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+.bi-copied {
+  font-size: 13px;
+  color: #047857;
+}
+
+/* --- Done --------------------------------------------------------------- */
+.bi-done {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: #334155;
+}
+.bi-done-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.bi-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+/* --- Dark --------------------------------------------------------------- */
+.dark .bi-row,
+.dark .bi-foot,
+.dark .bi-strip {
+  border-color: rgba(255, 255, 255, 0.07);
+}
+.dark .bi-row-title,
+.dark .bi-strip-text,
+.dark .bi-summary,
+.dark .bi-group-toggle,
+.dark .bi-row-name,
+.dark .bi-done-title {
+  color: #e6e9f2;
+}
+.dark .bi-check,
+.dark .bi-radio,
+.dark .bi-plan-row,
+.dark .bi-nothing,
+.dark .bi-status-text,
+.dark .bi-done,
+.dark .bi-drop {
+  color: #c7ccda;
+}
+.dark .bi-step,
+.dark .bi-row-section,
+.dark .bi-row-note,
+.dark .bi-note {
+  color: #aab2c5;
+}
+.dark .bi-drop,
+.dark .bi-status {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.dark .bi-banner {
+  color: #fcd34d;
+}
+.dark .bi-replace-warn {
+  color: #fda4af;
+}
+.dark .bi-plan-row--create .bi-mark,
+.dark .bi-copied {
+  color: #6ee7b7;
+}
+.dark .bi-plan-row--update .bi-mark {
+  color: #a5b4fc;
+}
+.dark .bi-plan-row--delete .bi-mark,
+.dark .bi-plan-row--skip .bi-mark {
+  color: #fda4af;
+}
+
+@media (max-width: 520px) {
+  .bi-row {
+    flex-direction: column;
+  }
+}

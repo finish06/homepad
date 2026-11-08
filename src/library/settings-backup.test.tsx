@@ -16,6 +16,7 @@ vi.mock('./backup/RestoreModal', () => ({
     </div>
   ),
 }));
+vi.mock('./backup/transferApi', () => ({ downloadBackup: vi.fn() }));
 vi.mock('../api', () => ({
   listLibrary: vi.fn(),
   createLibraryApp: vi.fn(),
@@ -24,7 +25,6 @@ vi.mock('../api', () => ({
   setLibraryOrder: vi.fn(),
   adminEnvConfig: vi.fn(),
   listAccounts: vi.fn(),
-  downloadBackup: vi.fn(),
 }));
 
 beforeEach(() => {

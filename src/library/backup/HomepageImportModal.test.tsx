@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import HomepageImportModal from './HomepageImportModal';
-import { applyHomepageImport, previewHomepageImport, TransferError, type Plan } from '../../api';
+import { applyHomepageImport, previewHomepageImport, TransferError, type Plan } from './transferApi';
 import { asResult, emptyPlan, importPlan, statusOnlyPlan } from '../../test/transferPlans';
 
 expect.extend(toHaveNoViolations);
@@ -11,8 +11,8 @@ expect.extend(toHaveNoViolations);
 // Preview → Done. AC-019 (paste or upload, three files), AC-028 (parse errors
 // next to the input, with the line), AC-023 (the Gatus snippet).
 
-vi.mock('../../api', async (orig) => {
-  const real = await orig<typeof import('../../api')>();
+vi.mock('./transferApi', async (orig) => {
+  const real = await orig<typeof import('./transferApi')>();
   return { ...real, previewHomepageImport: vi.fn(), applyHomepageImport: vi.fn() };
 });
 

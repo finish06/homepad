@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import BackupSection from './BackupSection';
-import { downloadBackup, previewHomepageImport, previewRestore, TransferError } from '../../api';
+import { downloadBackup, previewHomepageImport, previewRestore, TransferError } from './transferApi';
 
 expect.extend(toHaveNoViolations);
 
 // SPEC-backup-import UX §2 (TASK-303) — the Backup and import section.
 
-vi.mock('../../api', async (orig) => {
-  const real = await orig<typeof import('../../api')>();
+vi.mock('./transferApi', async (orig) => {
+  const real = await orig<typeof import('./transferApi')>();
   return {
     ...real,
     downloadBackup: vi.fn(),

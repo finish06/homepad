@@ -7,8 +7,8 @@ import {
   previewHomepageImport,
   previewRestore,
   TransferError,
-} from './api';
-import { importPlan, mergePlan } from './test/transferPlans';
+} from './transferApi';
+import { importPlan, mergePlan } from '../../test/transferPlans';
 
 // SPEC-backup-import §8 (TASK-301) — the transfer client. The contract is the
 // one fixed in docs/plans/backup-import-plan.md: five admin-only routes, a JSON
