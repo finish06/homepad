@@ -95,7 +95,7 @@ import { describe, expect, it } from 'vitest';
 //
 // SPEC-status-widgets Phase 1 (2026-11-07), measured before (gitea/main 9c7ce48,
 // 17.0.0) and after on the feature branch, same method:
-//   entry JS   100,958 → 102,826 B gzip (+1,868): the tile widget line and its
+//   entry JS   100,958 → 102,830 B gzip (+1,872): the tile widget line and its
 //              formatting, the live-poll merge, the ⌘K web row, the
 //              /api/widgets/info read and the Show widgets preference
 //   entry CSS   19,430 →  19,690 B gzip (+260): the Large widget line (shares
@@ -103,7 +103,7 @@ import { describe, expect, it } from 'vitest';
 //   lazy, new  GlanceStrip 1,467 · widget-admin.css 696 · widget-admin.js 545
 //              (the admin widget code shared by the two editors)
 //   lazy, grew TileEditModal 3,854 → 7,470 · SettingsPanel 9,920 → 11,907
-// Budgets unchanged: 2,174 B JS and 810 B CSS of headroom remain. The strip's
+// Budgets unchanged: 2,170 B JS and 810 B CSS of headroom remain. The strip's
 // JS and every admin-only widget module are lazy on purpose (AC-033), and the
 // admin styles are asserted out of the entry below (AC-032).
 const ENTRY_JS_GZIP_BUDGET = 105_000;
