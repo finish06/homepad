@@ -61,6 +61,17 @@ describe('errorCopy (AC-016, AC-026, AC-028)', () => {
     );
   });
 
+  it("yaml_syntax uses the API's detail, so its sentence isn't repeated", () => {
+    expect(
+      errorCopy({
+        code: 'yaml_syntax',
+        line: 2,
+        message: "There's a problem on line 2: mapping values are not allowed in this context.",
+        detail: 'mapping values are not allowed in this context',
+      }),
+    ).toBe("There's a problem on line 2: mapping values are not allowed in this context.");
+  });
+
   it('a shape error adds the line in brackets (spec §4.5)', () => {
     expect(errorCopy({ code: 'not_homepage_services', line: 1 })).toBe(
       "This doesn't look like a Homepage services.yaml. It should be a list of groups. (line 1)",
