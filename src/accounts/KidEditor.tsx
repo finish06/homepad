@@ -21,6 +21,7 @@ import { useResolvedTheme } from '../theme/theme';
 import { ACCENTS, type AccentId } from '../theme/accent';
 import { avatarColorId } from '../lib/avatarColor';
 import Modal from '../ui/Modal';
+import { accountLimitMessage, isAccountLimit } from '../lib/accountLimit';
 import { trapTab } from '../ui/trapTab';
 import { describeDevice, formatAgo, formatDay, possessive } from './device';
 import SignInHereConfirm from './SignInHereConfirm';
@@ -242,7 +243,10 @@ export default function KidEditor({
   // A name write failed: a 409 or 400 is about the name, so it shows under the
   // field (UX §3); anything else is a general error.
   function nameFailure(r: Result) {
-    if (r.status === 409) setNameError('Another kid already has this name.');
+    // SPEC-household-basics AC-031 — at HOMEPAD_MAX_ACCOUNTS the 409 is about
+    // the whole Homepad, not the name, so it shows with the form errors.
+    if (isAccountLimit(r)) setFormError(accountLimitMessage(r.error));
+    else if (r.status === 409) setNameError('Another kid already has this name.');
     else if (r.status === 400) setNameError('Use 1–40 characters, with no special control characters.');
     else setFormError("Couldn't save. Try again.");
   }

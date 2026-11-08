@@ -260,9 +260,13 @@ test.describe('v19 login @768 — touch targets & contrast', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(INIT);
     // 401 on /api/me → App renders AuthForm; oidcEnabled:true so the "or" divider
-    // (AC-004) is present to measure.
+    // (AC-004) is present to measure. registration:'open' so the "Create account"
+    // mode toggle (AC-003) exists: since SPEC-household-basics it shows only on
+    // installs that keep sign-up open.
     await page.route('**/api/me', (route) => route.fulfill({ status: 401, body: '' }));
-    await page.route('**/api/auth/config', (route) => route.fulfill({ json: { oidcEnabled: true } }));
+    await page.route('**/api/auth/config', (route) =>
+      route.fulfill({ json: { oidcEnabled: true, registration: 'open', setupNeeded: false } }),
+    );
     await page.goto('/');
     await expect(page.locator('button[type="submit"]')).toBeVisible();
     // AC-004 measures the OIDC "or" divider (div.my-4). oidcEnabled starts false

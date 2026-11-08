@@ -1,11 +1,8 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
-  authConfig,
   categories as fetchCategories,
-  login,
   logout,
   me,
-  register,
   saveSystemSettings,
   systemConfig,
   type Category,
@@ -22,7 +19,8 @@ import type { SettingsScope, SettingsSection } from '../library/SettingsPanel';
 import StatusBar from './StatusBar';
 import CommandLauncher from '../launcher/CommandLauncher';
 import { LauncherProvider, useLauncher } from '../launcher/launcher';
-import { ServicesProvider, useServicesContext } from '../services';
+import { KID_POLL_MS, ServicesProvider, useServicesContext } from '../services';
+import AuthForm from './AuthForm';
 import { AlertHistoryProvider, useAlertHistory } from '../alerts/alerts';
 import AlertHistoryPanel from '../alerts/AlertHistoryPanel';
 import ToastContainer from '../alerts/Toasts';
@@ -39,10 +37,38 @@ import { CONTENT_WIDTH } from '../lib/layout';
 const LibraryBrowse = lazy(() => import('../library/LibraryBrowse'));
 const ServiceForm = lazy(() => import('../library/ServiceForm'));
 const SettingsPanel = lazy(() => import('../library/SettingsPanel'));
+// SPEC-household-basics — the Join screen only ever mounts from an invite link,
+// so it stays out of the entry chunk too.
+const JoinScreen = lazy(() => import('./JoinScreen'));
+
+// readInviteToken returns the token from an `/#invite=<token>` link, or null.
+// It only reads: App removes the fragment once, after mount (AC-020). The
+// token lives in the fragment because browsers never send a fragment to the
+// server, so it stays out of access logs and Referer headers (spec §3.2).
+function readInviteToken(): string | null {
+  const m = /^#invite=([^&]+)$/.exec(window.location.hash);
+  if (!m) return null;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return null;
+  }
+}
 
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [inviteToken, setInviteToken] = useState<string | null>(readInviteToken);
+
+  // Take the token out of the address bar as soon as it has been read, keeping
+  // the path and query. Nothing else in the app uses the fragment.
+  useEffect(() => {
+    if (inviteToken !== null) {
+      window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+    }
+    // Once, on mount: the token was read by the state initializer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     me().then((u) => {
@@ -73,6 +99,19 @@ export default function App() {
             Loading your dashboard…
           </span>
         </main>
+      ) : inviteToken !== null ? (
+        <Suspense fallback={null}>
+          <JoinScreen
+            token={inviteToken}
+            user={user}
+            onJoined={(u) => {
+              setInviteToken(null);
+              setUser(u);
+            }}
+            onLeave={() => setInviteToken(null)}
+            onSignedOut={() => setUser(null)}
+          />
+        </Suspense>
       ) : user ? (
         // v8/v17 — the home providers wrap Home so its body can read launcher,
         // services, and alert-history context directly. Order matters:
@@ -88,6 +127,9 @@ export default function App() {
               // AC-002 / TC-003 — an admin's change to a kid's apps shows on the
               // kid's next poll, with no reload.
               syncMembership={user.role === 'kid'}
+              // SPEC-household-basics AC-033 (#548) — a kid's allow-list change
+              // shows within 30s; adults keep the 60s default.
+              pollMs={user.role === 'kid' ? KID_POLL_MS : undefined}
             >
               <Home user={user} onLogout={() => setUser(null)} />
             </ServicesProvider>
@@ -407,166 +449,5 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
       </footer>
       <ChangelogOverlay open={changelogOpen} onClose={() => setChangelogOpen(false)} />
     </>
-  );
-}
-
-// v27 login-glass — if a PocketID/OIDC redirect stalls (e.g. a PocketBase
-// restart), the browser keeps our page on screen while the request hangs, so a
-// bare spinner would spin forever. Reset the button after this window with a
-// retry hint instead. 30s comfortably outlasts a healthy 302 round-trip.
-const OIDC_TIMEOUT_MS = 30000;
-
-function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [oidcBusy, setOidcBusy] = useState(false);
-  const [oidcEnabled, setOidcEnabled] = useState(false);
-  const oidcTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    authConfig().then((c) => setOidcEnabled(c.oidcEnabled));
-    // Clear a pending OIDC-timeout timer if the card unmounts mid-redirect.
-    return () => {
-      if (oidcTimer.current) clearTimeout(oidcTimer.current);
-    };
-  }, []);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    setBusy(true);
-    try {
-      if (mode === 'register') {
-        const r = await register(email, password);
-        if (!r.ok) {
-          setError(r.error ?? 'registration failed');
-          return;
-        }
-      }
-      const r = await login(email, password);
-      if (r.ok && r.user) {
-        onAuthed(r.user);
-      } else {
-        setError(r.error ?? 'login failed');
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function handlePocketId() {
-    setError('');
-    setOidcBusy(true);
-    oidcTimer.current = setTimeout(() => {
-      setOidcBusy(false);
-      setError('PocketID timed out — try again or use email/password');
-    }, OIDC_TIMEOUT_MS);
-    // Full-page navigation to the OIDC start endpoint. On success the page is
-    // replaced (the timer never fires); on a stalled redirect the timer resets us.
-    window.location.assign('/api/auth/oidc/login');
-  }
-
-  return (
-    <main className="app-surface auth-main font-sans">
-      <form onSubmit={handleSubmit} className="auth-card">
-        <div className="auth-logo mb-4 inline-flex">
-          <img src="/icon-192.png" alt="homepad" className="h-11 w-11 rounded-xl" />
-        </div>
-        <h1 className="auth-title text-xl font-semibold">homepad</h1>
-        <p className="auth-subtitle mt-1 text-sm">
-          {mode === 'login' ? 'Sign in to your dashboard' : 'Create your account'}
-        </p>
-
-        <label className="auth-label mt-5 block text-[13px] font-medium">
-          Email
-          <input
-            type="email"
-            required
-            autoComplete="email"
-            placeholder="you@home.lan"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="auth-field mt-1.5 min-h-[44px] w-full"
-          />
-        </label>
-
-        <label className="auth-label mt-4 block text-[13px] font-medium">
-          Password
-          <input
-            type="password"
-            required
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="auth-field mt-1.5 min-h-[44px] w-full"
-          />
-        </label>
-
-        {error && <p className="auth-error mt-3 text-sm">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={busy}
-          className="auth-cta mt-5 flex min-h-[44px] w-full items-center justify-center gap-2 py-2 text-sm font-semibold"
-        >
-          {busy ? (
-            <>
-              <span className="auth-spin" aria-hidden="true" />
-              Signing in…
-            </>
-          ) : mode === 'login' ? (
-            'Sign in'
-          ) : (
-            'Create account'
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setMode(mode === 'login' ? 'register' : 'login');
-            setError('');
-          }}
-          className="auth-secondary mt-3 flex min-h-[44px] w-full items-center justify-center text-center text-sm"
-        >
-          {mode === 'login' ? 'Create account' : 'Have an account? Sign in'}
-        </button>
-
-        {oidcEnabled && (
-          <>
-            <div className="auth-divider my-4 flex items-center gap-3 text-xs">
-              <span className="auth-divider-rule h-px flex-1" />
-              or
-              <span className="auth-divider-rule h-px flex-1" />
-            </div>
-            <button
-              type="button"
-              onClick={handlePocketId}
-              disabled={oidcBusy}
-              className="auth-oidc flex min-h-[44px] w-full items-center justify-center gap-2 py-2 text-sm font-medium"
-            >
-              {oidcBusy ? (
-                <>
-                  <span className="auth-spin" aria-hidden="true" />
-                  Signing in…
-                </>
-              ) : (
-                'Log in with PocketID'
-              )}
-            </button>
-          </>
-        )}
-      </form>
-
-      {/* #9 — faint version footer so an operator can see which build they're
-          hitting before authenticating. */}
-      <p className="auth-footer" data-testid="auth-footer">
-        homepad v{__APP_VERSION__}
-      </p>
-    </main>
   );
 }

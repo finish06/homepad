@@ -1,0 +1,111 @@
+/* SPEC-household-basics UX §3 — Add an adult, Pending invites and the open
+   sign-up warning. Imported by AccountsSection, so it ships in the lazy admin
+   chunk, not the entry stylesheet (tests/infra/bundle-budget.test.ts). The
+   panels and buttons reuse the kid editor's classes; only what's new is here. */
+
+.accounts-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.accounts-actions .library-add,
+.invites-revoke,
+.add-adult-actions .kid-btn {
+  min-height: 44px;
+}
+
+/* The amber "affects everyone" tone (.menu-scope-tag--global). */
+.accounts-warning {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(180, 83, 9, 0.25);
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.accounts-warning a {
+  font-weight: 600;
+  color: inherit;
+  text-decoration: underline;
+}
+.add-adult-warn {
+  margin: 2px 0 0 28px;
+  font-size: 13px;
+  color: #b45309;
+}
+.dark .accounts-warning {
+  border-color: rgba(251, 191, 36, 0.3);
+  background: rgba(251, 191, 36, 0.1);
+  color: #fcd34d;
+}
+.dark .add-adult-warn {
+  color: #fbbf24;
+}
+
+.invites {
+  margin-top: 18px;
+}
+.invites-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #475069;
+}
+.dark .invites-title {
+  color: #aab2c5;
+}
+
+.add-adult-panel {
+  width: min(520px, calc(100vw - 32px));
+}
+.add-adult-body {
+  overflow-y: auto;
+  padding: 4px 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 14px;
+}
+.add-adult-body .kid-editor-foot {
+  margin: 0 -16px;
+}
+.add-adult-roles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.add-adult-role {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.add-adult-role input {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.add-adult-role-label {
+  font-weight: 600;
+}
+.add-adult-help {
+  margin-top: 1px;
+  font-size: 13px;
+  color: #475069;
+}
+.dark .add-adult-help {
+  color: #aab2c5;
+}
+.add-adult-link {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+.add-adult-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

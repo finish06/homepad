@@ -14,7 +14,10 @@ import { refreshStatus, servicesWithStatus, type Service, type ServiceStatus } f
 import { useAlertHistory } from './alerts/alerts';
 
 // How often to re-poll while visible (AC-001, ±10s tolerance).
-const POLL_MS = 60_000;
+export const POLL_MS = 60_000;
+// SPEC-household-basics AC-033 (#548) — the kid shell polls faster, so an
+// admin's allow-list change shows within 30 seconds. Adults keep POLL_MS.
+export const KID_POLL_MS = 20_000;
 
 // cap5 — a meaningful status transition between two polls, worth a toast alert.
 export type StatusChange = {
@@ -126,6 +129,7 @@ export function ServicesProvider({
   children,
   onUnauthorized,
   syncMembership = false,
+  pollMs = POLL_MS,
 }: {
   children: ReactNode;
   // SPEC-kid-accounts AC-012 — told when a poll answers 401 (the session was
@@ -137,6 +141,9 @@ export function ServicesProvider({
   // merging status into the old set. Kid shell only: for everyone else the
   // v13 contract (status-only merge, identity and order kept) is unchanged.
   syncMembership?: boolean;
+  // How often to re-poll while visible. Defaults to v13's 60s; the kid shell
+  // passes KID_POLL_MS. The role never changes within a session, so neither does this.
+  pollMs?: number;
 }) {
   const [items, setItems] = useState<Service[] | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
@@ -227,7 +234,7 @@ export function ServicesProvider({
 
     loadRef.current = load;
     void load(true);
-    const id = setInterval(() => void load(false), POLL_MS);
+    const id = setInterval(() => void load(false), pollMs);
 
     // AC-002 — on returning to the tab, re-poll immediately (well within 5s)
     // rather than waiting for the next interval tick.
@@ -241,7 +248,7 @@ export function ServicesProvider({
       clearInterval(id);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, []);
+  }, [pollMs]);
 
   async function refresh(): Promise<RefreshOutcome> {
     const r = await refreshStatus();
