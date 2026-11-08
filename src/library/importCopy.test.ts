@@ -12,7 +12,7 @@ const CODES = [
   'plan_missing', 'network', 'failed',
   // skip reasons
   'no_link', 'bad_scheme', 'href_uses_variable', 'already_here', 'duplicate', 'no_name', 'invalid_item',
-  'adult_no_account', 'icon_invalid',
+  'adult_no_account', 'icon_invalid', 'account_limit',
   // warnings
   'widget_dropped', 'icon_local', 'icon_glyph', 'icon_unsupported', 'description_variable', 'section_missing',
   'kid_needs_device', 'status_on', 'ref_missing', 'unknown_fields',
