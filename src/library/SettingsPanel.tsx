@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import TileDensityToggle from '../grid/TileDensityToggle';
 import AccountsSection from '../accounts/AccountsSection';
 import BackupSection from './backup/BackupSection';
+import WidgetsSettings from '../widgets/WidgetsSettings';
 import type { TileDensity } from '../grid/tileDensity';
 import {
   adminEnvConfig,
@@ -58,6 +59,9 @@ export default function SettingsPanel({
   currentUserId,
   initialSection,
   onCatalogChanged,
+  showWidgets = true,
+  onSetShowWidgets,
+  onWidgetsChanged,
 }: {
   isAdmin: boolean;
   scope?: SettingsScope;
@@ -79,6 +83,12 @@ export default function SettingsPanel({
   onSetDensity: (d: TileDensity) => void;
   onSaveSettings: (patch: Partial<SystemConfig>) => Promise<void>;
   onClose: () => void;
+  // SPEC-status-widgets AC-031 — My settings → Show widgets. No setter, no row:
+  // a kid has no switch. onWidgetsChanged lets the dashboard re-read the info
+  // widgets after an Admin Panel change.
+  showWidgets?: boolean;
+  onSetShowWidgets?: (show: boolean) => void;
+  onWidgetsChanged?: () => void;
 }) {
   const personal = scope === 'personal';
   // SPEC-backup-import — bumped after a restore or an import, so the App Library
@@ -144,6 +154,8 @@ export default function SettingsPanel({
               onSetUptimeDisplay={onSetUptimeDisplay}
               density={density}
               onSetDensity={onSetDensity}
+              showWidgets={showWidgets}
+              onSetShowWidgets={onSetShowWidgets}
             />
           ) : !isAdmin ? (
             <p className="settings-note">
@@ -165,6 +177,8 @@ export default function SettingsPanel({
                 statusDegradedMs={statusDegradedMs}
                 onSaveSettings={onSaveSettings}
               />
+              {/* SPEC-status-widgets W-3 — Widgets sits right after System. */}
+              <WidgetsSettings onChanged={onWidgetsChanged} />
               <LibraryManager key={`library-${catalogVersion}`} />
               {/* SPEC-backup-import B-1 — last: used rarely, and it changes the
                   whole catalog, so it sits under the "affects everyone" heading
@@ -513,6 +527,8 @@ function PersonalSettings({
   onSetUptimeDisplay,
   density,
   onSetDensity,
+  showWidgets,
+  onSetShowWidgets,
 }: {
   showHealthBar: boolean;
   onSetHealthBar: (show: boolean) => void;
@@ -520,6 +536,8 @@ function PersonalSettings({
   onSetUptimeDisplay: (show: boolean) => void;
   density: TileDensity;
   onSetDensity: (d: TileDensity) => void;
+  showWidgets: boolean;
+  onSetShowWidgets?: (show: boolean) => void;
 }) {
   return (
     <section
@@ -568,6 +586,29 @@ function PersonalSettings({
             </button>
           </dd>
         </div>
+        {/* SPEC-status-widgets AC-031 / UX §8 — one switch for every widget
+            surface this user sees: the tile lines and the clock/weather strip. */}
+        {onSetShowWidgets && (
+          <div className="settings-kv-row settings-kv-row--control">
+            <dt>
+              <span id="show-widgets-toggle-label">Show widgets</span>
+              <span className="settings-kv-help">Numbers on tiles, and the clock and weather.</span>
+            </dt>
+            <dd>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showWidgets}
+                aria-labelledby="show-widgets-toggle-label"
+                className="settings-switch"
+                data-testid="setting-show-widgets"
+                onClick={() => onSetShowWidgets(!showWidgets)}
+              >
+                <span className="settings-switch-thumb" aria-hidden="true" />
+              </button>
+            </dd>
+          </div>
+        )}
         {/* SPEC-density-to-my-settings AC-001/AC-005 — density moves here from
             the dashboard toolbar. It is the first row in this list that is NOT
             a switch: three options, so the control stays a radiogroup and is
