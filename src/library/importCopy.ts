@@ -31,6 +31,7 @@ export const IMPORT_COPY: Record<string, string> = {
   invalid_item: "Some of its settings aren't valid.",
   adult_no_account: 'Skipped: no account with this email.',
   icon_invalid: 'Icon skipped: not a valid PNG.',
+  account_limit: 'This Homepad has reached its account limit.',
 
   // Warnings
   widget_dropped: 'Widget not imported.',
