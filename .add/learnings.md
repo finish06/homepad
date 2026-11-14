@@ -153,3 +153,33 @@ Standing rule from Caleb. Kid-accounts phases built this way each passed QA on t
 *2026-10-30 · project · process · high · classified by agent*
 
 Every M7 funnel fix shipped by 10-17, but visitors went 32 → 35 over 17 days, because no launch post went out; the posts can only come from Caleb's accounts. How to apply: in a time-boxed growth goal, put the owner-dependent action on a dated calendar in week 1, and if its date passes, raise it as the top blocker in every update, with a ready-to-paste draft attached.
+
+
+### L-022 — An owner-only blocker needs one clear ask with a workaround, then a slower check, not a repeated line
+*2026-11-13 · project · process · high · classified by agent*
+
+The web merge train (#565, #566, #568) waited 5+ days on one org setting only Caleb can change. I repeated the same one-line ask in about 60 two-hourly check replies and offered the workaround (a read-only token via Joe) only at about 32h. How to apply: when a blocker can only be cleared by the owner, send one message with the exact click path and one ready alternative within 24h (L-018), then drop the check to daily and say so, instead of posting "no change" every 2h.
+
+
+### L-023 — Parallel feature builds that touch shared files need a file-reservation map or a planned merge order
+*2026-11-13 · project · process · medium · classified by agent*
+
+Three Opus agents built household, backup and widgets at the same time. Each touched the same shell, settings and changelog files, so the three web PRs conflict with each other and must merge serially with rebases. How to apply: at plan time, list the shared files each build touches; reserve them to one agent, or fix the merge order up front and name who rebases.
+
+
+### L-024 — A no-Docker rule in a brief is not enough; check docker ps before and after an agent run
+*2026-11-13 · workstation · anti-pattern · medium · classified by agent*
+
+A build agent started a Postgres container against its brief, repeating a 10-30 retro finding. It cleaned up, but the rule alone did not hold. How to apply: put the reason in the brief (tests must use the existing harness, not a new container), record `docker ps` before dispatch, and compare after the agent reports.
+
+
+### L-025 — On a GPU-less CI runner, backdrop-filter blur at 3x scale makes WebKit paint in software and time out mobile E2E
+*2026-11-13 · project · technical · medium · classified by agent*
+
+The mobile kid-accounts E2E failed in CI only. document.getAnimations() was empty at the stuck steps, so waits would not help; the runner has no GPU and WebKit painted the blur panels in software at deviceScaleFactor 3. Pinning deviceScaleFactor 1 for the mobile project fixed it, and tests/infra/e2e-mobile-project.test.ts pins it. How to apply: measure frame cost on the runner before adding retries or waits.
+
+
+### L-026 — A test that asserts something never waits must sync on an event, not on wall-clock time
+*2026-11-13 · project · anti-pattern · medium · classified by agent*
+
+Widgets #94 passed QA, then main went red on TestWidgets_ServicesNeverWaitOnAnUpstream. The test used timing. The fix (#97) made it deterministic and found a real bug: LoadAll cleared the in-flight flag, so a second fetch could start while one was hung. How to apply: for "never blocks" claims, hold the upstream with a channel and assert the response returns while it is held.
