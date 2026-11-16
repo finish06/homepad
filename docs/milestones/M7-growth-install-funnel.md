@@ -88,7 +88,7 @@ From this baseline there is little to lose, and every visitor we win is lost at 
 
 ## Weekly tracking
 
-Automated by Joe's `homelab/umami-weekly` (kube1 cron, read-only, every Monday until 2026-11-12), posting to getHomepad #26.
+Automated by Joe's `homelab/umami-weekly` (kube1 cron, read-only, every Monday; extended past 2026-11-12 with no end date), posting to getHomepad #26.
 
 | Date | Visitors / 30d | vs target 96 | scroll-depth / 30d | demo-click | github-click | DC-city share | GitHub stars | Notes |
 |---|---|---|---|---|---|---|---|---|
@@ -97,3 +97,4 @@ Automated by Joe's `homelab/umami-weekly` (kube1 cron, read-only, every Monday u
 | 2026-10-26 | 38 | 40% | 76 | 9 | 15 | 14% | 0 | Still pre-launch; organic growth only (+7 in a week). GitHub 14d views fell to 16 / 11 unique. Kid accounts spec, UX and plan approved and merged (#541), targeting 17.0.0. awesome-pwa #549 still open. r/selfhosted launch post pending Caleb (suggested Wed 10-28). |
 | 2026-11-02 | 40 | 42% | 92 | 11 | 11 | 19% | 1 | Still pre-launch. 17.0.0 with kid accounts shipped 10-31, on the demo too. The site has a kid accounts section (site 0.5.1); `kids-click` fired 2 times in 30d. First GitHub star. GitHub 14d views 30 / 19 unique, clones 87. Launch posts still waiting on Caleb. |
 | 2026-11-09 | 45 | 47% | 103 | 13 | 10 | 13% | 1 | Organic only; the 3x target was accepted as missed on 11-07. awesome-homelab #15 merged 11-08; awesome-dashboard #56 and awesome-pwa #549 still open. The README and site lead with the new positioning (site hero live 11-07). 17.1.0 (household accounts, backup and import, status widgets) waits on the staging CI fix #560. GitHub 14d views 43 / 28 unique, clones 175 / 74 unique. Prior 30d: 33 visitors. Launch posts still waiting on Caleb. |
+| 2026-11-16 | 46 | 48% | 104 | 12 | 5 | 12% | 1 | Organic only. 30d visitors 45 → 46 in a week; prior 30d: 31. Bounce 24%. Top referrers (90d): github.com 10, search engines 15. awesome-dashboard #56 and awesome-pwa #549 still open. 17.1.0 still waits on the staging CI fix #560. GitHub 14d views 41 / 26 unique, clones 222 / 91 unique. Launch posts still waiting on Caleb. |
