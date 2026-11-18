@@ -28,6 +28,7 @@ jobs:
         with:
           image-name: homepad
           staging-url: https://homepad-staging.10.17.2.213.nip.io
+          qa-backend: ${{ vars.QA_BACKEND || 'nats' }}
           # Test-dedup: the unit suite is NOT re-run here. ci.yml ("Web (build,
           # unit tests)") and browser-gate.yml are required status checks on
           # this same PR head sha — branch protection already blocks the QA
@@ -106,4 +107,5 @@ jobs:
           REGISTRY_PASSWORD:  ${{ secrets.REGISTRY_PASSWORD }}
           NATS_PUBLISH_URL:   ${{ secrets.NATS_PUBLISH_URL }}
           NATS_PUBLISH_TOKEN: ${{ secrets.NATS_PUBLISH_TOKEN }}
+          QA_TRIGGER_TOKEN:   ${{ secrets.QA_TRIGGER_TOKEN }}
           KUBECONFIG_STAGING: ${{ secrets.KUBECONFIG_STAGING }}
