@@ -110,4 +110,4 @@ jobs:
           NATS_PUBLISH_TOKEN: ${{ secrets.NATS_PUBLISH_TOKEN }}
           QA_TRIGGER_TOKEN:   ${{ secrets.QA_TRIGGER_TOKEN }}
           KUBECONFIG_STAGING: ${{ secrets.KUBECONFIG_STAGING }}
-          GITEA_READ_TOKEN:   ${{ secrets.GITEA_READ_TOKEN }}
+          GITEA_READ_TOKEN:   ${{ secrets.HOMELAB_READ_TOKEN }}

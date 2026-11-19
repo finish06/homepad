@@ -63,4 +63,4 @@ jobs:
           REGISTRY_USERNAME:  ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASSWORD:  ${{ secrets.REGISTRY_PASSWORD }}
           KUBECONFIG_STAGING: ${{ secrets.KUBECONFIG_STAGING }}
-          GITEA_READ_TOKEN:   ${{ secrets.GITEA_READ_TOKEN }}
+          GITEA_READ_TOKEN:   ${{ secrets.HOMELAB_READ_TOKEN }}
