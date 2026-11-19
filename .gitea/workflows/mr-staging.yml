@@ -27,7 +27,7 @@ jobs:
       - uses: http://gitea-http.gitea.svc.cluster.local:3000/Code/ci-shared/mr-staging@v3
         with:
           image-name: homepad
-          staging-url: https://homepad-staging.10.17.2.213.nip.io
+          staging-url: http://homepad-staging.10.17.2.213.nip.io
           qa-backend: ${{ vars.QA_BACKEND || 'nats' }}
           # Test-dedup: the unit suite is NOT re-run here. ci.yml ("Web (build,
           # unit tests)") and browser-gate.yml are required status checks on
@@ -94,7 +94,8 @@ jobs:
             # timing-dependent on how much follows the `---`, which is why
             # consecutive runs on an identical manifest disagreed (#499 and #500
             # passed, #501 failed).
-            curl -sSf http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main/homepad-staging/03-web.yaml -o "$WORK/manifest.yaml"
+            curl -sSf -H "Authorization: token $GITEA_READ_TOKEN" \
+              http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main/homepad-staging/03-web.yaml -o "$WORK/manifest.yaml"
             sed '/^---$/q' "$WORK/manifest.yaml" > "$WORK/configmap.yaml"
             kubectl -n homepad-staging apply -f "$WORK/configmap.yaml"
             kubectl -n homepad-staging set image deploy/homepad-web web="$IMAGE_REF"
@@ -109,3 +110,4 @@ jobs:
           NATS_PUBLISH_TOKEN: ${{ secrets.NATS_PUBLISH_TOKEN }}
           QA_TRIGGER_TOKEN:   ${{ secrets.QA_TRIGGER_TOKEN }}
           KUBECONFIG_STAGING: ${{ secrets.KUBECONFIG_STAGING }}
+          GITEA_READ_TOKEN:   ${{ secrets.HOMELAB_READ_TOKEN }}
