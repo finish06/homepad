@@ -1,7 +1,7 @@
 # Spec: Stricter iframe sandbox, with a per-app opt-in
 
 **Spec ID:** SPEC-iframe-sandbox-optin
-**Version:** 0.1.0
+**Version:** 0.1.1
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
 **Status:** Draft, awaiting sign-off
@@ -20,11 +20,9 @@ Answer "all defaults", or pick per question.
 
 **Decided (Caleb, 2026-11-19):** the overlay's sandbox drops `allow-same-origin` by default. An admin can turn it back on per app.
 
-**Q1 — Existing "Inline overlay" apps on upgrade.** [AC-008, §10]
-- **A (recommended):** keep them working as they do today: migration 0023 turns the opt-in on for every app whose click action is already `iframe`. New apps, and apps switched to Inline overlay later, start with it off.
-- B: off for everyone. Each admin turns it back on for the apps that need it.
+**Decided — Q1, existing "Inline overlay" apps on upgrade (Caleb, 2026-11-19: "keep them opt in").** [AC-008, §10] Migration 0023 turns the opt-in on for every app whose click action is already `iframe`. New apps, and apps switched to Inline overlay later, start with it off. The reasoning: the danger of `allow-same-origin` is real only when the framed page has the same origin as Homepad (§3). This spec blocks that case outright, whatever the setting (AC-004), and stops Homepad's own pages from being framed (AC-006). Turning the opt-in off on upgrade would break sign-in inside most embedded apps (§3.2), with nothing that points the admin at the upgrade.
 
-  *Why A.* The danger of `allow-same-origin` is real only when the framed page has the same origin as Homepad (§3). This spec blocks that case outright, whatever the setting (AC-004), and stops Homepad's own pages from being framed (AC-006). What is left for existing apps is low risk. Turning it off breaks sign-in inside most embedded apps (§3.2), and the admin sees a sign-in loop or a blank panel with nothing that points at the upgrade. The stricter default still applies to everything added from now on. Pick B if "stricter by default" should also cover apps set up before 18.0.0. The release note then has to tell admins to re-check every Inline overlay app.
+**Decided — Q4, nothing can frame Homepad (Caleb, 2026-11-19: "yes").** [AC-006, §10] Both nginx configs send `X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'`. This closes the redirect path in §3.1 and the quickstart's missing header (§1a). The release note says that showing Homepad inside another page or dashboard stops working.
 
 **Q2 — Who may set it.** [AC-010]
 - **A (default):** admins, in the tile editor. It is part of the app, like the click action.
@@ -33,11 +31,6 @@ Answer "all defaults", or pick per question.
 **Q3 — Same-origin apps.** [AC-004]
 - **A (default):** an app whose address has the same origin as Homepad never gets `allow-same-origin`. The toggle is shown greyed out with a reason.
 - B: no special rule; trust the admin.
-
-**Q4 — Can anything frame Homepad?** [AC-006, §10]
-- **A (default):** no. Both nginx configs send `X-Frame-Options: DENY` and `frame-ancestors 'none'`. This closes the redirect path in §3.1 and the quickstart's missing header (§1a). People who show Homepad inside another dashboard lose that.
-- B: `SAMEORIGIN` on both configs. Fixes the quickstart's missing header and keeps today's image behavior, but leaves Homepad able to frame itself.
-- C: A, plus a setting `HOMEPAD_FRAME_ANCESTORS` that the web container turns into a `frame-ancestors` list, for people who embed Homepad on purpose.
 
 ---
 
@@ -59,7 +52,10 @@ A tile can open its app in an overlay on top of Homepad (click action **Inline o
 
 ### 1b. Decisions
 
-- Caleb, 2026-11-19: stricter by default, per-app opt-in. Pending: §0 Q1–Q4.
+- Caleb, 2026-11-19: stricter by default, per-app opt-in.
+- Caleb, 2026-11-19: existing Inline overlay apps stay opted in on upgrade (Q1, "keep them opt in").
+- Caleb, 2026-11-19: `X-Frame-Options: DENY` and `frame-ancestors 'none'` on both nginx configs (Q4, "yes").
+- Pending: §0 Q2–Q3.
 
 ---
 
@@ -117,7 +113,7 @@ Only admins, as for the URL and the click action (Q2). A member or a kid can't w
 | AC-005 | The tile editor shows the switch only for Inline overlay. For a same-origin address it is off, disabled, and shows the §2.2 reason (UX to do). | Must |
 | AC-006 | Every response from both nginx configs (`nginx.conf` through `nginx-security-headers.conf`, and `deploy/compose/nginx.conf`, which today sends no security headers) carries `X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'`. A `tests/infra` source-contract test pins both files. | Must |
 | AC-007 | `services.iframe_same_origin` exists, `BOOLEAN NOT NULL DEFAULT FALSE`. `GET /api/services` returns it as `iframeSameOrigin` on every app. | Must |
-| AC-008 | Migration 0023 sets `iframe_same_origin = TRUE` for every app with `click_action = 'iframe'` at upgrade time (Q1 = A), once. Apps added or switched later start at false. | Must |
+| AC-008 | Migration 0023 sets `iframe_same_origin = TRUE` for every app with `click_action = 'iframe'` at upgrade time (Q1, decided), once. Apps added or switched later start at false. | Must |
 | AC-009 | `POST /api/services` and `PATCH /api/services/{id}` accept `iframeSameOrigin` (boolean). Any other type is 400. A PATCH without it leaves it unchanged. | Must |
 | AC-010 | Only admins can write it: the routes are already `classCatalogWrite`. A member or kid PATCH is 403, as today. | Must |
 | AC-011 | Backups carry `iframeSameOrigin` on each app. `schemaVersion` stays 1. Restoring a file without the field: Merge leaves an existing app's value alone; a new app gets false. | Must |
@@ -129,7 +125,7 @@ Only admins, as for the URL and the click action (Q2). A member or a kid can't w
 
 ## 5. User Test Cases
 
-**TC-001 — Upgrade keeps an app working (Q1 = A).** *Precondition:* 17.1.0 with a Grafana tile on Inline overlay, signed in inside the overlay. Upgrade. *Expected:* the overlay still shows Grafana signed in. The tile editor shows the switch on.
+**TC-001 — Upgrade keeps an app working (Q1, decided).** *Precondition:* 17.1.0 with a Grafana tile on Inline overlay, signed in inside the overlay. Upgrade. *Expected:* the overlay still shows Grafana signed in. The tile editor shows the switch on.
 
 **TC-002 — A new overlay app starts strict.** Add an app, choose Inline overlay, save, open it. *Expected:* `sandbox` has no `allow-same-origin` (dev tools). An app that needs sign-in shows its sign-in page in the overlay.
 
@@ -156,13 +152,13 @@ BEGIN
           AND column_name = 'iframe_same_origin'
     ) THEN
         ALTER TABLE services ADD COLUMN iframe_same_origin BOOLEAN NOT NULL DEFAULT FALSE;
-        -- Q1 = A: apps already on Inline overlay keep today's behavior.
+        -- Q1 (decided 2026-11-19): apps already on Inline overlay keep today's behavior.
         UPDATE services SET iframe_same_origin = TRUE WHERE click_action = 'iframe';
     END IF;
 END $$;
 ```
 
-With Q1 = B, the `UPDATE` line is removed. Down migration: `ALTER TABLE services DROP COLUMN IF EXISTS iframe_same_origin`.
+Down migration: `ALTER TABLE services DROP COLUMN IF EXISTS iframe_same_origin`.
 
 ## 7. API Contract
 
@@ -188,13 +184,11 @@ UX artifact: to do (/add:ux). One surface: the tile editor's Inline overlay swit
 
 ## 10. Upgrade and Compatibility
 
-- With Q1 = A: no visible change for existing apps. New overlay apps are stricter.
-- With Q1 = B: every existing overlay app that keeps a sign-in breaks inside the overlay until an admin turns the switch on.
+- No visible change for existing overlay apps (Q1, decided). New overlay apps are stricter.
 - Homepad can no longer be shown inside a frame by any site, including itself. On the image's own nginx, `SAMEORIGIN` already stopped other sites. On the quickstart's nginx nothing did, so a quickstart install that someone embeds in another dashboard (for example a Home Assistant iframe panel) stops showing there. That is the one visible break from this spec, and the release notes name it.
 - Release-note lines:
-  - Q1 = A: "Apps that open in the overlay are now more locked down by default. Apps you already set to open in the overlay keep working as before. For new ones that ask you to sign in every time, turn on 'Let this app keep its sign-in' in the app's settings. Only do this for apps you trust."
-  - Q1 = B: "Apps that open in the overlay are now more locked down. If one asks you to sign in every time or stays blank, open the app's settings and turn on 'Let this app keep its sign-in'. Only do this for apps you trust."
-  - Q4 = A: "Homepad can no longer be shown inside another page or dashboard."
+  - "Apps that open in the overlay are now more locked down by default. Apps you already set to open in the overlay keep working as before. For new ones that ask you to sign in every time, turn on 'Let this app keep its sign-in' in the app's settings. Only do this for apps you trust."
+  - "Homepad can no longer be shown inside another page or dashboard." (Q4, decided)
 
 ## 11. Out of Scope
 
@@ -207,7 +201,7 @@ UX artifact: to do (/add:ux). One surface: the tile editor's Inline overlay swit
 
 | Role | Name | Status |
 |---|---|---|
-| Owner | Caleb | Decided: stricter default with opt-in. Pending: §0 Q1–Q4 |
+| Owner | Caleb | Decided: stricter default with opt-in; Q1 and Q4 (2026-11-19). Pending: §0 Q2–Q3 |
 | Product | Walt | Pending |
 | Design | Kare | Pending (UX artifact to do) |
 
@@ -216,3 +210,4 @@ UX artifact: to do (/add:ux). One surface: the tile editor's Inline overlay swit
 | Date | Version | Change |
 |---|---|---|
 | 2026-11-19 | 0.1.0 | Draft for 18.0.0, checked against `homepad` `6eb8a35` and `homepad-api` `79e3b03`. |
+| 2026-11-19 | 0.1.1 | Caleb decided Q1 ("keep them opt in") and Q4 ("yes"). |

@@ -1,7 +1,7 @@
 # Spec: Sign-in hardening — rate limits, verified emails for single sign-on, invite-only for SSO
 
 **Spec ID:** SPEC-signin-hardening
-**Version:** 0.1.0
+**Version:** 0.1.1
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
 **Status:** Draft, awaiting sign-off
@@ -10,7 +10,7 @@
 **Depends on:** SPEC-household-basics (registration modes, invite bucket), SPEC-password-reset-link (its public routes move onto this limiter). Builds after SPEC-household-manage-adults and SPEC-password-reset-link.
 **Target version:** 18.0.0
 **UX:** to do (/add:ux) — sign-in screen error and wait messages only
-**Issues folded in:** homepad-api #89 (OIDC `email_verified`; already merged on `homepad-api` main, see §1a), SPEC-household-basics §11 (login and register rate limits, `X-Forwarded-For`, Q5 option C)
+**Issues folded in:** homepad-api #89 (OIDC `email_verified`; merged in #91, shipped in 17.1.0, see §0), SPEC-household-basics §11 (login and register rate limits, `X-Forwarded-For`, Q5 option C)
 
 ---
 
@@ -22,26 +22,21 @@ Answer "all defaults", or pick per question.
 - Single sign-on links or creates an account by email only when the provider says the email is verified (`email_verified` is `true`). The docs explain how to make PocketID send it.
 - `X-Forwarded-For` is not trusted unless the admin configures which proxies to trust.
 
-**Q1 — Which release carries the `email_verified` refusal.** It is already merged on `homepad-api` main in #91 (§1a), which is not tagged yet. As things stand it ships with the next API release, which is planned as 17.1.0. [AC-001, §10]
-- **A (default):** ship it in 17.1.0 as a security fix, with the PocketID note in the 17.1.0 release notes, and repeat the note in 18.0.0. The code is merged, and holding it means reverting it.
-- B: hold it for 18.0.0, because it can lock people out. That means reverting the check on `main` before 17.1.0 is tagged and re-applying it here.
+**Decided — Q1, the `email_verified` refusal ships in 17.1.0 (Caleb, 2026-11-19: "a").** [AC-001, §10] It is merged on `homepad-api` main in #91 (closing #89) and ships in 17.1.0 as a security fix. The 17.1.0 release notes carry the PocketID steps (§2.6), and the 18.0.0 notes repeat them. Marked "shipped in 17.1.0" below; 17.1.0 was not yet tagged when this was recorded. Its ACs stay in this spec as regression guards.
+
+**Decided — Q3, login attempt limits (Caleb, 2026-11-19: "yes").** [AC-004, AC-005] As proposed: per client, 10 a minute, burst 10. Per email: after 10 failed attempts in 15 minutes, that email gets 429 for 15 minutes, right password or not.
+
+**Decided — Q4, the quickstart and trusted proxies (Caleb, 2026-11-19: "yes").** [AC-007, AC-008] Proxy headers are trusted only when `HOMEPAD_TRUSTED_PROXIES` is set. The quickstart leaves it unset. The docs explain the effect (every client shares one limit) and how to set it.
+
+**Decided — fix three small bugs now (Caleb, 2026-11-19).** These are fixed ahead of 18.0.0 in a homepad-api bug-fix PR (number TBD), separate from this spec's build. Their ACs stay here as regression guards:
+- login timing shows whether an email exists (§2.3, AC-009);
+- the OIDC callback cookie ignores `COOKIE_SECURE` (former Q5, AC-016);
+- passwords over 72 bytes cause a 500 (AC-018).
 
 **Q2 — invite-only and single sign-on.** Under `invite_only`, who may an SSO sign-in create? [AC-010…AC-013]
 - **A (default):** an existing account (matched by verified email) always signs in. A new identity gets an account only when its groups include `OIDC_ADMIN_GROUP` (becomes admin) or a new `OIDC_MEMBER_GROUP` (becomes member). Everyone else is refused. The identity provider's group is the invite.
 - B: no group shortcut. A new SSO person needs a password invite first, then SSO links by email.
 - C: B, plus the invite page offers "Continue with single sign-on" (household-basics Q5 option B). Bigger: needs the invite token carried through the OIDC round trip.
-
-**Q3 — Login attempt limits.** [AC-004, AC-005]
-- **A (default):** per client: 10 a minute, burst 10. Per email: after 10 failed attempts in 15 minutes, that email gets 429 for 15 minutes, right password or not.
-- B: per client only. No per-email lock, so no way to lock someone else out, and no guard when every client shares one address (§2.2).
-
-**Q4 — The quickstart and trusted proxies.** [AC-007, AC-008]
-- **A (default):** the quickstart leaves `HOMEPAD_TRUSTED_PROXIES` unset, per the decision above. The docs explain the effect (every client shares one limit) and how to set it.
-- B: the quickstart sets `HOMEPAD_TRUSTED_PROXIES=web`, the bundled web container, so the API trusts the address nginx passes. This helps only when nothing else sits in front of nginx.
-
-**Q5 — The OIDC callback cookie.** The callback sets the session cookie with `Secure` off always (§1a). [AC-016]
-- **A (default):** fold it in: the callback follows `COOKIE_SECURE`, like local sign-in.
-- B: leave it for its own change.
 
 ---
 
@@ -80,7 +75,11 @@ So the setting Caleb remembered ("Emails Verified") is the pre-v2.2.0 name. On c
 
 ### 1c. Decisions
 
-- Caleb, 2026-11-19: verified emails required; `X-Forwarded-For` untrusted unless configured. Pending: §0 Q1–Q5.
+- Caleb, 2026-11-19: verified emails required; `X-Forwarded-For` untrusted unless configured.
+- Caleb, 2026-11-19: the `email_verified` refusal ships in 17.1.0 as a security fix, with the PocketID steps in the 17.1.0 notes (Q1, "a").
+- Caleb, 2026-11-19: login limits as proposed (Q3, "yes"); proxy headers trusted only when `HOMEPAD_TRUSTED_PROXIES` is set (Q4, "yes").
+- Caleb, 2026-11-19: login timing, the callback cookie and the 72-byte 500 are fixed ahead of 18.0.0 in a homepad-api bug-fix PR (number TBD).
+- Pending: §0 Q2.
 
 ---
 
@@ -92,7 +91,7 @@ One limiter, keyed by client, replaces the per-process bucket.
 
 | Route | Per client | Per email or account | Process ceiling |
 |---|---|---|---|
-| `POST /api/login` | 10/min, burst 10 | 10 failures in 15 min → 15-min lock for that email (Q3) | 120/min |
+| `POST /api/login` | 10/min, burst 10 | 10 failures in 15 min → 15-min lock for that email (Q3, decided) | 120/min |
 | `POST /api/register` | 5/min, burst 5 | — | 120/min |
 | `POST /api/invites/lookup`, `/accept` | 30/min, burst 10 | — | 120/min |
 | `POST /api/password-resets/lookup`, `/accept` | 30/min, burst 10 | — | 120/min |
@@ -108,15 +107,15 @@ One limiter, keyed by client, replaces the per-process bucket.
 - **Default (decided):** the TCP peer of the request (`RemoteAddr`). `X-Forwarded-For` and `X-Real-IP` are ignored.
 - **`HOMEPAD_TRUSTED_PROXIES`:** a comma-separated list of addresses, CIDR ranges or hostnames (resolved at startup and every 5 minutes). When the peer is in the list, the client is the right-most `X-Forwarded-For` entry that isn't. When the peer isn't in the list, the header is ignored.
 - A value that doesn't parse stops the API at startup with a message naming it, like `HOMEPAD_MAX_ACCOUNTS`.
-- **What this means for the quickstart (Q4 = A):** every API request comes from the web container, so every client has the same key. The per-client limits then act as one shared limit. Someone hammering the login form can make everyone wait. The per-email lock still protects each account. The docs say this plainly and show the setting.
+- **What this means for the quickstart (Q4, decided):** every API request comes from the web container, so every client has the same key. The per-client limits then act as one shared limit. Someone hammering the login form can make everyone wait. The per-email lock still protects each account. The docs say this plainly and show the setting.
 
-### 2.3 Login timing
+### 2.3 Login timing (fixed ahead of 18.0.0 in a homepad-api bug-fix PR, number TBD)
 
-When `UserByEmail` finds no adult, `handleLogin` compares the password against a fixed dummy bcrypt hash at `DefaultCost` before answering 401. Unknown and known emails then take about the same time.
+When `UserByEmail` finds no adult, `handleLogin` compares the password against a fixed dummy bcrypt hash at `DefaultCost` before answering 401. Unknown and known emails then take about the same time. AC-009 stays as a regression guard.
 
-### 2.4 Single sign-on: verified email (already on `main`)
+### 2.4 Single sign-on: verified email (shipped in 17.1.0)
 
-Unchanged from #89: an SSO sign-in is refused unless `email_verified` is `true`. This spec adds:
+Shipped in 17.1.0 (#91, closing #89; Q1, decided): an SSO sign-in is refused unless `email_verified` is `true`. This spec adds:
 
 - **A clear landing.** Every OIDC callback failure redirects to `/#signin-error=<code>` instead of a text page. Codes: `email_unverified`, `not_invited`, `account_limit`, `sso_failed` (everything else). The sign-in screen shows a message for each (§8).
 - **Docs** (§2.6) and **upgrade notes** (§10).
@@ -166,22 +165,22 @@ Plain copy, ready to paste:
 | Burning CPU with bcrypt | Process ceiling (AC-006) |
 | Learning which emails have accounts, by timing | Dummy compare (AC-009) |
 | Spoofing `X-Forwarded-For` to dodge limits | Header ignored unless the peer is a trusted proxy (AC-007) |
-| Signing in as a local account by setting its email at the provider | `email_verified` required (AC-001, on `main`) |
+| Signing in as a local account by setting its email at the provider | `email_verified` required (AC-001, shipped in 17.1.0) |
 | A stranger with an account at the provider gets a Homepad account under `invite_only` | Group allow-list (AC-010) |
-| SSO session cookie sent over plain HTTP | Callback follows `COOKIE_SECURE` (AC-016, Q5) |
+| SSO session cookie sent over plain HTTP | Callback follows `COOKIE_SECURE` (AC-016; fixed ahead of 18.0.0) |
 
-- **Lockout as a weapon.** With Q3 = A, anyone who knows an email can keep that account locked by failing on purpose. The lock is 15 minutes and touches only password sign-in for that email. SSO and existing sessions keep working. This trade is accepted for a household app; the docs mention it.
+- **Lockout as a weapon.** With the decided limits (Q3), anyone who knows an email can keep that account locked by failing on purpose. The lock is 15 minutes and touches only password sign-in for that email. SSO and existing sessions keep working. This trade is accepted for a household app; the docs mention it.
 - **Logging.** `ratelimit: <route> limited client=<addr>` and `ratelimit: login locked for an email` at most once a minute per key. The email itself is never logged. `oidc: refused new identity under invite_only (not in an allowed group)`. `oidc: refused sign-in: email_verified is not true` (exists).
 
 ---
 
 ## 4. Acceptance Criteria
 
-### Verified email (on `main`, needs the landing and docs)
+### Verified email (refusal shipped in 17.1.0; AC-001 is a regression guard, the landing and docs are new)
 
 | ID | Criterion | Priority |
 |---|---|---|
-| AC-001 | An SSO sign-in whose `email_verified` is absent, `false`, or anything but `true`/`"true"` creates no account, links no account and starts no session, for new and existing accounts alike. (Already covered by `oidc_test.go` on `main`; keep it.) | Must |
+| AC-001 | An SSO sign-in whose `email_verified` is absent, `false`, or anything but `true`/`"true"` creates no account, links no account and starts no session, for new and existing accounts alike. (Shipped in 17.1.0, covered by `oidc_test.go`; kept as a regression guard.) | Must |
 | AC-002 | Every OIDC callback failure redirects (302) to `/#signin-error=<code>` with one of the §2.4 codes. No failure renders a text page. | Must |
 | AC-003 | The sign-in screen reads `#signin-error=`, removes it from the address bar, and shows the §8 message for that code. | Must |
 
@@ -190,11 +189,11 @@ Plain copy, ready to paste:
 | ID | Criterion | Priority |
 |---|---|---|
 | AC-004 | Each route in §2.1 enforces its per-client limit. Over it: 429 with a `Retry-After` of at least 1. Under it, behavior is unchanged. | Must |
-| AC-005 | After 10 failed logins for one email in 15 minutes, that email gets 429 for 15 minutes, even with the right password (Q3). Other emails are unaffected. A success before the tenth failure clears that email's count. | Must |
+| AC-005 | After 10 failed logins for one email in 15 minutes, that email gets 429 for 15 minutes, even with the right password (Q3, decided). Other emails are unaffected. A success before the tenth failure clears that email's count. | Must |
 | AC-006 | The bcrypt routes share a process-wide ceiling of 120 a minute. | Must |
 | AC-007 | With `HOMEPAD_TRUSTED_PROXIES` unset, a request with a forged `X-Forwarded-For` is keyed by its peer address. | Must |
 | AC-008 | With `HOMEPAD_TRUSTED_PROXIES` set and the peer in it, the client is the right-most untrusted `X-Forwarded-For` entry. With the peer not in it, the header is ignored. An unparsable value stops the API at startup with a message naming the variable. | Must |
-| AC-009 | Login for an unknown email runs one bcrypt compare. In a test, the median time for unknown and known-wrong-password emails differs by under 20%. | Should |
+| AC-009 | Login for an unknown email runs one bcrypt compare. In a test, the median time for unknown and known-wrong-password emails differs by under 20%. Fixed ahead of 18.0.0 in a homepad-api bug-fix PR (number TBD); kept as a regression guard. | Should |
 
 ### invite-only and SSO
 
@@ -211,8 +210,9 @@ Plain copy, ready to paste:
 |---|---|---|
 | AC-014 | The README "Single sign-on" section and `docs/single-sign-on.md` carry the §2.6 text. `.env.example` lists `OIDC_MEMBER_GROUP` and `HOMEPAD_TRUSTED_PROXIES` with one-line comments. | Must |
 | AC-015 | The CHANGELOG lists exactly what breaks (§10) and links the PocketID steps. | Must |
-| AC-016 | The OIDC callback sets the session cookie's `Secure` from `COOKIE_SECURE`, like local login (Q5). | Should |
+| AC-016 | The OIDC callback sets the session cookie's `Secure` from `COOKIE_SECURE`, like local login. Fixed ahead of 18.0.0 in a homepad-api bug-fix PR (number TBD); kept as a regression guard. | Should |
 | AC-017 | `HOMEPAD_TRUSTED_PROXIES` joins the env-config allowlist. | Must |
+| AC-018 | `POST /api/register` and `POST /api/invites/accept` refuse a password over 72 bytes with 400, never 500. Fixed ahead of 18.0.0 in a homepad-api bug-fix PR (number TBD); kept as a regression guard. (SPEC-password-reset-link AC-017 asks for the same.) | Should |
 
 ---
 
@@ -277,16 +277,16 @@ UX artifact: to do (/add:ux). One surface: the sign-in screen's error line and w
 
 Exactly these, and nothing else:
 
-1. **SSO sign-in stops for anyone whose provider doesn't send `email_verified: true`**, including people who already have a Homepad account. They see the `email_unverified` message. Fix: §2.6. (Lands with whichever release carries #91, Q1.)
+1. **SSO sign-in stops for anyone whose provider doesn't send `email_verified: true`**, including people who already have a Homepad account. They see the `email_unverified` message. Fix: §2.6. Shipped in 17.1.0 (Q1, decided); the 18.0.0 notes repeat it for anyone who skipped 17.1.0.
 2. **Under `invite_only`, SSO no longer creates accounts for new people outside `OIDC_ADMIN_GROUP` and `OIDC_MEMBER_GROUP`.** This includes installs with no `HOMEPAD_REGISTRATION` set, which are `invite_only` since 17.1.0. People who already have an account are not affected. Fix: set `OIDC_MEMBER_GROUP`, or send an invite.
 3. **Fast repeated sign-in attempts get "Too many tries".** Scripts that log in in a loop need to slow down. With no trusted proxy set, the limit is shared by everyone.
-4. **With `COOKIE_SECURE` on (the default) and Homepad served over plain HTTP, SSO sign-in stops working** (Q5), the same way password sign-in already does there. Fix: `COOKIE_SECURE=false` on plain-HTTP installs, which password sign-in already needs.
+4. **With `COOKIE_SECURE` on (the default) and Homepad served over plain HTTP, SSO sign-in stops working**, the same way password sign-in already does there. Fix: `COOKIE_SECURE=false` on plain-HTTP installs, which password sign-in already needs. This lands with the homepad-api bug-fix PR (number TBD), ahead of 18.0.0.
 
 Not affected: existing sessions (nobody is signed out), password sign-in under the limits, invites, kids.
 
 Release-note lines:
 
-- "Single sign-on now needs a verified email. In PocketID, open Settings → Users and turn on 'Mark as verified' for each person, and turn on 'Emails verified by default' for new people. Details: docs/single-sign-on.md."
+- "Single sign-on now needs a verified email. In PocketID, open Settings → Users and turn on 'Mark as verified' for each person, and turn on 'Emails verified by default' for new people. Details: docs/single-sign-on.md." (In the 17.1.0 notes, Q1; repeated in 18.0.0.)
 - "With invite-only sign-up, single sign-on only creates accounts for people in your admin group, or in the new `OIDC_MEMBER_GROUP`. Others need an invite."
 - "Sign-in now has a speed limit. If a proxy sits in front of Homepad, set `HOMEPAD_TRUSTED_PROXIES` to its address."
 
@@ -303,7 +303,7 @@ Release-note lines:
 
 | Role | Name | Status |
 |---|---|---|
-| Owner | Caleb | Decided: verified emails, untrusted `X-Forwarded-For`. Pending: §0 Q1–Q5 |
+| Owner | Caleb | Decided: verified emails, untrusted `X-Forwarded-For`; Q1, Q3, Q4 and the three bug fixes (2026-11-19). Pending: §0 Q2 |
 | Product | Walt | Pending |
 | Design | Kare | Pending (UX artifact to do) |
 
@@ -312,3 +312,4 @@ Release-note lines:
 | Date | Version | Change |
 |---|---|---|
 | 2026-11-19 | 0.1.0 | Draft for 18.0.0, checked against `homepad-api` `79e3b03`, `homepad` `6eb8a35`, and PocketID v2.19.3 (`c0abd93`). |
+| 2026-11-19 | 0.1.1 | Caleb decided Q1 ("a": ships in 17.1.0), Q3 and Q4 ("yes"), and to fix login timing, the callback cookie and the 72-byte 500 ahead of 18.0.0 in a homepad-api bug-fix PR. |

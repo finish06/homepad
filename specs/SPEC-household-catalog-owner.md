@@ -1,7 +1,7 @@
 # Spec: The catalog belongs to the household
 
 **Spec ID:** SPEC-household-catalog-owner
-**Version:** 0.1.0
+**Version:** 0.1.1
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
 **Status:** Draft, awaiting sign-off
@@ -20,18 +20,13 @@ Answer "all defaults", or pick per question. The rest of this spec is written ag
 
 **Decided (Caleb, 2026-11-19):** the 18.0.0 theme is household management. This spec is its breaking change.
 
+**Decided — Q2, the rows nobody can see (Caleb, 2026-11-19: "yes").** [AC-005, AC-006] Catalog rows owned by anyone other than the first admin (per-user copies from the v9 era and #87 leftovers) are copied into a `catalog_archive` table (JSON snapshot, with the former owner's id and email), then deleted. Nothing reads the archive. The release notes say how to look at it with `psql`. A later major release drops it.
+
+**Decided — Q3, making a one-way migration run once (Caleb, 2026-11-19: "yes").** [AC-007, AC-008] The runner (`storage.Migrate`) gains a `schema_migrations` table. A file runs once and is recorded. The first 18.0.0 boot re-runs 0001–0020 one last time (they are idempotent, as today), runs 0021, and records all of them. Without it, re-running `0007_per_user_dashboards` after 0021 would add `user_id` back and hand the catalog to the first admin again (§1a).
+
 **Q1 — How the catalog stops depending on a user.** [§6, AC-001…AC-004]
 - **A (default):** drop `services.user_id` and `categories.user_id`. An install has one household and one catalog, so no owner column is needed. Slugs and section names become unique across the table.
 - B: add a one-row `household` table and point `services` and `categories` at it with `ON DELETE RESTRICT`. This leaves room for more than one household later, which the PRD rules out (§4).
-
-**Q2 — The rows nobody can see.** Catalog rows owned by anyone other than the first admin: per-user copies from the v9 era and #87 leftovers. Nothing reads them today. [AC-005, AC-006]
-- **A (default):** copy each one into a `catalog_archive` table (JSON snapshot, with the former owner's id and email), then delete it. Nothing reads the archive. The release notes say how to look at it with `psql`. A later major release drops it.
-- B: delete them, and log a count.
-- C: refuse to migrate while any exist, and tell the admin to clean up by hand.
-
-**Q3 — Making a one-way migration run once.** The runner (`storage.Migrate`) re-runs every `*.up.sql` on every boot. Re-running `0007_per_user_dashboards` after 0021 would add `user_id` back and hand the catalog to the first admin again (§1a). [AC-007, AC-008]
-- **A (default):** add a `schema_migrations` table. A file runs once and is recorded. The first 18.0.0 boot re-runs 0001–0020 one last time (they are idempotent, as today), runs 0021, and records all of them.
-- B: leave the runner alone and wrap 0007 in a guard that skips it once 0021 has run.
 
 **Q4 — An install with catalog rows and no admin.** This can only happen if someone edited the database by hand. [AC-009]
 - **A (default):** 0021 stops the boot with a clear message: make one account an admin, then restart. Migration 0007 does the same today.
@@ -64,7 +59,9 @@ This spec makes the catalog belong to the install. No user owns it. That is what
 ### 1b. Decisions
 
 - Caleb, 2026-11-19: 18.0.0 is "a household you can manage", and this is its breaking change.
-- Pending: §0 Q1–Q5.
+- Caleb, 2026-11-19: archive the hidden rows into `catalog_archive`, then delete them (Q2, "yes").
+- Caleb, 2026-11-19: add the `schema_migrations` table (Q3, "yes").
+- Pending: §0 Q1, Q4, Q5.
 
 ---
 
@@ -89,7 +86,7 @@ This spec makes the catalog belong to the install. No user owns it. That is what
 | Kid allow-list (`kid_allowed_services`) | By kid id + service id, validated against the owner | Unchanged rows. Validated against the catalog. |
 | Appearance prefs, `show_widgets` | Columns on `users` | Unchanged. |
 | App Library (`library_apps`) | Already has no owner | Unchanged. The `added` hint checks the catalog. |
-| Rows owned by anyone but the first admin | Kept, never read | Archived, then deleted (Q2). |
+| Rows owned by anyone but the first admin | Kept, never read | Archived, then deleted (Q2, decided). |
 | Backup file | No ids, `schemaVersion` 1 | Unchanged (Q5). |
 
 ### 2.3 Backup and import
@@ -130,9 +127,9 @@ This spec makes the catalog belong to the install. No user owns it. That is what
 
 | ID | Criterion | Priority |
 |---|---|---|
-| AC-005 | Rows owned by anyone other than the first admin are copied to `catalog_archive` (Q2) with their former owner's id and email, then deleted. Their icons, favorites, order rows and collapse rows go with them. The API logs one line with the counts. | Must |
+| AC-005 | Rows owned by anyone other than the first admin are copied to `catalog_archive` (Q2, decided) with their former owner's id and email, then deleted. Their icons, favorites, order rows and collapse rows go with them. The API logs one line with the counts. | Must |
 | AC-006 | The first admin's rows survive with the same ids. Every favorite, order row, folded section and kid allow-list entry that pointed at them still does. A fixture database taken from 17.1.0 proves it: per-user counts before and after match, excluding archived rows. | Must |
-| AC-007 | The runner records each migration in `schema_migrations` and runs it only once (Q3). The first 18.0.0 boot on a 17.1.0 database runs 0001–0021 and records all of them. A second boot runs none. | Must |
+| AC-007 | The runner records each migration in `schema_migrations` and runs it only once (Q3, decided). The first 18.0.0 boot on a 17.1.0 database runs 0001–0021 and records all of them. A second boot runs none. | Must |
 | AC-008 | After two boots, `services` still has no `user_id` column (the 0007 re-run trap, §1a). | Must |
 | AC-009 | A database with catalog rows and no admin stops at boot with: "migration 0021: the catalog has apps but no admin account exists. Make one account an admin, then restart." Nothing is changed (Q4). | Must |
 | AC-010 | A fresh, empty database migrates cleanly and ends in the same schema as an upgraded one (a schema-diff test, using `internal/testsupport/schemacheck`). | Must |
@@ -169,7 +166,7 @@ This spec makes the catalog belong to the install. No user owns it. That is what
 
 ## 6. Data Model and Migration
 
-### 6.1 Runner (Q3)
+### 6.1 Runner (Q3, decided)
 
 ```sql
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -265,7 +262,7 @@ Release-note lines (plain copy, for the CHANGELOG):
 
 | Role | Name | Status |
 |---|---|---|
-| Owner | Caleb | Pending (§0 Q1–Q5) |
+| Owner | Caleb | Decided Q2 and Q3 (2026-11-19). Pending: §0 Q1, Q4, Q5 |
 | Product | Walt | Pending |
 | Design | Kare | Pending (CHANGELOG wording only; no UX artifact) |
 
@@ -274,3 +271,4 @@ Release-note lines (plain copy, for the CHANGELOG):
 | Date | Version | Change |
 |---|---|---|
 | 2026-11-19 | 0.1.0 | Draft for 18.0.0, checked against `homepad-api` `79e3b03` and `homepad` `6eb8a35`. |
+| 2026-11-19 | 0.1.1 | Caleb decided Q2 and Q3 ("yes"). |
