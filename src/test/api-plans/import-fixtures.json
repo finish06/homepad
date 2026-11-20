@@ -1,0 +1,168 @@
+{
+  "planHash": "b23d44800e8b689111a790d289b01143fb215bc9320f6562cf6b11bad10cb981",
+  "mode": "import",
+  "summary": {
+    "create": {
+      "sections": 4,
+      "apps": 9,
+      "icons": 0,
+      "offers": 0,
+      "kids": 0
+    },
+    "update": {
+      "sections": 0,
+      "apps": 0,
+      "icons": 0,
+      "offers": 0,
+      "people": 0,
+      "settings": 0
+    },
+    "delete": {
+      "sections": 0,
+      "apps": 0,
+      "offers": 0
+    },
+    "unchanged": 0,
+    "skipped": 3
+  },
+  "items": [
+    {
+      "kind": "section",
+      "name": "Network",
+      "action": "create"
+    },
+    {
+      "kind": "app",
+      "name": "Router",
+      "action": "create",
+      "section": "Network",
+      "icon": "https://cdn.example.com/icons/router.svg"
+    },
+    {
+      "kind": "app",
+      "name": "Pi-hole",
+      "action": "create",
+      "section": "Network",
+      "warnings": [
+        "description_variable"
+      ],
+      "icon": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/pi-hole.svg"
+    },
+    {
+      "kind": "section",
+      "name": "Network / DNS",
+      "action": "create"
+    },
+    {
+      "kind": "app",
+      "name": "AdGuard",
+      "action": "create",
+      "section": "Network / DNS",
+      "warnings": [
+        "icon_local"
+      ]
+    },
+    {
+      "kind": "section",
+      "name": "Media",
+      "action": "create"
+    },
+    {
+      "kind": "app",
+      "name": "Sonarr",
+      "action": "create",
+      "section": "Media",
+      "warnings": [
+        "widget_dropped"
+      ],
+      "icon": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/sonarr.png"
+    },
+    {
+      "kind": "app",
+      "name": "Jellyfin",
+      "action": "create",
+      "section": "Media",
+      "warnings": [
+        "widget_dropped"
+      ],
+      "icon": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/jellyfin.png"
+    },
+    {
+      "kind": "app",
+      "name": "Plex",
+      "action": "create",
+      "section": "Media",
+      "warnings": [
+        "icon_glyph"
+      ],
+      "detail": "mdi-plex-#E5A00D"
+    },
+    {
+      "kind": "app",
+      "name": "Reddit",
+      "action": "create",
+      "section": "Media"
+    },
+    {
+      "kind": "section",
+      "name": "Developer",
+      "action": "create"
+    },
+    {
+      "kind": "app",
+      "name": "Github",
+      "action": "create",
+      "section": "Developer"
+    },
+    {
+      "kind": "app",
+      "name": "Docs",
+      "action": "create",
+      "section": "Developer",
+      "warnings": [
+        "icon_glyph"
+      ],
+      "detail": "si-readthedocs"
+    },
+    {
+      "kind": "app",
+      "name": "Grafana",
+      "action": "skip",
+      "section": "Monitoring",
+      "reason": "href_uses_variable"
+    },
+    {
+      "kind": "app",
+      "name": "Uptime Kuma",
+      "action": "skip",
+      "section": "Monitoring",
+      "reason": "bad_scheme"
+    },
+    {
+      "kind": "app",
+      "name": "Broken",
+      "action": "skip",
+      "section": "Monitoring",
+      "reason": "no_link"
+    }
+  ],
+  "warnings": [],
+  "ignored": {
+    "fields": 1,
+    "settings": [
+      "title",
+      "theme",
+      "color",
+      "background",
+      "providers",
+      "quicklaunch"
+    ],
+    "dropped": [
+      "widgets",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "gatusSnippet": "endpoints:\n  - name: Router\n    group: Network\n    url: icmp://192.0.2.1\n    interval: 60s\n    conditions:\n      - '[CONNECTED] == true'\n  - name: Pi-hole\n    group: Network\n    url: http://pihole.home.arpa/admin\n    interval: 60s\n    conditions:\n      - '[STATUS] \u003c 400'\n  - name: Jellyfin\n    group: Media\n    url: https://jellyfin.home.arpa\n    interval: 60s\n    conditions:\n      - '[STATUS] \u003c 400'\n",
+  "otherAccounts": 1
+}

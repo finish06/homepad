@@ -103,6 +103,10 @@ const LAZY_CHUNKS = [
   'LibraryBrowse',
   'ServiceForm',
   'IframeOverlay',
+  // SPEC-backup-import — the restore and Homepage-import flows. Each loads on
+  // demand from the Admin Panel (and the import from the admin empty state).
+  'RestoreModal',
+  'HomepageImportModal',
 ] as const;
 
 const dist = resolve(process.cwd(), 'dist');
@@ -151,6 +155,18 @@ describe('bundle budget — the built artifact stays within its byte budget', ()
       `entry CSS is ${kb(size)} gzip, over the ${kb(ENTRY_CSS_GZIP_BUDGET)} budget. ` +
         `Raise ENTRY_CSS_GZIP_BUDGET with the new measurement if the bytes are intended.`,
     ).toBeLessThanOrEqual(ENTRY_CSS_GZIP_BUDGET);
+  });
+
+  // SPEC-backup-import — the Backup and import styles ship in a lazy stylesheet,
+  // never in the entry. Tailwind scans all of src/ into the entry CSS, so these
+  // surfaces use their own bi-* classes from src/library/backup/backup-import.css.
+  it('the Backup and import styles stay out of the entry stylesheet', () => {
+    const entry = readdirSync(assets).find((f) => /^index-[A-Za-z0-9_-]+\.css$/.test(f))!;
+    expect(readFileSync(resolve(assets, entry), 'utf8')).not.toMatch(/\.bi-/);
+    const lazy = readdirSync(assets)
+      .filter((f) => f.endsWith('.css') && f !== entry)
+      .map((f) => readFileSync(resolve(assets, f), 'utf8'));
+    expect(lazy.some((css) => /\.bi-plan-row\b/.test(css)), 'no lazy stylesheet carries the bi-* rules').toBe(true);
   });
 
   it.each(LAZY_CHUNKS)('%s ships as its own async chunk, not inside the entry', (name) => {
