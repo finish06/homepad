@@ -61,7 +61,7 @@ const ON: WidgetsInfo = {
 let infoCalls = 0;
 function serve(user: User, info: WidgetsInfo | null, services: Service[] = [SONARR]) {
   vi.mocked(api.me).mockResolvedValue(user);
-  vi.mocked(api.authConfig).mockResolvedValue({ oidcEnabled: false });
+  vi.mocked(api.authConfig).mockResolvedValue({ oidcEnabled: false, registration: 'invite_only', setupNeeded: false });
   vi.mocked(api.systemConfig).mockResolvedValue({ showUptimeDisplay: true, statusDegradedMs: 1000 });
   vi.mocked(api.categories).mockResolvedValue(CATS);
   vi.mocked(api.services).mockResolvedValue(services);
