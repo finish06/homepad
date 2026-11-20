@@ -169,6 +169,7 @@ const ENV_LABELS: Record<string, string> = {
   GATUS_BASE_URL: 'Gatus base URL',
   COOKIE_SECURE: 'Secure cookies',
   HOMEPAD_REGISTRATION: 'Registration mode',
+  HOMEPAD_MAX_ACCOUNTS: 'Account limit',
   PORT: 'Server port',
   OIDC_ENABLED: 'OIDC sign-in',
   OIDC_ISSUER: 'OIDC issuer',
@@ -178,7 +179,7 @@ const ENV_LABELS: Record<string, string> = {
   OIDC_ADMIN_GROUP: 'OIDC admin group',
 };
 
-const SERVER_KEYS = new Set(['GATUS_BASE_URL', 'COOKIE_SECURE', 'HOMEPAD_REGISTRATION', 'PORT']);
+const SERVER_KEYS = new Set(['GATUS_BASE_URL', 'COOKIE_SECURE', 'HOMEPAD_REGISTRATION', 'HOMEPAD_MAX_ACCOUNTS', 'PORT']);
 
 // SPEC-v26 §8.5 — presentation-only grouping derived by walking the ordered API
 // array; a caption is emitted whenever the group changes. Any future allowlisted

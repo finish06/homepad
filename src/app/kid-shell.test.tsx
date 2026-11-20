@@ -71,7 +71,7 @@ const CATS: Category[] = [
 
 function serve(user: User, items: Service[] = SERVED, cats: Category[] = CATS, status = 200) {
   vi.mocked(api.me).mockResolvedValue(user);
-  vi.mocked(api.authConfig).mockResolvedValue({ oidcEnabled: false });
+  vi.mocked(api.authConfig).mockResolvedValue({ oidcEnabled: false, registration: 'invite_only', setupNeeded: false });
   vi.mocked(api.systemConfig).mockResolvedValue({ showUptimeDisplay: true, statusDegradedMs: 1000 });
   vi.mocked(api.categories).mockResolvedValue(cats);
   vi.mocked(api.services).mockResolvedValue(items);

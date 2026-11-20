@@ -112,9 +112,10 @@ cp .env.example .env          # then edit POSTGRES_PASSWORD (at minimum)
 docker compose -f compose.build.yaml up --build -d
 ```
 
-Then open **http://localhost:8080**. The **first account you register becomes
-the admin** — create it, then set `HOMEPAD_REGISTRATION=invite_only` in `.env`
-and `docker compose up -d` again to lock down sign-ups.
+Then open **http://localhost:8080**. On a fresh database it shows **Set up
+Homepad**: the first account is the admin. Sign-up is closed after that
+(`HOMEPAD_REGISTRATION` defaults to `invite_only`); add more adults with an
+invite link from Administration → Accounts.
 
 Check status and logs:
 

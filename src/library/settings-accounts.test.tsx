@@ -14,6 +14,8 @@ vi.mock('../api', () => ({
   setLibraryOrder: vi.fn(),
   adminEnvConfig: vi.fn(),
   listAccounts: vi.fn(),
+  listInvites: vi.fn(() => Promise.resolve([])),
+  authConfig: vi.fn(() => Promise.resolve({ oidcEnabled: false, registration: 'invite_only', setupNeeded: false })),
   services: vi.fn(),
   categories: vi.fn(),
   kidServices: vi.fn(),

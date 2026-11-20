@@ -4,9 +4,10 @@
 #   echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" > .env
 #   docker compose up -d
 #
-# Then open http://localhost:8080 and register. The FIRST account becomes the
-# admin. Then set HOMEPAD_REGISTRATION=invite_only in .env (only an admin can
-# create accounts after that) and run `docker compose up -d` again.
+# Then open http://localhost:8080 and set up Homepad: the first account is the
+# admin. After that, sign-up is closed. To add another adult, an admin makes an
+# invite link in Administration → Accounts. Finish setup before you expose
+# Homepad outside your LAN.
 #
 # Live status (optional): Homepad reads service health from Gatus
 # (https://gatus.io). To run one alongside, add these two lines to .env:
@@ -49,7 +50,12 @@ services:
       # Plain http://localhost needs a non-Secure session cookie, or the browser
       # drops it and login silently fails. Set true once you serve Homepad over HTTPS.
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
-      HOMEPAD_REGISTRATION: ${HOMEPAD_REGISTRATION:-open}
+      # invite_only (default): only the first account signs itself up; adults
+      # join through an admin's invite link. `open` lets anyone sign up.
+      HOMEPAD_REGISTRATION: ${HOMEPAD_REGISTRATION:-invite_only}
+      # Most accounts (all roles) plus pending invites this Homepad allows.
+      # Empty or 0 means no limit.
+      HOMEPAD_MAX_ACCOUNTS: ${HOMEPAD_MAX_ACCOUNTS:-}
       GATUS_BASE_URL: ${GATUS_BASE_URL:-}
       GATUS_DEGRADED_MS: ${GATUS_DEGRADED_MS:-1000}
       # Single sign-on (optional): PocketID, Authelia, Authentik, Keycloak or any
