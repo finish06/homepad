@@ -1,7 +1,7 @@
 # Spec: Password reset link, and changing your own password
 
 **Spec ID:** SPEC-password-reset-link
-**Version:** 0.1.0
+**Version:** 0.1.1
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
 **Status:** Draft, awaiting sign-off
@@ -59,7 +59,7 @@ The link follows the invite rules from SPEC-household-basics §3.2 exactly.
 ### 1a. What exists today (checked in the code, `homepad-api` `gitea/main` at `79e3b03`, `homepad` `gitea/main` at `6eb8a35`)
 
 - **No route changes a password.** `server.go` has `POST /api/register`, `POST /api/login` and `POST /api/invites/accept` as the only places a `password_hash` is written (`RegisterUser`, `insertUser` and `AcceptInvite` in `internal/storage/accounts.go` and `invites.go`). `handlePatchMe` (`internal/api/auth.go`) accepts only appearance fields.
-- **Password rule:** at least 8 characters (`minPasswordLen`, `decodeCredentials`). Hash: `bcrypt.DefaultCost`. Above 72 bytes, `bcrypt.GenerateFromPassword` (`golang.org/x/crypto` v0.53.0, per `go.mod`) returns an error, and `handleRegister` answers 500 "internal error". The 8-character minimum is checked; the 72-byte maximum isn't.
+- **Password rule:** at least 8 characters (`minPasswordLen`, `decodeCredentials`). Hash: `bcrypt.DefaultCost`. Above 72 bytes, `bcrypt.GenerateFromPassword` (`golang.org/x/crypto` v0.53.0, per `go.mod`) returns an error, and `handleRegister` answers 500 "internal error". The 8-character minimum is checked; the 72-byte maximum isn't. This is being fixed ahead of 18.0.0 in a homepad-api bug-fix PR (number TBD), guarded by SPEC-signin-hardening AC-018.
 - **OIDC-only accounts** store the constant `oidcNoPassword = "oidc:no-local-password"` in `password_hash` (`internal/api/oidc.go`). It is not a bcrypt hash, so local login always fails for them. An account that registered with a password and later signed in with OIDC keeps its real hash (OIDC links by email and never overwrites it).
 - **Kids have no password.** Migration 0018's `users_kid_credentials_check` requires `password_hash IS NULL` for a kid. `handleUpdateKid` (`internal/api/admin_accounts.go`) refuses a `password` field with 400 "kid accounts do not have passwords; use sign-in-here". SPEC-kid-accounts §2.2 mentions an optional kid password; it was never built.
 - **Invite token rules to copy** (`internal/api/invites.go`): 32 CSPRNG bytes, unpadded base64url (`newInviteToken`); only `sha256(token)` stored, with `CHECK (octet_length(token_hash) = 32)` (migration 0019); malformed tokens rejected before a database read (`inviteTokenHash`); one 404 body for every dead token (`deadInvite`); the token only in POST bodies and in the URL fragment; `FOR UPDATE` on accept, marking use in the same transaction (`AcceptInvite`); stale rows swept hourly after 30 days (`DeleteStaleInvites`, `sweepInvites` in `main.go`).
@@ -174,7 +174,7 @@ No line holds a token, a hash, an email or a password.
 
 | ID | Criterion | Priority |
 |---|---|---|
-| AC-017 | `POST /api/register` and `POST /api/invites/accept` refuse passwords over 72 bytes with 400 "password must be at most 72 bytes" instead of 500. | Should |
+| AC-017 | Regression guard: `POST /api/register` and `POST /api/invites/accept` refuse passwords over 72 bytes with 400 "password must be at most 72 bytes", never 500. Fixed ahead of 18.0.0 in a homepad-api bug-fix PR (number TBD); see SPEC-signin-hardening AC-018. | Should |
 | AC-018 | Accounts shows **Make a reset link** in an adult's row menu, except for the signed-in admin, kids and SSO-only accounts. The link shows once with Copy and the clipboard fallback (UX to do). | Must |
 | AC-019 | Opening `/#reset=<token>` shows the reset screen; the token is removed from the address bar once read; a dead link shows the §2.2 message. | Must |
 | AC-020 | My settings shows **Change password** for adults with a local password, and not for kids or SSO-only accounts (`GET /api/me` gains `hasPassword`). | Must |
@@ -314,3 +314,4 @@ UX artifact: to do (/add:ux). Surfaces:
 | Date | Version | Change |
 |---|---|---|
 | 2026-11-19 | 0.1.0 | Draft for 18.0.0, checked against `homepad-api` `79e3b03` and `homepad` `6eb8a35`. |
+| 2026-11-19 | 0.1.1 | The 72-byte 500 is fixed ahead of 18.0.0 in a homepad-api bug-fix PR; AC-017 becomes a regression guard pointing at SPEC-signin-hardening AC-018. |

@@ -18,7 +18,8 @@
 
 - **Caleb answers the open questions** in each spec's §0. Every spec is written against its defaults.
 - **The 17.1.0 web halves land on `homepad` main:** household basics (#565), backup (#566), widgets (#568). Specs 2, 3 and 4 change screens those PRs add (Accounts adult rows, the invite dialog, the `#invite=` handling, the backup field list).
-- **Decide where #89 ships** (SPEC-signin-hardening Q1). It is merged on `homepad-api` main and will go out with the next API tag unless reverted.
+- **Decided: #89 ships in 17.1.0** (SPEC-signin-hardening Q1, Caleb, 2026-11-19: "a"). The `email_verified` refusal, merged in #91, goes out in 17.1.0 as a security fix, and the 17.1.0 release notes carry the PocketID steps.
+- **Landing ahead of 18.0.0:** three sign-in bug fixes, in a separate homepad-api bug-fix PR (number TBD): login timing that shows whether an email exists, the OIDC callback cookie ignoring `COOKIE_SECURE`, and passwords over 72 bytes causing a 500. Spec 4 keeps their ACs (AC-009, AC-016, AC-018) as regression guards, and spec 3 AC-017 points at AC-018.
 - **UX artifacts** (`/add:ux`) for specs 2, 3, 4 and 5 before their UI work starts. Spec 1 has no UI.
 
 ## 1. Build order
@@ -93,7 +94,6 @@ These are task time. The kid-accounts plan ran about 50% over its spec estimate;
 |---|---|---|
 | Migration 0021 is one way | A bad migration can't be rolled back by deploying 17.x | Rehearse on a copy of the production database; release notes say to `pg_dump` first; AC-006/AC-010 in spec 1 compare before/after counts and schemas. |
 | The runner change (spec 1 Q3) | If `schema_migrations` records a file that failed half way, it never re-runs | Each run is one transaction with the records, as today; a failed boot records nothing. Test with a deliberately failing migration. |
-| #89 ships in 17.1.0 | SSO users locked out in a minor release | Decide spec 4 Q1 before tagging 17.1.0; put the PocketID steps in the 17.1.0 notes either way. |
 | invite-only gates SSO (spec 4) | Households that onboard everyone through PocketID stop getting new accounts | `OIDC_MEMBER_GROUP`; release notes name it; existing accounts unaffected. |
 | Shared rate limit behind the bundled nginx | One noisy client slows everyone's sign-in | Docs explain `HOMEPAD_TRUSTED_PROXIES`; per-email lock still protects each account. |
 | Per-email lock as a weapon | Someone can keep a known email locked out of password sign-in | 15-minute lock; SSO and existing sessions unaffected; spec 4 Q3 B removes it if Caleb prefers. |
@@ -109,10 +109,10 @@ The CHANGELOG entry for 18.0.0 must carry each of these. Plain copy, in this ord
 2. **Hidden copies moved.** "Some old, hidden copies of apps are moved to a table called `catalog_archive`. Nobody could see them." Plus the `psql` line from spec 1 §10.
 3. **Managing adults.** "Admins can now remove an adult, or make someone an admin or a member, in Administration → Accounts. Homepad always keeps at least one admin."
 4. **Passwords.** "An admin can make a one-time reset link for an adult. It works for 24 hours. You can change your own password in My settings. If you are the only admin and forget your password, run `docker compose exec api /homepad-api reset-link you@example.com` on the server."
-5. **Single sign-on needs a verified email.** The PocketID steps (spec 4 §2.6), shortened, with a link to `docs/single-sign-on.md`. (Also in 17.1.0 if #89 ships there.)
+5. **Single sign-on needs a verified email.** This ships in 17.1.0 (spec 4 Q1, decided), so the PocketID steps belong in the 17.1.0 notes, not the 18.0.0 ones.
 6. **Single sign-on under invite-only.** "With invite-only sign-up, single sign-on only creates accounts for people in your admin group, or in the new `OIDC_MEMBER_GROUP`. Others need an invite."
 7. **Sign-in speed limit.** "Sign-in now has a speed limit. If a proxy sits in front of Homepad, set `HOMEPAD_TRUSTED_PROXIES` to its address."
-8. **Overlay apps.** The spec 5 line for the chosen Q1, and the Q4 line ("Homepad can no longer be shown inside another page or dashboard").
+8. **Overlay apps.** Existing overlay apps stay opted in (spec 5 Q1, decided): "Apps that open in the overlay are now more locked down by default. Apps you already set to open in the overlay keep working as before. For new ones that ask you to sign in every time, turn on 'Let this app keep its sign-in' in the app's settings. Only do this for apps you trust." And the Q4 line: "Homepad can no longer be shown inside another page or dashboard."
 9. **Upgrading.** "Deploy the API and web images as a pair, API first. Nobody is signed out by this upgrade." (True for all five specs: none ends sessions on deploy.)
 
 ## 6. Verification
