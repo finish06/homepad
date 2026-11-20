@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import { safeHref } from '../lib/safeUrl';
 import Modal from '../ui/Modal';
 import {
@@ -44,6 +44,8 @@ import { CONTENT_WIDTH } from '../lib/layout';
 import { useResolvedTheme } from '../theme/theme';
 import { type TileDensity } from './tileDensity';
 import { tileStatusLine } from './tileStatus';
+import { widgetLine, type WidgetLine } from '../widgets/format';
+import { ShowWidgetsContext } from '../widgets/context';
 
 // v14.0.1 optimize — both overlays mount only on a user action (open a tile's
 // Edit modal, or open a clickAction='iframe' tile), never during the grid's
@@ -1209,6 +1211,19 @@ function RecentlyOpenedRow({
   );
 }
 
+// The visible widget line. The first field sits in its own span that never
+// shrinks, so it stays readable at 320px while the rest ellipses (AC-009). A
+// stale line leads with ◷ instead of fading, which would drop below AA (AC-012).
+function WidgetText({ line }: { line: WidgetLine }) {
+  const [first, ...rest] = line.parts;
+  return (
+    <>
+      <span className="tile-widget-first">{line.stale ? `◷ ${first}` : first}</span>
+      {rest.length > 0 && <span className="tile-widget-rest">{` · ${rest.join(' · ')}`}</span>}
+    </>
+  );
+}
+
 function ToolLink({
   service,
   theme,
@@ -1243,6 +1258,12 @@ function ToolLink({
   const fav = service.favorite;
   // SPEC-242 D-4 — one-shot pulse when this tile's status changes on a live poll.
   const pulsing = useStatusPulse(service.status);
+  // SPEC-status-widgets §2.2 — the widget line. `hasWidget` reserves the Large
+  // line in every state; `wl` is the values to show, or null when the tile falls
+  // back to today's line: an outage wins, and loading/error show nothing.
+  const lineId = useId();
+  const hasWidget = useContext(ShowWidgetsContext) && !!service.widget;
+  const wl = hasWidget && service.status !== 'DOWN' ? widgetLine(service.widget, density, Date.now()) : null;
   const editRef = useRef<HTMLButtonElement>(null);
   // v23 — how this tile navigates (SPEC-tile-click-action §5). Absent/undefined
   // is treated as 'new_tab' (AC-014, the hardcoded prior behavior). new_tab keeps
@@ -1297,6 +1318,7 @@ function ToolLink({
         data-status={service.status}
         href={safeHref(service.url)}
         aria-label={service.name}
+        aria-describedby={wl ? lineId : undefined}
         title={service.name}
         {...linkProps}
       >
@@ -1314,6 +1336,13 @@ function ToolLink({
             real flex column that stacks the name over the status line. */}
         <span className="app-grid-tool-text">
           <span className="app-grid-tool-name">{service.name}</span>
+          {/* Large: one widget line under the name, reserved (empty) on a widget
+              tile while it has nothing to show, so the tile never jumps (AC-008). */}
+          {density === 'large' && hasWidget && (
+            <span className="app-grid-tool-widget" data-testid="tile-widget">
+              {wl && <WidgetText line={wl} />}
+            </span>
+          )}
           {/* The v16 status line: state word always, response time appended only
               when Service.responseTimeMs is present (graceful degradation, OQ-6).
               Rendered only in compact/list — Large is the legacy name-only tile.
@@ -1324,8 +1353,11 @@ function ToolLink({
               className="app-grid-tool-statusline"
               data-testid="tile-statusline"
               data-status={service.status}
+              data-widget={wl ? (wl.stale ? 'stale' : 'ok') : undefined}
             >
-              {tileStatusLine(service, Date.now())}
+              {/* SPEC-status-widgets AC-007 — the widget values take this line's
+                  place while the app is not offline; only the text changes. */}
+              {wl ? <WidgetText line={wl} /> : tileStatusLine(service, Date.now())}
             </span>
           )}
           {/* cap6 — the global admin toggle gates the uptime line here (D2, render
@@ -1339,6 +1371,13 @@ function ToolLink({
           {showUptimeDisplay && <UptimeSparkline checks={service.uptimeChecks} />}
         </span>
       </a>
+      {/* AC-010 — the link's name stays the service name; the widget line is its
+          description, in words ("3 this week, 1 in queue. Updated 12 min ago"). */}
+      {wl && (
+        <span id={lineId} className="sr-only">
+          {wl.description}
+        </span>
+      )}
       {/* v29 §3.2 — the ★ does two jobs and only ONE is withdrawn here. In
           arrange mode it is the control it has always been. Outside it, a
           favorited tile keeps a visible but INERT ★ (the state is still

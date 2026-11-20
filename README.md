@@ -48,6 +48,7 @@ Next steps:
 - **Live status.** Connect [Gatus](https://gatus.io): add `COMPOSE_PROFILES=gatus` and `GATUS_BASE_URL=http://gatus:8080` to `.env` to run one alongside. See [docs/monitoring.md](./docs/monitoring.md).
 - **Add adults.** In Administration → Accounts, **+ Add an adult** makes an invite link. See [Registration](#registration).
 - **Kids.** Give a kid a dashboard with only the apps you choose, signed in on the family iPad for months. See [docs/kid-accounts.md](./docs/kid-accounts.md).
+- **Widgets.** A few numbers on your Jellyfin, Sonarr and Radarr tiles, plus a clock, the weather and web search. Add `HOMEPAD_SECRET_KEY` to `.env` to store API keys. See [docs/widgets.md](./docs/widgets.md).
 - **Back up, or import from Homepage.** Download your whole dashboard as one file, restore it, or bring in your Homepage `services.yaml`. See [docs/backup-import.md](./docs/backup-import.md).
 - **Single sign-on.** See [SSO](#single-sign-on) below.
 - **Update** with `docker compose pull && docker compose up -d`.
@@ -131,7 +132,7 @@ Register the redirect URL with your provider, then run `docker compose up -d`. W
 
 ## Project
 
-- **Docs:** [monitoring](./docs/monitoring.md) · [kid accounts](./docs/kid-accounts.md) · [backup and import](./docs/backup-import.md) · [development](./docs/development.md) · [changelog](./CHANGELOG.md)
+- **Docs:** [monitoring](./docs/monitoring.md) · [kid accounts](./docs/kid-accounts.md) · [widgets](./docs/widgets.md) · [backup and import](./docs/backup-import.md) · [development](./docs/development.md) · [changelog](./CHANGELOG.md)
 - **Backend:** [finish06/homepad-api](https://github.com/finish06/homepad-api) (Go + Postgres)
 - **Contributing:** issues and PRs are welcome. Start with [docs/development.md](./docs/development.md).
 - **License:** [MIT](./LICENSE)
