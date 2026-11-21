@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
+import { render, screen, waitForElementToBeRemoved, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 import { authConfig, me, setThemePref, type User } from '../api';
@@ -67,8 +67,46 @@ describe('v15 version footer', () => {
     await dropLoading();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /open changelog/i }));
-    const dialog = screen.getByRole('dialog');
+    // The overlay is a lazy chunk, so it appears after its import resolves.
+    const dialog = await screen.findByRole('dialog');
     expect(dialog).toHaveAttribute('aria-modal', 'true');
     expect(screen.getByText('Changelog')).toBeInTheDocument();
+  });
+
+  // AC-009 — the close button closes it and focus returns to the badge.
+  it('the close button closes the overlay and focus returns to the badge', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await dropLoading();
+    const badge = screen.getByRole('button', { name: /open changelog/i });
+    await user.click(badge);
+    await user.click(await screen.findByRole('button', { name: /close changelog/i }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(badge).toHaveFocus();
+  });
+
+  // AC-012 — each open lands on the default, not the last selection.
+  it('re-opening lands on the default version, not the last one picked', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await dropLoading();
+    const badge = screen.getByRole('button', { name: /open changelog/i });
+    await user.click(badge);
+    await screen.findByRole('dialog');
+    const nav = screen.getByRole('navigation', { name: 'Versions' });
+    const defaultLabel = within(nav).getByRole('button', { current: true }).textContent;
+    const other = within(nav)
+      .getAllByRole('button')
+      .find((b) => b.textContent !== defaultLabel)!;
+    await user.click(other);
+    expect(other).toHaveAttribute('aria-current', 'true');
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await user.click(badge);
+    await screen.findByRole('dialog');
+    expect(
+      within(screen.getByRole('navigation', { name: 'Versions' })).getByRole('button', { current: true }),
+    ).toHaveTextContent(defaultLabel!);
   });
 });
