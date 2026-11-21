@@ -2,7 +2,7 @@
 
 **Spec:** [`SPEC-password-reset-link.md`](../SPEC-password-reset-link.md) §9 (v0.1.1, Approved 2026-11-20)
 **Author:** Claude for Kare (design), drafted 2026-11-20
-**Status:** Draft — awaiting Caleb.
+**Status:** APPROVED — Caleb, 2026-11-20 (R-1…R-6 at the recommendations).
 
 This doc designs the three surfaces in spec §9. Everything else reuses what exists:
 - the adult row menu from the manage-adults UX ([`household-manage-adults-ux.md`](./household-manage-adults-ux.md) §2);
@@ -42,7 +42,7 @@ My settings
 
 - **Make a reset link** sits second in the adult row menu, after the role item and before the divider (manage-adults UX §2.3).
 - It shows on every adult row with a password. It doesn't show on your own row, on kid rows, or on accounts that only use single sign-on (AC-018).
-- **Gap (R-1).** The Accounts list can't tell which adults only use single sign-on today: `Account` has no `hasPassword`, and the spec adds it to `GET /api/me` only. See §6.
+- **R-1 (decided).** `GET /api/admin/accounts` gains `hasPassword` on each adult row (spec AC-021), so the menu can hide the item for SSO-only accounts.
 
 ### 2.2 The dialog
 
@@ -305,7 +305,7 @@ A new section under **Dashboard** in My settings. It shows only when `GET /api/m
 
 | Screen | ACs |
 |---|---|
-| §2.1 menu item | AC-003 (not on your own row), AC-010 (not on SSO-only rows; needs R-1), AC-018 |
+| §2.1 menu item | AC-003 (not on your own row), AC-010 (not on SSO-only rows), AC-018, AC-021 (`hasPassword` on the list) |
 | §2.2 dialog | AC-001, AC-004 (the time line), AC-005 ("a new link replaces this one"), AC-018 (shown once, Copy, fallback) |
 | §3 reset screen | AC-006 (one dead message), AC-007, AC-008 (caveat line), AC-009 (errors keep the link), AC-012 (429), AC-019 |
 | §4 Change password | AC-013, AC-014, AC-020 |
@@ -318,20 +318,20 @@ AC-002, AC-011, AC-015, AC-016 and AC-017 have no UI.
 2. The reset-link dialog: making, secure page, plain http with the field selected. At 1280 and 390, light and dark.
 3. The reset screen: loading, live, dead, signed in as someone else, and the mismatch error. At 390 and 1280, light and dark.
 4. My settings → Password: closed, open with the wrong-password error, and done. At 1280 and 390.
-5. TC-005: an SSO-only member's row, whose menu has no reset item (after R-1).
+5. TC-005: an SSO-only member's row, whose menu has no reset item (R-1, AC-021).
 
-## 8. Decisions for Caleb
+## 8. Decisions
 
-- **R-1: The Accounts list needs `hasPassword`.** Without it, the UI can't hide **Make a reset link** for SSO-only accounts (AC-018, TC-005). The spec adds `hasPassword` to `GET /api/me` only, and manage-adults says the list "already returns what the UI needs". **Recommended: add `hasPassword` to each adult row of `GET /api/admin/accounts`.** It's additive and computed the same way. The fallback is to show the item on every other adult and rely on the 409 line in §2.2, which means TC-005's "no Make a reset link" would fail.
-- **R-2: No confirm before making a link.** Making one changes nothing until it's used, and it replaces the old link (the intended effect). **Recommended: make it at once.** The alternative is a "Make a reset link for Jo?" step.
-- **R-3: Lookup first, then the signed-in check.** The Join screen asks first, whatever the account. With reset, the same person is often signed in on this device, and asking them to sign out of their own account would be odd. **Recommended: look up, then ask only when the emails differ.**
-- **R-4: The expiry shows a time.** Invites show a day ("until Nov 14"), which is enough for 7 days. For 24 hours it isn't. **Recommended: "until Nov 21 at 3:40 PM".**
-- **R-5: Change password expands in place.** A nested dialog is the alternative. **Recommended: in place.** It's three fields, and My settings is already a dialog.
-- **R-6: The adult's other devices go to the sign-in screen.** TC-001 step 3 ("The tablet shows the sign-in screen on its next poll") and TC-003 depend on the same change as manage-adults A-5. Today an adult's tab stops polling on a 401 and shows nothing. **Recommended: the A-5 one-liner, landing with whichever spec merges first.**
+- **R-1: The Accounts list needs `hasPassword`.** Without it, the UI can't hide **Make a reset link** for SSO-only accounts (AC-018, TC-005). The spec adds `hasPassword` to `GET /api/me` only, and manage-adults says the list "already returns what the UI needs". **Decided: add `hasPassword` to each adult row of `GET /api/admin/accounts`.** It's additive and computed the same way. The fallback is to show the item on every other adult and rely on the 409 line in §2.2, which means TC-005's "no Make a reset link" would fail.
+- **R-2: No confirm before making a link.** Making one changes nothing until it's used, and it replaces the old link (the intended effect). **Decided: make it at once.** The alternative is a "Make a reset link for Jo?" step.
+- **R-3: Lookup first, then the signed-in check.** The Join screen asks first, whatever the account. With reset, the same person is often signed in on this device, and asking them to sign out of their own account would be odd. **Decided: look up, then ask only when the emails differ.**
+- **R-4: The expiry shows a time.** Invites show a day ("until Nov 14"), which is enough for 7 days. For 24 hours it isn't. **Decided: "until Nov 21 at 3:40 PM".**
+- **R-5: Change password expands in place.** A nested dialog is the alternative. **Decided: in place.** It's three fields, and My settings is already a dialog.
+- **R-6: The adult's other devices go to the sign-in screen.** TC-001 step 3 ("The tablet shows the sign-in screen on its next poll") and TC-003 depend on the same change as manage-adults A-5. Today an adult's tab stops polling on a 401 and shows nothing. **Decided: covered by manage-adults A-5 (SPEC-household-manage-adults AC-016), which owns the `App.tsx` line.**
 
 ## Sign-off
 
 | Role | Name | Status |
 |---|---|---|
 | Design | Kare | Drafted 2026-11-20 (Claude for Kare) |
-| Product | Caleb | Pending (R-1…R-6) |
+| Product | Caleb | Approved 2026-11-20 ("Accept all recommended": R-1…R-6 at the recommendations) |

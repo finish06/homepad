@@ -2,7 +2,7 @@
 
 **Spec:** [`SPEC-iframe-sandbox-optin.md`](../SPEC-iframe-sandbox-optin.md) §9 (v0.1.1, Approved 2026-11-20)
 **Author:** Claude for Kare (design), drafted 2026-11-20
-**Status:** Draft — awaiting Caleb.
+**Status:** APPROVED — Caleb, 2026-11-20 (I-1…I-4 at the recommendations).
 
 Spec §9 names one surface: the tile editor's Inline overlay switch, its help line, and its greyed-out state. Everything else reuses what exists:
 - the tile editor (`TileEditModal.tsx`) and its Click action control (v23, Kare §8.1);
@@ -177,16 +177,16 @@ AC-003, AC-006, AC-007 and AC-011…AC-013 have no UI.
 4. An upgraded overlay app (TC-001) with the switch on, at 1280.
 5. New tab chosen: no switch, at 390.
 
-## 7. Decisions for Caleb
+## 7. Decisions
 
-- **I-1: A second reason line for an address that can't be read.** The spec greys the switch for unparseable addresses (AC-004) but gives only the same-origin reason. That reason would be wrong for a half-typed address. **Recommended: "Enter the app's full address first, like https://app.example."**
-- **I-2: The greyed-out state doesn't overwrite the saved value.** An upgraded app on Homepad's own address has the opt-in saved as on (migration 0023), and the editor shows it off and greyed. **Recommended: show off, send nothing.** The overlay ignores the value there anyway (AC-004), and "Save sends only what changed" stays true. The alternative is to send `false` on the next Save, which tidies the data but changes a field the admin didn't touch.
-- **I-3: No hint in the overlay.** Homepad can't tell a sign-in loop from a normal page, so any hint would show on every overlay. **Recommended: none.** The release note and the help line carry it.
-- **I-4: The switch sits under the Click action hint.** The spec says so. The alternative is a separate "Overlay" group lower in the form, which puts it far from the choice that reveals it. **Recommended: as the spec says.**
+- **I-1: A second reason line for an address that can't be read.** The spec greys the switch for unparseable addresses (AC-004) but gives only the same-origin reason. That reason would be wrong for a half-typed address. **Decided: "Enter the app's full address first, like https://app.example."**
+- **I-2: The greyed-out state doesn't overwrite the saved value.** An upgraded app on Homepad's own address has the opt-in saved as on (migration 0023), and the editor shows it off and greyed. **Decided: show off, send nothing.** The overlay ignores the value there anyway (AC-004), and "Save sends only what changed" stays true. The alternative is to send `false` on the next Save, which tidies the data but changes a field the admin didn't touch.
+- **I-3: No hint in the overlay.** Homepad can't tell a sign-in loop from a normal page, so any hint would show on every overlay. **Decided: none.** The release note and the help line carry it.
+- **I-4: The switch sits under the Click action hint.** The spec says so. The alternative is a separate "Overlay" group lower in the form, which puts it far from the choice that reveals it. **Decided: as the spec says.**
 
 ## Sign-off
 
 | Role | Name | Status |
 |---|---|---|
 | Design | Kare | Drafted 2026-11-20 (Claude for Kare) |
-| Product | Caleb | Pending (I-1…I-4) |
+| Product | Caleb | Approved 2026-11-20 ("Accept all recommended": I-1…I-4 at the recommendations) |

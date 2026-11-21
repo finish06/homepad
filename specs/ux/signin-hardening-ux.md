@@ -2,7 +2,7 @@
 
 **Spec:** [`SPEC-signin-hardening.md`](../SPEC-signin-hardening.md) §9 (v0.1.1, Approved 2026-11-20)
 **Author:** Claude for Kare (design), drafted 2026-11-20
-**Status:** Draft — awaiting Caleb.
+**Status:** APPROVED — Caleb, 2026-11-20 (S-1…S-6 at the recommendations).
 
 Spec §9 names one surface: the sign-in screen's error line and wait state. This doc designs that surface. It also covers three small places the spec's changes reach:
 - the same wait line on the Join and reset screens;
@@ -115,6 +115,7 @@ When single sign-on fails, the API sends the browser to `/#signin-error=<code>` 
 | `not_invited` | You don't have a Homepad account yet. Ask your admin for an invite. |
 | `account_limit` | This Homepad has reached its account limit. |
 | `sso_failed` | Single sign-on didn't work. Try again. |
+| `too_many` (S-5, from the start route's 429) | Too many tries. Wait a minute and try again. |
 | any other code | the `sso_failed` line |
 
 - `account_limit` reuses `accountLimitMessage(undefined)` from `src/lib/accountLimit.ts`, which already returns this exact text.
@@ -222,7 +223,7 @@ IDENTITY (OIDC)
 
 Today the Add-an-adult dialog says, whenever SSO is on: "They use PocketID? They can sign in with it. No invite needed." With Q2 = A, under `invite_only` (the default), single sign-on makes an account only for people in `OIDC_ADMIN_GROUP` or `OIDC_MEMBER_GROUP`. For anyone else, the line becomes untrue. It's also a question, which the copy rules avoid.
 
-This file (`src/accounts/AddAdultDialog.tsx`) isn't in the plan's file map for this spec. It needs to be added to spec 4's list (S-4).
+This file (`src/accounts/AddAdultDialog.tsx`) wasn't in the plan's file map for this spec. Decided (S-4): it's now on the spec's file list (§8) and in AC-021.
 
 Replacement, by registration mode (the dialog already loads `authConfig`):
 
@@ -257,10 +258,11 @@ Replacement, by registration mode (the dialog already loads `authConfig`):
 
 | Screen | ACs |
 |---|---|
-| §2 SSO message | AC-001 (`email_unverified`), AC-002, AC-003, AC-010 (`not_invited`) |
+| §2 SSO message | AC-001 (`email_unverified`), AC-002, AC-003, AC-010 (`not_invited`), AC-019 (`too_many`) |
 | §3 wait line | AC-004, AC-005 |
 | §4 System rows | AC-013, AC-017 |
-| §5 PocketID line | AC-010, AC-011 (what the admin is told matches the rule) |
+| §5 PocketID line | AC-010, AC-011, AC-021 |
+| §1 bundle note | AC-020 (measure before merge) |
 
 AC-006…AC-009, AC-012, AC-014…AC-016 and AC-018 have no UI.
 
@@ -271,18 +273,18 @@ AC-006…AC-009, AC-012, AC-014…AC-016 and AC-018 have no UI.
 3. Admin Panel → System with Trusted proxies empty (help line showing) and OIDC member group set, at 1280.
 4. Add an adult under `invite_only` with SSO on, at 390.
 
-## 9. Decisions for Caleb
+## 9. Decisions
 
-- **S-1: The messages stay in the entry chunk.** They're about 300 bytes gzip against about 1,070 bytes of room, and the reset screen's `App.tsx` hook needs some of that room too. **Recommended: inline, measured before merge.** If this spec's share goes over about 400 bytes, the SSO code map moves to a lazy module loaded only when a code is present.
-- **S-2: "You can still use PocketID." on the wait line.** It's true for the per-email lock, and it helps the person who forgot which password they used. **Recommended: add it when SSO is on.**
-- **S-3: The help line under an empty Trusted proxies.** **Recommended: add it.** The other env rows have no help, but this is the one default with a cost that isn't visible.
-- **S-4: Reword the Add-an-adult PocketID line** (§5). This is a conflict between Q2 and today's UI. **Recommended: the two lines in §5, with `AddAdultDialog.tsx` added to this spec's file list.**
-- **S-5: The OIDC start route's own 429.** `GET /api/auth/oidc/login` gets a limit (20 a minute), but the browser reaches it by full-page navigation. Over the limit, the person sees a bare "too many attempts" text page. AC-002 covers callback failures only. **Recommended: the start route also redirects to `/#signin-error=`.** Which code to use is an API change for Caleb to approve: `sso_failed` ("Try again") is the wrong advice, so a fifth code `too_many` with the §3.1 wait line fits better. The alternative is to leave it, since 20 a minute is rarely hit by a person.
-- **S-6: No countdown.** A ticking timer is entry-chunk code and noise for screen readers. **Recommended: a static line.**
+- **S-1: The messages stay in the entry chunk.** They're about 300 bytes gzip against about 1,070 bytes of room, and the reset screen's `App.tsx` hook needs some of that room too. **Decided: inline, measured before merge.** If this spec's share goes over about 400 bytes, the SSO code map moves to a lazy module loaded only when a code is present.
+- **S-2: "You can still use PocketID." on the wait line.** It's true for the per-email lock, and it helps the person who forgot which password they used. **Decided: add it when SSO is on.**
+- **S-3: The help line under an empty Trusted proxies.** **Decided: add it.** The other env rows have no help, but this is the one default with a cost that isn't visible.
+- **S-4: Reword the Add-an-adult PocketID line** (§5). This is a conflict between Q2 and today's UI. **Decided: the two lines in §5, with `AddAdultDialog.tsx` added to this spec's file list.**
+- **S-5: The OIDC start route's own 429.** `GET /api/auth/oidc/login` gets a limit (20 a minute), but the browser reaches it by full-page navigation. Over the limit, the person sees a bare "too many attempts" text page. AC-002 covers callback failures only. **Decided: the start route also redirects to `/#signin-error=`.** It uses a fifth code, `too_many`, shown with the §3.1 wait line ("Too many tries. Wait a minute and try again."), because `sso_failed` ("Try again") is the wrong advice. Spec AC-019.
+- **S-6: No countdown.** A ticking timer is entry-chunk code and noise for screen readers. **Decided: a static line.**
 
 ## Sign-off
 
 | Role | Name | Status |
 |---|---|---|
 | Design | Kare | Drafted 2026-11-20 (Claude for Kare) |
-| Product | Caleb | Pending (S-1…S-6) |
+| Product | Caleb | Approved 2026-11-20 ("Accept all recommended": S-1…S-6 at the recommendations) |

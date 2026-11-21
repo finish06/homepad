@@ -2,7 +2,7 @@
 
 **Spec:** [`SPEC-household-manage-adults.md`](../SPEC-household-manage-adults.md) §9 (v0.1.0, Approved 2026-11-20)
 **Author:** Claude for Kare (design), drafted 2026-11-20
-**Status:** Draft — awaiting Caleb.
+**Status:** APPROVED — Caleb, 2026-11-20 (A-1…A-6 at the recommendations).
 
 This doc designs the three surfaces in spec §9. Everything else reuses what exists: the Accounts section (`AccountsSection`), the `Modal` shell, the Revoke confirm's `alertdialog` pattern (`PendingInvites.tsx`), and the user menu's keyboard model (`UserMenu.tsx`).
 
@@ -211,7 +211,7 @@ Only one admin (Caleb), signed in as Caleb:
 ## 5. What the changed person sees
 
 - **Removed, or role changed:** their sessions end (AC-007, AC-008). Their next request gets 401, and the app shows the normal sign-in screen. There is no special copy. The person who did it is in the same household and can explain.
-- **Conflict with today's web app (A-5).** Today only kid devices go to the sign-in screen on a 401 (`App.tsx`: `onUnauthorized={user.role === 'kid' ? … : undefined}`). Adults keep v13's quiet stop: polling ends and the dashboard stays on screen. Spec AC-007 and TC-001/TC-002 say the adult's open tab "shows the sign-in screen on its next poll", which today's app doesn't do. The fix is one line: pass `onUnauthorized` for every role. It's in the entry chunk but costs only a few bytes. It isn't in the plan's file map for this spec (§2 gives `App.tsx` to SPEC-password-reset-link), so it needs an owner.
+- **Conflict with today's web app (A-5).** Today only kid devices go to the sign-in screen on a 401 (`App.tsx`: `onUnauthorized={user.role === 'kid' ? … : undefined}`). Adults keep v13's quiet stop: polling ends and the dashboard stays on screen. Spec AC-007 and TC-001/TC-002 say the adult's open tab "shows the sign-in screen on its next poll", which today's app doesn't do. The fix is one line: pass `onUnauthorized` for every role. It's in the entry chunk but costs only a few bytes. Decided (A-5): this spec owns it. The spec's §8 and the plan's §2 file map now list it.
 
 ## 6. Accessibility and copy
 
@@ -242,7 +242,7 @@ Only one admin (Caleb), signed in as Caleb:
 | §3.2–3.3 role confirms | AC-006, AC-008 (the "signed out" line), AC-010 |
 | §3.4 errors | AC-003 (404 line), AC-005 (`self`), AC-009 (`last_admin`) |
 | §4 self and last admin | AC-005, AC-009, AC-010 |
-| §5 changed person | AC-007, AC-008 (needs A-5) |
+| §5 changed person | AC-007, AC-008, AC-016 (A-5) |
 
 AC-002, AC-011 and AC-013 have no UI.
 
@@ -253,24 +253,24 @@ AC-002, AC-011 and AC-013 have no UI.
 3. The Remove confirm with the invites line and the SSO line, at 390.
 4. Make admin with the amber line, at 1280.
 5. The `last_admin` error inside a confirm, at 390.
-6. A removed adult's other tab on the sign-in screen (after A-5), at 390.
+6. A removed adult's other tab on the sign-in screen (A-5, AC-016), at 390.
 
 ## 9. Docs
 
-Spec §8 leaves the home to UX. **Recommended: a new `docs/accounts.md`**, as the plan's file map already says. It gets an "Adults" section (who can remove or change whom, the one-admin rule, what removal deletes, the SSO caveat). SPEC-password-reset-link adds "Forgotten passwords" after it. `docs/kid-accounts.md` links to it.
+Spec §8 leaves the home to UX. **Decided: a new `docs/accounts.md`**, as the plan's file map already says. It gets an "Adults" section (who can remove or change whom, the one-admin rule, what removal deletes, the SSO caveat). SPEC-password-reset-link adds "Forgotten passwords" after it. `docs/kid-accounts.md` links to it.
 
-## 10. Decisions for Caleb
+## 10. Decisions
 
-- **A-1: The trigger is "Manage ▾" text.** A "⋯" icon is the alternative. Kid rows already say "Edit ›" in words, and a text button is easier to find on a touch screen. **Recommended: "Manage ▾".**
-- **A-2: A menu, or buttons in the row.** With three actions (two before the reset link lands), buttons crowd the row at 390. **Recommended: a menu.**
-- **A-3: Your own row gets no hint.** The alternative is a line such as "Another admin can change your account." The rule rarely matters, and a line on every visit is noise. **Recommended: no hint.**
-- **A-4: The SSO line shows for every adult while SSO is on.** The list doesn't say who uses single sign-on, and an adult with a password can also use SSO with the same email. The line is a caution, so showing it too often is the safe side. **Recommended: as the spec says, whenever `oidcEnabled`.**
-- **A-5: Adults go to the sign-in screen on a 401.** This is a conflict between the spec and today's app (§5). **Recommended: pass `onUnauthorized` for every role, owned by this spec, as a one-line `App.tsx` change coordinated with SPEC-password-reset-link.** The alternative is to reword AC-007 and the TCs to "the next action fails", which leaves a removed adult looking at a live-looking dashboard.
-- **A-6: Make admin asks first.** The spec lists three confirms. Promoting isn't destructive, but it signs the person out, so asking is fair. **Recommended: ask, as the spec says.**
+- **A-1: The trigger is "Manage ▾" text.** A "⋯" icon is the alternative. Kid rows already say "Edit ›" in words, and a text button is easier to find on a touch screen. **Decided: "Manage ▾".**
+- **A-2: A menu, or buttons in the row.** With three actions (two before the reset link lands), buttons crowd the row at 390. **Decided: a menu.**
+- **A-3: Your own row gets no hint.** The alternative is a line such as "Another admin can change your account." The rule rarely matters, and a line on every visit is noise. **Decided: no hint.**
+- **A-4: The SSO line shows for every adult while SSO is on.** The list doesn't say who uses single sign-on, and an adult with a password can also use SSO with the same email. The line is a caution, so showing it too often is the safe side. **Decided: as the spec says, whenever `oidcEnabled`.**
+- **A-5: Adults go to the sign-in screen on a 401.** This is a conflict between the spec and today's app (§5). **Decided: pass `onUnauthorized` for every role, owned by this spec, as a one-line `App.tsx` change coordinated with SPEC-password-reset-link.** The alternative is to reword AC-007 and the TCs to "the next action fails", which leaves a removed adult looking at a live-looking dashboard.
+- **A-6: Make admin asks first.** The spec lists three confirms. Promoting isn't destructive, but it signs the person out, so asking is fair. **Decided: ask, as the spec says.**
 
 ## Sign-off
 
 | Role | Name | Status |
 |---|---|---|
 | Design | Kare | Drafted 2026-11-20 (Claude for Kare) |
-| Product | Caleb | Pending (A-1…A-6) |
+| Product | Caleb | Approved 2026-11-20 ("Accept all recommended": A-1…A-6 at the recommendations) |
