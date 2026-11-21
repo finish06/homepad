@@ -38,6 +38,8 @@ describe('IframeOverlay', () => {
     expect(screen.getByTestId('iframe-overlay-title')).toHaveTextContent('Netdata');
   });
 
+  // SPEC-tile-click-action AC-005, as SPEC-iframe-sandbox-optin AC-013 changed
+  // it: the default sandbox no longer keeps the app's origin.
   it('renders the iframe with src, title and a restrictive sandbox (AC-005)', () => {
     render(<IframeOverlay service={svc()} onClose={vi.fn()} />);
     const frame = screen.getByTestId('iframe-overlay-frame') as HTMLIFrameElement;
@@ -45,7 +47,47 @@ describe('IframeOverlay', () => {
     expect(frame).toHaveAttribute('title', 'Netdata');
     expect(frame).toHaveAttribute('loading', 'lazy');
     expect(frame.getAttribute('sandbox') ?? '').toContain('allow-scripts');
-    expect(frame.getAttribute('sandbox') ?? '').toContain('allow-same-origin');
+    expect(frame.getAttribute('sandbox') ?? '').not.toContain('allow-same-origin');
+  });
+
+  // SPEC-iframe-sandbox-optin §2.1 — what the overlay renders for the app's
+  // "Let this app keep its sign-in" setting.
+  describe('sandbox per app (SPEC-iframe-sandbox-optin)', () => {
+    const sandboxOf = () => screen.getByTestId('iframe-overlay-frame').getAttribute('sandbox');
+
+    it('AC-001 — opt-in off renders the strict sandbox', () => {
+      render(<IframeOverlay service={svc({ iframeSameOrigin: false })} onClose={vi.fn()} />);
+      expect(sandboxOf()).toBe('allow-scripts allow-forms allow-popups');
+    });
+
+    it('AC-001 — an app with no setting (older server) renders the strict sandbox', () => {
+      render(<IframeOverlay service={svc()} onClose={vi.fn()} />);
+      expect(sandboxOf()).toBe('allow-scripts allow-forms allow-popups');
+    });
+
+    it('AC-002 — opt-in on, another origin, keeps the app origin', () => {
+      render(<IframeOverlay service={svc({ iframeSameOrigin: true })} onClose={vi.fn()} />);
+      expect(sandboxOf()).toBe('allow-scripts allow-same-origin allow-forms allow-popups');
+    });
+
+    it("AC-004 — opt-in on, Homepad's own origin, never keeps it", () => {
+      const url = `${window.location.origin}/grafana/`;
+      render(<IframeOverlay service={svc({ url, iframeSameOrigin: true })} onClose={vi.fn()} />);
+      expect(sandboxOf()).toBe('allow-scripts allow-forms allow-popups');
+    });
+
+    it("AC-004 — opt-in on, an address that can't be parsed, never keeps it", () => {
+      render(<IframeOverlay service={svc({ url: 'grafana', iframeSameOrigin: true })} onClose={vi.fn()} />);
+      expect(sandboxOf()).toBe('allow-scripts allow-forms allow-popups');
+    });
+
+    it('AC-003 — never lets the frame navigate the page or escape the sandbox', () => {
+      for (const iframeSameOrigin of [true, false]) {
+        const { unmount } = render(<IframeOverlay service={svc({ iframeSameOrigin })} onClose={vi.fn()} />);
+        expect(sandboxOf()).not.toMatch(/allow-top-navigation|allow-popups-to-escape-sandbox/);
+        unmount();
+      }
+    });
   });
 
   it('shows a loading spinner until the frame loads (AC-005)', () => {

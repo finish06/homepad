@@ -97,4 +97,10 @@ describe('fieldWords', () => {
     );
     expect(fieldWords(['somethingNew'])).toBe('somethingNew');
   });
+
+  // SPEC-iframe-sandbox-optin AC-011 — a restore can update an app's overlay
+  // sign-in setting; the row note names it in the switch's own words.
+  it('names the overlay sign-in setting', () => {
+    expect(fieldWords(['clickAction', 'iframeSameOrigin'])).toBe('click action, keep its sign-in');
+  });
 });

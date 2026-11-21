@@ -266,6 +266,19 @@ describe('bundle budget — the built artifact stays within its byte budget', ()
     }
   });
 
+  // SPEC-iframe-sandbox-optin (UX §1 "Bundle") — the sandbox rule lives in
+  // src/lib/sandbox.ts and is imported only by the lazy overlay and tile
+  // editor. Its token string is the signal: in a lazy chunk, never the entry.
+  it('the overlay sandbox rule stays out of the entry chunk', () => {
+    const entry = readdirSync(assets).find((f) => /^index-[A-Za-z0-9_-]+\.js$/.test(f))!;
+    expect(readFileSync(resolve(assets, entry), 'utf8')).not.toContain('allow-forms allow-popups');
+    const lazy = readdirSync(assets).filter((f) => f.endsWith('.js') && f !== entry);
+    expect(
+      lazy.some((f) => readFileSync(resolve(assets, f), 'utf8').includes('allow-scripts allow-forms allow-popups')),
+      'no lazy chunk carries the strict sandbox',
+    ).toBe(true);
+  });
+
   it.each(LAZY_CHUNKS)('%s ships as its own async chunk, not inside the entry', (name) => {
     const found = readdirSync(assets).filter((f) =>
       new RegExp(`^${name}-[A-Za-z0-9_-]+\\.js$`).test(f),
