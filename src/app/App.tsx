@@ -132,10 +132,11 @@ export default function App() {
         <LauncherProvider>
           <AlertHistoryProvider>
             {/* SPEC-kid-accounts AC-012 — a kid device an admin signed out gets
-                401 on its next poll and shows the login screen. Adults keep
-                v13's quiet stop (AC-018: no change for them). */}
+                401 on its next poll and shows the login screen.
+                SPEC-household-manage-adults AC-016 (UX A-5) — so does an adult
+                who was removed, given a new role, or reset elsewhere. */}
             <ServicesProvider
-              onUnauthorized={user.role === 'kid' ? () => setUser(null) : undefined}
+              onUnauthorized={() => setUser(null)}
               // AC-002 / TC-003 — an admin's change to a kid's apps shows on the
               // kid's next poll, with no reload.
               syncMembership={user.role === 'kid'}

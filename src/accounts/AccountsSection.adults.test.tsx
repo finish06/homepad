@@ -120,7 +120,8 @@ describe('the adult row menu (UX §2, AC-010)', () => {
     expect(screen.queryByRole('button', { name: /^Manage/ })).toBeNull();
   });
 
-  it('no menus while loading or after an error', async () => {
+  it('no menus while loading', async () => {
+    vi.mocked(authConfig).mockReturnValue(new Promise(() => {}));
     vi.mocked(listAccounts).mockReturnValue(new Promise(() => {}));
     render(<AccountsSection currentUserId="u-caleb" />);
     expect(screen.getAllByTestId('account-skeleton')).toHaveLength(3);
@@ -161,8 +162,10 @@ describe('where the menu opens (UX §2.2)', () => {
     expect(menu).not.toHaveClass('adult-menu--up');
   });
 
-  it('above the button when there is no room below', async () => {
+  it('above the button when there is no room below its scrolling panel', async () => {
     await renderReady();
+    // The Admin Panel body scrolls; the menu must fit inside it.
+    document.body.style.overflowY = 'auto';
     const rect = (top: number, height: number) =>
       ({ top, bottom: top + height, height, left: 0, right: 200, width: 200, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
     const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
@@ -175,6 +178,7 @@ describe('where the menu opens (UX §2.2)', () => {
       expect(menu).toHaveClass('adult-menu--up');
     } finally {
       spy.mockRestore();
+      document.body.style.overflowY = '';
     }
   });
 });

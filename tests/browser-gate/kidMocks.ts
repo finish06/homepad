@@ -349,12 +349,12 @@ export async function mockAdminAccounts(
     if (adultMatch && (method === 'PATCH' || method === 'DELETE')) {
       const id = decodeURIComponent(adultMatch[1]);
       const adult = state.accounts.find((a) => a.id === id && a.role !== 'kid');
-      const role = method === 'PATCH' ? (req.postDataJSON() as { role: 'admin' | 'user' }).role : '';
+      const role = method === 'PATCH' ? (req.postDataJSON() as { role: 'admin' | 'user' }).role : undefined;
       state.adultWrites.push(role ? `${method} ${id} ${role}` : `${method} ${id}`);
       if (!adult) return text(route, 'no such adult account', 404);
       if (id === ADMIN_USER.id) return json(route, { error: 'self' }, 409);
       if (opts.adultConflict) return json(route, { error: opts.adultConflict }, 409);
-      if (method === 'PATCH') {
+      if (role) {
         adult.role = role;
         return json(route, { ...adult, lastSeenAt: null });
       }

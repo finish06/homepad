@@ -869,3 +869,41 @@ export async function acceptInvite(body: {
 }): Promise<Result & { user?: User }> {
   return resultRequest('/api/invites/accept', 201, { method: 'POST', json: body }, (d) => ({ user: d as User }));
 }
+
+// ---------------------------------------------------------------------------
+// SPEC-household-manage-adults §7 — Adults. An admin changes another adult's
+// role or removes them (admin-only routes). A 409 carries a JSON code: "self"
+// (your own account) or "last_admin" (Homepad keeps at least one admin). The
+// role values are the API's: `user` is what the UI calls "member".
+// ---------------------------------------------------------------------------
+
+export type AdultConflict = 'self' | 'last_admin';
+export type AdultChange = Result & { code?: AdultConflict };
+
+const adultPath = (id: string) => `/api/admin/accounts/${encodeURIComponent(id)}`;
+
+// withConflictCode reads the 409 body's {"error": code} into `code`.
+function withConflictCode<T extends Result>(r: T): T & { code?: AdultConflict } {
+  if (r.status !== 409 || !r.error) return r;
+  try {
+    const code = (JSON.parse(r.error) as { error?: unknown }).error;
+    if (code === 'self' || code === 'last_admin') return { ...r, code };
+  } catch {
+    // A 409 that isn't JSON has no code.
+  }
+  return r;
+}
+
+// setAccountRole — 200 with the account row. Signs that person out
+// everywhere (Q2). 400 for a bad role, 404 when the id is not an adult.
+export async function setAccountRole(id: string, role: InviteRole): Promise<AdultChange & { account?: Account }> {
+  return withConflictCode(
+    await resultRequest(adultPath(id), 200, { method: 'PATCH', json: { role } }, (d) => ({ account: d as Account })),
+  );
+}
+
+// removeAccount — 204. Their sessions, favorites and settings go, and so do
+// the invites they made (Q3). 404 when the id is not an adult.
+export async function removeAccount(id: string): Promise<AdultChange> {
+  return withConflictCode(await resultRequest(adultPath(id), 204, { method: 'DELETE' }));
+}

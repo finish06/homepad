@@ -26,6 +26,11 @@ const PAT: MockInvite = {
   createdBy: { id: 'u-alex', name: 'Alex' },
 };
 
+// Let entrance animations (the menu's and the card's scale-in) finish before
+// measuring, so a box isn't read mid-scale.
+const settled = (el: Locator) =>
+  el.evaluate((n) => Promise.all(n.getAnimations({ subtree: true }).map((a) => a.finished)).then(() => undefined));
+
 async function openAccounts(page: Page, w: number, h: number, opts: Parameters<typeof mockAdminAccounts>[2] = {}) {
   await page.setViewportSize({ width: w, height: h });
   const mock = await mockAdminAccounts(page, { accounts: accounts() }, opts);
@@ -35,6 +40,7 @@ async function openAccounts(page: Page, w: number, h: number, opts: Parameters<t
   const panel = page.getByRole('dialog', { name: 'Admin Panel' });
   await expect(panel).toBeVisible();
   await expect(page.getByTestId('account-row')).toHaveCount(4);
+  await settled(panel);
   return { mock, panel };
 }
 
@@ -90,6 +96,7 @@ for (const [label, w, h] of [
       const menu = page.getByRole('menu', { name: 'Manage Jo' });
       await expect(menu).toBeVisible();
       await expect(btn).toHaveText('Manage ▴');
+      await settled(menu);
       const m = (await menu.boundingBox())!;
       const b = (await btn.boundingBox())!;
       expect(m.width).toBeGreaterThanOrEqual(200);
@@ -123,6 +130,7 @@ test('Remove at 390: the invites and single sign-on lines fit, and the row and i
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText("Alex's 1 pending invite will stop working.");
   await expect(dialog).toContainText('If Alex uses single sign-on, they can sign in again that way.');
+  await settled(dialog);
   await fitsViewport(dialog, 390, 844, 'remove confirm');
   await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
   for (const b of await dialog.getByRole('button').all()) expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(44);
