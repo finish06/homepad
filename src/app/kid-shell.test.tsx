@@ -231,12 +231,17 @@ describe('Kid shell — a signed-out device (AC-012, TC-005)', () => {
     expect(screen.queryByText(/removed/i)).toBeNull();
   });
 
-  it('an adult’s 401 keeps today’s behaviour: polling stops quietly (AC-018)', async () => {
-    serve(ADULT, SERVED, CATS, 401);
+  // SPEC-household-manage-adults AC-016 (UX A-5) supersedes kid-accounts
+  // AC-018: an adult removed, given a new role or reset elsewhere gets 401 on
+  // the next poll, and lands on the sign-in screen like a kid does.
+  it.each([
+    ['a member', ADULT],
+    ['an admin', { ...ADULT, id: 'u2', email: 'admin@ohana.io', role: 'admin' } as User],
+  ])('%s whose poll gets 401 lands on the sign-in screen (AC-016)', async (_who, adult) => {
+    serve(adult, SERVED, CATS, 401);
     render(<App />);
-    await waitFor(() => expect(api.servicesWithStatus).toHaveBeenCalled());
-    expect(await screen.findByTestId('user-menu-trigger')).toBeInTheDocument();
-    expect(screen.queryByText('Sign in to your dashboard')).toBeNull();
+    expect(await screen.findByText('Sign in to your dashboard')).toBeInTheDocument();
+    expect(screen.queryByTestId('user-menu-trigger')).toBeNull();
   });
 });
 

@@ -233,6 +233,9 @@ export type AdminMock = {
   serviceWrites: { id: string; body: unknown }[];
   // Kid ids signed in "here", in order.
   signIns: string[];
+  // SPEC-household-manage-adults — every PATCH/DELETE /api/admin/accounts/{id},
+  // as "METHOD id" or "PATCH id role".
+  adultWrites: string[];
 };
 
 export function defaultAccounts(): Pick<AdminMock, 'accounts' | 'kidServices' | 'sessions'> {
@@ -274,6 +277,8 @@ export async function mockAdminAccounts(
     oidcEnabled?: boolean;
     maxAccounts?: number;
     invites?: MockInvite[];
+    // SPEC-household-manage-adults — answer every adult change with this 409.
+    adultConflict?: 'self' | 'last_admin';
   } = {},
 ): Promise<AdminMock> {
   const d = defaultAccounts();
@@ -286,6 +291,7 @@ export async function mockAdminAccounts(
     sessions: seed.sessions ?? d.sessions,
     serviceWrites: [],
     signIns: [],
+    adultWrites: [],
   };
   const { services, categories } = catalog();
   let kidSession: KidMock | null = null;
@@ -339,6 +345,23 @@ export async function mockAdminAccounts(
     if (path === '/api/categories') return json(route, { categories });
     if (path === '/api/admin/env-config') return json(route, [{ key: 'HOMEPAD_REGISTRATION', value: 'invite_only' }]);
     if (path === '/api/library') return json(route, { library: [] });
+    const adultMatch = path.match(/^\/api\/admin\/accounts\/([^/]+)$/);
+    if (adultMatch && (method === 'PATCH' || method === 'DELETE')) {
+      const id = decodeURIComponent(adultMatch[1]);
+      const adult = state.accounts.find((a) => a.id === id && a.role !== 'kid');
+      const role = method === 'PATCH' ? (req.postDataJSON() as { role: 'admin' | 'user' }).role : undefined;
+      state.adultWrites.push(role ? `${method} ${id} ${role}` : `${method} ${id}`);
+      if (!adult) return text(route, 'no such adult account', 404);
+      if (id === ADMIN_USER.id) return json(route, { error: 'self' }, 409);
+      if (opts.adultConflict) return json(route, { error: opts.adultConflict }, 409);
+      if (role) {
+        adult.role = role;
+        return json(route, { ...adult, lastSeenAt: null });
+      }
+      state.accounts = state.accounts.filter((a) => a.id !== id);
+      state.invites = state.invites.filter((i) => i.createdBy.id !== id);
+      return route.fulfill({ status: 204, body: '' });
+    }
     if (path === '/api/admin/accounts') {
       if (opts.accountsStatus && opts.accountsStatus !== 200) return text(route, 'internal error', opts.accountsStatus);
       return json(route, state.accounts);

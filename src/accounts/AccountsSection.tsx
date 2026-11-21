@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { authConfig, listAccounts, listInvites, type Account, type AuthConfig, type Invite } from '../api';
 import { avatarColorId, avatarSwatch } from '../lib/avatarColor';
 import AddAdultDialog from './AddAdultDialog';
+import AdultRowMenu from './AdultRowMenu';
 import KidEditor from './KidEditor';
 import PendingInvites from './PendingInvites';
 import { roleLabel } from './inviteFormat';
@@ -13,9 +14,12 @@ import './household.css';
 const REGISTRATION_DOCS = 'https://github.com/finish06/homepad#registration';
 
 // SPEC-kid-accounts UX §2 (TASK-402) — the Accounts section, first in the Admin
-// Panel (K-1). Every account is listed. Adults are listed only, with no action
-// (spec §10: managing adults is out of scope). Kids carry "N apps · N devices"
-// and the whole row opens the kid editor (UX §3).
+// Panel (K-1). Every account is listed. Kids carry "N apps · N devices" and the
+// whole row opens the kid editor (UX §3).
+//
+// SPEC-household-manage-adults UX §2 — every other adult's row has a
+// "Manage ▾" menu (role change, Remove). Your own row has none (Q1). A polite
+// status line says what a confirm did, and focus lands per UX §6.
 //
 // It loads once on mount and then mirrors the editor's results locally, so a
 // create, rename, apps change, device sign-out or delete shows without a
@@ -54,6 +58,12 @@ export default function AccountsSection({
   const [editor, setEditor] = useState<EditorState>(null);
   const [addingAdult, setAddingAdult] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
+  // Manage-adults: the status line, every Manage button by account id, and
+  // where focus goes once a removal has re-rendered the list.
+  const [announcement, setAnnouncement] = useState('');
+  const manageButtons = useRef(new Map<string, HTMLButtonElement>());
+  const addAdultRef = useRef<HTMLButtonElement>(null);
+  const [focusAfter, setFocusAfter] = useState<string | null>(null);
 
   // The public auth config carries the registration mode and the SSO flag. It
   // never rejects (a failure reads as closed), so it has no error state.
@@ -100,6 +110,31 @@ export default function AccountsSection({
     setAccounts((cur) => cur.filter((x) => x.id !== id));
   }
 
+  // UX §6 — after a removal, focus the next row's Manage button, else the
+  // previous one, else "+ Add an adult".
+  useEffect(() => {
+    if (focusAfter === null) return;
+    const el = focusAfter === '' ? addAdultRef.current : manageButtons.current.get(focusAfter);
+    el?.focus();
+    setFocusAfter(null);
+  }, [focusAfter, accounts]);
+
+  function onAdultRemoved(a: Account) {
+    const managed = accounts.filter((x) => x.role !== 'kid' && x.id !== currentUserId);
+    const at = managed.findIndex((x) => x.id === a.id);
+    const next = managed[at + 1] ?? managed[at - 1];
+    setAccounts((cur) => cur.filter((x) => x.id !== a.id));
+    // Their invites stopped working with them (Q3).
+    setInvites((cur) => cur.filter((i) => i.createdBy.id !== a.id));
+    setFocusAfter(next ? next.id : '');
+    setAnnouncement(`${a.name} was removed.`);
+  }
+
+  function onAdultRoleChanged(a: Account) {
+    onSaved(a);
+    setAnnouncement(a.role === 'admin' ? `${a.name} is now an admin.` : `${a.name} is now a member.`);
+  }
+
   const hasKids = accounts.some((a) => a.role === 'kid');
   const me = accounts.find((a) => a.id === currentUserId);
 
@@ -116,6 +151,7 @@ export default function AccountsSection({
         </h3>
         <div className="accounts-actions">
           <button
+            ref={addAdultRef}
             type="button"
             data-testid="accounts-add-adult"
             className="library-add"
@@ -197,6 +233,20 @@ export default function AccountsSection({
                     <span className="accounts-summary accounts-email" title={a.email}>
                       {a.id === currentUserId ? 'you' : a.email}
                     </span>
+                    {a.id !== currentUserId && (
+                      <AdultRowMenu
+                        account={a}
+                        pendingInvites={invites.filter((i) => i.createdBy.id === a.id).length}
+                        oidcEnabled={config?.oidcEnabled === true}
+                        buttonRef={(el) => {
+                          if (el) manageButtons.current.set(a.id, el);
+                          else manageButtons.current.delete(a.id);
+                        }}
+                        onRoleChanged={onAdultRoleChanged}
+                        onRemoved={onAdultRemoved}
+                        onStale={load}
+                      />
+                    )}
                   </div>
                 )}
               </li>
@@ -209,6 +259,12 @@ export default function AccountsSection({
           )}
           <PendingInvites invites={invites} onRevoked={(id) => setInvites((cur) => cur.filter((i) => i.id !== id))} />
         </>
+      )}
+
+      {state === 'ready' && (
+        <p role="status" className="sr-only">
+          {announcement}
+        </p>
       )}
 
       {addingAdult && (

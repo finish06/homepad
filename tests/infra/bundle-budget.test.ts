@@ -136,6 +136,9 @@ const LAZY_CHUNKS = [
   // The changelog overlay and its data (src/changelog.json) load only when the
   // footer version badge is clicked.
   'ChangelogOverlay',
+  // SPEC-household-manage-adults UX §1 — the remove and role confirms load
+  // from the adult row menu, inside the lazy Admin Panel.
+  'AdultConfirm',
 ] as const;
 
 const dist = resolve(process.cwd(), 'dist');
@@ -207,6 +210,25 @@ describe('bundle budget — the built artifact stays within its byte budget', ()
     const entry = readdirSync(assets).find((f) => /^index-[A-Za-z0-9_-]+\.css$/.test(f));
     expect(entry, 'no entry stylesheet in dist/assets').toBeDefined();
     expect(readFileSync(resolve(assets, entry!), 'utf8')).not.toContain('.widget-config');
+  });
+
+  // SPEC-household-manage-adults UX §1 — the adult row menu's styles live in
+  // household.css, which rides in the lazy admin chunk. index.css gets nothing.
+  it('the adult row menu styles stay out of the entry stylesheet', () => {
+    const entry = readdirSync(assets).find((f) => /^index-[A-Za-z0-9_-]+\.css$/.test(f))!;
+    expect(readFileSync(resolve(assets, entry), 'utf8')).not.toMatch(/\.adult-menu/);
+    const lazy = readdirSync(assets)
+      .filter((f) => f.endsWith('.css') && f !== entry)
+      .map((f) => readFileSync(resolve(assets, f), 'utf8'));
+    expect(lazy.some((css) => /\.adult-menu\b/.test(css)), 'no lazy stylesheet carries the .adult-menu rules').toBe(true);
+  });
+
+  it('the adult row menu and its confirms are not in the entry chunk', () => {
+    const entry = readdirSync(assets).find((f) => /^index-[A-Za-z0-9_-]+\.js$/.test(f))!;
+    const src = readFileSync(resolve(assets, entry), 'utf8');
+    for (const copy of ['pending invite will stop working', 'Homepad needs at least one admin', 'adult-menu']) {
+      expect(src, `the entry chunk carries "${copy}"`).not.toContain(copy);
+    }
   });
 
   it('a lazy CSS chunk carries the admin widget styles', () => {
