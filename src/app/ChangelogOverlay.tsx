@@ -5,7 +5,8 @@ import Modal from '../ui/Modal';
 // v15 — changelog overlay. Modeled on fleet-feed's Option B+ design: a two-panel
 // dialog (version list + change detail) with a fixed 88px chip gutter so every
 // description starts at the same x regardless of chip length. Data is a static
-// JSON import — no backend call.
+// JSON import — no backend call. App.tsx lazy-loads this module, so the JSON
+// ships in this async chunk, never in the entry (tests/infra/bundle-budget).
 
 export type ChangeType = 'feature' | 'enhancement' | 'bug-fix' | 'security';
 export interface Change {
@@ -94,8 +95,9 @@ export default function ChangelogOverlay({
 }) {
   // null = the "Pending next release" bucket; otherwise the selected version str.
   // Default per AC-012: pending when it has entries, else the version matching
-  // the running build, else the newest release. The initializer re-runs on each
-  // open (the dialog unmounts when closed) so re-opening lands on the default.
+  // the running build, else the newest release. App mounts this component only
+  // while the overlay is open, so the initializer re-runs on each open and
+  // re-opening lands on the default, not the last selection.
   const defaultSelection = (): string | null => {
     if (data.pending.length >= 1) return null;
     const match = data.versions.find((v) => v.version === __APP_VERSION__);
@@ -122,8 +124,9 @@ export default function ChangelogOverlay({
   const activeVersion = selected === null ? null : data.versions.find((v) => v.version === selected);
 
   // Scrim + Escape live in Modal; focus/scroll stay in the open-keyed effect
-  // above because this component stays MOUNTED while closed (open=false renders
-  // null), so unmount-based restore in the shell would never fire on close.
+  // above. App unmounts this component on close, which runs that cleanup; the
+  // open=false path (renders null, cleanup on the prop change) is kept so a
+  // caller that leaves it mounted still restores focus and scroll.
   return (
     <Modal
       onDismiss={onClose}

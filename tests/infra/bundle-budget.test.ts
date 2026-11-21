@@ -106,6 +106,15 @@ import { describe, expect, it } from 'vitest';
 // Budgets unchanged: 1,071 B JS and 793 B CSS of headroom remain. The strip's
 // JS and every admin-only widget module are lazy on purpose (AC-033), and the
 // admin styles are asserted out of the entry below (AC-032).
+//
+// Lazy changelog, re-measured 2026-11-20 against gitea/main 714f52b, same method:
+//   entry JS   104,301 →  89,279 B gzip (-15,022): ChangelogOverlay and
+//              src/changelog.json left the entry chunk
+//   entry CSS   19,707 →  19,707 B gzip (unchanged; the .changelog-* rules stay
+//              in src/index.css)
+//   lazy, new  ChangelogOverlay 14,927 (41,585 raw), almost all of it the JSON
+// Budgets unchanged: 15,721 B JS and 793 B CSS of headroom remain. The
+// changelog grows every release, so it now grows a lazy chunk, not the entry.
 const ENTRY_JS_GZIP_BUDGET = 105_000;
 const ENTRY_CSS_GZIP_BUDGET = 20_500;
 
