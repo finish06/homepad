@@ -1,7 +1,7 @@
 # Spec: Stricter iframe sandbox, with a per-app opt-in
 
 **Spec ID:** SPEC-iframe-sandbox-optin
-**Version:** 0.1.1
+**Version:** 0.1.2
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
 **Status:** Approved — Caleb, 2026-11-20: every §0 question decided.
@@ -9,7 +9,7 @@
 **Estimate:** ~1.5 days (migration, API field, backup field, overlay sandbox rule, tile-edit toggle, frame headers, tests)
 **Depends on:** SPEC-tile-click-action (v23, shipped 14.0.0), SPEC-backup-import (the App field list), SPEC-household-catalog-owner (ships in the same release; migration runner)
 **Target version:** 18.0.0
-**UX:** to do (/add:ux) — the tile-edit toggle and its disabled state
+**UX:** [`specs/ux/iframe-sandbox-optin-ux.md`](./ux/iframe-sandbox-optin-ux.md) (APPROVED 2026-11-20, I-1…I-4)
 **Issues folded in:** homepad #334 (M3)
 
 ---
@@ -71,6 +71,7 @@ No other token changes. `allow-top-navigation` and `allow-popups-to-escape-sandb
 
 - In the tile editor, when **Inline overlay** is chosen, a switch appears under the hint: **Let this app keep its sign-in**. Help line: "Turn this on if the app asks you to sign in every time, or stays blank. Only for apps you trust."
 - When the app's address has Homepad's own origin, the switch is off and greyed out, with: "Not available for pages on this Homepad's own address."
+- When the address can't be parsed, the switch is off and greyed out, with: "Enter the app's full address first, like https://app.example." (UX I-1.) The greyed-out state doesn't change the saved value, and Save doesn't send it (UX I-2).
 - The switch is hidden for New tab and Same tab. Its value is kept, so switching back to Inline overlay restores it.
 
 ### 2.3 Origin check
@@ -106,13 +107,13 @@ Only admins, as for the URL and the click action (Q2). A member or a kid can't w
 | AC-002 | With the opt-in on and an address on another origin, it renders `allow-scripts allow-same-origin allow-forms allow-popups`. | Must |
 | AC-003 | No sandbox ever contains `allow-top-navigation`, `allow-top-navigation-by-user-activation` or `allow-popups-to-escape-sandbox` (a test over every combination). | Must |
 | AC-004 | An address with Homepad's own origin, or one that can't be parsed, never gets `allow-same-origin`, whatever the setting (Q3). | Must |
-| AC-005 | The tile editor shows the switch only for Inline overlay. For a same-origin address it is off, disabled, and shows the §2.2 reason (UX to do). | Must |
+| AC-005 | The tile editor shows the switch only for Inline overlay. For a same-origin or unparseable address it is off, disabled (`aria-disabled`, still focusable), and shows the matching §2.2 reason (UX §2). | Must |
 | AC-006 | Every response from both nginx configs (`nginx.conf` through `nginx-security-headers.conf`, and `deploy/compose/nginx.conf`, which today sends no security headers) carries `X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'`. A `tests/infra` source-contract test pins both files. | Must |
 | AC-007 | `services.iframe_same_origin` exists, `BOOLEAN NOT NULL DEFAULT FALSE`. `GET /api/services` returns it as `iframeSameOrigin` on every app. | Must |
 | AC-008 | Migration 0023 sets `iframe_same_origin = TRUE` for every app with `click_action = 'iframe'` at upgrade time (Q1, decided), once. Apps added or switched later start at false. | Must |
 | AC-009 | `POST /api/services` and `PATCH /api/services/{id}` accept `iframeSameOrigin` (boolean). Any other type is 400. A PATCH without it leaves it unchanged. | Must |
 | AC-010 | Only admins can write it: the routes are already `classCatalogWrite`. A member or kid PATCH is 403, as today. | Must |
-| AC-011 | Backups carry `iframeSameOrigin` on each app. `schemaVersion` stays 1. Restoring a file without the field: Merge leaves an existing app's value alone; a new app gets false. | Must |
+| AC-011 | Backups carry `iframeSameOrigin` on each app, as an optional field of the `schemaVersion: 2` file that 18.0.0 writes (SPEC-household-catalog-owner Q5, AC-012). This field doesn't bump the version again. Restoring a file without the field (any v1 file, through the 1→2 upgrader): Merge leaves an existing app's value alone; a new app gets false. | Must |
 | AC-012 | Homepage import creates apps with `iframeSameOrigin` false. | Must |
 | AC-013 | `IframeOverlay.test.tsx` is updated: the AC-005 test of SPEC-tile-click-action now expects the default without `allow-same-origin`, and new tests cover AC-001…AC-004. | Must |
 | AC-014 | The overlay's blocked-embed fallback (5 s, "This site can't be embedded") is unchanged. | Must |
@@ -165,7 +166,7 @@ Down migration: `ALTER TABLE services DROP COLUMN IF EXISTS iframe_same_origin`.
 | `PATCH /api/services/{id}` | Optional `iframeSameOrigin`. |
 | `GET /api/admin/export`, restore | App gains `iframeSameOrigin` (AC-011). The JSON Schema `docs/schema/homepad-backup-v1.json` gains it as an optional boolean. |
 
-An 18.0.0 backup restored on 17.1.0: the field is unknown there; the preview counts it as an unknown field and the restore ignores it.
+An 18.0.0 backup restored on 17.1.0 is refused as a newer file (`schemaVersion` 2, SPEC-household-catalog-owner Q5; SPEC-backup-import AC-016), whatever its fields.
 
 ## 8. Frontend Implementation
 
@@ -176,7 +177,7 @@ An 18.0.0 backup restored on 17.1.0: the field is unknown there; the preview cou
 
 ## 9. Design (Kare)
 
-UX artifact: to do (/add:ux). One surface: the tile editor's Inline overlay switch, its help line, and its greyed-out state, at 390 and 1440, light and dark.
+UX artifact: [`specs/ux/iframe-sandbox-optin-ux.md`](./ux/iframe-sandbox-optin-ux.md) (APPROVED 2026-11-20, I-1…I-4 at the recommendations). One surface: the tile editor's Inline overlay switch, its help line, and its greyed-out state, at 390 and 1440, light and dark.
 
 ## 10. Upgrade and Compatibility
 
@@ -199,7 +200,7 @@ UX artifact: to do (/add:ux). One surface: the tile editor's Inline overlay swit
 |---|---|---|
 | Owner | Caleb | Approved 2026-11-20: all §0 questions decided |
 | Product | Walt | Pending |
-| Design | Kare | Pending (UX artifact to do) |
+| Design | Kare | Approved 2026-11-20 (`specs/ux/iframe-sandbox-optin-ux.md`, I-1…I-4) |
 
 ## 13. Revision History
 
@@ -207,3 +208,4 @@ UX artifact: to do (/add:ux). One surface: the tile editor's Inline overlay swit
 |---|---|---|
 | 2026-11-19 | 0.1.0 | Draft for 18.0.0, checked against `homepad` `6eb8a35` and `homepad-api` `79e3b03`. |
 | 2026-11-19 | 0.1.1 | Caleb decided Q1 ("keep them opt in") and Q4 ("yes"). |
+| 2026-11-20 | 0.1.2 | AC-011 and §7: backups are on `schemaVersion` 2 (SPEC-household-catalog-owner Q5), fixing the "stays 1" mismatch. UX artifact approved (I-1…I-4): the unparseable-address reason (I-1) and the saved value under the greyed state (I-2) go into §2.2; AC-005 points at the UX. |

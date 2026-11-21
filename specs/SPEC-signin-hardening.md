@@ -1,7 +1,7 @@
 # Spec: Sign-in hardening — rate limits, verified emails for single sign-on, invite-only for SSO
 
 **Spec ID:** SPEC-signin-hardening
-**Version:** 0.1.1
+**Version:** 0.1.2
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
 **Status:** Approved — Caleb, 2026-11-20: every §0 question decided.
@@ -9,7 +9,7 @@
 **Estimate:** ~2.5 days (per-client limiter with trusted proxies, login limits and timing, OIDC invite-only rule, OIDC error landing, docs and PocketID guide, tests)
 **Depends on:** SPEC-household-basics (registration modes, invite bucket), SPEC-password-reset-link (its public routes move onto this limiter). Builds after SPEC-household-manage-adults and SPEC-password-reset-link.
 **Target version:** 18.0.0
-**UX:** to do (/add:ux) — sign-in screen error and wait messages only
+**UX:** [`specs/ux/signin-hardening-ux.md`](./ux/signin-hardening-ux.md) (APPROVED 2026-11-20, S-1…S-6)
 **Issues folded in:** homepad-api #89 (OIDC `email_verified`; merged in #91, shipped in 17.1.0, see §0), SPEC-household-basics §11 (login and register rate limits, `X-Forwarded-For`, Q5 option C)
 
 ---
@@ -115,6 +115,7 @@ When `UserByEmail` finds no adult, `handleLogin` compares the password against a
 Shipped in 17.1.0 (#91, closing #89; Q1, decided): an SSO sign-in is refused unless `email_verified` is `true`. This spec adds:
 
 - **A clear landing.** Every OIDC callback failure redirects to `/#signin-error=<code>` instead of a text page. Codes: `email_unverified`, `not_invited`, `account_limit`, `sso_failed` (everything else). The sign-in screen shows a message for each (§8).
+- **The start route's limit lands there too** (UX S-5, decided 2026-11-20). Over its §2.1 limit, `GET /api/auth/oidc/login` redirects (302) to `/#signin-error=too_many` instead of answering 429 with a text body. The browser reaches that route by full-page navigation, so a 429 would show a bare text page.
 - **Docs** (§2.6) and **upgrade notes** (§10).
 
 ### 2.5 Single sign-on under `invite_only` (Q2 = A)
@@ -211,6 +212,14 @@ Plain copy, ready to paste:
 | AC-017 | `HOMEPAD_TRUSTED_PROXIES` joins the env-config allowlist. | Must |
 | AC-018 | `POST /api/register` and `POST /api/invites/accept` refuse a password over 72 bytes with 400, never 500. Fixed ahead of 18.0.0 in a homepad-api bug-fix PR (number TBD); kept as a regression guard. (SPEC-password-reset-link AC-017 asks for the same.) | Should |
 
+### Web (from the UX artifact, approved 2026-11-20)
+
+| ID | Criterion | Priority |
+|---|---|---|
+| AC-019 | Over its limit, `GET /api/auth/oidc/login` redirects (302) to `/#signin-error=too_many`. The sign-in screen shows "Too many tries. Wait a minute and try again." (UX S-5.) | Must |
+| AC-020 | This spec's web change adds at most about 400 bytes gzip to the entry JS chunk. It is measured with `npm run build` and `tests/infra/bundle-budget.test.ts` before merge, and the PR records the before and after. Over that, the SSO code→message map moves to a lazy module loaded only when a `#signin-error=` code is present (UX S-1). | Must |
+| AC-021 | With `oidcEnabled`, the Add-an-adult dialog's PocketID line follows the registration mode. `open`: "They can also sign in with PocketID. No invite needed." `invite_only`: "PocketID only makes accounts for people in your admin or member group. Anyone else needs this invite. After they join, they can use PocketID too if it has the same email." The old line ("They use PocketID? …") is gone (UX S-4). | Must |
+
 ---
 
 ## 5. User Test Cases
@@ -244,7 +253,7 @@ No migration. Limits are in memory.
 | `POST /api/login` | Per-client and per-email limits (AC-004, AC-005); dummy compare (AC-009). |
 | `POST /api/register` | Per-client limit. |
 | `POST /api/invites/lookup`, `/accept`, `POST /api/password-resets/lookup`, `/accept` | Per-client limit and shared ceiling, replacing the single bucket. |
-| `GET /api/auth/oidc/login` | Per-client limit. |
+| `GET /api/auth/oidc/login` | Per-client limit. Over it: 302 to `/#signin-error=too_many` (AC-019). |
 | `GET /api/auth/oidc/callback` | Failures redirect to `/#signin-error=<code>` (AC-002). `invite_only` rule (AC-010). Cookie `Secure` from `COOKIE_SECURE` (AC-016). |
 | `GET /api/admin/env-config` | Allowlist gains `OIDC_MEMBER_GROUP`, `HOMEPAD_TRUSTED_PROXIES`. |
 
@@ -257,18 +266,22 @@ No migration. Limits are in memory.
 
 ## 8. Frontend Implementation
 
-- `src/app/App.tsx` `AuthForm`: read `#signin-error=`, clear it with `history.replaceState`, and show one line above the form. Show 429 answers from login with the wait time from `Retry-After`.
-- Copy (plain; UX may adjust):
+- `src/app/App.tsx` reads `#signin-error=` with the `#invite=`/`#reset=` reader, clears it with `history.replaceState`, and passes the code to `src/app/AuthForm.tsx` (its own file since #565). `AuthForm` shows one line above the form. It shows 429 answers from login, register and set-up with the wait time from `Retry-After` (`Result` gains `retryAfter`). `JoinScreen` and `ResetPasswordScreen` use the same wait formatter.
+- `src/accounts/AddAdultDialog.tsx`: the PocketID line by registration mode (AC-021, UX §5).
+- `src/library/SettingsPanel.tsx`: labels for `OIDC_MEMBER_GROUP` and `HOMEPAD_TRUSTED_PROXIES` (the second under Server, with a help line when empty; UX §4).
+- Entry-chunk budget: AC-020.
+- **The final copy is in the UX artifact (§2, §3, §5) and supersedes the drafts below.** Drafts (plain; UX may adjust):
   - `email_unverified`: "Your identity provider hasn't confirmed your email. Ask your admin to mark it as verified."
   - `not_invited`: "You don't have a Homepad account yet. Ask your admin for an invite."
   - `account_limit`: "This Homepad has reached its account limit."
   - `sso_failed`: "Single sign-on didn't work. Try again."
+  - `too_many`: "Too many tries. Wait a minute and try again." (AC-019)
   - 429: "Too many tries. Wait N minutes and try again." (seconds under a minute: "Wait a minute and try again.")
 - README, `.env.example`, `docs/single-sign-on.md` (new), `docs/development.md` sequence diagram (the callback's new branches).
 
 ## 9. Design (Kare)
 
-UX artifact: to do (/add:ux). One surface: the sign-in screen's error line and wait state, in light and dark, at 390 and 1440.
+UX artifact: [`specs/ux/signin-hardening-ux.md`](./ux/signin-hardening-ux.md) (APPROVED 2026-11-20, S-1…S-6 at the recommendations). Main surface: the sign-in screen's error line and wait state, in light and dark, at 390 and 1440. It also covers the System rows and the Add-an-adult PocketID line.
 
 ## 10. Upgrade and Compatibility — what breaks
 
@@ -302,7 +315,7 @@ Release-note lines:
 |---|---|---|
 | Owner | Caleb | Approved 2026-11-20: all §0 questions decided |
 | Product | Walt | Pending |
-| Design | Kare | Pending (UX artifact to do) |
+| Design | Kare | Approved 2026-11-20 (`specs/ux/signin-hardening-ux.md`, S-1…S-6) |
 
 ## 13. Revision History
 
@@ -310,3 +323,4 @@ Release-note lines:
 |---|---|---|
 | 2026-11-19 | 0.1.0 | Draft for 18.0.0, checked against `homepad-api` `79e3b03`, `homepad` `6eb8a35`, and PocketID v2.19.3 (`c0abd93`). |
 | 2026-11-19 | 0.1.1 | Caleb decided Q1 ("a": ships in 17.1.0), Q3 and Q4 ("yes"), and to fix login timing, the callback cookie and the 72-byte 500 ahead of 18.0.0 in a homepad-api bug-fix PR. |
+| 2026-11-20 | 0.1.2 | UX artifact approved (S-1…S-6). AC-019: the OIDC start route's limit redirects with `too_many` (S-5). AC-020: the entry-chunk measure-before-merge rule (S-1). AC-021: `AddAdultDialog.tsx` joins the file list with the two-mode PocketID line (S-4). `AuthForm` path corrected. |

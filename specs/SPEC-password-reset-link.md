@@ -1,7 +1,7 @@
 # Spec: Password reset link, and changing your own password
 
 **Spec ID:** SPEC-password-reset-link
-**Version:** 0.1.1
+**Version:** 0.1.2
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
 **Status:** Approved — Caleb, 2026-11-20: every §0 question decided.
@@ -9,7 +9,7 @@
 **Estimate:** ~2.5 days (reset table and routes, change-password route, session ending, CLI recovery, reset screen, Change password form, tests)
 **Depends on:** SPEC-household-basics (invite token rules, URL-fragment links, rate-limit bucket; web half #565 must be on `homepad` main), SPEC-household-catalog-owner (ships in the same release). Runs in parallel with SPEC-household-manage-adults (see the plan's file-ownership map).
 **Target version:** 18.0.0
-**UX:** to do (/add:ux)
+**UX:** [`specs/ux/password-reset-link-ux.md`](./ux/password-reset-link-ux.md) (APPROVED 2026-11-20, R-1…R-6)
 **Issues folded in:** SPEC-household-basics §11 ("Password reset and password change, for anyone")
 
 ---
@@ -165,6 +165,7 @@ No line holds a token, a hash, an email or a password.
 | AC-018 | Accounts shows **Make a reset link** in an adult's row menu, except for the signed-in admin, kids and SSO-only accounts. The link shows once with Copy and the clipboard fallback (UX to do). | Must |
 | AC-019 | Opening `/#reset=<token>` shows the reset screen; the token is removed from the address bar once read; a dead link shows the §2.2 message. | Must |
 | AC-020 | My settings shows **Change password** for adults with a local password, and not for kids or SSO-only accounts (`GET /api/me` gains `hasPassword`). | Must |
+| AC-021 | `GET /api/admin/accounts` gains `hasPassword` (boolean) on every adult row, computed as for `GET /api/me`. Kid rows carry `false`. The Accounts menu uses it to hide **Make a reset link** for SSO-only accounts (AC-018, TC-005; UX R-1). | Must |
 
 ---
 
@@ -239,6 +240,7 @@ CREATE INDEX IF NOT EXISTS password_resets_live_idx ON password_resets (user_id)
 | Route | Change |
 |---|---|
 | `GET /api/me` | Adds `hasPassword` (boolean). Additive. |
+| `GET /api/admin/accounts` | Each row adds `hasPassword` (boolean); `false` for kids. Additive (AC-021). |
 | `POST /api/register`, `POST /api/invites/accept` | 400 over 72 bytes (AC-017). |
 
 The token travels only in POST bodies. All new routes go through `router.handle`, and `routes_test.go` gains them.
@@ -249,22 +251,23 @@ The token travels only in POST bodies. All new routes go through `router.handle`
 
 ## 8. Frontend Implementation
 
-- `src/api.ts`: `createResetLink(id)`, `lookupReset(token)`, `acceptReset(token, password)`, `changePassword(current, next)`; `User` gains `hasPassword`.
+- `src/api.ts`: `createResetLink(id)`, `lookupReset(token)`, `acceptReset(token, password)`, `changePassword(current, next)`; `User` and `Account` gain `hasPassword` (AC-020, AC-021).
+- API: `accountView` in `internal/api/admin_accounts.go` gains `HasPassword` (AC-021). The plan's file map gives this spec that one field.
 - `src/accounts/`: **Make a reset link** in `AdultRowMenu.tsx` (made by SPEC-household-manage-adults) opens `ResetLinkDialog.tsx`, which reuses the invite dialog's link-once view and clipboard fallback.
-- `src/app/App.tsx`: a `#reset=` fragment is read next to the `#invite=` one (from #565), removed with `history.replaceState`, and renders `ResetPasswordScreen` in place of the sign-in screen.
+- `src/app/App.tsx`: a `#reset=` fragment is read next to the `#invite=` one (from #565), removed with `history.replaceState`, and renders `ResetPasswordScreen` (a `lazy()` chunk, like `JoinScreen`) in place of the sign-in screen. Other devices reaching the sign-in screen after a reset (TC-001 step 3, TC-003) relies on SPEC-household-manage-adults AC-016 (UX R-6).
 - `src/library/SettingsPanel.tsx` (personal mode): a **Password** group with the Change password form, shown when `hasPassword`.
-- Copy (plain; UX may adjust):
+- **The final copy is in the UX artifact (§2–§4) and supersedes the drafts below.** Drafts (plain; UX may adjust):
   - Dialog: "Reset link for Jo. It works once, for 24 hours. Send it to Jo yourself." Button **Copy link**.
   - Screen: "Set a new password for jo@example.com." Fields **New password**, **Type it again**. Button **Save password**.
   - Mismatch: "The two passwords don't match."
   - Too short: "Use at least 8 characters."
   - Dead link: "This reset link doesn't work anymore. Ask for a new one."
   - Change password done: "Password changed. Your other devices are signed out."
-- Docs: `docs/accounts.md` (or the home UX picks) gets "Forgotten passwords" with the CLI line for the lone admin.
+- Docs: `docs/accounts.md` gets "Forgotten passwords" with the CLI line for the lone admin.
 
 ## 9. Design (Kare)
 
-UX artifact: to do (/add:ux). Surfaces:
+UX artifact: [`specs/ux/password-reset-link-ux.md`](./ux/password-reset-link-ux.md) (APPROVED 2026-11-20, R-1…R-6 at the recommendations). Surfaces:
 
 1. the row menu item and the reset-link dialog (link-once view, clipboard fallback);
 2. the reset screen: live, dead, and already-signed-in-as-someone-else states;
@@ -294,7 +297,7 @@ UX artifact: to do (/add:ux). Surfaces:
 |---|---|---|
 | Owner | Caleb | Approved 2026-11-20: all §0 questions decided |
 | Product | Walt | Pending |
-| Design | Kare | Pending (UX artifact to do) |
+| Design | Kare | Approved 2026-11-20 (`specs/ux/password-reset-link-ux.md`, R-1…R-6) |
 
 ## 13. Revision History
 
@@ -302,3 +305,4 @@ UX artifact: to do (/add:ux). Surfaces:
 |---|---|---|
 | 2026-11-19 | 0.1.0 | Draft for 18.0.0, checked against `homepad-api` `79e3b03` and `homepad` `6eb8a35`. |
 | 2026-11-19 | 0.1.1 | The 72-byte 500 is fixed ahead of 18.0.0 in a homepad-api bug-fix PR; AC-017 becomes a regression guard pointing at SPEC-signin-hardening AC-018. |
+| 2026-11-20 | 0.1.2 | UX artifact approved (R-1…R-6). AC-021: `hasPassword` on `GET /api/admin/accounts` rows (R-1). Other devices' sign-in screen points at SPEC-household-manage-adults AC-016 (R-6). |

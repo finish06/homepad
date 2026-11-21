@@ -1,7 +1,7 @@
 # Spec: Manage adults — remove an adult, change a role
 
 **Spec ID:** SPEC-household-manage-adults
-**Version:** 0.1.0
+**Version:** 0.1.1
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
 **Status:** Approved — Caleb, 2026-11-20: every §0 question decided.
@@ -9,7 +9,7 @@
 **Estimate:** ~2 days (two routes under the account lock, session ending, Accounts row actions, confirm dialogs, tests)
 **Depends on:** SPEC-household-catalog-owner (hard: removing or demoting the first admin is unsafe until it ships), SPEC-household-basics (Accounts adult rows, invites; web half #565 must be on `homepad` main)
 **Target version:** 18.0.0 (ships with the catalog-owner change)
-**UX:** to do (/add:ux)
+**UX:** [`specs/ux/household-manage-adults-ux.md`](./ux/household-manage-adults-ux.md) (APPROVED 2026-11-20, A-1…A-6)
 **Issues folded in:** SPEC-household-basics Q6 / §11 ("removing an adult or changing an adult's role")
 
 ---
@@ -108,15 +108,16 @@ An admin can add an adult today (invites), but not take one away, and not make a
 | AC-004 | Removing an adult revokes their pending invites (Q3). Used invites keep their `used_by` and `created_by` history until the sweep (SET NULL on the deleted id). | Must |
 | AC-005 | An admin acting on their own id gets 409 `{"error":"self"}` on both routes, and nothing changes (Q1). | Must |
 | AC-006 | `PATCH /api/admin/accounts/{id}` with `{"role":"admin"}` or `{"role":"user"}` changes the role and answers 200 with the account row. Any other role, any other field, or no body is 400. Setting the role it already has is 200 and changes nothing (no sessions end). | Must |
-| AC-007 | After removal, a request with the removed adult's old cookie gets 401, and the web app shows the sign-in screen. | Must |
+| AC-007 | After removal, a request with the removed adult's old cookie gets 401, and the web app shows the sign-in screen (through AC-016). | Must |
 | AC-008 | After a role change, every session of that account is ended (Q2). The changed adult's next request gets 401. | Must |
 | AC-009 | A change that would leave zero admins gets 409 `{"error":"last_admin"}`, and nothing changes. With two admins sending opposite demotions at once, exactly one succeeds. | Must |
-| AC-010 | Accounts shows **Make admin** / **Make member** and **Remove** on every adult row except the signed-in admin's own row (UX to do). A demotion or removal asks first. | Must |
+| AC-010 | Accounts shows **Make admin** / **Make member** and **Remove** on every adult row except the signed-in admin's own row, in the row's **Manage ▾** menu (UX §2). Every action asks first (UX §3). | Must |
 | AC-011 | Removing or demoting the first admin leaves the catalog, every kid's allow-list and every other account's favorites unchanged (test on top of SPEC-household-catalog-owner). | Must |
 | AC-012 | With `oidcEnabled`, the remove confirm adds the single sign-on line (Q4). | Must |
 | AC-013 | Every action writes one §3 log line. No log line holds an email or token. | Must |
 | AC-014 | A removal frees a place under `HOMEPAD_MAX_ACCOUNTS`. | Should |
 | AC-015 | Kids, their allow-lists and their sessions are unchanged by any removal or role change. | Must |
+| AC-016 | When a poll or request of a signed-in **adult** gets 401 (removed, role changed, or a password reset elsewhere), the web app shows the sign-in screen. `App.tsx` passes `onUnauthorized` to `ServicesProvider` for every role; today it does so for kids only, and adults keep v13's quiet stop (UX A-5). | Must |
 
 ---
 
@@ -163,23 +164,24 @@ Session store addition: `DestroyAllForUser(ctx, userID, except string) (int64, e
 
 ### Changed
 
-None. `GET /api/admin/accounts` already returns what the UI needs.
+None in this spec. `GET /api/admin/accounts` already returns what these actions need. SPEC-password-reset-link AC-021 adds `hasPassword` to its rows, for the reset-link item.
 
 ## 8. Frontend Implementation
 
 - `src/api.ts`: `setAccountRole(id, role)`, `removeAccount(id)`.
 - `src/accounts/AccountsSection.tsx`: adult rows get a row menu (new `AdultRowMenu.tsx`) with the actions in §2. SPEC-password-reset-link adds **Make a reset link** to the same menu; see the plan's file-ownership map.
-- Confirm dialogs use the existing `Modal`. Copy (plain, UX may adjust):
+- `src/app/App.tsx`: one line. `ServicesProvider` gets `onUnauthorized={() => setUser(null)}` for every role, not only kids (AC-016, UX A-5). This spec owns the line; SPEC-password-reset-link owns the rest of `App.tsx` (plan §2).
+- Confirm dialogs use the existing `Modal`. **The final copy is in the UX artifact §3 and supersedes the drafts below.** Drafts (plain, UX may adjust):
   - Remove: "Remove Alex? Alex will be signed out everywhere. Their favorites and settings will be deleted. The apps everyone shares stay as they are." Buttons: **Remove**, **Cancel**.
   - With OIDC on, add: "Alex can still sign in with single sign-on until you remove them there too."
   - Make member: "Make Alex a member? Alex will be signed out and can't change apps or settings after that." Buttons: **Make member**, **Cancel**.
   - Make admin: "Make Jo an admin? Jo will be signed out, then can change apps, settings and accounts." Buttons: **Make admin**, **Cancel**.
   - 409 `last_admin`: "Homepad needs at least one admin."
-- `docs/kid-accounts.md` gains a short "Adults" section, or a new `docs/accounts.md` (UX decides the home).
+- Docs: a new `docs/accounts.md` with an "Adults" section (UX §9, decided). `docs/kid-accounts.md` links to it.
 
 ## 9. Design (Kare)
 
-UX artifact: to do (/add:ux). Surfaces:
+UX artifact: [`specs/ux/household-manage-adults-ux.md`](./ux/household-manage-adults-ux.md) (APPROVED 2026-11-20, A-1…A-6 at the recommendations). Surfaces:
 
 1. the adult row menu in Accounts (where it sits next to the kid rows, touch size on iPad);
 2. the three confirms, including the OIDC line;
@@ -205,10 +207,11 @@ UX artifact: to do (/add:ux). Surfaces:
 |---|---|---|
 | Owner | Caleb | Approved 2026-11-20: all §0 questions decided |
 | Product | Walt | Pending |
-| Design | Kare | Pending (UX artifact to do) |
+| Design | Kare | Approved 2026-11-20 (`specs/ux/household-manage-adults-ux.md`, A-1…A-6) |
 
 ## 13. Revision History
 
 | Date | Version | Change |
 |---|---|---|
 | 2026-11-19 | 0.1.0 | Draft for 18.0.0, checked against `homepad-api` `79e3b03` and `homepad` `6eb8a35`. |
+| 2026-11-20 | 0.1.1 | UX artifact approved (A-1…A-6). AC-016: adults go to the sign-in screen on a 401 (A-5), with the `App.tsx` line in §8. AC-007 and AC-010 point at the UX. Docs home is `docs/accounts.md`. |

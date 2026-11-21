@@ -20,7 +20,7 @@
 - **The 17.1.0 web halves land on `homepad` main:** household basics (#565), backup (#566), widgets (#568). Specs 2, 3 and 4 change screens those PRs add (Accounts adult rows, the invite dialog, the `#invite=` handling, the backup field list).
 - **Decided: #89 ships in 17.1.0** (SPEC-signin-hardening Q1, Caleb, 2026-11-19: "a"). The `email_verified` refusal, merged in #91, goes out in 17.1.0 as a security fix, and the 17.1.0 release notes carry the PocketID steps.
 - **Landing ahead of 18.0.0:** three sign-in bug fixes, in a separate homepad-api bug-fix PR (number TBD): login timing that shows whether an email exists, the OIDC callback cookie ignoring `COOKIE_SECURE`, and passwords over 72 bytes causing a 500. Spec 4 keeps their ACs (AC-009, AC-016, AC-018) as regression guards, and spec 3 AC-017 points at AC-018.
-- **UX artifacts** (`/add:ux`) for specs 2, 3, 4 and 5 before their UI work starts. Spec 1 has no UI.
+- **UX artifacts** for specs 2, 3, 4 and 5: approved by Caleb 2026-11-20, every recommendation (`specs/ux/household-manage-adults-ux.md`, `password-reset-link-ux.md`, `signin-hardening-ux.md`, `iframe-sandbox-optin-ux.md`). Spec 1 has no UI.
 
 ## 1. Build order
 
@@ -50,7 +50,7 @@
 | `internal/api/server.go` | shared, append-only | 2 adds its two routes after the "admin Accounts API" block; 3 adds its routes after the invites block. No edits to other lines. |
 | `internal/api/routes_test.go` (class table) | shared, append-only | Same placement as `server.go`. |
 | `internal/api/auth.go` | 3 (`hasPassword` on `userView`, 72-byte rule) | 2 doesn't touch it. |
-| `internal/api/admin_accounts.go` | neither | Both leave it as is; new code goes in the new files. |
+| `internal/api/admin_accounts.go` | 3 (one field: `hasPassword` on `accountView`, AC-021) | 2 leaves it as is; its new code goes in the new files. |
 
 ### homepad
 
@@ -59,7 +59,7 @@
 | `src/accounts/AdultRowMenu.tsx` (new) | 2 | 3 adds one menu item after 2 merges (a one-line change plus its dialog). |
 | `src/accounts/AccountsSection.tsx` | 2 | 3 doesn't touch it. |
 | `src/accounts/ResetLinkDialog.tsx` (new) | 3 | — |
-| `src/app/App.tsx` (`#reset=` fragment, reset screen) | 3 | 2 doesn't touch it. |
+| `src/app/App.tsx` (`#reset=` fragment, reset screen) | 3 | 2 changes one line: `onUnauthorized` on `ServicesProvider` for every role, so an adult who gets a 401 sees the sign-in screen (manage-adults AC-016, UX A-5). Whichever merges second rebases. |
 | `src/app/ResetPasswordScreen.tsx` (new) | 3 | — |
 | `src/library/SettingsPanel.tsx` (Change password) | 3 | — |
 | `src/api.ts` | shared, append-only | 2 adds an "Adults" block, 3 a "Passwords" block, at the end of the file. |
@@ -71,7 +71,7 @@ Merge order inside the pair: whichever is green first. The other rebases. The on
 
 | Spec | Main files | Conflicts with |
 |---|---|---|
-| 4 | `internal/api/ratelimit.go`, `auth.go` (login), `oidc.go`, `cmd/homepad-api/main.go` (env), `internal/api/env_config.go`; web `src/app/App.tsx` (`AuthForm`), README, `.env.example`, `docs/single-sign-on.md` | 3's routes in `server.go` (wrapper swap only) |
+| 4 | `internal/api/ratelimit.go`, `auth.go` (login), `oidc.go` (callback and start-route redirects, incl. `too_many`), `cmd/homepad-api/main.go` (env), `internal/api/env_config.go`; web `src/app/App.tsx` (fragment read), `src/app/AuthForm.tsx`, `src/accounts/AddAdultDialog.tsx` (PocketID line, AC-021), `src/library/SettingsPanel.tsx` (env labels), `src/api.ts` (`retryAfter`), README, `.env.example`, `docs/single-sign-on.md`. Entry-chunk rule: AC-020. | 3's routes in `server.go` (wrapper swap only); after 2 and 3 merge, so no file overlap in flight |
 | 5 | `migrations/0023_*`, `internal/api/services.go`, `internal/storage/storage.go` (service columns), `internal/transfer/*`, `docs/schema/homepad-backup-v1.json`; web `src/grid/IframeOverlay.tsx`, `TileEditModal.tsx`, `src/lib/sandbox.ts`, both nginx configs | none of 2–4 |
 
 ## 3. Estimates
