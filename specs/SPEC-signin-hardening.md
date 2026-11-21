@@ -4,7 +4,7 @@
 **Version:** 0.1.1
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
-**Status:** Draft, awaiting sign-off
+**Status:** Approved — Caleb, 2026-11-20: every §0 question decided.
 **Repo:** `Code/homepad-api` (limiter, client address, OIDC rules) + `Code/homepad` (sign-in screen messages, README, `.env.example`, docs)
 **Estimate:** ~2.5 days (per-client limiter with trusted proxies, login limits and timing, OIDC invite-only rule, OIDC error landing, docs and PocketID guide, tests)
 **Depends on:** SPEC-household-basics (registration modes, invite bucket), SPEC-password-reset-link (its public routes move onto this limiter). Builds after SPEC-household-manage-adults and SPEC-password-reset-link.
@@ -16,7 +16,7 @@
 
 ## 0. Open questions — decisions for Caleb
 
-Answer "all defaults", or pick per question.
+All questions are decided.
 
 **Decided (Caleb, 2026-11-19):**
 - Single sign-on links or creates an account by email only when the provider says the email is verified (`email_verified` is `true`). The docs explain how to make PocketID send it.
@@ -33,10 +33,7 @@ Answer "all defaults", or pick per question.
 - the OIDC callback cookie ignores `COOKIE_SECURE` (former Q5, AC-016);
 - passwords over 72 bytes cause a 500 (AC-018).
 
-**Q2 — invite-only and single sign-on.** Under `invite_only`, who may an SSO sign-in create? [AC-010…AC-013]
-- **A (default):** an existing account (matched by verified email) always signs in. A new identity gets an account only when its groups include `OIDC_ADMIN_GROUP` (becomes admin) or a new `OIDC_MEMBER_GROUP` (becomes member). Everyone else is refused. The identity provider's group is the invite.
-- B: no group shortcut. A new SSO person needs a password invite first, then SSO links by email.
-- C: B, plus the invite page offers "Continue with single sign-on" (household-basics Q5 option B). Bigger: needs the invite token carried through the OIDC round trip.
+**Decided — Q2, invite-only and SSO (Caleb, 2026-11-20): A.** [AC-010…AC-013] An existing account (matched by verified email) always signs in. A new identity gets an account only when its groups include `OIDC_ADMIN_GROUP` (admin) or the new `OIDC_MEMBER_GROUP` (member). Everyone else is refused.
 
 ---
 
@@ -303,7 +300,7 @@ Release-note lines:
 
 | Role | Name | Status |
 |---|---|---|
-| Owner | Caleb | Decided: verified emails, untrusted `X-Forwarded-For`; Q1, Q3, Q4 and the three bug fixes (2026-11-19). Pending: §0 Q2 |
+| Owner | Caleb | Approved 2026-11-20: all §0 questions decided |
 | Product | Walt | Pending |
 | Design | Kare | Pending (UX artifact to do) |
 

@@ -16,7 +16,7 @@
 
 ## 0. Before any build starts
 
-- **Caleb answers the open questions** in each spec's §0. Every spec is written against its defaults.
+- **Caleb answered every §0 question (2026-11-20).** All went to the default except catalog-owner Q5: backup files move to `schemaVersion` 2.
 - **The 17.1.0 web halves land on `homepad` main:** household basics (#565), backup (#566), widgets (#568). Specs 2, 3 and 4 change screens those PRs add (Accounts adult rows, the invite dialog, the `#invite=` handling, the backup field list).
 - **Decided: #89 ships in 17.1.0** (SPEC-signin-hardening Q1, Caleb, 2026-11-19: "a"). The `email_verified` refusal, merged in #91, goes out in 17.1.0 as a security fix, and the 17.1.0 release notes carry the PocketID steps.
 - **Landing ahead of 18.0.0:** three sign-in bug fixes, in a separate homepad-api bug-fix PR (number TBD): login timing that shows whether an email exists, the OIDC callback cookie ignoring `COOKIE_SECURE`, and passwords over 72 bytes causing a 500. Spec 4 keeps their ACs (AC-009, AC-016, AC-018) as regression guards, and spec 3 AC-017 points at AC-018.

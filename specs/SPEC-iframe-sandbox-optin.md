@@ -4,7 +4,7 @@
 **Version:** 0.1.1
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
-**Status:** Draft, awaiting sign-off
+**Status:** Approved — Caleb, 2026-11-20: every §0 question decided.
 **Repo:** `Code/homepad` (overlay, tile editor, nginx headers) + `Code/homepad-api` (column, read and write model, backup field)
 **Estimate:** ~1.5 days (migration, API field, backup field, overlay sandbox rule, tile-edit toggle, frame headers, tests)
 **Depends on:** SPEC-tile-click-action (v23, shipped 14.0.0), SPEC-backup-import (the App field list), SPEC-household-catalog-owner (ships in the same release; migration runner)
@@ -16,7 +16,7 @@
 
 ## 0. Open questions — decisions for Caleb
 
-Answer "all defaults", or pick per question.
+All questions are decided.
 
 **Decided (Caleb, 2026-11-19):** the overlay's sandbox drops `allow-same-origin` by default. An admin can turn it back on per app.
 
@@ -24,13 +24,9 @@ Answer "all defaults", or pick per question.
 
 **Decided — Q4, nothing can frame Homepad (Caleb, 2026-11-19: "yes").** [AC-006, §10] Both nginx configs send `X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'`. This closes the redirect path in §3.1 and the quickstart's missing header (§1a). The release note says that showing Homepad inside another page or dashboard stops working.
 
-**Q2 — Who may set it.** [AC-010]
-- **A (default):** admins, in the tile editor. It is part of the app, like the click action.
-- B: also members, per user. That makes the sandbox differ by viewer. Not recommended.
+**Decided — Q2, who sets it (Caleb, 2026-11-20): A.** [AC-010] Admins, in the tile editor.
 
-**Q3 — Same-origin apps.** [AC-004]
-- **A (default):** an app whose address has the same origin as Homepad never gets `allow-same-origin`. The toggle is shown greyed out with a reason.
-- B: no special rule; trust the admin.
+**Decided — Q3, same-origin apps (Caleb, 2026-11-20): A.** [AC-004] They never get `allow-same-origin`. The toggle shows greyed out with a reason.
 
 ---
 
@@ -201,7 +197,7 @@ UX artifact: to do (/add:ux). One surface: the tile editor's Inline overlay swit
 
 | Role | Name | Status |
 |---|---|---|
-| Owner | Caleb | Decided: stricter default with opt-in; Q1 and Q4 (2026-11-19). Pending: §0 Q2–Q3 |
+| Owner | Caleb | Approved 2026-11-20: all §0 questions decided |
 | Product | Walt | Pending |
 | Design | Kare | Pending (UX artifact to do) |
 

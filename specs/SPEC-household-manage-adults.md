@@ -4,7 +4,7 @@
 **Version:** 0.1.0
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
-**Status:** Draft, awaiting sign-off
+**Status:** Approved — Caleb, 2026-11-20: every §0 question decided.
 **Repo:** `Code/homepad-api` (routes, storage) + `Code/homepad` (Accounts UI, docs)
 **Estimate:** ~2 days (two routes under the account lock, session ending, Accounts row actions, confirm dialogs, tests)
 **Depends on:** SPEC-household-catalog-owner (hard: removing or demoting the first admin is unsafe until it ships), SPEC-household-basics (Accounts adult rows, invites; web half #565 must be on `homepad` main)
@@ -16,29 +16,19 @@
 
 ## 0. Open questions — decisions for Caleb
 
-Answer "all defaults", or pick per question.
+All questions are decided.
 
 **Decided (Caleb, 2026-11-19):** the theme is household management; an admin can remove an adult and change an adult's role; the last admin can never be removed or demoted.
 
-**Q1 — Acting on yourself.** [AC-005, AC-010]
-- **A (default):** an admin can't remove or demote themselves. Another admin does it. A household with one admin can't lock itself out by accident.
-- B: allowed, as long as another admin remains.
+**Decided — Q1, acting on yourself (Caleb, 2026-11-20): A.** [AC-005, AC-010] An admin can't remove or demote themselves. Another admin does it.
 
-**Q2 — Sessions on a role change.** [AC-008]
-- **A (default):** end every session of the changed account. They sign in again and get the right screens. (The role already applies on their next request, see §1a; this also clears a stale admin UI.)
-- B: keep sessions. Only the next request's role changes.
+**Decided — Q2, sessions on a role change (Caleb, 2026-11-20): A.** [AC-008] Every session of the changed account ends.
 
-**Q3 — Invites the removed adult made.** [AC-004]
-- **A (default):** revoke their pending invites. The invite page says "Caleb invited you", and Caleb is gone.
-- B: keep them. They stay valid until they expire.
+**Decided — Q3, the removed adult's invites (Caleb, 2026-11-20): A.** [AC-004] Their pending invites are revoked.
 
-**Q4 — Removing someone who signs in with single sign-on.** [AC-012]
-- **A (default):** allowed. The confirm says plainly that they can sign in again through the identity provider unless they are removed there too, or until SPEC-signin-hardening's invite-only rule ships.
-- B: refuse while OIDC is on.
+**Decided — Q4, removing an SSO adult (Caleb, 2026-11-20): A.** [AC-012] Allowed. The confirm says they can sign in again through the identity provider unless they are removed there too.
 
-**Q5 — Removing a member (not an admin).** [AC-001]
-- **A (default):** yes, any adult, admin or member.
-- B: admins only can be removed by this route; members stay.
+**Decided — Q5, removing a member (Caleb, 2026-11-20): A.** [AC-001] Any adult, admin or member, can be removed. The last admin never can.
 
 ---
 
@@ -213,7 +203,7 @@ UX artifact: to do (/add:ux). Surfaces:
 
 | Role | Name | Status |
 |---|---|---|
-| Owner | Caleb | Pending (§0 Q1–Q5) |
+| Owner | Caleb | Approved 2026-11-20: all §0 questions decided |
 | Product | Walt | Pending |
 | Design | Kare | Pending (UX artifact to do) |
 

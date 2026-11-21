@@ -4,7 +4,7 @@
 **Version:** 0.1.1
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
-**Status:** Draft, awaiting sign-off
+**Status:** Approved — Caleb, 2026-11-20: every §0 question decided.
 **Repo:** `Code/homepad-api` (migration, storage, handlers) + `Code/homepad` (CHANGELOG, docs; no UI change)
 **Estimate:** ~3 days (migration runner, migration 0021, storage and handler rewrite off the owner id, transfer, tests, upgrade rehearsal on a copy of a real database)
 **Depends on:** SPEC-household-basics (17.1.0: shared catalog writes, account lock), SPEC-backup-import, SPEC-status-widgets. All three are merged on `homepad-api` `gitea/main`; the web halves (#565, #566, #568) are not on `homepad` main yet.
@@ -16,7 +16,7 @@
 
 ## 0. Open questions — decisions for Caleb
 
-Answer "all defaults", or pick per question. The rest of this spec is written against the defaults.
+All questions are decided.
 
 **Decided (Caleb, 2026-11-19):** the 18.0.0 theme is household management. This spec is its breaking change.
 
@@ -24,17 +24,11 @@ Answer "all defaults", or pick per question. The rest of this spec is written ag
 
 **Decided — Q3, making a one-way migration run once (Caleb, 2026-11-19: "yes").** [AC-007, AC-008] The runner (`storage.Migrate`) gains a `schema_migrations` table. A file runs once and is recorded. The first 18.0.0 boot re-runs 0001–0020 one last time (they are idempotent, as today), runs 0021, and records all of them. Without it, re-running `0007_per_user_dashboards` after 0021 would add `user_id` back and hand the catalog to the first admin again (§1a).
 
-**Q1 — How the catalog stops depending on a user.** [§6, AC-001…AC-004]
-- **A (default):** drop `services.user_id` and `categories.user_id`. An install has one household and one catalog, so no owner column is needed. Slugs and section names become unique across the table.
-- B: add a one-row `household` table and point `services` and `categories` at it with `ON DELETE RESTRICT`. This leaves room for more than one household later, which the PRD rules out (§4).
+**Decided — Q1, drop the owner column (Caleb, 2026-11-20): A.** [§6, AC-001…AC-004] `services.user_id` and `categories.user_id` are dropped. Slugs and section names become unique across the table.
 
-**Q4 — An install with catalog rows and no admin.** This can only happen if someone edited the database by hand. [AC-009]
-- **A (default):** 0021 stops the boot with a clear message: make one account an admin, then restart. Migration 0007 does the same today.
-- B: treat the account that owns the most rows as the owner.
+**Decided — Q4, catalog rows and no admin (Caleb, 2026-11-20): A.** [AC-009] 0021 stops the boot with a clear message: make one account an admin, then restart.
 
-**Q5 — The backup file's `schemaVersion`.** [AC-012]
-- **A (default):** stays 1. The file never held an owner or any id (§1a), so nothing in it changes.
-- B: bump to 2 to mark files made after the change.
+**Decided — Q5, backup `schemaVersion` (Caleb, 2026-11-20): B, bump to 2.** [AC-012] 18.0.0 exports write `schemaVersion: 2`. The keys are the same as v1. The API gains a 1→2 upgrader that changes nothing but the number, so 17.1.0 files still restore (SPEC-backup-import AC-017). A 17.1.0 server rejects a v2 file with the "newer Homepad" message (SPEC-backup-import AC-016), and the release notes say so.
 
 ---
 
@@ -87,11 +81,11 @@ This spec makes the catalog belong to the install. No user owns it. That is what
 | Appearance prefs, `show_widgets` | Columns on `users` | Unchanged. |
 | App Library (`library_apps`) | Already has no owner | Unchanged. The `added` hint checks the catalog. |
 | Rows owned by anyone but the first admin | Kept, never read | Archived, then deleted (Q2, decided). |
-| Backup file | No ids, `schemaVersion` 1 | Unchanged (Q5). |
+| Backup file | No ids, `schemaVersion` 1 | Same keys, `schemaVersion` 2 (Q5, decided). |
 
 ### 2.3 Backup and import
 
-- **Export** writes the same v1 file as 17.1.0. No field is added or removed by this spec.
+- **Export** writes `schemaVersion: 2` with the same keys as 17.1.0. No field is added or removed by this spec. A 1→2 upgrader changes only the number (Q5).
 - **Restore of a file made by 17.1.0** works unchanged: it never named an owner. Merge matches sections by name and apps by slug, as before. Replace deletes the whole catalog instead of "the owner's rows".
 - **Restore of an 18.0.0 file on 17.1.0** also works, as long as no later 18.0.0 spec adds a field. (SPEC-iframe-sandbox-optin adds one optional field. 17.1.0 counts it as unknown and warns in the preview; see that spec.)
 - **Homepage import** writes into the catalog, as before.
@@ -139,7 +133,7 @@ This spec makes the catalog belong to the install. No user owns it. That is what
 | ID | Criterion | Priority |
 |---|---|---|
 | AC-011 | Every existing API test passes, apart from tests that asserted owner behavior, which are rewritten to assert the household behavior. The second-admin suite passes unmodified. | Must |
-| AC-012 | Export writes `schemaVersion: 1` with the same keys as 17.1.0 (Q5). A 17.1.0 export restores on 18.0.0 in both modes with the same plan it would get on 17.1.0. | Must |
+| AC-012 | Export writes `schemaVersion: 2` with the same keys as 17.1.0 (Q5). A 17.1.0 (v1) export restores on 18.0.0 in both modes, through the 1→2 upgrader, with the same plan it would get on 17.1.0. A v1 fixture stays in the CI restore test. | Must |
 | AC-013 | Replace mode deletes every app and section and the App Library, then loads the file, as before. | Must |
 | AC-014 | The `added` hint in `GET /api/library` is true when any app has that offer as `source_library_id`. | Must |
 | AC-015 | `PUT /api/admin/kids/{id}/services` accepts any catalog app id and rejects any other id with 400, as before. | Must |
@@ -262,7 +256,7 @@ Release-note lines (plain copy, for the CHANGELOG):
 
 | Role | Name | Status |
 |---|---|---|
-| Owner | Caleb | Decided Q2 and Q3 (2026-11-19). Pending: §0 Q1, Q4, Q5 |
+| Owner | Caleb | Approved 2026-11-20: all §0 questions decided |
 | Product | Walt | Pending |
 | Design | Kare | Pending (CHANGELOG wording only; no UX artifact) |
 

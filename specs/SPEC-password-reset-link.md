@@ -4,7 +4,7 @@
 **Version:** 0.1.1
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
-**Status:** Draft, awaiting sign-off
+**Status:** Approved — Caleb, 2026-11-20: every §0 question decided.
 **Repo:** `Code/homepad-api` (migration, routes, CLI subcommand) + `Code/homepad` (Accounts action, reset screen, My settings, docs)
 **Estimate:** ~2.5 days (reset table and routes, change-password route, session ending, CLI recovery, reset screen, Change password form, tests)
 **Depends on:** SPEC-household-basics (invite token rules, URL-fragment links, rate-limit bucket; web half #565 must be on `homepad` main), SPEC-household-catalog-owner (ships in the same release). Runs in parallel with SPEC-household-manage-adults (see the plan's file-ownership map).
@@ -16,34 +16,21 @@
 
 ## 0. Open questions — decisions for Caleb
 
-Answer "all defaults", or pick per question.
+All questions are decided.
 
 **Decided (Caleb, 2026-11-19):** a reset is an admin-issued, one-time link only, shared the way invites are. No email is sent and no SMTP is configured.
 
-**Q1 — How long a reset link works.** [AC-004]
-- **A (default):** 24 hours. A reset link opens an existing account, so it should not sit around as long as an invite (7 days).
-- B: 1 hour.
-- C: 7 days, like invites.
+**Decided — Q1, link lifetime (Caleb, 2026-11-20): A, 24 hours.** [AC-004]
 
-**Q2 — Sessions when a reset link is used.** [AC-008]
-- **A (default):** end every session of that account, then sign them in on the device that used the link. A reset often means the old password leaked.
-- B: end nothing; just change the password.
+**Decided — Q2, sessions when a reset link is used (Caleb, 2026-11-20): A.** [AC-008] Every session of that account ends; the device that used the link is signed in.
 
-**Q3 — Sessions when you change your own password.** [AC-013]
-- **A (default):** end every other session of yours; keep the one you're using.
-- B: end nothing.
+**Decided — Q3, sessions on your own password change (Caleb, 2026-11-20): A.** [AC-013] Every other session of yours ends; the current one stays.
 
-**Q4 — Accounts that sign in only with single sign-on.** They have no local password (§1a). [AC-010, AC-014]
-- **A (default):** refuse. No reset link and no Change password for them. Adding a local password would let them in without the identity provider, past its two-factor and its removals.
-- B: allow. The link sets their first local password.
+**Decided — Q4, SSO-only accounts (Caleb, 2026-11-20): A.** [AC-010, AC-014] Refused. No reset link and no Change password.
 
-**Q5 — The only admin forgets their password.** No other admin can make a link. [AC-016]
-- **A (default):** a CLI subcommand in the API image prints a one-time link to the terminal: `docker compose exec api /homepad-api reset-link <email>`. It needs shell access to the server, which is the same trust as the database.
-- B: no CLI. Docs explain how to edit the database.
+**Decided — Q5, the only admin forgets (Caleb, 2026-11-20): A.** [AC-016] A CLI subcommand prints a one-time link: `docker compose exec api /homepad-api reset-link <email>`.
 
-**Q6 — More than one live link for the same account.** [AC-005]
-- **A (default):** making a new link revokes the earlier one.
-- B: allow several.
+**Decided — Q6, several live links (Caleb, 2026-11-20): A.** [AC-005] A new link revokes the earlier one.
 
 ---
 
@@ -305,7 +292,7 @@ UX artifact: to do (/add:ux). Surfaces:
 
 | Role | Name | Status |
 |---|---|---|
-| Owner | Caleb | Pending (§0 Q1–Q6) |
+| Owner | Caleb | Approved 2026-11-20: all §0 questions decided |
 | Product | Walt | Pending |
 | Design | Kare | Pending (UX artifact to do) |
 
