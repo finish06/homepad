@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test';
 import { test, expect } from './fixtures';
 import { mockApi, makeStatusTiles } from './mockApi';
 
@@ -27,12 +28,20 @@ async function openEditor(page: import('@playwright/test').Page) {
 
 const LABEL = 'Let this app keep its sign-in';
 
+// The editor rises in (tile-edit-rise: translateY 8px→0, 160ms). Each
+// boundingBox() is its own round trip, so measured mid-rise the switch and the
+// label are read at different offsets and look misaligned by up to ~3px. Wait
+// for the modal's animations to finish before measuring.
+const settled = (el: Locator) =>
+  el.evaluate((n) => Promise.all(n.getAnimations({ subtree: true }).map((a) => a.finished)).then(() => undefined));
+
 for (const width of [390, 1440]) {
   test(`UX §2 — the switch row is ≥44px, the switch sits right and top-aligned — ${width}`, async ({ page }) => {
     await boot(page, width);
     await openEditor(page);
     const sw = page.getByRole('switch', { name: LABEL });
     await expect(sw).toBeVisible();
+    await settled(page.getByTestId('tile-edit-modal'));
     const s = (await sw.boundingBox())!;
     const label = (await page.getByText(LABEL, { exact: true }).boundingBox())!;
     const group = (await page.getByRole('group', { name: 'Click action' }).boundingBox())!;
