@@ -2,6 +2,7 @@ import Modal from '../ui/Modal';
 import { useEffect, useRef, useState } from 'react';
 import TileDensityToggle from '../grid/TileDensityToggle';
 import AccountsSection from '../accounts/AccountsSection';
+import ChangePassword from './ChangePassword';
 import BackupSection from './backup/BackupSection';
 import WidgetsSettings from '../widgets/WidgetsSettings';
 import type { TileDensity } from '../grid/tileDensity';
@@ -62,6 +63,8 @@ export default function SettingsPanel({
   showWidgets = true,
   onSetShowWidgets,
   onWidgetsChanged,
+  email = '',
+  hasPassword = false,
 }: {
   isAdmin: boolean;
   scope?: SettingsScope;
@@ -89,6 +92,11 @@ export default function SettingsPanel({
   showWidgets?: boolean;
   onSetShowWidgets?: (show: boolean) => void;
   onWidgetsChanged?: () => void;
+  // SPEC-password-reset-link AC-020 — My settings → Password shows only for an
+  // adult with a local password (GET /api/me hasPassword). The email fills the
+  // form's hidden username field for password managers.
+  email?: string;
+  hasPassword?: boolean;
 }) {
   const personal = scope === 'personal';
   // SPEC-backup-import — bumped after a restore or an import, so the App Library
@@ -147,16 +155,19 @@ export default function SettingsPanel({
 
         <div className="launcher-results settings-body">
           {personal ? (
-            <PersonalSettings
-              showHealthBar={showHealthBar}
-              onSetHealthBar={onSetHealthBar}
-              showUptimeDisplay={showUptimeDisplayPref}
-              onSetUptimeDisplay={onSetUptimeDisplay}
-              density={density}
-              onSetDensity={onSetDensity}
-              showWidgets={showWidgets}
-              onSetShowWidgets={onSetShowWidgets}
-            />
+            <>
+              <PersonalSettings
+                showHealthBar={showHealthBar}
+                onSetHealthBar={onSetHealthBar}
+                showUptimeDisplay={showUptimeDisplayPref}
+                onSetUptimeDisplay={onSetUptimeDisplay}
+                density={density}
+                onSetDensity={onSetDensity}
+                showWidgets={showWidgets}
+                onSetShowWidgets={onSetShowWidgets}
+              />
+              {hasPassword && <ChangePassword email={email} />}
+            </>
           ) : !isAdmin ? (
             <p className="settings-note">
               Your apps and categories are managed right on your dashboard. Use

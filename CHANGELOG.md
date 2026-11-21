@@ -50,6 +50,12 @@ Homepad.
 
 **Managing adults.** Admins can now remove an adult, or make someone an admin or a member, in Administration → Accounts. Homepad always keeps at least one admin.
 
+**Passwords.** An admin can make a one-time reset link for an adult. It
+works for 24 hours. You can change your own password in My settings. If you
+are the only admin and forget your password, run
+`docker compose exec api /homepad-api reset-link you@example.com` on the
+server.
+
 **Overlay apps.**
 
 - Apps that open in the overlay are now more locked down by default. Apps you

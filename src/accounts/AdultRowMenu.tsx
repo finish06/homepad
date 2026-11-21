@@ -2,9 +2,15 @@ import { lazy, Suspense, useEffect, useId, useLayoutEffect, useRef, useState, ty
 import type { Account } from '../api';
 
 // SPEC-household-manage-adults UX §2 — the "Manage ▾" menu on every other
-// adult's row (AC-010). It holds every adult action: the role change and
-// Remove. SPEC-password-reset-link adds "Make a reset link" after the role
-// item. Nothing happens straight from the menu: each item opens a confirm.
+// adult's row (AC-010). It holds every adult action: the role change, Make a
+// reset link and Remove. Nothing happens straight from the menu: the role and
+// Remove items open a confirm, and Make a reset link opens its dialog.
+//
+// SPEC-password-reset-link UX §2.1 — "Make a reset link" sits second, after
+// the role item and before the divider. It shows only on an adult with a
+// password (AC-018, AC-021): an SSO-only account has nothing to reset, and an
+// older API that omits hasPassword reads as no password. Your own row and kid
+// rows have no menu, so they never show it (AC-003).
 //
 // The keyboard model is the user menu's (UX §6): Enter, Space or ↓ opens on
 // the first item, ↑ on the last; ↑/↓ wrap; Home/End jump; Escape closes and
@@ -12,8 +18,10 @@ import type { Account } from '../api';
 // (focus leaving the menu) and a click outside close it.
 //
 // The confirm loads on demand, like BackupSection's RestoreModal, so this
-// module adds nothing to the entry chunk (UX §1).
+// module adds nothing to the entry chunk (UX §1). So does the reset-link
+// dialog (SPEC-password-reset-link UX §1).
 const AdultConfirm = lazy(() => import('./AdultConfirm'));
+const ResetLinkDialog = lazy(() => import('./ResetLinkDialog'));
 
 export type AdultAction = 'admin' | 'member' | 'remove';
 
@@ -57,6 +65,7 @@ export default function AdultRowMenu({
   const [openAt, setOpenAt] = useState<OpenAt | null>(null);
   const [up, setUp] = useState(false);
   const [action, setAction] = useState<AdultAction | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
@@ -129,6 +138,7 @@ export default function AdultRowMenu({
   }
 
   const isAdmin = account.role === 'admin';
+  const canReset = account.hasPassword === true;
 
   return (
     <div className="adult-menu-wrap">
@@ -175,6 +185,20 @@ export default function AdultRowMenu({
           >
             {isAdmin ? 'Make member' : 'Make admin'}
           </button>
+          {canReset && (
+            <button
+              type="button"
+              role="menuitem"
+              tabIndex={-1}
+              className="menu-item"
+              onClick={() => {
+                setOpenAt(null);
+                setResetOpen(true);
+              }}
+            >
+              Make a reset link
+            </button>
+          )}
           <div role="separator" className="menu-sep" />
           <button
             type="button"
@@ -212,6 +236,20 @@ export default function AdultRowMenu({
                 btnRef.current?.focus();
               }
             }}
+          />
+        </Suspense>
+      )}
+
+      {resetOpen && (
+        <Suspense fallback={null}>
+          <ResetLinkDialog
+            account={account}
+            // UX §5 — on close, focus returns to this row's Manage button.
+            onClose={() => {
+              setResetOpen(false);
+              btnRef.current?.focus();
+            }}
+            onGone={onStale}
           />
         </Suspense>
       )}

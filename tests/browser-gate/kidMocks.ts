@@ -36,6 +36,8 @@ export type MockAccount = {
   avatarColor: string;
   appCount?: number;
   deviceCount?: number;
+  // SPEC-password-reset-link AC-021 — an adult who signs in with a password.
+  hasPassword?: boolean;
 };
 export type MockDevice = { id: string; userAgent: string; createdAt: string; lastSeenAt: string };
 

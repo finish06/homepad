@@ -15,9 +15,11 @@ In **Administration → Accounts**, every other adult's row has a **Manage**
 menu. It holds:
 
 - **Make admin** or **Make member**, to change their role.
+- **Make a reset link**, when they have a password. See
+  [Forgotten passwords](#forgotten-passwords).
 - **Remove *name*…**, to take their account away.
 
-Each one asks before it does anything.
+The role change and Remove ask before they do anything.
 
 **Who can do this.** Only admins. Your own row has no menu: you can't remove
 or change your own account. Another admin does that.
@@ -42,3 +44,38 @@ here doesn't stop that. They can sign in again and get a new account. To stop
 it, remove them in your identity provider too. While single sign-on is on,
 the Remove confirm says so for every adult, because Homepad can't tell who
 uses it.
+
+## Forgotten passwords
+
+Homepad doesn't send email. To reset a forgotten password, an admin makes a
+link and sends it.
+
+1. An admin opens **Administration → Accounts**, opens the **Manage** menu on
+   the adult's row and picks **Make a reset link**.
+2. They copy the link and send it to the adult however they like.
+3. The adult opens it, types a new password twice and taps **Save password**.
+   They are signed in, and every other device of theirs is signed out.
+
+The link works once, for 24 hours. Making a new link stops the old one.
+Making a link changes nothing until it's used. The old password keeps working
+until then.
+
+Kids have no password, so they get no reset link. Accounts that only sign in
+with single sign-on get none either. An admin can't make one for themselves.
+
+**Change your own password** in **My settings → Password → Change password**.
+You need your current password. Your other devices are signed out, and this
+one stays signed in. After 5 wrong current passwords in 15 minutes, Homepad
+makes you wait 15 minutes.
+
+**If you are the only admin and forget your password,** run this on the
+server:
+
+```sh
+docker compose exec api /homepad-api reset-link you@example.com
+```
+
+It prints a path that starts with `/#reset=` and when it ends. Put your
+Homepad address in front of it, for example
+`https://homepad.example.com/#reset=…`, and open it. The link is printed once
+and isn't logged.

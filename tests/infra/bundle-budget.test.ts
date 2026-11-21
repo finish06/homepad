@@ -125,6 +125,15 @@ import { describe, expect, it } from 'vitest';
 //              entry already has
 //   lazy, new  sandbox 255 · lazy, grew TileEditModal → 7,925
 // Budgets unchanged: 15,680 B JS and 793 B CSS of headroom remain.
+//
+// SPEC-password-reset-link, re-measured 2026-11-21 against gitea/main b43d80f
+// (manage-adults and iframe sandbox merged), same method:
+//   entry JS    89,428 →  89,572 B gzip (+144): App.tsx's one fragment
+//              reader for #invite= and #reset=, the lazy stub, hasPassword
+//   entry CSS   19,707 →  19,707 B gzip (+0)
+//   lazy, new  ResetPasswordScreen 1,901 · ResetLinkDialog 1,499
+//   lazy, grew SettingsPanel → 17,101 (Change password)
+// Budgets unchanged: 15,428 B JS and 793 B CSS of headroom remain.
 const ENTRY_JS_GZIP_BUDGET = 105_000;
 const ENTRY_CSS_GZIP_BUDGET = 20_500;
 
@@ -149,6 +158,13 @@ const LAZY_CHUNKS = [
   // SPEC-household-manage-adults UX §1 — the remove and role confirms load
   // from the adult row menu, inside the lazy Admin Panel.
   'AdultConfirm',
+  // SPEC-password-reset-link UX §1 — and the reset-link dialog, the same way.
+  'ResetLinkDialog',
+  // SPEC-household-basics / SPEC-password-reset-link UX §1 — the Join screen
+  // and the reset screen mount only from a /#invite= or /#reset= link. Both
+  // hang off App.tsx, so a stray static import there would land in the entry.
+  'JoinScreen',
+  'ResetPasswordScreen',
 ] as const;
 
 const dist = resolve(process.cwd(), 'dist');

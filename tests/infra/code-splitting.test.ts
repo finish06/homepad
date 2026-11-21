@@ -67,6 +67,23 @@ describe('code-splitting — on-demand overlays are lazy chunks', () => {
     expect(src).not.toMatch(/^import GlanceStrip from/m);
   });
 
+  // SPEC-password-reset-link UX §1 — the reset screen mounts only from a
+  // /#reset= link, like the Join screen from /#invite=.
+  it('App.tsx lazy-loads the Join and reset screens', () => {
+    const src = read('app/App.tsx');
+    expect(src).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"][./a-z]*\/JoinScreen['"]\)\s*\)/i);
+    expect(src).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"][./a-z]*\/ResetPasswordScreen['"]\)\s*\)/i);
+    expect(src).not.toMatch(/^import JoinScreen from/m);
+    expect(src).not.toMatch(/^import ResetPasswordScreen from/m);
+  });
+
+  // SPEC-password-reset-link — the password calls are only reachable from lazy
+  // chunks (the reset screen, the reset-link dialog, My settings).
+  it('only lazy chunks import the password API', () => {
+    const entryish = ['app/App.tsx', 'grid/AppGrid.tsx', 'services.tsx', 'launcher/CommandLauncher.tsx', 'api.ts'];
+    for (const f of entryish) expect(read(f), f).not.toMatch(/passwordApi/);
+  });
+
   // SPEC-status-widgets AC-033 — the admin widget calls are only reachable from
   // the lazy editors, never from an entry module.
   it('only the lazy editors import the admin widget API', () => {
@@ -115,5 +132,15 @@ describe('code-splitting — on-demand overlays are lazy chunks', () => {
     expect(menu).not.toMatch(/^import AdultConfirm from/m);
     const entryish = ['app/App.tsx', 'app/UserMenu.tsx', 'grid/AppGrid.tsx', 'services.tsx', 'main.tsx'];
     for (const f of entryish) expect(read(f), f).not.toMatch(/AdultRowMenu|AdultConfirm/);
+  });
+
+  // SPEC-password-reset-link UX §1 — the reset-link dialog loads with lazy()
+  // from the row menu, inside the Admin Panel chunk.
+  it('AdultRowMenu lazy-loads the reset-link dialog; no entry module imports it', () => {
+    const menu = read('accounts/AdultRowMenu.tsx');
+    expect(menu).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"]\.\/ResetLinkDialog['"]\)\s*\)/);
+    expect(menu).not.toMatch(/^import ResetLinkDialog from/m);
+    const entryish = ['app/App.tsx', 'app/UserMenu.tsx', 'grid/AppGrid.tsx', 'services.tsx', 'main.tsx'];
+    for (const f of entryish) expect(read(f), f).not.toMatch(/ResetLinkDialog/);
   });
 });

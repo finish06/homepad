@@ -41,6 +41,9 @@ export type User = {
   // SPEC-status-widgets AC-031 — per-user "Show widgets" (on by default).
   // Optional so an older backend that omits it reads as on.
   showWidgets?: boolean;
+  // SPEC-password-reset-link AC-020 — an adult who signs in with a password.
+  // False for kids and SSO-only accounts; absent (an older API) reads as false.
+  hasPassword?: boolean;
 };
 
 export type ServiceStatus = 'UP' | 'DOWN' | 'DEGRADED' | 'UNKNOWN' | 'NOT_MONITORED';
@@ -720,6 +723,9 @@ export type Account = {
   avatarColor: string;
   appCount?: number;
   deviceCount?: number;
+  // SPEC-password-reset-link AC-021 — false for kids and SSO-only accounts,
+  // which get no Make a reset link.
+  hasPassword?: boolean;
 };
 
 // One signed-in device of a kid. `id` is the session's opaque handle — never the

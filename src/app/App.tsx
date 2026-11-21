@@ -42,16 +42,20 @@ const SettingsPanel = lazy(() => import('../library/SettingsPanel'));
 // SPEC-household-basics — the Join screen only ever mounts from an invite link,
 // so it stays out of the entry chunk too.
 const JoinScreen = lazy(() => import('./JoinScreen'));
+// SPEC-password-reset-link UX §1 — and the reset screen, from a reset link.
+const ResetPasswordScreen = lazy(() => import('./ResetPasswordScreen'));
 
-// readInviteToken returns the token from an `/#invite=<token>` link, or null.
-// It only reads: App removes the fragment once, after mount (AC-020). The
-// token lives in the fragment because browsers never send a fragment to the
-// server, so it stays out of access logs and Referer headers (spec §3.2).
-function readInviteToken(): string | null {
-  const m = /^#invite=([^&]+)$/.exec(window.location.hash);
+// readLinkToken returns the kind and token of an `/#invite=<token>` or
+// `/#reset=<token>` link, or null. It only reads: App removes the fragment
+// once, after mount (household-basics AC-020, reset-link AC-019). The token
+// lives in the fragment because browsers never send a fragment to the server,
+// so it stays out of access logs and Referer headers (spec §3.2).
+type LinkToken = { kind: string; token: string };
+function readLinkToken(): LinkToken | null {
+  const m = /^#(invite|reset)=([^&]+)$/.exec(window.location.hash);
   if (!m) return null;
   try {
-    return decodeURIComponent(m[1]);
+    return { kind: m[1], token: decodeURIComponent(m[2]) };
   } catch {
     return null;
   }
@@ -70,17 +74,31 @@ const ChangelogOverlay = lazy(() => import('./ChangelogOverlay'));
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
-  const [inviteToken, setInviteToken] = useState<string | null>(readInviteToken);
+  const [link, setLink] = useState<LinkToken | null>(readLinkToken);
 
   // Take the token out of the address bar as soon as it has been read, keeping
   // the path and query. Nothing else in the app uses the fragment.
   useEffect(() => {
-    if (inviteToken !== null) {
+    if (link) {
       window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
     }
     // Once, on mount: the token was read by the state initializer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // The Join and reset screens take the same props. Done: the account is
+  // signed in on this device. Leave: drop the link, back to the dashboard or
+  // the sign-in card. Signed out: "Sign out and continue" ended the session.
+  const linkProps = {
+    token: link?.token ?? '',
+    user,
+    onLeave: () => setLink(null),
+    onSignedOut: () => setUser(null),
+  };
+  const linkDone = (u: User) => {
+    setLink(null);
+    setUser(u);
+  };
 
   useEffect(() => {
     me().then((u) => {
@@ -111,18 +129,13 @@ export default function App() {
             Loading your dashboard…
           </span>
         </main>
-      ) : inviteToken !== null ? (
+      ) : link ? (
         <Suspense fallback={null}>
-          <JoinScreen
-            token={inviteToken}
-            user={user}
-            onJoined={(u) => {
-              setInviteToken(null);
-              setUser(u);
-            }}
-            onLeave={() => setInviteToken(null)}
-            onSignedOut={() => setUser(null)}
-          />
+          {link.kind === 'reset' ? (
+            <ResetPasswordScreen {...linkProps} onDone={linkDone} />
+          ) : (
+            <JoinScreen {...linkProps} onJoined={linkDone} />
+          )}
         </Suspense>
       ) : user ? (
         // v8/v17 — the home providers wrap Home so its body can read launcher,
@@ -482,6 +495,8 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               scope={settingsScope}
               initialSection={settingsSection}
               currentUserId={user.id}
+              email={user.email}
+              hasPassword={user.hasPassword === true}
               showHealthBar={showHealthBar}
               onSetHealthBar={setShowHealthBar}
               showUptimeDisplay={sysConfig.showUptimeDisplay}

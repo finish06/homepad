@@ -4,6 +4,7 @@ import { createInvite, type CreatedInvite, type InviteRole } from '../api';
 import { accountLimitMessage, isAccountLimit } from '../lib/accountLimit';
 import Modal from '../ui/Modal';
 import { trapTab } from '../ui/trapTab';
+import LinkOnce from './LinkOnce';
 import { endDay } from './inviteFormat';
 
 // SPEC-household-basics UX §3.2–§3.3 (AC-008, AC-019, AC-022, AC-031) — "Add an
@@ -74,7 +75,14 @@ export default function AddAdultDialog({
           </button>
         </div>
         {created ? (
-          <LinkOnce invite={created} onDone={onClose} />
+          <LinkOnce
+            link={inviteLink(created.token)}
+            intro={`Send ${created.name} this link.`}
+            label="Invite link"
+            shareTitle="Homepad invite"
+            footer={[`It works once, until ${endDay(created.expiresAt)}. You won't see this link again.`]}
+            onDone={onClose}
+          />
         ) : (
           <InviteForm
             oidcEnabled={oidcEnabled}
@@ -213,94 +221,4 @@ function InviteForm({
 // The page's own address, so the link points wherever the admin uses Homepad.
 function inviteLink(token: string): string {
   return `${window.location.origin}/#invite=${encodeURIComponent(token)}`;
-}
-
-function canCopy(): boolean {
-  return window.isSecureContext === true && typeof navigator.clipboard?.writeText === 'function';
-}
-
-function copyHint(): string {
-  if (window.matchMedia?.('(pointer: coarse)').matches) return 'Press and hold to copy.';
-  return /Mac|iPhone|iPad/.test(navigator.userAgent) ? 'Press ⌘C to copy.' : 'Press Ctrl+C to copy.';
-}
-
-function LinkOnce({ invite, onDone }: { invite: CreatedInvite; onDone: () => void }) {
-  const link = inviteLink(invite.token);
-  // Browsers block the clipboard on plain http (a LAN address): show the link
-  // selected instead, with how to copy it (UX §3.3, TC-010).
-  const [fallback, setFallback] = useState(!canCopy());
-  const [copied, setCopied] = useState(false);
-  const fieldRef = useRef<HTMLInputElement>(null);
-  const uid = useId();
-
-  useEffect(() => {
-    if (!fallback) return;
-    fieldRef.current?.focus();
-    fieldRef.current?.select();
-  }, [fallback]);
-
-  useEffect(() => {
-    if (!copied) return;
-    const t = setTimeout(() => setCopied(false), 2000);
-    return () => clearTimeout(t);
-  }, [copied]);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-    } catch {
-      setFallback(true);
-    }
-  }
-
-  const share = typeof navigator.share === 'function';
-
-  return (
-    <div className="add-adult-body">
-      <p>{`Send ${invite.name} this link.`}</p>
-      <div className="kid-field">
-        <label htmlFor={`${uid}-link`} className="add-offer-label">
-          Invite link
-        </label>
-        <input
-          ref={fieldRef}
-          id={`${uid}-link`}
-          className="settings-input add-adult-link"
-          value={link}
-          readOnly
-          onFocus={(e) => e.currentTarget.select()}
-        />
-        {fallback && <p className="settings-section-note">{copyHint()}</p>}
-      </div>
-      {!fallback && (
-        <div className="add-adult-actions">
-          <button type="button" className="library-add kid-btn" onClick={() => void copy()}>
-            {copied ? 'Copied' : 'Copy link'}
-          </button>
-          {share && (
-            <button
-              type="button"
-              className="settings-ghost-btn kid-btn"
-              onClick={() => void navigator.share({ title: 'Homepad invite', url: link }).catch(() => {})}
-            >
-              Share…
-            </button>
-          )}
-        </div>
-      )}
-      <span role="status" aria-live="polite" className="sr-only">
-        {copied ? 'Copied' : ''}
-      </span>
-      <p className="settings-section-note">
-        {`It works once, until ${endDay(invite.expiresAt)}.`} You won't see this link again.
-      </p>
-      <div className="kid-editor-foot">
-        <span className="kid-foot-spacer" />
-        <button type="button" className="library-add kid-btn" onClick={onDone}>
-          Done
-        </button>
-      </div>
-    </div>
-  );
 }
