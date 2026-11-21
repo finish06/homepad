@@ -46,9 +46,9 @@ services:
     environment:
       PORT: "8080"
       DATABASE_URL: postgres://${POSTGRES_USER:-homepad}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-homepad}?sslmode=disable
-      # Plain-HTTP localhost: the session cookie must NOT be Secure-only or the
-      # browser drops it and login silently fails. The api defaults this to true
-      # (prod runs behind TLS) — for http://localhost it MUST be false.
+      # Plain http://localhost needs a non-Secure session cookie, or the browser
+      # drops it and sign-in silently fails, for passwords and single sign-on.
+      # Set true once you serve Homepad over HTTPS. The api defaults this to true.
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       # invite_only (default): only the first account signs itself up; adults
       # join through an admin's invite link. `open` lets anyone sign up.
