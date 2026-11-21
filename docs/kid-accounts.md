@@ -6,7 +6,8 @@ The kid needs no email and no password. You manage everything from
 **Accounts** in the Admin Panel, from any device.
 
 Kid accounts arrived in Homepad 17.0.0, together with homepad-api's kid accounts
-API. Both halves are needed.
+API. Both halves are needed. For adults (inviting, changing a role, removing
+someone), see [Accounts](accounts.md#adults).
 
 - [Before you start: check that sign-up is closed](#before-you-start-check-that-sign-up-is-closed)
 - [Set up a kid's iPad](#set-up-a-kids-ipad)

@@ -47,6 +47,8 @@ It has the same fields as version 1. 18.0.0 still restores backups made on
 17.x. Homepad 17.x refuses a version 2 file: it says the file is from a newer
 Homepad.
 
+**Managing adults.** Admins can now remove an adult, or make someone an admin or a member, in Administration → Accounts. Homepad always keeps at least one admin.
+
 ## [17.1.0] — 2026-11-20 — Household accounts, backup and import, and status widgets
 
 **Upgrading:** deploy homepad-api 17.1.0 first, then the web image. The API
