@@ -135,8 +135,11 @@ leaked secrets, so a failure can mean something sensitive ended up in the bundle
 **What it does** (most steps come from ci-shared's `mr-staging`):
 
 - If the PR only changes docs (Markdown, text, `docs/`, `specs/`, README,
-  CHANGELOG, LICENSE), it skips everything below and auto-approves the PR as the
-  `ci-docs-approver` bot. No build, no deploy, no QA.
+  CHANGELOG, LICENSE), it skips everything below. No build, no deploy, no QA.
+  It then tries to auto-approve the PR as the `ci-docs-approver` bot, but today
+  that **doesn't work**: this workflow doesn't pass the approver's token, so the
+  run only logs a warning (and stays green). A docs-only PR still needs someone
+  to approve it.
 - It does **not** re-run the unit tests. CI and Browser gate already test this
   exact commit.
 - Builds the PR's image and pushes it with two tags: `<short-sha>-test` and
