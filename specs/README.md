@@ -72,6 +72,18 @@ homepad. Historical specs for shipped versions v2–v10 are in
 |------|---------|------|
 | [`SPEC-density-to-my-settings.md`](./SPEC-density-to-my-settings.md) | Tile density moves to My settings · gear "Edit dashboard" becomes "Arrange apps" | Ready for build — Caleb decided both open points 2026-09-23 (§3). Kare §9 not authored; see OQ-1. |
 
+## Open — 18.0.0 "a household you can manage" (5)
+
+Plan: [`docs/plans/v18-household-management-plan.md`](../docs/plans/v18-household-management-plan.md). Build order: catalog owner first, then manage adults and reset link in parallel, then sign-in hardening and the iframe sandbox.
+
+| File | Feature | Status |
+|------|---------|------|
+| [`SPEC-household-catalog-owner.md`](./SPEC-household-catalog-owner.md) | The catalog belongs to the household, not the first admin (one-way migration 0021) | Approved 2026-11-20. No UI. |
+| [`SPEC-household-manage-adults.md`](./SPEC-household-manage-adults.md) | Remove an adult, change an adult's role; never the last admin | Approved 2026-11-20. UX approved 2026-11-20 ([`ux/household-manage-adults-ux.md`](./ux/household-manage-adults-ux.md)). |
+| [`SPEC-password-reset-link.md`](./SPEC-password-reset-link.md) | Admin-issued one-time reset link; change your own password | Approved 2026-11-20. UX approved 2026-11-20 ([`ux/password-reset-link-ux.md`](./ux/password-reset-link-ux.md)). |
+| [`SPEC-signin-hardening.md`](./SPEC-signin-hardening.md) | Rate limits, verified SSO emails, invite-only for SSO, PocketID setup | Approved 2026-11-20. UX approved 2026-11-20 ([`ux/signin-hardening-ux.md`](./ux/signin-hardening-ux.md)). The `email_verified` check is already merged on `homepad-api` main (#89). |
+| [`SPEC-iframe-sandbox-optin.md`](./SPEC-iframe-sandbox-optin.md) | Overlay sandbox drops `allow-same-origin` by default, per-app opt-in (#334) | Approved 2026-11-20. UX approved 2026-11-20 ([`ux/iframe-sandbox-optin-ux.md`](./ux/iframe-sandbox-optin-ux.md)). |
+
 ## Superseded — do not build (1)
 
 | File | Feature | Status |
