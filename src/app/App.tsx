@@ -1,11 +1,8 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
-  authConfig,
   categories as fetchCategories,
-  login,
   logout,
   me,
-  register,
   saveSystemSettings,
   systemConfig,
   type Category,
@@ -22,7 +19,8 @@ import type { SettingsScope, SettingsSection } from '../library/SettingsPanel';
 import StatusBar from './StatusBar';
 import CommandLauncher from '../launcher/CommandLauncher';
 import { LauncherProvider, useLauncher } from '../launcher/launcher';
-import { ServicesProvider, useServicesContext } from '../services';
+import { KID_POLL_MS, ServicesProvider, useServicesContext } from '../services';
+import AuthForm from './AuthForm';
 import { AlertHistoryProvider, useAlertHistory } from '../alerts/alerts';
 import AlertHistoryPanel from '../alerts/AlertHistoryPanel';
 import ToastContainer from '../alerts/Toasts';
@@ -30,6 +28,9 @@ import ChangelogOverlay from './ChangelogOverlay';
 import UpdateBanner from './UpdateBanner';
 import { ThemeProvider } from '../theme/theme';
 import { CONTENT_WIDTH } from '../lib/layout';
+import { ShowWidgetsContext, WidgetsInfoContext } from '../widgets/context';
+import { useShowWidgetsPref } from '../widgets/showWidgetsPref';
+import { useWidgetsInfo } from '../widgets/useWidgetsInfo';
 
 // v14.0.1 optimize — these three surfaces only ever mount after a user action
 // (open the Library, open the custom-app form, open admin Settings), so they are
@@ -39,10 +40,44 @@ import { CONTENT_WIDTH } from '../lib/layout';
 const LibraryBrowse = lazy(() => import('../library/LibraryBrowse'));
 const ServiceForm = lazy(() => import('../library/ServiceForm'));
 const SettingsPanel = lazy(() => import('../library/SettingsPanel'));
+// SPEC-household-basics — the Join screen only ever mounts from an invite link,
+// so it stays out of the entry chunk too.
+const JoinScreen = lazy(() => import('./JoinScreen'));
+
+// readInviteToken returns the token from an `/#invite=<token>` link, or null.
+// It only reads: App removes the fragment once, after mount (AC-020). The
+// token lives in the fragment because browsers never send a fragment to the
+// server, so it stays out of access logs and Referer headers (spec §3.2).
+function readInviteToken(): string | null {
+  const m = /^#invite=([^&]+)$/.exec(window.location.hash);
+  if (!m) return null;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return null;
+  }
+}
+// SPEC-backup-import B-2 — the admin empty state opens the Homepage import here.
+const HomepageImportModal = lazy(() => import('../library/backup/HomepageImportModal'));
+// SPEC-status-widgets — the glance strip (clock, weather, its icons) is a lazy
+// chunk too: it renders only once the admin turns the clock or weather on, so
+// a dashboard without it never downloads it. Its CSS stays in the entry.
+const GlanceStrip = lazy(() => import('./GlanceStrip'));
 
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [inviteToken, setInviteToken] = useState<string | null>(readInviteToken);
+
+  // Take the token out of the address bar as soon as it has been read, keeping
+  // the path and query. Nothing else in the app uses the fragment.
+  useEffect(() => {
+    if (inviteToken !== null) {
+      window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+    }
+    // Once, on mount: the token was read by the state initializer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     me().then((u) => {
@@ -73,6 +108,19 @@ export default function App() {
             Loading your dashboard…
           </span>
         </main>
+      ) : inviteToken !== null ? (
+        <Suspense fallback={null}>
+          <JoinScreen
+            token={inviteToken}
+            user={user}
+            onJoined={(u) => {
+              setInviteToken(null);
+              setUser(u);
+            }}
+            onLeave={() => setInviteToken(null)}
+            onSignedOut={() => setUser(null)}
+          />
+        </Suspense>
       ) : user ? (
         // v8/v17 — the home providers wrap Home so its body can read launcher,
         // services, and alert-history context directly. Order matters:
@@ -88,6 +136,9 @@ export default function App() {
               // AC-002 / TC-003 — an admin's change to a kid's apps shows on the
               // kid's next poll, with no reload.
               syncMembership={user.role === 'kid'}
+              // SPEC-household-basics AC-033 (#548) — a kid's allow-list change
+              // shows within 30s; adults keep the 60s default.
+              pollMs={user.role === 'kid' ? KID_POLL_MS : undefined}
             >
               <Home user={user} onLogout={() => setUser(null)} />
             </ServicesProvider>
@@ -133,6 +184,13 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // System setting. sysConfig.showUptimeDisplay still exists but only seeds NEW
   // accounts server-side; nothing on the grid reads it any more.
   const [showUptimeDisplay, setShowUptimeDisplay] = useUptimeDisplayPref(user.showUptimeDisplay);
+  // SPEC-status-widgets — "Show widgets" (AC-031, per user) and the info
+  // widgets read (clock, weather, web search). A kid never sees tile widget
+  // data (Q3 a) and has no switch, but does get the strip (UX §2.5).
+  const [showWidgetsPref, setShowWidgetsPref] = useShowWidgetsPref(user.showWidgets);
+  const [widgetsInfo, reloadWidgetsInfo] = useWidgetsInfo();
+  const showStrip =
+    !!widgetsInfo && (widgetsInfo.clock.enabled || widgetsInfo.weather.enabled) && (isKid || showWidgetsPref);
   // Library browse + add-custom-app remain (service management, not layout),
   // lifted here so the header Gear can trigger them and their result flows into
   // the shared services context that AppGrid renders from.
@@ -165,6 +223,10 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // list Catalog used to pass). AppGrid owns box widths independently; this is a
   // read-only list for the form dropdown.
   const [cats, setCats] = useState<Category[]>([]);
+  // SPEC-backup-import — the empty-dashboard import (B-2), and a counter bumped
+  // after any restore or import so the grid remounts and re-reads its sections.
+  const [importOpen, setImportOpen] = useState(false);
+  const [catalogVersion, setCatalogVersion] = useState(0);
 
   useEffect(() => {
     systemConfig().then(setSysConfig);
@@ -201,6 +263,14 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
     setCustomFormOpen(false);
   }
 
+  // SPEC-backup-import §10 — after an apply, refetch services, categories and
+  // (by remounting the grid) its sections, as after any catalog edit.
+  function onCatalogChanged() {
+    setCatalogVersion((v) => v + 1);
+    fetchCategories().then(setCats);
+    void services?.reload?.();
+  }
+
   // AC-014 — one overlay at a time: opening the ⌘K launcher closes the alert panel.
   useEffect(() => {
     if (launcherOpen) setAlertOpen(false);
@@ -233,7 +303,8 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // launcher (no second fetch, §3/A12). CommandLauncher renders the overlay when
   // opened and filters that same array.
   return (
-    <>
+    <WidgetsInfoContext.Provider value={widgetsInfo}>
+    <ShowWidgetsContext.Provider value={!isKid && showWidgetsPref}>
       <main className="app-surface min-h-screen font-sans">
         <AppHeader
           user={user}
@@ -267,6 +338,14 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             the account says otherwise (kids are created with it off and cannot
             change it). When it does render, it counts the served list, which is
             already only that kid's apps, and offers no re-poll (kid-forbidden). */}
+        {showStrip && (
+          <div className={CONTENT_WIDTH}>
+            <Suspense fallback={null}>
+              <GlanceStrip info={widgetsInfo} />
+            </Suspense>
+          </div>
+        )}
+
         {(!isKid || user.showHealthBar === true) && (
           <StatusBar showHealthBar={showHealthBar} canRetry={!isKid} />
         )}
@@ -306,20 +385,45 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               No apps yet. Ask a grown-up to add some.
             </p>
           ) : (
-            <AppGrid
-              // AC-002 — the grid reads its sections once, on mount. When a
-              // kid's poll adopts a changed app list, remount it so a newly
-              // allowed app's section is read too (and an emptied one drops).
-              key={isKid ? `kid-${services?.membershipVersion ?? 0}` : 'grid'}
-              isAdmin={isAdmin}
-              editMode={editMode}
-              showUptimeDisplay={showUptimeDisplay}
-              // UX K-3 — kids get large tiles, the biggest touch targets. The
-              // server creates kids with densityPref=large; this holds it even
-              // over a device cache left by another account, and a kid has no
-              // control that could write it (PATCH /api/me is themePref-only).
-              density={isKid ? 'large' : density}
-            />
+            <>
+              {/* SPEC-backup-import UX §5 / B-2 — a new install's admin gets the
+                  Homepage import one click from the empty dashboard. Users and
+                  kids see no change (AC-032); the block goes once there is an app. */}
+              {isAdmin && services?.items?.length === 0 && (
+                <div data-testid="admin-empty" className="kid-empty">
+                  <p>No apps yet.</p>
+                  <div className="mt-4 flex flex-wrap justify-center gap-3">
+                    <button type="button" className="library-add" onClick={() => setCustomFormOpen(true)}>
+                      + Add an app
+                    </button>
+                    <button type="button" className="settings-ghost-btn" onClick={() => setBrowseOpen(true)}>
+                      Browse the App Library
+                    </button>
+                  </div>
+                  <p className="settings-note mt-4">
+                    Coming from Homepage?{' '}
+                    <button type="button" className="library-manage-link" onClick={() => setImportOpen(true)}>
+                      Import your services.yaml
+                    </button>
+                  </p>
+                </div>
+              )}
+              <AppGrid
+                // AC-002 — the grid reads its sections once, on mount. When a
+                // kid's poll adopts a changed app list, remount it so a newly
+                // allowed app's section is read too (and an emptied one drops).
+                // SPEC-backup-import — and after a restore or import.
+                key={isKid ? `kid-${services?.membershipVersion ?? 0}` : `grid-${catalogVersion}`}
+                isAdmin={isAdmin}
+                editMode={editMode}
+                showUptimeDisplay={showUptimeDisplay}
+                // UX K-3 — kids get large tiles, the biggest touch targets. The
+                // server creates kids with densityPref=large; this holds it even
+                // over a device cache left by another account, and a kid has no
+                // control that could write it (PATCH /api/me is themePref-only).
+                density={isKid ? 'large' : density}
+              />
+            </>
           )}
         </section>
 
@@ -353,7 +457,10 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
 
         {/* Feeds the launcher the shared catalog array; while still loading it
             simply has nothing to match (an empty list), never its own fetch. */}
-        <CommandLauncher services={services?.items ?? []} />
+        <CommandLauncher
+          services={services?.items ?? []}
+          webSearch={widgetsInfo?.search.enabled ? widgetsInfo.search : null}
+        />
 
         {/* cap5 — ambient status-change toasts; v17 — the alert history. Neither
             is for a kid (UX §5 keeps tiles, ⌘K, favorites and Recently Opened):
@@ -380,8 +487,17 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               onSetDensity={setDensity}
               statusDegradedMs={sysConfig.statusDegradedMs}
               onSaveSettings={onSaveSettings}
+              onCatalogChanged={onCatalogChanged}
+              showWidgets={showWidgetsPref}
+              onSetShowWidgets={isKid ? undefined : setShowWidgetsPref}
+              onWidgetsChanged={reloadWidgetsInfo}
               onClose={() => setSettingsOpen(false)}
             />
+          </Suspense>
+        )}
+        {importOpen && (
+          <Suspense fallback={null}>
+            <HomepageImportModal onClose={() => setImportOpen(false)} onApplied={onCatalogChanged} />
           </Suspense>
         )}
       </main>
@@ -406,167 +522,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
         </button>
       </footer>
       <ChangelogOverlay open={changelogOpen} onClose={() => setChangelogOpen(false)} />
-    </>
-  );
-}
-
-// v27 login-glass — if a PocketID/OIDC redirect stalls (e.g. a PocketBase
-// restart), the browser keeps our page on screen while the request hangs, so a
-// bare spinner would spin forever. Reset the button after this window with a
-// retry hint instead. 30s comfortably outlasts a healthy 302 round-trip.
-const OIDC_TIMEOUT_MS = 30000;
-
-function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [oidcBusy, setOidcBusy] = useState(false);
-  const [oidcEnabled, setOidcEnabled] = useState(false);
-  const oidcTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    authConfig().then((c) => setOidcEnabled(c.oidcEnabled));
-    // Clear a pending OIDC-timeout timer if the card unmounts mid-redirect.
-    return () => {
-      if (oidcTimer.current) clearTimeout(oidcTimer.current);
-    };
-  }, []);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    setBusy(true);
-    try {
-      if (mode === 'register') {
-        const r = await register(email, password);
-        if (!r.ok) {
-          setError(r.error ?? 'registration failed');
-          return;
-        }
-      }
-      const r = await login(email, password);
-      if (r.ok && r.user) {
-        onAuthed(r.user);
-      } else {
-        setError(r.error ?? 'login failed');
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function handlePocketId() {
-    setError('');
-    setOidcBusy(true);
-    oidcTimer.current = setTimeout(() => {
-      setOidcBusy(false);
-      setError('PocketID timed out — try again or use email/password');
-    }, OIDC_TIMEOUT_MS);
-    // Full-page navigation to the OIDC start endpoint. On success the page is
-    // replaced (the timer never fires); on a stalled redirect the timer resets us.
-    window.location.assign('/api/auth/oidc/login');
-  }
-
-  return (
-    <main className="app-surface auth-main font-sans">
-      <form onSubmit={handleSubmit} className="auth-card">
-        <div className="auth-logo mb-4 inline-flex">
-          <img src="/icon-192.png" alt="homepad" className="h-11 w-11 rounded-xl" />
-        </div>
-        <h1 className="auth-title text-xl font-semibold">homepad</h1>
-        <p className="auth-subtitle mt-1 text-sm">
-          {mode === 'login' ? 'Sign in to your dashboard' : 'Create your account'}
-        </p>
-
-        <label className="auth-label mt-5 block text-[13px] font-medium">
-          Email
-          <input
-            type="email"
-            required
-            autoComplete="email"
-            placeholder="you@home.lan"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="auth-field mt-1.5 min-h-[44px] w-full"
-          />
-        </label>
-
-        <label className="auth-label mt-4 block text-[13px] font-medium">
-          Password
-          <input
-            type="password"
-            required
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="auth-field mt-1.5 min-h-[44px] w-full"
-          />
-        </label>
-
-        {error && <p className="auth-error mt-3 text-sm">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={busy}
-          className="auth-cta mt-5 flex min-h-[44px] w-full items-center justify-center gap-2 py-2 text-sm font-semibold"
-        >
-          {busy ? (
-            <>
-              <span className="auth-spin" aria-hidden="true" />
-              Signing in…
-            </>
-          ) : mode === 'login' ? (
-            'Sign in'
-          ) : (
-            'Create account'
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setMode(mode === 'login' ? 'register' : 'login');
-            setError('');
-          }}
-          className="auth-secondary mt-3 flex min-h-[44px] w-full items-center justify-center text-center text-sm"
-        >
-          {mode === 'login' ? 'Create account' : 'Have an account? Sign in'}
-        </button>
-
-        {oidcEnabled && (
-          <>
-            <div className="auth-divider my-4 flex items-center gap-3 text-xs">
-              <span className="auth-divider-rule h-px flex-1" />
-              or
-              <span className="auth-divider-rule h-px flex-1" />
-            </div>
-            <button
-              type="button"
-              onClick={handlePocketId}
-              disabled={oidcBusy}
-              className="auth-oidc flex min-h-[44px] w-full items-center justify-center gap-2 py-2 text-sm font-medium"
-            >
-              {oidcBusy ? (
-                <>
-                  <span className="auth-spin" aria-hidden="true" />
-                  Signing in…
-                </>
-              ) : (
-                'Log in with PocketID'
-              )}
-            </button>
-          </>
-        )}
-      </form>
-
-      {/* #9 — faint version footer so an operator can see which build they're
-          hitting before authenticating. */}
-      <p className="auth-footer" data-testid="auth-footer">
-        homepad v{__APP_VERSION__}
-      </p>
-    </main>
+    </ShowWidgetsContext.Provider>
+    </WidgetsInfoContext.Provider>
   );
 }

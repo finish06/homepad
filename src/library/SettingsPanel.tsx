@@ -2,6 +2,8 @@ import Modal from '../ui/Modal';
 import { useEffect, useRef, useState } from 'react';
 import TileDensityToggle from '../grid/TileDensityToggle';
 import AccountsSection from '../accounts/AccountsSection';
+import BackupSection from './backup/BackupSection';
+import WidgetsSettings from '../widgets/WidgetsSettings';
 import type { TileDensity } from '../grid/tileDensity';
 import {
   adminEnvConfig,
@@ -56,6 +58,10 @@ export default function SettingsPanel({
   onClose,
   currentUserId,
   initialSection,
+  onCatalogChanged,
+  showWidgets = true,
+  onSetShowWidgets,
+  onWidgetsChanged,
 }: {
   isAdmin: boolean;
   scope?: SettingsScope;
@@ -63,6 +69,9 @@ export default function SettingsPanel({
   // and the section to open scrolled to.
   currentUserId?: string;
   initialSection?: SettingsSection;
+  // SPEC-backup-import — a restore or an import changed the catalog, so the
+  // dashboard behind the panel should refetch.
+  onCatalogChanged?: () => void;
   showUptimeDisplay: boolean;
   statusDegradedMs: number;
   showHealthBar: boolean;
@@ -74,8 +83,17 @@ export default function SettingsPanel({
   onSetDensity: (d: TileDensity) => void;
   onSaveSettings: (patch: Partial<SystemConfig>) => Promise<void>;
   onClose: () => void;
+  // SPEC-status-widgets AC-031 — My settings → Show widgets. No setter, no row:
+  // a kid has no switch. onWidgetsChanged lets the dashboard re-read the info
+  // widgets after an Admin Panel change.
+  showWidgets?: boolean;
+  onSetShowWidgets?: (show: boolean) => void;
+  onWidgetsChanged?: () => void;
 }) {
   const personal = scope === 'personal';
+  // SPEC-backup-import — bumped after a restore or an import, so the App Library
+  // and Accounts sections below remount and reload what the apply changed.
+  const [catalogVersion, setCatalogVersion] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -136,6 +154,8 @@ export default function SettingsPanel({
               onSetUptimeDisplay={onSetUptimeDisplay}
               density={density}
               onSetDensity={onSetDensity}
+              showWidgets={showWidgets}
+              onSetShowWidgets={onSetShowWidgets}
             />
           ) : !isAdmin ? (
             <p className="settings-note">
@@ -147,13 +167,28 @@ export default function SettingsPanel({
               {/* SPEC-kid-accounts K-1 — Accounts is the first section, above
                   System: global state, so it lives under the Admin Panel's
                   "affects everyone" heading rather than in a panel of its own. */}
-              <AccountsSection currentUserId={currentUserId} scrollIntoView={initialSection === 'accounts'} />
+              <AccountsSection
+                key={`accounts-${catalogVersion}`}
+                currentUserId={currentUserId}
+                scrollIntoView={catalogVersion === 0 && initialSection === 'accounts'}
+              />
               <SystemSettings
                 showUptimeDisplay={showUptimeDisplay}
                 statusDegradedMs={statusDegradedMs}
                 onSaveSettings={onSaveSettings}
               />
-              <LibraryManager />
+              {/* SPEC-status-widgets W-3 — Widgets sits right after System. */}
+              <WidgetsSettings onChanged={onWidgetsChanged} />
+              <LibraryManager key={`library-${catalogVersion}`} />
+              {/* SPEC-backup-import B-1 — last: used rarely, and it changes the
+                  whole catalog, so it sits under the "affects everyone" heading
+                  below the sections people use every week. */}
+              <BackupSection
+                onApplied={() => {
+                  setCatalogVersion((v) => v + 1);
+                  onCatalogChanged?.();
+                }}
+              />
             </>
           )}
         </div>
@@ -169,6 +204,7 @@ const ENV_LABELS: Record<string, string> = {
   GATUS_BASE_URL: 'Gatus base URL',
   COOKIE_SECURE: 'Secure cookies',
   HOMEPAD_REGISTRATION: 'Registration mode',
+  HOMEPAD_MAX_ACCOUNTS: 'Account limit',
   PORT: 'Server port',
   OIDC_ENABLED: 'OIDC sign-in',
   OIDC_ISSUER: 'OIDC issuer',
@@ -178,7 +214,7 @@ const ENV_LABELS: Record<string, string> = {
   OIDC_ADMIN_GROUP: 'OIDC admin group',
 };
 
-const SERVER_KEYS = new Set(['GATUS_BASE_URL', 'COOKIE_SECURE', 'HOMEPAD_REGISTRATION', 'PORT']);
+const SERVER_KEYS = new Set(['GATUS_BASE_URL', 'COOKIE_SECURE', 'HOMEPAD_REGISTRATION', 'HOMEPAD_MAX_ACCOUNTS', 'PORT']);
 
 // SPEC-v26 §8.5 — presentation-only grouping derived by walking the ordered API
 // array; a caption is emitted whenever the group changes. Any future allowlisted
@@ -491,6 +527,8 @@ function PersonalSettings({
   onSetUptimeDisplay,
   density,
   onSetDensity,
+  showWidgets,
+  onSetShowWidgets,
 }: {
   showHealthBar: boolean;
   onSetHealthBar: (show: boolean) => void;
@@ -498,6 +536,8 @@ function PersonalSettings({
   onSetUptimeDisplay: (show: boolean) => void;
   density: TileDensity;
   onSetDensity: (d: TileDensity) => void;
+  showWidgets: boolean;
+  onSetShowWidgets?: (show: boolean) => void;
 }) {
   return (
     <section
@@ -546,6 +586,29 @@ function PersonalSettings({
             </button>
           </dd>
         </div>
+        {/* SPEC-status-widgets AC-031 / UX §8 — one switch for every widget
+            surface this user sees: the tile lines and the clock/weather strip. */}
+        {onSetShowWidgets && (
+          <div className="settings-kv-row settings-kv-row--control">
+            <dt>
+              <span id="show-widgets-toggle-label">Show widgets</span>
+              <span className="settings-kv-help">Numbers on tiles, and the clock and weather.</span>
+            </dt>
+            <dd>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showWidgets}
+                aria-labelledby="show-widgets-toggle-label"
+                className="settings-switch"
+                data-testid="setting-show-widgets"
+                onClick={() => onSetShowWidgets(!showWidgets)}
+              >
+                <span className="settings-switch-thumb" aria-hidden="true" />
+              </button>
+            </dd>
+          </div>
+        )}
         {/* SPEC-density-to-my-settings AC-001/AC-005 — density moves here from
             the dashboard toolbar. It is the first row in this list that is NOT
             a switch: three options, so the control stays a radiogroup and is

@@ -38,6 +38,9 @@ export type User = {
   // when unset. Both optional so an older backend still type-checks.
   displayName?: string;
   avatarColor?: string;
+  // SPEC-status-widgets AC-031 — per-user "Show widgets" (on by default).
+  // Optional so an older backend that omits it reads as on.
+  showWidgets?: boolean;
 };
 
 export type ServiceStatus = 'UP' | 'DOWN' | 'DEGRADED' | 'UNKNOWN' | 'NOT_MONITORED';
@@ -92,7 +95,16 @@ export type Service = {
   // latency appears with no other frontend change once the backend emits it. The
   // backend field name must match `responseTimeMs` for that to hold.
   responseTimeMs?: number;
+  // SPEC-status-widgets §7.2 — the tile's widget values, fetched by the server.
+  // Absent when the service has no enabled widget, and always for a kid.
+  widget?: TileWidget;
 };
+
+// SPEC-status-widgets §7.2 — typed numbers only; the browser formats them.
+export type WidgetUnit = 'count' | 'percent' | 'bytes_per_sec' | 'ratio';
+export type WidgetField = { key: string; label: string; unit: WidgetUnit; value: number; total?: number };
+export type WidgetState = 'loading' | 'ok' | 'stale' | 'error';
+export type TileWidget = { kind: string; state: WidgetState; asOf: string | null; fields: WidgetField[] };
 
 // v23 — the per-tile click-action enum. Shared across api types, ToolLink, and
 // the TileEditModal selector so the three values stay in lockstep.
@@ -149,7 +161,12 @@ export type ServiceInput = {
   clickAction?: ClickAction;
 };
 
-export type AuthConfig = { oidcEnabled: boolean };
+// SPEC-household-basics AC-004 — the registration mode and whether the install
+// still needs its first (admin) account. `open` is the only mode that offers
+// "Create account"; anything else, including an older API that omits the
+// field, reads as closed.
+export type RegistrationMode = 'open' | 'invite_only';
+export type AuthConfig = { oidcEnabled: boolean; registration: RegistrationMode; setupNeeded: boolean };
 
 // cap6 — the global System settings the client reads (GET /api/system/config) and
 // an admin writes (PATCH /api/admin/settings). Today it carries the single
@@ -190,7 +207,7 @@ export type LibraryAppInput = {
   suggestedCategory: string;
 };
 
-const jsonHeaders = { 'Content-Type': 'application/json' };
+export const jsonHeaders = { 'Content-Type': 'application/json' };
 
 async function errorText(res: Response): Promise<string> {
   const text = (await res.text()).trim();
@@ -207,14 +224,14 @@ async function errorText(res: Response): Promise<string> {
 // rollback path silently never ran. status 0 is the same "network/throw"
 // convention servicesWithStatus already documented.
 // ---------------------------------------------------------------------------
-type RequestOpts = {
+export type RequestOpts = {
   method?: string;
   json?: unknown;
   headers?: Record<string, string>;
   body?: BodyInit;
 };
 
-async function request(
+export async function request(
   path: string,
   opts: RequestOpts = {},
 ): Promise<{ status: number; res: Response | null }> {
@@ -274,16 +291,24 @@ async function resultRequest<T extends object = Record<never, never>>(
   return failure as Result & Partial<T>;
 }
 
-// authConfig reports which login methods the API offers. A non-200 or failed
-// request is treated as "OIDC off" so the PocketID button stays hidden.
+// authConfig reports which login methods the API offers, the registration mode
+// and whether setup is still needed. Any failure (non-200, network, a non-JSON
+// body) assumes sign-up closed and no setup, so a broken config read never shows
+// "Create account" (SPEC-household-basics §8), and the PocketID button stays
+// hidden.
+const CLOSED_CONFIG: AuthConfig = { oidcEnabled: false, registration: 'invite_only', setupNeeded: false };
 export async function authConfig(): Promise<AuthConfig> {
   const { status, res } = await request('/api/auth/config');
-  if (!res || status !== 200) return { oidcEnabled: false };
+  if (!res || status !== 200) return CLOSED_CONFIG;
   try {
-    const data = (await res.json()) as { oidcEnabled?: boolean };
-    return { oidcEnabled: data.oidcEnabled === true };
+    const data = (await res.json()) as { oidcEnabled?: unknown; registration?: unknown; setupNeeded?: unknown };
+    return {
+      oidcEnabled: data.oidcEnabled === true,
+      registration: data.registration === 'open' ? 'open' : 'invite_only',
+      setupNeeded: data.setupNeeded === true,
+    };
   } catch {
-    return { oidcEnabled: false };
+    return CLOSED_CONFIG;
   }
 }
 
@@ -777,4 +802,70 @@ export async function revokeKidSession(id: string, sessionId: string): Promise<b
 // on true the caller reloads into the kid's dashboard.
 export async function signInHere(id: string): Promise<boolean> {
   return boolRequest(`${kidPath(id)}/sign-in-here`, 204, { method: 'POST' });
+}
+
+// ---------------------------------------------------------------------------
+// SPEC-household-basics §7 — invites. An admin makes a one-time link for an
+// adult (admin-only routes); the adult opens it and joins (public routes, rate
+// limited). The token is returned once, by createInvite, and travels only in
+// POST bodies and the link's URL fragment — never a path or a query string.
+// `user` is the API value of the role the UI calls "member".
+// ---------------------------------------------------------------------------
+
+export type InviteRole = 'admin' | 'user';
+
+// One row of GET /api/admin/invites: pending only, newest first.
+export type Invite = {
+  id: string;
+  name: string;
+  role: InviteRole;
+  createdAt: string;
+  expiresAt: string;
+  createdBy: { id: string; name: string };
+};
+
+// The POST /api/admin/invites response: the invite plus its token, once.
+export type CreatedInvite = Omit<Invite, 'createdBy'> & { token: string };
+
+// What POST /api/invites/lookup tells the invitee.
+export type InviteInfo = { name: string; role: InviteRole; inviterName: string; expiresAt: string };
+
+// createInvite — 201 with the token; 400 for a bad name or role; 409 with
+// "account limit reached (limit N)" at HOMEPAD_MAX_ACCOUNTS.
+export async function createInvite(name: string, role: InviteRole): Promise<Result & { invite?: CreatedInvite }> {
+  return resultRequest('/api/admin/invites', 201, { method: 'POST', json: { name, role } }, (d) => ({
+    invite: d as CreatedInvite,
+  }));
+}
+
+// listInvites — rejects on any failure, like listAccounts, so Accounts shows its
+// error state instead of an empty list.
+export async function listInvites(): Promise<Invite[]> {
+  return arrayOrThrow<Invite>(await jsonOrThrow<unknown>('/api/admin/invites'));
+}
+
+// revokeInvite — the link stops working. True on 204; 404 when it is no longer
+// pending.
+export async function revokeInvite(id: string): Promise<boolean> {
+  return boolRequest(`/api/admin/invites/${encodeURIComponent(id)}`, 204, { method: 'DELETE' });
+}
+
+// lookupInvite — 200 for a live link; every dead link (unknown, used, revoked,
+// expired) is the same 404; 429 when rate limited.
+export async function lookupInvite(token: string): Promise<Result & { invite?: InviteInfo }> {
+  return resultRequest('/api/invites/lookup', 200, { method: 'POST', json: { token } }, (d) => ({
+    invite: d as InviteInfo,
+  }));
+}
+
+// acceptInvite — creates the adult with the invite's role and signs them in:
+// 201 with the /api/me body and the session cookie. Never sends a role: the
+// server refuses one (400). 409 when the email already has an account.
+export async function acceptInvite(body: {
+  token: string;
+  email: string;
+  password: string;
+  name: string;
+}): Promise<Result & { user?: User }> {
+  return resultRequest('/api/invites/accept', 201, { method: 'POST', json: body }, (d) => ({ user: d as User }));
 }

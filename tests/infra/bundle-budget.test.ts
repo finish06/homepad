@@ -92,6 +92,20 @@ import { describe, expect, it } from 'vitest';
 // Raising a budget is a legitimate, deliberate act; a feature can cost bytes. Do
 // it in the same commit that spends them, with the new measurement, so the number
 // always reflects a decision someone made rather than drift nobody noticed.
+//
+// SPEC-status-widgets Phase 1, re-measured 2026-11-20 against gitea/main 066b3cf
+// (household-basics and backup-import merged), same method:
+//   entry JS   102,152 → 103,929 B gzip (+1,777): the tile widget line and its
+//              formatting, the live-poll merge, the ⌘K web row, the
+//              /api/widgets/info read and the Show widgets preference
+//   entry CSS   19,448 →  19,707 B gzip (+259): the Large widget line (shares
+//              the status-line rule) and the glance strip
+//   lazy, new  GlanceStrip 1,473 · widget-admin.css 696 · widget-admin.js 544
+//              (the admin widget code shared by the two editors)
+//   lazy, grew TileEditModal 3,854 → 7,473 · SettingsPanel 12,765 → 14,693
+// Budgets unchanged: 1,071 B JS and 793 B CSS of headroom remain. The strip's
+// JS and every admin-only widget module are lazy on purpose (AC-033), and the
+// admin styles are asserted out of the entry below (AC-032).
 const ENTRY_JS_GZIP_BUDGET = 105_000;
 const ENTRY_CSS_GZIP_BUDGET = 20_500;
 
@@ -103,6 +117,13 @@ const LAZY_CHUNKS = [
   'LibraryBrowse',
   'ServiceForm',
   'IframeOverlay',
+  // SPEC-backup-import — the restore and Homepage-import flows. Each loads on
+  // demand from the Admin Panel (and the import from the admin empty state).
+  'RestoreModal',
+  'HomepageImportModal',
+  // SPEC-status-widgets — the clock/weather strip renders only once an admin
+  // turns one of them on, so its JS stays out of the entry.
+  'GlanceStrip',
 ] as const;
 
 const dist = resolve(process.cwd(), 'dist');
@@ -151,6 +172,39 @@ describe('bundle budget — the built artifact stays within its byte budget', ()
       `entry CSS is ${kb(size)} gzip, over the ${kb(ENTRY_CSS_GZIP_BUDGET)} budget. ` +
         `Raise ENTRY_CSS_GZIP_BUDGET with the new measurement if the bytes are intended.`,
     ).toBeLessThanOrEqual(ENTRY_CSS_GZIP_BUDGET);
+  });
+
+  // SPEC-backup-import — the Backup and import styles ship in a lazy stylesheet,
+  // never in the entry. Tailwind scans all of src/ into the entry CSS, so these
+  // surfaces use their own bi-* classes from src/library/backup/backup-import.css.
+  it('the Backup and import styles stay out of the entry stylesheet', () => {
+    const entry = readdirSync(assets).find((f) => /^index-[A-Za-z0-9_-]+\.css$/.test(f))!;
+    expect(readFileSync(resolve(assets, entry), 'utf8')).not.toMatch(/\.bi-/);
+    const lazy = readdirSync(assets)
+      .filter((f) => f.endsWith('.css') && f !== entry)
+      .map((f) => readFileSync(resolve(assets, f), 'utf8'));
+    expect(lazy.some((css) => /\.bi-plan-row\b/.test(css)), 'no lazy stylesheet carries the bi-* rules').toBe(true);
+  });
+
+  // SPEC-status-widgets AC-032 / Q10 (a) — the admin widget forms (tile editor
+  // Widget section, Admin Panel → Widgets) ship in a lazy CSS chunk that loads
+  // with those editors. Every viewer downloads the entry stylesheet on first
+  // paint; none of them needs these rules. `.widget-config` is the root class of
+  // both admin surfaces, so its presence is the signal.
+  it('the admin widget styles stay out of the entry stylesheet', () => {
+    const entry = readdirSync(assets).find((f) => /^index-[A-Za-z0-9_-]+\.css$/.test(f));
+    expect(entry, 'no entry stylesheet in dist/assets').toBeDefined();
+    expect(readFileSync(resolve(assets, entry!), 'utf8')).not.toContain('.widget-config');
+  });
+
+  it('a lazy CSS chunk carries the admin widget styles', () => {
+    const lazyCss = readdirSync(assets).filter((f) => f.endsWith('.css') && !/^index-/.test(f));
+    const holders = lazyCss.filter((f) => readFileSync(resolve(assets, f), 'utf8').includes('.widget-config'));
+    expect(
+      holders.length,
+      `expected a non-entry CSS chunk with .widget-config (src/widgets/widget-admin.css, imported by the ` +
+        `lazy editors). Found CSS: ${lazyCss.join(', ') || 'none'}`,
+    ).toBeGreaterThan(0);
   });
 
   it.each(LAZY_CHUNKS)('%s ships as its own async chunk, not inside the entry', (name) => {

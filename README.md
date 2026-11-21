@@ -41,12 +41,15 @@ echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" > .env
 docker compose up -d
 ```
 
-Open **http://localhost:8080** and register: **the first account becomes the admin.** Then set `HOMEPAD_REGISTRATION=invite_only` in `.env` and run `docker compose up -d` again, so only you can add accounts.
+Open **http://localhost:8080**. It shows **Set up Homepad**: **the first account is the admin.** Sign-up is closed after that, so nobody else can make an account on their own. Finish setup before you expose Homepad outside your LAN.
 
 Next steps:
 - **Add your apps.** Pick from the built-in App Library of 50+ self-hosted apps with icons, or add your own.
 - **Live status.** Connect [Gatus](https://gatus.io): add `COMPOSE_PROFILES=gatus` and `GATUS_BASE_URL=http://gatus:8080` to `.env` to run one alongside. See [docs/monitoring.md](./docs/monitoring.md).
+- **Add adults.** In Administration → Accounts, **+ Add an adult** makes an invite link. See [Registration](#registration).
 - **Kids.** Give a kid a dashboard with only the apps you choose, signed in on the family iPad for months. See [docs/kid-accounts.md](./docs/kid-accounts.md).
+- **Widgets.** A few numbers on your Jellyfin, Sonarr and Radarr tiles, plus a clock, the weather and web search. Add `HOMEPAD_SECRET_KEY` to `.env` to store API keys. See [docs/widgets.md](./docs/widgets.md).
+- **Back up, or import from Homepage.** Download your whole dashboard as one file, restore it, or bring in your Homepage `services.yaml`. See [docs/backup-import.md](./docs/backup-import.md).
 - **Single sign-on.** See [SSO](#single-sign-on) below.
 - **Update** with `docker compose pull && docker compose up -d`.
 
@@ -93,6 +96,18 @@ Each cell was checked on 2026-11-07 against the project's own docs and code: Hom
 
 Homepage has more than 100 service widgets and can run next to Homepad. Homepad has no service widgets.
 
+## Registration
+
+Sign-up is closed by default (`HOMEPAD_REGISTRATION=invite_only`). The first account on a fresh install is the admin. After that:
+
+- **Adults** join through an invite link. In **Administration → Accounts**, tap **+ Add an adult**, enter a name, pick **Member** or **Admin**, and send them the link. It works once, for 7 days, and they pick their own email and password. You can revoke a link that hasn't been used.
+- **Kids** are added in the same place. See [docs/kid-accounts.md](./docs/kid-accounts.md).
+- **Single sign-on** users keep signing in with it; they need no invite.
+
+`HOMEPAD_REGISTRATION=open` lets anyone who can open Homepad make an account. Accounts shows a warning while it's on, because a kid who signs out could make an adult account. To close it, set `HOMEPAD_REGISTRATION=invite_only` in `.env` and run `docker compose up -d`. Check the current mode in **Admin Panel → System → Registration mode**.
+
+`HOMEPAD_MAX_ACCOUNTS` caps the number of accounts plus pending invites. Unset or `0` means no limit.
+
 ## Single sign-on
 
 Local accounts work out of the box. To add OIDC, set in `.env`:
@@ -117,7 +132,7 @@ Register the redirect URL with your provider, then run `docker compose up -d`. W
 
 ## Project
 
-- **Docs:** [monitoring](./docs/monitoring.md) · [kid accounts](./docs/kid-accounts.md) · [development](./docs/development.md) · [changelog](./CHANGELOG.md)
+- **Docs:** [monitoring](./docs/monitoring.md) · [kid accounts](./docs/kid-accounts.md) · [widgets](./docs/widgets.md) · [backup and import](./docs/backup-import.md) · [development](./docs/development.md) · [changelog](./CHANGELOG.md)
 - **Backend:** [finish06/homepad-api](https://github.com/finish06/homepad-api) (Go + Postgres)
 - **Contributing:** issues and PRs are welcome. Start with [docs/development.md](./docs/development.md).
 - **License:** [MIT](./LICENSE)

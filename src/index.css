@@ -4280,7 +4280,8 @@
 
   /* The v16 status line under (compact) / beside (list) the name. Mono, muted;
      DOWN/DEGRADED tint it their hue. Rendered only in compact/list (JS gate). */
-  .app-grid-tool-statusline {
+  .app-grid-tool-statusline,
+  .app-grid-tool-widget {
     font-family: 'SF Mono', ui-monospace, 'JetBrains Mono', Menlo, monospace;
     font-size: 10.5px;
     line-height: 1.35;
@@ -4289,8 +4290,110 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .dark .app-grid-tool-statusline {
+  .dark .app-grid-tool-statusline,
+  .dark .app-grid-tool-widget {
     color: #a3a3a3;
+  }
+  /* SPEC-status-widgets §2.2 — the widget line. Compact/List reuse the status
+     line (only its text changes); Large adds this one line under the name,
+     reserved on a widget tile so it never jumps. The first field never shrinks,
+     so it stays readable at 320px; the rest ellipses (AC-009). */
+  .app-grid-tool-widget {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    min-height: 14px;
+    margin-top: -4px;
+  }
+  /* SPEC-status-widgets UX §4 — the glance strip: one slim row on the page
+     surface, no card. Clock left, weather right (or left when alone). The place
+     and the high/low drop first as the screen narrows. */
+  .glance-strip {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-height: 44px;
+    padding-top: 8px;
+    color: var(--v-txt);
+  }
+  .glance-clock,
+  .glance-weather,
+  .glance-weather-read {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+  }
+  .glance-clock + .glance-weather {
+    margin-left: auto;
+  }
+  .glance-weather-read {
+    align-items: center;
+    gap: 8px;
+  }
+  .glance-time {
+    font-size: 22px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .glance-temp {
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .glance-date,
+  .glance-meta {
+    font-size: 13px;
+    color: var(--v-muted);
+    white-space: nowrap;
+  }
+  .glance-icon {
+    width: 22px;
+    height: 22px;
+    flex: none;
+  }
+  .glance-credit {
+    font-size: 11px;
+    color: var(--v-muted);
+  }
+  .glance-date-short {
+    display: none;
+  }
+  @media (max-width: 1023px) {
+    .glance-date-long,
+    .glance-place {
+      display: none;
+    }
+    .glance-date-short {
+      display: inline;
+    }
+  }
+  @media (max-width: 639px) {
+    .glance-time {
+      font-size: 18px;
+    }
+    .glance-date-short,
+    .glance-range {
+      display: none;
+    }
+  }
+  .launcher-web-glyph {
+    color: var(--v-muted);
+  }
+  .app-grid-tool-statusline[data-widget] {
+    display: flex;
+    min-width: 0;
+  }
+  .app-grid[data-density='list'] .app-grid-tool-statusline[data-widget] {
+    flex-shrink: 1;
+    max-width: 62%; /* the name keeps the rest of the row */
+  }
+  .tile-widget-first {
+    flex: none;
+  }
+  .tile-widget-rest {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .app-grid-tool-statusline[data-status='DOWN'] {
     color: var(--v-down);

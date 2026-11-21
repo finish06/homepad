@@ -31,7 +31,7 @@ const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'user', themePref: 
 
 beforeEach(() => {
   vi.mocked(me).mockResolvedValue(USER);
-  vi.mocked(authConfig).mockResolvedValue({ oidcEnabled: false });
+  vi.mocked(authConfig).mockResolvedValue({ oidcEnabled: false, registration: 'invite_only', setupNeeded: false });
   vi.mocked(setThemePref).mockResolvedValue(true);
 });
 

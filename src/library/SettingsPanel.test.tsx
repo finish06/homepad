@@ -25,6 +25,8 @@ vi.mock('../api', () => ({
   // which lists accounts on mount. An empty list keeps these suites about what
   // they test.
   listAccounts: vi.fn(() => Promise.resolve([])),
+  listInvites: vi.fn(() => Promise.resolve([])),
+  authConfig: vi.fn(() => Promise.resolve({ oidcEnabled: false, registration: 'invite_only', setupNeeded: false })),
 }));
 
 expect.extend(toHaveNoViolations);

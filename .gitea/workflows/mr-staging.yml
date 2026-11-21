@@ -94,8 +94,21 @@ jobs:
             # timing-dependent on how much follows the `---`, which is why
             # consecutive runs on an identical manifest disagreed (#499 and #500
             # passed, #501 failed).
-            curl -sSf -H "Authorization: token $GITEA_READ_TOKEN" \
-              http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main/homepad-staging/03-web.yaml -o "$WORK/manifest.yaml"
+            #
+            # Code/homelab is moving homepad-staging/ to apps/homepad/staging/.
+            # Try the new path, fall back to the old one only on a 404, and log
+            # which one was used; any other HTTP status fails here.
+            HOMELAB_RAW=http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main
+            for path in apps/homepad/staging/03-web.yaml homepad-staging/03-web.yaml; do
+              code=$(curl -sS -H "Authorization: token $GITEA_READ_TOKEN" \
+                -o "$WORK/manifest.yaml" -w '%{http_code}' "$HOMELAB_RAW/$path")
+              [ "$code" = 404 ] || break
+            done
+            if [ "$code" != 200 ]; then
+              echo "homelab manifest fetch failed: HTTP $code for $path" >&2
+              exit 1
+            fi
+            echo "homelab manifest: $path"
             sed '/^---$/q' "$WORK/manifest.yaml" > "$WORK/configmap.yaml"
             kubectl -n homepad-staging apply -f "$WORK/configmap.yaml"
             kubectl -n homepad-staging set image deploy/homepad-web web="$IMAGE_REF"

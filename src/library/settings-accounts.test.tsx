@@ -14,6 +14,8 @@ vi.mock('../api', () => ({
   setLibraryOrder: vi.fn(),
   adminEnvConfig: vi.fn(),
   listAccounts: vi.fn(),
+  listInvites: vi.fn(() => Promise.resolve([])),
+  authConfig: vi.fn(() => Promise.resolve({ oidcEnabled: false, registration: 'invite_only', setupNeeded: false })),
   services: vi.fn(),
   categories: vi.fn(),
   kidServices: vi.fn(),
@@ -61,7 +63,8 @@ describe('Admin Panel — Accounts section (K-1)', () => {
     renderPanel();
     await screen.findAllByTestId('account-row');
     const titles = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
-    expect(titles.slice(0, 3)).toEqual(['Accounts', 'System', 'App Library']);
+    // SPEC-status-widgets W-3 — Widgets sits between System and the Library.
+    expect(titles.slice(0, 4)).toEqual(['Accounts', 'System', 'Widgets', 'App Library']);
   });
 
   it('marks the signed-in admin as "you"', async () => {

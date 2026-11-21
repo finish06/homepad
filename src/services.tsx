@@ -10,11 +10,14 @@
 // show data freshness.
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { refreshStatus, servicesWithStatus, type Service, type ServiceStatus } from './api';
+import { refreshStatus, servicesWithStatus, type Service, type ServiceStatus, type TileWidget } from './api';
 import { useAlertHistory } from './alerts/alerts';
 
 // How often to re-poll while visible (AC-001, ±10s tolerance).
-const POLL_MS = 60_000;
+export const POLL_MS = 60_000;
+// SPEC-household-basics AC-033 (#548) — the kid shell polls faster, so an
+// admin's allow-list change shows within 30 seconds. Adults keep POLL_MS.
+export const KID_POLL_MS = 20_000;
 
 // cap5 — a meaningful status transition between two polls, worth a toast alert.
 export type StatusChange = {
@@ -64,6 +67,10 @@ export type ServicesContextValue = {
   // served list with different members, so a consumer that caches derived data
   // (the grid's sections) knows to re-read it. Optional: 0/absent = never.
   membershipVersion?: number;
+  // SPEC-backup-import — reload the list as a fresh baseline after a restore or
+  // an import rewrote the catalog (no status-change toasts for the reload).
+  // Optional so test doubles of this context need not provide it.
+  reload?: () => Promise<void>;
 };
 
 export type RefreshOutcome = 'refreshed' | 'unreachable' | 'still-stale';
@@ -71,7 +78,7 @@ export type RefreshOutcome = 'refreshed' | 'unreachable' | 'still-stale';
 const ServicesContext = createContext<ServicesContextValue | null>(null);
 
 // mergeStatuses folds a freshly-polled list into the current one WITHOUT replacing
-// the array: it updates only `status` (and `uptimeChecks`) on each existing tile,
+// the array: it updates only `status`, `uptimeChecks` and `widget` on each existing tile,
 // keyed by id, so tile identity and the user's personal order are preserved and
 // only the tiles that actually changed get a new object reference (so only those
 // re-render — AC-009). Returns the SAME array reference when nothing changed, so a
@@ -95,7 +102,9 @@ export function mergeStatuses(
   const next = current.map((s) => {
     const f = byId.get(s.id);
     if (!f) return s;
-    if (f.status === s.status && sameChecks(s.uptimeChecks, f.uptimeChecks)) return s;
+    if (f.status === s.status && sameChecks(s.uptimeChecks, f.uptimeChecks) && sameWidget(s.widget, f.widget)) {
+      return s;
+    }
     changed = true;
     if (s.status !== f.status) {
       // v17 — every transition goes to the alert-history log (AC-003).
@@ -105,7 +114,12 @@ export function mergeStatuses(
         changes.push({ id: s.id, name: s.name, from: s.status, to: f.status });
       }
     }
-    return { ...s, status: f.status, uptimeChecks: f.uptimeChecks };
+    const merged: Service = { ...s, status: f.status, uptimeChecks: f.uptimeChecks };
+    // SPEC-status-widgets AC-011 — the widget rides on the same poll. A widget
+    // the server stopped sending is removed, not left at its last values.
+    if (f.widget) merged.widget = f.widget;
+    else delete merged.widget;
+    return merged;
   });
   return { next: changed ? next : current, changes, transitions };
 }
@@ -114,6 +128,21 @@ function sameMembers(a: Service[], b: Service[]): boolean {
   if (a.length !== b.length) return false;
   const ids = new Set(a.map((s) => s.id));
   return b.every((s) => ids.has(s.id));
+}
+
+// AC-011 — a field-by-field compare, so a poll whose widget numbers didn't move
+// keeps the tile's object (and the whole array) and causes no render. asOf
+// moves on every successful server fetch but only a stale line shows it, so
+// it counts only when the state isn't ok.
+function sameWidget(a?: TileWidget, b?: TileWidget): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.kind !== b.kind || a.state !== b.state) return false;
+  if (a.state !== 'ok' && a.asOf !== b.asOf) return false;
+  if (a.fields.length !== b.fields.length) return false;
+  return a.fields.every((x, i) => {
+    const y = b.fields[i];
+    return x.key === y.key && x.label === y.label && x.unit === y.unit && x.value === y.value && x.total === y.total;
+  });
 }
 
 function sameChecks(a?: Service['uptimeChecks'], b?: Service['uptimeChecks']): boolean {
@@ -126,6 +155,7 @@ export function ServicesProvider({
   children,
   onUnauthorized,
   syncMembership = false,
+  pollMs = POLL_MS,
 }: {
   children: ReactNode;
   // SPEC-kid-accounts AC-012 — told when a poll answers 401 (the session was
@@ -137,6 +167,9 @@ export function ServicesProvider({
   // merging status into the old set. Kid shell only: for everyone else the
   // v13 contract (status-only merge, identity and order kept) is unchanged.
   syncMembership?: boolean;
+  // How often to re-poll while visible. Defaults to v13's 60s; the kid shell
+  // passes KID_POLL_MS. The role never changes within a session, so neither does this.
+  pollMs?: number;
 }) {
   const [items, setItems] = useState<Service[] | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
@@ -227,7 +260,7 @@ export function ServicesProvider({
 
     loadRef.current = load;
     void load(true);
-    const id = setInterval(() => void load(false), POLL_MS);
+    const id = setInterval(() => void load(false), pollMs);
 
     // AC-002 — on returning to the tab, re-poll immediately (well within 5s)
     // rather than waiting for the next interval tick.
@@ -241,7 +274,7 @@ export function ServicesProvider({
       clearInterval(id);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, []);
+  }, [pollMs]);
 
   async function refresh(): Promise<RefreshOutcome> {
     const r = await refreshStatus();
@@ -266,6 +299,7 @@ export function ServicesProvider({
         clearRecentChanges: () => setRecentChanges([]),
         refresh,
         membershipVersion,
+        reload: () => loadRef.current(true),
       }}
     >
       {children}
