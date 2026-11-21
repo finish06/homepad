@@ -115,15 +115,16 @@ import { describe, expect, it } from 'vitest';
 //   lazy, new  ChangelogOverlay 14,927 (41,585 raw), almost all of it the JSON
 // Budgets unchanged: 15,721 B JS and 793 B CSS of headroom remain. The
 // changelog grows every release, so it now grows a lazy chunk, not the entry.
-// SPEC-iframe-sandbox-optin, measured 2026-11-20 against gitea/main 9dc4290,
-// same method:
-//   entry JS   104,299 → 104,341 B gzip (+42): no sandbox code. It is Vite's
+//
+// SPEC-iframe-sandbox-optin, re-measured 2026-11-20 against gitea/main
+// 76d0d07 (lazy changelog merged), same method:
+//   entry JS    89,277 →  89,320 B gzip (+43): no sandbox code. It is Vite's
 //              preload map naming the new shared chunk (sandbox-<hash>.js,
 //              used by the two lazy surfaces) and IframeOverlay's deps on it
 //   entry CSS   19,707 →  19,707 B gzip (+0): the switch row uses classes the
 //              entry already has
-//   lazy, new  sandbox 254 · lazy, grew TileEditModal 7,472 → 7,923
-// Budgets unchanged: 659 B JS and 793 B CSS of headroom remain.
+//   lazy, new  sandbox 255 · lazy, grew TileEditModal → 7,925
+// Budgets unchanged: 15,680 B JS and 793 B CSS of headroom remain.
 const ENTRY_JS_GZIP_BUDGET = 105_000;
 const ENTRY_CSS_GZIP_BUDGET = 20_500;
 
