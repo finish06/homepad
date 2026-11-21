@@ -89,12 +89,14 @@ describe('Accounts list (UX §2)', () => {
     expect(rows[4]).toHaveTextContent('1 app · 2 devices');
   });
 
-  it('adults have no action (listing only); every kid row is one button', async () => {
+  // SPEC-household-manage-adults AC-010 — your own row has no action; every
+  // other adult row has one, the Manage menu (AccountsSection.adults.test.tsx).
+  it('your own row has no action, another adult has Manage; every kid row is one button', async () => {
     vi.mocked(listAccounts).mockResolvedValue([ADMIN, ADULT, MAYA]);
     render(<AccountsSection currentUserId="u-admin" />);
     const rows = await screen.findAllByTestId('account-row');
     expect(within(rows[0]).queryByRole('button')).toBeNull();
-    expect(within(rows[1]).queryByRole('button')).toBeNull();
+    expect(within(rows[1]).getAllByRole('button').map((b) => b.getAttribute('aria-haspopup'))).toEqual(['menu']);
     const edit = within(rows[2]).getByRole('button', { name: /edit maya/i });
     expect(edit).toHaveTextContent('Edit');
   });

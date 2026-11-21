@@ -95,4 +95,15 @@ describe('code-splitting — on-demand overlays are lazy chunks', () => {
     expect(app).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"][./a-z]*\/backup\/HomepageImportModal['"]\)\s*\)/);
     expect(app).not.toMatch(/^import HomepageImportModal from/m);
   });
+
+  // SPEC-household-manage-adults UX §1 — the adult row menu rides in the lazy
+  // Admin Panel chunk, and its confirms load on demand from the menu, the way
+  // BackupSection loads RestoreModal.
+  it('AdultRowMenu lazy-loads its confirm; no entry module imports either', () => {
+    const menu = read('accounts/AdultRowMenu.tsx');
+    expect(menu).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"]\.\/AdultConfirm['"]\)\s*\)/);
+    expect(menu).not.toMatch(/^import AdultConfirm from/m);
+    const entryish = ['app/App.tsx', 'app/UserMenu.tsx', 'grid/AppGrid.tsx', 'services.tsx', 'main.tsx'];
+    for (const f of entryish) expect(read(f), f).not.toMatch(/AdultRowMenu|AdultConfirm/);
+  });
 });
