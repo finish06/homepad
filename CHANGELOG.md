@@ -7,6 +7,46 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [Unreleased — 18.0.0] — The app list belongs to the household
+
+The app list now belongs to the household, not to the first admin. This is
+why the version is 18.0.0.
+
+**Back up the database first.** The upgrade changes the database in a way
+that can't be undone. Take a backup of the database before you upgrade. For
+example:
+
+```sh
+docker compose exec -T postgres pg_dump -U homepad homepad > homepad-before-18.sql
+```
+
+Use the user and database names from your `.env`.
+
+**Hidden copies.** Some old, hidden copies of apps are moved out of the way.
+Nobody could see them. They go to a table called `catalog_archive`, and the
+API log says how many, once. To look at them:
+
+```sh
+docker compose exec postgres psql -U homepad -c "select kind, former_owner_email, row->>'name' from catalog_archive"
+```
+
+**No way back.** You can't go back to 17.x after this upgrade. To go back,
+restore the database backup.
+
+**An admin must exist.** If the database has apps but no admin account, the
+API stops at start-up with: "migration 0021: the catalog has apps but no
+admin account exists. Make one account an admin, then restart." To make an
+account an admin:
+
+```sh
+docker compose exec postgres psql -U homepad -c "update users set role = 'admin' where email = 'you@example.com'"
+```
+
+**Backup files are version 2.** A backup made on 18.0.0 has `schemaVersion` 2.
+It has the same fields as version 1. 18.0.0 still restores backups made on
+17.x. Homepad 17.x refuses a version 2 file: it says the file is from a newer
+Homepad.
+
 ## [17.1.0] — 2026-11-20 — Household accounts, backup and import, and status widgets
 
 **Upgrading:** deploy homepad-api 17.1.0 first, then the web image. The API

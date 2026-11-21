@@ -13,6 +13,8 @@ const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
 const md = read('CHANGELOG.md');
 const start = md.search(/^## \[Unreleased — 18\.0\.0\]/m);
 const entry = start < 0 ? '' : md.slice(start, start + md.slice(start + 3).search(/^## /m) + 3);
+// Prose wraps at any space; compare it on one line.
+const flat = entry.replace(/\s+/g, ' ');
 
 describe('AC-016 — the 18.0.0 CHANGELOG entry', () => {
   it('exists, above every released version', () => {
@@ -27,7 +29,7 @@ describe('AC-016 — the 18.0.0 CHANGELOG entry', () => {
       'Some old, hidden copies of apps are moved out of the way. Nobody could see them.',
       "You can't go back to 17.x after this upgrade. To go back, restore the database backup.",
     ]) {
-      expect(entry.replace(/\s+/g, ' ')).toContain(line);
+      expect(flat).toContain(line);
     }
   });
 
@@ -45,15 +47,15 @@ describe('AC-016 — the 18.0.0 CHANGELOG entry', () => {
   });
 
   it('says what stops the boot, and how to fix it', () => {
-    expect(entry).toContain(
+    expect(flat).toContain(
       'migration 0021: the catalog has apps but no admin account exists. Make one account an admin, then restart.',
     );
     expect(entry).toMatch(/update users set role = 'admin' where email = /);
   });
 
   it('says backups are schema version 2, and what 17.x does with one', () => {
-    expect(entry).toMatch(/`schemaVersion` 2/);
-    expect(entry).toMatch(/newer Homepad/);
+    expect(flat).toMatch(/`schemaVersion` 2/);
+    expect(flat).toMatch(/newer Homepad/);
   });
 });
 

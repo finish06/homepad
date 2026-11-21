@@ -176,12 +176,15 @@ Use the user and database names from your `.env`.
 The file is pretty-printed JSON. It starts with:
 
 ```json
-{ "format": "homepad-backup", "schemaVersion": 1, "exportedAt": "…", "homepadVersion": "…" }
+{ "format": "homepad-backup", "schemaVersion": 2, "exportedAt": "…", "homepadVersion": "…" }
 ```
 
-Every later Homepad can restore a version 1 file. A file from a newer Homepad
-than yours is refused with "This backup is from a newer Homepad. Update
-Homepad, then try again."
+Homepad 18.0.0 and later write version 2. It has the same fields as version
+1, which Homepad 17.x wrote. Every later Homepad can restore a version 1 file.
+A file from a newer Homepad than yours is refused with "This backup is from a
+newer Homepad. Update Homepad, then try again." Homepad 17.x says this about a
+version 2 file.
 
-The JSON Schema for version 1 is `docs/schema/homepad-backup-v1.json` in
+The JSON Schemas are `docs/schema/homepad-backup-v2.json` and
+`docs/schema/homepad-backup-v1.json` in
 [homepad-api](https://github.com/finish06/homepad-api).
