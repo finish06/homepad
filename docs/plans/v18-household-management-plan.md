@@ -7,7 +7,7 @@
 4. [`SPEC-signin-hardening`](../../specs/SPEC-signin-hardening.md) — rate limits, verified SSO emails, invite-only for SSO
 5. [`SPEC-iframe-sandbox-optin`](../../specs/SPEC-iframe-sandbox-optin.md) — stricter overlay sandbox, per-app opt-in (#334)
 
-**Status:** Draft, awaiting sign-off (all five specs are drafts; none is approved)
+**Status:** Approved — Caleb, 2026-11-20: all five specs approved, every §0 question decided
 **Created:** 2026-11-19
 **Target:** 18.0.0 (major: migration 0021 is one way)
 **Checked against:** `homepad-api` `gitea/main` `79e3b03`, `homepad` `gitea/main` `6eb8a35`
