@@ -105,7 +105,7 @@ These are task time. The kid-accounts plan ran about 50% over its spec estimate;
 
 The CHANGELOG entry for 18.0.0 must carry each of these. Plain copy, in this order:
 
-1. **Why it's 18.0.0.** "The app list now belongs to the household, not to the first admin. The upgrade changes the database in a way that can't be undone. Take a backup of the database first. You can't go back to 17.x afterwards except by restoring that backup."
+1. **Why it's 18.0.0.** "The app list now belongs to the household. Every admin edits the same list. The upgrade changes the database in a way that can't be undone. Take a backup of the database first. To go back to 17.x, restore that backup."
 2. **Hidden copies moved.** "Some old, hidden copies of apps are moved to a table called `catalog_archive`. Nobody could see them." Plus the `psql` line from spec 1 §10.
 3. **Managing adults.** "Admins can now remove an adult, or make someone an admin or a member, in Administration → Accounts. Homepad always keeps at least one admin."
 4. **Passwords.** "An admin can make a one-time reset link for an adult. It works for 24 hours. You can change your own password in My settings. If you are the only admin and forget your password, run `docker compose exec api /homepad-api reset-link you@example.com` on the server."

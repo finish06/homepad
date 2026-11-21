@@ -1,7 +1,7 @@
 # Spec: The catalog belongs to the household
 
 **Spec ID:** SPEC-household-catalog-owner
-**Version:** 0.1.1
+**Version:** 0.1.2
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
 **Status:** Approved — Caleb, 2026-11-20: every §0 question decided.
@@ -55,7 +55,7 @@ This spec makes the catalog belong to the install. No user owns it. That is what
 - Caleb, 2026-11-19: 18.0.0 is "a household you can manage", and this is its breaking change.
 - Caleb, 2026-11-19: archive the hidden rows into `catalog_archive`, then delete them (Q2, "yes").
 - Caleb, 2026-11-19: add the `schema_migrations` table (Q3, "yes").
-- Pending: §0 Q1, Q4, Q5.
+- Caleb, 2026-11-20: Q1 A (drop the owner columns), Q4 A (stop the boot), Q5 B (backups move to `schemaVersion` 2).
 
 ---
 
@@ -87,9 +87,9 @@ This spec makes the catalog belong to the install. No user owns it. That is what
 
 - **Export** writes `schemaVersion: 2` with the same keys as 17.1.0. No field is added or removed by this spec. A 1→2 upgrader changes only the number (Q5).
 - **Restore of a file made by 17.1.0** works unchanged: it never named an owner. Merge matches sections by name and apps by slug, as before. Replace deletes the whole catalog instead of "the owner's rows".
-- **Restore of an 18.0.0 file on 17.1.0** also works, as long as no later 18.0.0 spec adds a field. (SPEC-iframe-sandbox-optin adds one optional field. 17.1.0 counts it as unknown and warns in the preview; see that spec.)
+- **Restore of an 18.0.0 file on 17.1.0** is refused with the "newer Homepad" message (SPEC-backup-import AC-016), because the file says `schemaVersion: 2` (Q5).
 - **Homepage import** writes into the catalog, as before.
-- The `upgraders` map stays empty. AC-017 of SPEC-backup-import (every released schema restores in CI) keeps its v1 fixture.
+- The `upgraders` map gains 1→2, which changes only the number. AC-017 of SPEC-backup-import (every released schema restores in CI) keeps its v1 fixture and adds a v2 one.
 
 ### 2.4 Code that goes away
 
@@ -126,7 +126,7 @@ This spec makes the catalog belong to the install. No user owns it. That is what
 | AC-007 | The runner records each migration in `schema_migrations` and runs it only once (Q3, decided). The first 18.0.0 boot on a 17.1.0 database runs 0001–0021 and records all of them. A second boot runs none. | Must |
 | AC-008 | After two boots, `services` still has no `user_id` column (the 0007 re-run trap, §1a). | Must |
 | AC-009 | A database with catalog rows and no admin stops at boot with: "migration 0021: the catalog has apps but no admin account exists. Make one account an admin, then restart." Nothing is changed (Q4). | Must |
-| AC-010 | A fresh, empty database migrates cleanly and ends in the same schema as an upgraded one (a schema-diff test, using `internal/testsupport/schemacheck`). | Must |
+| AC-010 | A fresh, empty database migrates cleanly and ends in the same schema as an upgraded one (a schema-diff test comparing `information_schema` columns, `pg_indexes` and `pg_constraint`). | Must |
 
 ### Behavior
 
@@ -239,9 +239,9 @@ Not needed: nothing on screen changes. Kare signs off on the CHANGELOG wording o
 
 Release-note lines (plain copy, for the CHANGELOG):
 
-- "The app list now belongs to the household, not to the first admin. This is why the version is 18.0.0."
+- "The app list now belongs to the household. Every admin edits the same list, and it stays when an account is removed. This is why the version is 18.0.0."
 - "The upgrade changes the database in a way that can't be undone. Take a backup of the database before you upgrade."
-- "Some old, hidden copies of apps are moved out of the way. Nobody could see them. To look at them: `docker compose exec postgres psql -U homepad -c 'select kind, former_owner_email, row->>''name'' from catalog_archive'`."
+- "Some old, hidden copies of apps are moved out of the way. Nobody could see them. To look at them: `docker compose exec postgres psql -U homepad -c "select kind, former_owner_email, row->>'name' from catalog_archive"`."
 - "You can't go back to 17.x after this upgrade. To go back, restore the database backup."
 
 ## 11. Out of Scope
@@ -266,3 +266,4 @@ Release-note lines (plain copy, for the CHANGELOG):
 |---|---|---|
 | 2026-11-19 | 0.1.0 | Draft for 18.0.0, checked against `homepad-api` `79e3b03` and `homepad` `6eb8a35`. |
 | 2026-11-19 | 0.1.1 | Caleb decided Q2 and Q3 ("yes"). |
+| 2026-11-20 | 0.1.2 | Caleb decided Q1, Q4 (defaults) and Q5 (B, `schemaVersion` 2). §2.3 follows Q5. AC-010 names the real schema comparison. Release-note copy and the `psql` quoting fixed, from the build (homepad-api #101). |
