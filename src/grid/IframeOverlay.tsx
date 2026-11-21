@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Service } from '../api';
 import { safeHref } from '../lib/safeUrl';
+import { sandboxFor } from '../lib/sandbox';
 import Modal from '../ui/Modal';
 
 // v23 — IframeOverlay (SPEC-tile-click-action §5.4-5.5). A tile whose
@@ -18,7 +19,8 @@ import Modal from '../ui/Modal';
 // (or too slow to embed usefully) — either way the new-tab escape hatch is right.
 const FALLBACK_MS = 5000;
 
-const SANDBOX = 'allow-scripts allow-same-origin allow-forms allow-popups';
+// SPEC-iframe-sandbox-optin §2.1 — the sandbox depends on the app's "Let this
+// app keep its sign-in" setting and on its origin: see sandboxFor.
 
 export default function IframeOverlay({
   service,
@@ -127,7 +129,7 @@ export default function IframeOverlay({
                 src={safeHref(service.url)}
                 title={service.name}
                 loading="lazy"
-                sandbox={SANDBOX}
+                sandbox={sandboxFor(service)}
                 onLoad={onFrameLoad}
               />
             </>

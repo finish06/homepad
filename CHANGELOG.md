@@ -43,11 +43,20 @@ docker compose exec postgres psql -U homepad -c "update users set role = 'admin'
 ```
 
 **Backup files are version 2.** A backup made on 18.0.0 has `schemaVersion` 2.
-It has the same fields as version 1. 18.0.0 still restores backups made on
+It has the same fields as version 1, plus each app's overlay sign-in
+setting. 18.0.0 still restores backups made on
 17.x. Homepad 17.x refuses a version 2 file: it says the file is from a newer
 Homepad.
 
 **Managing adults.** Admins can now remove an adult, or make someone an admin or a member, in Administration → Accounts. Homepad always keeps at least one admin.
+
+**Overlay apps.**
+
+- Apps that open in the overlay are now more locked down by default. Apps you
+  already set to open in the overlay keep working as before. For new ones that
+  ask you to sign in every time, turn on 'Let this app keep its sign-in' in the
+  app's settings. Only do this for apps you trust.
+- Homepad can no longer be shown inside another page or dashboard.
 
 ## [17.1.0] — 2026-11-20 — Household accounts, backup and import, and status widgets
 

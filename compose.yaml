@@ -118,7 +118,8 @@ configs:
         index index.html;
 
         add_header X-Content-Type-Options "nosniff" always;
-        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Content-Security-Policy "frame-ancestors 'none'" always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
 
@@ -140,19 +141,22 @@ configs:
         }
 
         # nginx doesn't inherit add_header into a location that sets its own,
-        # so the four security headers repeat in each of these.
+        # so the security headers repeat in each of these. Nothing may frame
+        # Homepad (SPEC-iframe-sandbox-optin AC-006).
         location ~* \.(?:js|css|woff2?|png|jpg|jpeg|svg|webp|avif|ico)$$ {
           expires 30d;
           add_header Cache-Control "public, max-age=2592000, immutable";
           add_header X-Content-Type-Options "nosniff" always;
-          add_header X-Frame-Options "SAMEORIGIN" always;
+          add_header X-Frame-Options "DENY" always;
+          add_header Content-Security-Policy "frame-ancestors 'none'" always;
           add_header Referrer-Policy "strict-origin-when-cross-origin" always;
           add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
         }
         location = /index.html {
           add_header Cache-Control "no-cache";
           add_header X-Content-Type-Options "nosniff" always;
-          add_header X-Frame-Options "SAMEORIGIN" always;
+          add_header X-Frame-Options "DENY" always;
+          add_header Content-Security-Policy "frame-ancestors 'none'" always;
           add_header Referrer-Policy "strict-origin-when-cross-origin" always;
           add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
         }
@@ -160,6 +164,10 @@ configs:
         location = /version.json {
           add_header Cache-Control "no-store";
           add_header X-Content-Type-Options "nosniff" always;
+          add_header X-Frame-Options "DENY" always;
+          add_header Content-Security-Policy "frame-ancestors 'none'" always;
+          add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+          add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
         }
         # Without this, .webmanifest is served as octet-stream and the PWA
         # can't be installed.
@@ -167,6 +175,10 @@ configs:
           types { }
           default_type application/manifest+json;
           add_header X-Content-Type-Options "nosniff" always;
+          add_header X-Frame-Options "DENY" always;
+          add_header Content-Security-Policy "frame-ancestors 'none'" always;
+          add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+          add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
         }
       }
 

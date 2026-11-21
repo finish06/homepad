@@ -83,6 +83,11 @@ export type Service = {
   // omits it (and hand-built fixtures) read as new_tab — ToolLink/TileEditModal
   // treat absent/undefined as 'new_tab' (AC-014).
   clickAction?: ClickAction;
+  // SPEC-iframe-sandbox-optin — "Let this app keep its sign-in". The overlay
+  // keeps the app's own origin only when this is on and the app is on another
+  // origin (sandboxFor). Optional: an older server omits it, which reads as
+  // off.
+  iframeSameOrigin?: boolean;
   // v25: the Gatus endpoint slug backing the tile's health meter (SPEC-v25). The
   // server now returns it on every service ("" when unmonitored) so TileEditModal
   // can prefill the current key. Optional so pre-v25 payloads and hand-built
@@ -159,6 +164,9 @@ export type ServiceInput = {
   // server apply its `new_tab` default (create) or leave the value unchanged
   // (PATCH). Wire name is camelCase `clickAction`, matching the read model.
   clickAction?: ClickAction;
+  // SPEC-iframe-sandbox-optin AC-009 — optional: off on create, unchanged on
+  // PATCH when omitted. Admin-only, like the rest of this shape.
+  iframeSameOrigin?: boolean;
 };
 
 // SPEC-household-basics AC-004 — the registration mode and whether the install

@@ -115,6 +115,16 @@ import { describe, expect, it } from 'vitest';
 //   lazy, new  ChangelogOverlay 14,927 (41,585 raw), almost all of it the JSON
 // Budgets unchanged: 15,721 B JS and 793 B CSS of headroom remain. The
 // changelog grows every release, so it now grows a lazy chunk, not the entry.
+//
+// SPEC-iframe-sandbox-optin, re-measured 2026-11-20 against gitea/main
+// 76d0d07 (lazy changelog merged), same method:
+//   entry JS    89,277 →  89,320 B gzip (+43): no sandbox code. It is Vite's
+//              preload map naming the new shared chunk (sandbox-<hash>.js,
+//              used by the two lazy surfaces) and IframeOverlay's deps on it
+//   entry CSS   19,707 →  19,707 B gzip (+0): the switch row uses classes the
+//              entry already has
+//   lazy, new  sandbox 255 · lazy, grew TileEditModal → 7,925
+// Budgets unchanged: 15,680 B JS and 793 B CSS of headroom remain.
 const ENTRY_JS_GZIP_BUDGET = 105_000;
 const ENTRY_CSS_GZIP_BUDGET = 20_500;
 
@@ -264,6 +274,19 @@ describe('bundle budget — the built artifact stays within its byte budget', ()
       expect(entry.includes(text), `entry chunk contains changelog text: ${text}`).toBe(false);
       expect(overlay.includes(text), `overlay chunk is missing changelog text: ${text}`).toBe(true);
     }
+  });
+
+  // SPEC-iframe-sandbox-optin (UX §1 "Bundle") — the sandbox rule lives in
+  // src/lib/sandbox.ts and is imported only by the lazy overlay and tile
+  // editor. Its token string is the signal: in a lazy chunk, never the entry.
+  it('the overlay sandbox rule stays out of the entry chunk', () => {
+    const entry = readdirSync(assets).find((f) => /^index-[A-Za-z0-9_-]+\.js$/.test(f))!;
+    expect(readFileSync(resolve(assets, entry), 'utf8')).not.toContain('allow-forms allow-popups');
+    const lazy = readdirSync(assets).filter((f) => f.endsWith('.js') && f !== entry);
+    expect(
+      lazy.some((f) => readFileSync(resolve(assets, f), 'utf8').includes('allow-scripts allow-forms allow-popups')),
+      'no lazy chunk carries the strict sandbox',
+    ).toBe(true);
   });
 
   it.each(LAZY_CHUNKS)('%s ships as its own async chunk, not inside the entry', (name) => {

@@ -84,6 +84,16 @@ describe('code-splitting — on-demand overlays are lazy chunks', () => {
     expect(src).not.toMatch(/^import IframeOverlay from/m);
   });
 
+  // SPEC-iframe-sandbox-optin (UX §1 "Bundle") — the sandbox rule is used only
+  // by the two lazy surfaces, so it costs the entry chunk nothing. AppGrid must
+  // not import it to precompute anything.
+  it('only the overlay and the tile editor import lib/sandbox', () => {
+    const importers = ['grid/IframeOverlay.tsx', 'grid/TileEditModal.tsx'];
+    for (const f of importers) expect(read(f), f).toMatch(/from ['"]\.\.\/lib\/sandbox['"]/);
+    const entryish = ['app/App.tsx', 'grid/AppGrid.tsx', 'services.tsx', 'launcher/CommandLauncher.tsx', 'api.ts', 'main.tsx'];
+    for (const f of entryish) expect(read(f), f).not.toMatch(/lib\/sandbox/);
+  });
+
   // SPEC-backup-import — the two flows load on demand: from the Admin Panel's
   // Backup and import section, and (the import) from the admin empty state.
   it('BackupSection and App.tsx lazy-load the restore and import modals', () => {
