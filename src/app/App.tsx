@@ -24,7 +24,6 @@ import AuthForm from './AuthForm';
 import { AlertHistoryProvider, useAlertHistory } from '../alerts/alerts';
 import AlertHistoryPanel from '../alerts/AlertHistoryPanel';
 import ToastContainer from '../alerts/Toasts';
-import ChangelogOverlay from './ChangelogOverlay';
 import UpdateBanner from './UpdateBanner';
 import { ThemeProvider } from '../theme/theme';
 import { CONTENT_WIDTH } from '../lib/layout';
@@ -63,6 +62,10 @@ const HomepageImportModal = lazy(() => import('../library/backup/HomepageImportM
 // chunk too: it renders only once the admin turns the clock or weather on, so
 // a dashboard without it never downloads it. Its CSS stays in the entry.
 const GlanceStrip = lazy(() => import('./GlanceStrip'));
+// The changelog overlay opens only from the footer version badge, and it carries
+// src/changelog.json (every release ever shipped, ~47 kB raw). Lazy, so a
+// dashboard load never downloads it; it mounts only while open.
+const ChangelogOverlay = lazy(() => import('./ChangelogOverlay'));
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -521,7 +524,11 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
           homepad v{__APP_VERSION__} ({__GIT_SHA__})
         </button>
       </footer>
-      <ChangelogOverlay open={changelogOpen} onClose={() => setChangelogOpen(false)} />
+      {changelogOpen && (
+        <Suspense fallback={null}>
+          <ChangelogOverlay open onClose={() => setChangelogOpen(false)} />
+        </Suspense>
+      )}
     </ShowWidgetsContext.Provider>
     </WidgetsInfoContext.Provider>
   );

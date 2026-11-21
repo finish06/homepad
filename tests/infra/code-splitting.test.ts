@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync, readdirSync } from 'node:fs';
+import { resolve, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 // v14.0.1 optimize — the on-demand overlays (admin Settings, the app Library,
@@ -21,6 +21,14 @@ function read(file: string): string {
   return readFileSync(resolve(process.cwd(), 'src', file), 'utf8');
 }
 
+function listSrc(): string[] {
+  const root = resolve(process.cwd(), 'src');
+  return (readdirSync(root, { recursive: true }) as string[])
+    .filter((f) => /\.tsx?$/.test(f))
+    .map((f) => f.split(sep).join('/'))
+    .sort();
+}
+
 describe('code-splitting — on-demand overlays are lazy chunks', () => {
   it('App.tsx lazy-loads Settings, Library, and the custom-app form', () => {
     const src = read('app/App.tsx');
@@ -33,6 +41,22 @@ describe('code-splitting — on-demand overlays are lazy chunks', () => {
     expect(src).not.toMatch(/^import SettingsPanel from/m);
     expect(src).not.toMatch(/^import LibraryBrowse from/m);
     expect(src).not.toMatch(/^import ServiceForm from/m);
+  });
+
+  // The changelog overlay opens only from the footer version badge, and it
+  // carries src/changelog.json (~47 kB raw, every release ever shipped). Static,
+  // that data rode in the entry chunk for every dashboard load.
+  it('App.tsx lazy-loads the changelog overlay', () => {
+    const src = read('app/App.tsx');
+    expect(src).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"][./a-z]*\/ChangelogOverlay['"]\)\s*\)/i);
+    expect(src).not.toMatch(/^import ChangelogOverlay from/m);
+  });
+
+  // The data must reach the bundle only through the lazy overlay. Any other
+  // src module importing it would pull the whole file back into the entry.
+  it('only ChangelogOverlay imports changelog.json', () => {
+    const importers = listSrc().filter((f) => !/\.test\.tsx?$/.test(f) && /changelog\.json['"]/.test(read(f)));
+    expect(importers).toEqual(['app/ChangelogOverlay.tsx']);
   });
 
   // SPEC-status-widgets — the glance strip (clock, weather, its icons) renders

@@ -106,6 +106,15 @@ import { describe, expect, it } from 'vitest';
 // Budgets unchanged: 1,071 B JS and 793 B CSS of headroom remain. The strip's
 // JS and every admin-only widget module are lazy on purpose (AC-033), and the
 // admin styles are asserted out of the entry below (AC-032).
+//
+// Lazy changelog, re-measured 2026-11-20 against gitea/main 714f52b, same method:
+//   entry JS   104,301 →  89,279 B gzip (-15,022): ChangelogOverlay and
+//              src/changelog.json left the entry chunk
+//   entry CSS   19,707 →  19,707 B gzip (unchanged; the .changelog-* rules stay
+//              in src/index.css)
+//   lazy, new  ChangelogOverlay 14,927 (41,585 raw), almost all of it the JSON
+// Budgets unchanged: 15,721 B JS and 793 B CSS of headroom remain. The
+// changelog grows every release, so it now grows a lazy chunk, not the entry.
 const ENTRY_JS_GZIP_BUDGET = 105_000;
 const ENTRY_CSS_GZIP_BUDGET = 20_500;
 
@@ -124,6 +133,9 @@ const LAZY_CHUNKS = [
   // SPEC-status-widgets — the clock/weather strip renders only once an admin
   // turns one of them on, so its JS stays out of the entry.
   'GlanceStrip',
+  // The changelog overlay and its data (src/changelog.json) load only when the
+  // footer version badge is clicked.
+  'ChangelogOverlay',
 ] as const;
 
 const dist = resolve(process.cwd(), 'dist');
@@ -205,6 +217,31 @@ describe('bundle budget — the built artifact stays within its byte budget', ()
       `expected a non-entry CSS chunk with .widget-config (src/widgets/widget-admin.css, imported by the ` +
         `lazy editors). Found CSS: ${lazyCss.join(', ') || 'none'}`,
     ).toBeGreaterThan(0);
+  });
+
+  // The changelog data is the largest single thing a viewer never needs on first
+  // paint. A chunk named ChangelogOverlay can exist while the JSON still sits in
+  // the entry (a second static importer would do it), so check the bytes.
+  it('the changelog data ships with the lazy overlay, not in the entry chunk', () => {
+    const data: { versions: { changes: { text: string }[] }[] } = JSON.parse(
+      readFileSync(resolve(process.cwd(), 'src', 'changelog.json'), 'utf8'),
+    );
+    // Plain-ASCII entries only, so the probe is not defeated by string escaping.
+    const probes = data.versions
+      .flatMap((v) => v.changes.map((c) => c.text))
+      .filter((t) => t.length > 30 && /^[A-Za-z0-9 ,.()-]+$/.test(t))
+      .slice(0, 3);
+    expect(probes.length, 'no plain-ASCII changelog entry to probe for').toBeGreaterThan(0);
+
+    const files = readdirSync(assets);
+    const entry = readFileSync(resolve(assets, files.find((f) => /^index-[A-Za-z0-9_-]+\.js$/.test(f))!), 'utf8');
+    const overlayFile = files.find((f) => /^ChangelogOverlay-[A-Za-z0-9_-]+\.js$/.test(f));
+    expect(overlayFile, 'no ChangelogOverlay-<hash>.js chunk').toBeDefined();
+    const overlay = readFileSync(resolve(assets, overlayFile!), 'utf8');
+    for (const text of probes) {
+      expect(entry.includes(text), `entry chunk contains changelog text: ${text}`).toBe(false);
+      expect(overlay.includes(text), `overlay chunk is missing changelog text: ${text}`).toBe(true);
+    }
   });
 
   it.each(LAZY_CHUNKS)('%s ships as its own async chunk, not inside the entry', (name) => {
