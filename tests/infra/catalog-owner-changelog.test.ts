@@ -24,7 +24,7 @@ describe('AC-016 — the 18.0.0 CHANGELOG entry', () => {
 
   it('carries the release-note lines from the spec', () => {
     for (const line of [
-      'The app list now belongs to the household, not to the first admin. This is why the version is 18.0.0.',
+      'The app list now belongs to the household. Every admin edits the same list, and it stays when an account is removed. This is why the version is 18.0.0.',
       "The upgrade changes the database in a way that can't be undone. Take a backup of the database before you upgrade.",
       'Some old, hidden copies of apps are moved out of the way. Nobody could see them.',
       "You can't go back to 17.x after this upgrade. To go back, restore the database backup.",

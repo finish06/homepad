@@ -9,8 +9,8 @@ codename maps to a release it is noted in the heading.
 
 ## [Unreleased — 18.0.0] — The app list belongs to the household
 
-The app list now belongs to the household, not to the first admin. This is
-why the version is 18.0.0.
+The app list now belongs to the household. Every admin edits the same list,
+and it stays when an account is removed. This is why the version is 18.0.0.
 
 **Back up the database first.** The upgrade changes the database in a way
 that can't be undone. Take a backup of the database before you upgrade. For
