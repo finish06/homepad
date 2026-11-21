@@ -65,12 +65,11 @@ describe('AC-007 — no "switch to invite_only afterwards" step', () => {
   });
 
   it('the CHANGELOG says how to check the mode, and calls out installs with no setting', () => {
+    // Household basics shipped in 17.1.0; its notes carry the upgrade advice.
     const md = read('CHANGELOG.md');
-    expect(md).toMatch(/^## \[Unreleased\]/m);
-    const unreleased = md.split(/^## \[Unreleased\].*$/m)[1].split(/^## \[/m)[0];
-    expect(unreleased).toContain('Admin Panel → System → Registration mode');
-    expect(unreleased).toMatch(/no `HOMEPAD_REGISTRATION`/);
-    // The release heading stays below it, so the version contract is untouched.
-    expect(md.indexOf('## [Unreleased]')).toBeLessThan(md.search(/^## \[\d+\.\d+\.\d+\]/m));
+    expect(md).toMatch(/^## \[17\.1\.0\]/m);
+    const notes = md.split(/^## \[17\.1\.0\].*$/m)[1].split(/^## \[/m)[0];
+    expect(notes).toContain('Admin Panel → System → Registration mode');
+    expect(notes).toMatch(/no `HOMEPAD_REGISTRATION`/);
   });
 });

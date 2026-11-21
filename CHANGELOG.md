@@ -7,13 +7,18 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
-## [Unreleased] — Household basics: safe sign-up, adding an adult, every admin can edit
+## [17.1.0] — 2026-11-20 — Household accounts, backup and import, and status widgets
 
-**Sign-up is closed by default now.** `HOMEPAD_REGISTRATION` defaults to
-`invite_only` in `compose.yaml`, `compose.build.yaml`, `.env.example` and the
-API. The first account on a fresh install still signs up and is the admin; the
-sign-in screen shows **Set up Homepad** for it. After that, the sign-in screen
-has no **Create account**, so a kid who signs out has nothing to do there.
+**Upgrading:** deploy homepad-api 17.1.0 first, then the web image. The API
+runs two automatic migrations: `0019` adds an `invites` table, and `0020` adds
+widget settings. Existing accounts, apps and dashboards stay as they are.
+
+**Household accounts are invite-only by default.** `HOMEPAD_REGISTRATION` now
+defaults to `invite_only` in `compose.yaml`, `compose.build.yaml`,
+`.env.example` and the API. The first account on a fresh install signs up and
+is the admin; the sign-in screen shows **Set up Homepad** for it. After that,
+an admin adds adults with invite links or **+ Add an adult**, and the sign-in
+screen has no **Create account**.
 
 **Check your mode** in **Admin Panel → System → Registration mode**:
 
@@ -31,6 +36,30 @@ link for a member or an admin. It works once, for 7 days, and they pick their
 own email and password. Pending invites are listed there, and you can revoke
 one. The `user` role now reads **member**.
 
+**SSO needs a verified email (security fix).** Single sign-on now links or
+creates an account only when the provider says the email is verified
+(`email_verified` is true). Before this, anyone who could set an email address
+at the provider could sign in as the Homepad account with that address. A
+sign-in with an unverified email is refused. In PocketID:
+
+- existing users: **Settings → Users**, edit the user, and turn on the toggle
+  next to **Email** ("Mark as verified");
+- new users: **Application Configuration → Email**, and turn on **Emails
+  verified by default**;
+- or set `EMAILS_VERIFIED=true` in PocketID's environment.
+
+**Plain-HTTP installs need `COOKIE_SECURE=false` for single sign-on too.** The
+single sign-on cookie now follows `COOKIE_SECURE`, the same as password
+sign-in. If you serve Homepad over plain `http://`, set `COOKIE_SECURE=false`,
+or the browser drops the cookie and single sign-on fails. The quickstart
+`compose.yaml` already defaults to `false`. Over HTTPS, keep
+`COOKIE_SECURE=true`.
+
+**Sign-in fixes.** Sign-in now does the same work for every email, so it no
+longer shows which emails have accounts. A new password over
+72 bytes is refused with a clear message. Accented letters and emoji count as
+more than one byte. Before this, such a password failed with a server error.
+
 **Every admin edits the same catalog.** A second admin's edits used to fail or
 vanish. Now they change the shared catalog, like the first admin's.
 
@@ -40,8 +69,36 @@ seconds, so an app you tick shows within 30 seconds.
 **Account limit.** `HOMEPAD_MAX_ACCOUNTS` caps accounts plus pending invites.
 Unset means no limit.
 
-**Upgrading:** needs homepad-api with migration `0019` (an `invites` table).
-Deploy the API and web images as a pair, API first.
+**Backup and import.** **Backup and import** is a new section at the end of the
+Admin Panel, for admins only. You can:
+
+- download a backup of the whole dashboard as one file;
+- restore a backup, with **Merge** (adds and updates, deletes nothing) or
+  **Replace** (deletes every app, section and App Library offer first, after
+  you type `REPLACE`). A restore shows a preview first, and it is all or
+  nothing;
+- import from a Homepage config (`services.yaml`, and optionally
+  `bookmarks.yaml` and `settings.yaml`). An import only adds.
+
+With **Include people** ticked, a backup holds email addresses, so keep it
+private. A backup never holds passwords or sign-ins. A restore can be up to
+16 MB; the quickstart `compose.yaml` allows that. Details are in
+[docs/backup-import.md](./docs/backup-import.md).
+
+**Status widgets.** Tiles can show up to three numbers from Jellyfin, Sonarr
+or Radarr. A strip at the top of the dashboard can show a clock and the
+weather, and ⌘K can offer "Search the web". An admin turns the clock, weather
+and web search on in **Admin Panel → Widgets**, and adds an app widget in the
+tile's editor. Each viewer can hide widgets in **My settings → Show widgets**.
+
+Jellyfin, Sonarr and Radarr keys can only be saved when `HOMEPAD_SECRET_KEY` is
+set on the API. It is 64 hex characters, for example from
+`openssl rand -hex 32`. Keep a copy of it. If it is lost or changed, saved
+widget keys have to be entered again. The clock, weather and web search work
+without it. Only the weather calls out of your network, to Open-Meteo. Details
+are in [docs/widgets.md](./docs/widgets.md).
+
+The quickstart `compose.yaml` now pins `17.1.0` for both images.
 
 ## [17.0.0] — 2026-10-30 — Kid accounts, and sign-ins that survive a restart
 

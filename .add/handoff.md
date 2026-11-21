@@ -1,13 +1,16 @@
 # Session Handoff
 
-**Written:** 2026-11-13 (after retro-2026-11-13)
+**Written:** 2026-11-20 (17.1.0 release PR opened)
 
 ## In progress
-- **17.1.0 (household, backup/import, status widgets).** API halves merged: homepad-api #91, #93, #94, #97.
-  - Web PRs open and mergeable, in this merge order: #565 household → #566 backup → #568 widgets. They conflict with each other; rebase the next after each merge.
-  - **Blocked on #560**: mr-staging and staging-release can't fetch `Code/homelab` since the repos went private. Needs Caleb to turn on org Cross-Repository Access for `Code/homelab` (web UI only), then #560 switches to `gitea.token`; or Caleb OKs a read-only token as an Actions secret instead.
-  - `HOMEPAD_SECRET_KEY` is unset on staging and prod; widgets need it. Creating it needs Caleb's go, via Joe.
-  - Release notes must call out the new invite-only sign-up default.
+- **17.1.0 is in its release PR** (`release/17.1.0`). Everything is merged on main: web #560, #565, #566, #568, #574, #586; API #91, #93, #94, #97, #98, #99.
+  - After merge: Caleb and Joe tag homepad-api `v17.1.0` on `2ef3d95` (or newer main) and homepad `v17.1.0`. The quickstart `compose.yaml` pins `17.1.0`, so tag both together.
+  - Deploy the API first, then web. Prod promotion is Caleb's go, via Joe.
+  - `HOMEPAD_SECRET_KEY` was unset on staging and prod at the 11-13 handoff; widget keys can't be saved until it's set. Creating it needs Caleb's go, via Joe.
+- **18.0.0 specs are approved** on PR #579 (household management: strict iframe sandbox with opt-in, OIDC verified email, admin reset link).
+
+## Next
+- The 18.0.0 build, from the approved specs and plan on #579.
 
 ## Follow-ups
 - Close #562 (superseded by #570); delete the `diag/kid-accounts-e2e-frame-cost` branch.

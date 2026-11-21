@@ -2,6 +2,36 @@
   "pending": [],
   "versions": [
     {
+      "version": "17.1.0",
+      "date": "2026-11-20",
+      "changes": [
+        {
+          "type": "feature",
+          "text": "Accounts are invite-only by default. An admin adds adults with an invite link or + Add an adult, in Administration → Accounts."
+        },
+        {
+          "type": "security",
+          "text": "Single sign-on only links or creates an account when your provider says the email is verified. In PocketID, mark the email as verified on the user, or turn on Emails verified by default."
+        },
+        {
+          "type": "enhancement",
+          "text": "On plain http://, single sign-on now needs COOKIE_SECURE=false too, the same as password sign-in."
+        },
+        {
+          "type": "security",
+          "text": "Sign-in no longer shows which emails have accounts. A new password over 72 bytes gets a clear message."
+        },
+        {
+          "type": "feature",
+          "text": "Backup and import, in the Admin Panel: download a backup, restore it (merge or replace), or import from a Homepage config."
+        },
+        {
+          "type": "feature",
+          "text": "Status widgets: numbers from Jellyfin, Sonarr and Radarr on tiles, a clock and weather strip, and web search in ⌘K. App keys need HOMEPAD_SECRET_KEY on the API."
+        }
+      ]
+    },
+    {
       "version": "17.0.0",
       "date": "2026-10-30",
       "changes": [
