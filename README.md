@@ -38,6 +38,7 @@ You need Docker with Compose v2.23 or newer. Nothing else to clone or build:
 mkdir homepad && cd homepad
 curl -fsSLO https://raw.githubusercontent.com/finish06/homepad/main/compose.yaml
 echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" > .env
+echo "HOMEPAD_SECRET_KEY=$(openssl rand -hex 32)" >> .env
 docker compose up -d
 ```
 
@@ -67,6 +68,8 @@ Homepad is a dashboard for a household. The admin keeps one list of apps. Everyo
 - **Kid accounts.** A kid account is a name and a color, with only the apps you pick. See [docs/kid-accounts.md](./docs/kid-accounts.md).
 - **Installs like an app.** Add it to the home screen of a phone or iPad. Touch-sized targets.
 - **Fast to get around.** ⌘K search across every app, apps grouped into sections, and Large, Compact or List tiles.
+- **Widgets.** Jellyfin, Sonarr and Radarr tiles can show up to three numbers each, such as what's playing or what's missing. A strip at the top can show a clock and the weather, and ⌘K can search the web. The app keys need `HOMEPAD_SECRET_KEY` on the API. The clock, weather and web search work without it. See [docs/widgets.md](./docs/widgets.md).
+- **Backup and import.** Admins can download the whole dashboard as one file, restore it, or import a Homepage config. See [docs/backup-import.md](./docs/backup-import.md).
 
 <p align="center">
   <img src="./docs/screenshots/desktop-light.webp" alt="Homepad dashboard in light mode" width="68%">
@@ -94,7 +97,7 @@ Each cell was checked on 2026-11-07 against the project's own docs and code: Hom
 3. Homepage, Homarr and Dashy run status checks on the server. The address each check uses is also sent to the page. Homepad sends the page only the result.
 4. Heimdall has local users and can trust a sign-in header from a proxy. It has no up or down status checks.
 
-Homepage has more than 100 service widgets and can run next to Homepad. Homepad has no service widgets.
+Homepage has more than 100 service widgets and can run next to Homepad. Homepad has widgets for Jellyfin, Sonarr and Radarr, plus a clock, the weather and web search.
 
 ## Registration
 
@@ -102,7 +105,7 @@ Sign-up is closed by default (`HOMEPAD_REGISTRATION=invite_only`). The first acc
 
 - **Adults** join through an invite link. In **Administration → Accounts**, tap **+ Add an adult**, enter a name, pick **Member** or **Admin**, and send them the link. It works once, for 7 days, and they pick their own email and password. You can revoke a link that hasn't been used.
 - **Kids** are added in the same place. See [docs/kid-accounts.md](./docs/kid-accounts.md).
-- **Single sign-on** users keep signing in with it; they need no invite.
+- **Single sign-on** users need no invite. Their provider must mark their email as verified. See [Single sign-on](#single-sign-on).
 
 `HOMEPAD_REGISTRATION=open` lets anyone who can open Homepad make an account. Accounts shows a warning while it's on, because a kid who signs out could make an adult account. To close it, set `HOMEPAD_REGISTRATION=invite_only` in `.env` and run `docker compose up -d`. Check the current mode in **Admin Panel → System → Registration mode**.
 
@@ -123,11 +126,20 @@ OIDC_ADMIN_GROUP=admins        # optional: members of this group become admins
 
 Register the redirect URL with your provider, then run `docker compose up -d`. With `OIDC_ENABLED=false`, the SSO endpoints aren't registered and the login screen shows local sign-in only.
 
+**The email must be verified.** Homepad links or creates an account only when the provider says the email is verified (`email_verified` is true). Otherwise it refuses the sign-in. In PocketID:
+
+- existing users: **Settings → Users**, edit the user, and turn on the toggle next to **Email** ("Mark as verified");
+- new users: **Application Configuration → Email**, and turn on **Emails verified by default**;
+- or set `EMAILS_VERIFIED=true` in PocketID's environment.
+
+On plain `http://`, single sign-on also needs `COOKIE_SECURE=false`. See [Running it for real](#running-it-for-real).
+
 ## Running it for real
 
-- **HTTPS.** Put Homepad behind your reverse proxy (Traefik, Caddy, nginx, Pangolin…) and set `COOKIE_SECURE=true`. Leave it `false` only for plain `http://localhost`, or the login cookie is dropped.
+- **HTTPS.** Put Homepad behind your reverse proxy (Traefik, Caddy, nginx, Pangolin…) and set `COOKIE_SECURE=true`. Use `false` only for plain `http://`. There, password sign-in and single sign-on both need it, or the browser drops the sign-in cookie.
 - **Port.** Set `HOMEPAD_WEB_PORT` (default 8080).
-- **Data.** Everything lives in the `homepad_pg` Postgres volume; the web and API containers are disposable. Back that volume up.
+- **Data.** Everything lives in the `homepad_pg` Postgres volume; the web and API containers are disposable. Back that volume up. Admins can also download a backup in the Admin Panel, under **Backup and import**.
+- **Widget keys.** Keep a copy of `HOMEPAD_SECRET_KEY` with your backups. If it is lost or changed, saved widget keys have to be entered again.
 - **All settings** are documented in [`.env.example`](./.env.example).
 
 ## Project
