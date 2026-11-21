@@ -90,6 +90,7 @@ const FIELD_WORDS: Record<string, string> = {
   icon: 'icon',
   section: 'section',
   clickAction: 'click action',
+  iframeSameOrigin: 'keep its sign-in',
   gatusKey: 'status key',
   gridWidth: 'width',
   order: 'order',

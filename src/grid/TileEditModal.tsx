@@ -11,6 +11,7 @@ import {
   type Service,
 } from '../api';
 import { iconSrc, initialBadge, validateIconFile } from '../lib/icons';
+import { addressKind, type AddressKind } from '../lib/sandbox';
 import WidgetSection, { useWidgetEditor } from '../widgets/WidgetSection';
 
 // v23 §4.2 — the per-option hint shown under the click-action selector.
@@ -26,6 +27,15 @@ const CLICK_ACTION_HINT: Record<ClickAction, string> = {
   new_tab: 'Opens in a new browser tab. (default)',
   same_tab: 'Navigates this tab to the service.',
   iframe: 'Embeds the service in an overlay panel. Some sites block embedding — a fallback link appears if that happens.',
+};
+
+// SPEC-iframe-sandbox-optin UX §2.3 — copy is exact. The UI never says
+// "sandbox", "origin" or "cookies" (UX §4): the label says what the admin gets.
+const SIGNIN_LABEL = 'Let this app keep its sign-in';
+const SIGNIN_LINE: Record<AddressKind, string> = {
+  other: 'Turn this on if the app asks you to sign in every time, or stays blank. Only for apps you trust.',
+  same: "Not available for pages on this Homepad's own address.",
+  unparseable: "Enter the app's full address first, like https://app.example.",
 };
 
 // v21 — Tile Edit Modal (specs/v21-tile-edit-modal.md §6, §8). An admin in edit
@@ -64,6 +74,11 @@ export default function TileEditModal({
   // v25 §7 — the Gatus endpoint slug backing the tile's health meter. Prefills
   // from the read model (absent on a pre-v25 payload → ''), no format validation.
   const [gatusKey, setGatusKey] = useState(service.gatus_key ?? '');
+  // SPEC-iframe-sandbox-optin §2.2 — "Let this app keep its sign-in". Absent on
+  // an older server reads as off. The local value survives a switch to another
+  // click action and back, and an address that greys the switch out.
+  const savedKeepSignIn = service.iframeSameOrigin === true;
+  const [keepSignIn, setKeepSignIn] = useState(savedKeepSignIn);
   // Local icon presence — flips live as immediate uploads/removes complete, so
   // the preview (and its cache-busting rev) tracks the new state before Save.
   const [iconLight, setIconLight] = useState(service.iconLight);
@@ -86,6 +101,8 @@ export default function TileEditModal({
   const titleId = useId();
   const urlId = useId();
   const clickActionId = useId();
+  const signInLabelId = useId();
+  const signInLineId = useId();
   const catId = useId();
   const iconUrlId = useId();
   const descId = useId();
@@ -124,6 +141,15 @@ export default function TileEditModal({
     if (confirmRemove) removeKeepRef.current?.focus();
   }, [confirmRemove]);
 
+  // UX §2.4 — the switch shows only for Inline overlay, and is usable only for
+  // an address on another origin. The live check is the overlay's own
+  // (src/lib/sandbox.ts). Greyed out, it shows off, because that is what the
+  // overlay does, and Save sends nothing for it (I-2).
+  const showSignIn = clickAction === 'iframe';
+  const signInKind = addressKind(url.trim());
+  const signInUsable = showSignIn && signInKind === 'other';
+  const sendKeepSignIn = signInUsable && keepSignIn !== savedKeepSignIn;
+
   // Dirtiness = any text field / category / Icon URL differing from its prefill.
   // Immediate icon PNG upload / Remove are NOT part of dirty tracking (§8.4).
   const dirty =
@@ -134,6 +160,7 @@ export default function TileEditModal({
     categoryId !== (service.categoryId ?? '') ||
     clickAction !== (service.clickAction ?? 'new_tab') ||
     gatusKey !== (service.gatus_key ?? '') ||
+    sendKeepSignIn ||
     widget.dirty;
 
   const previewSvc: Service = { ...service, name: title, icon: iconUrl, iconLight, iconDark };
@@ -232,6 +259,9 @@ export default function TileEditModal({
     // TRIMMED value differs from the prefill (a blank/whitespace value trims to ""
     // and clears monitoring — §8.5, AC-007). No format validation (AC-011).
     if (gatusKey.trim() !== (service.gatus_key ?? '')) patch.gatus_key = gatusKey.trim();
+    // SPEC-iframe-sandbox-optin AC-009 — like clickAction, only when it changed;
+    // never from a hidden or greyed-out switch (UX I-2).
+    if (sendKeepSignIn) patch.iframeSameOrigin = keepSignIn;
 
     const r = await updateService(service.id, patch);
     setBusy(false);
@@ -254,6 +284,8 @@ export default function TileEditModal({
       categoryId: categoryId || null,
       categoryName,
       clickAction: r.service.clickAction,
+      // Server-authoritative too (#342): the overlay uses what was saved.
+      iframeSameOrigin: r.service.iframeSameOrigin,
       // v25 — reflect the server-persisted slug (server-authoritative, like #342)
       // so a reopened modal prefills the saved key without waiting for a reload.
       gatus_key: r.service.gatus_key,
@@ -461,6 +493,45 @@ export default function TileEditModal({
             <p className="tile-edit-help tile-click-action-hint" data-testid="tile-click-action-hint" aria-live="polite">
               {CLICK_ACTION_HINT[clickAction]}
             </p>
+            {/* SPEC-iframe-sandbox-optin UX §2, §4 — the My settings switch markup.
+                Greyed out uses aria-disabled, not disabled, so it stays in the tab
+                order and a screen reader hears why. Clicks and Space do nothing
+                then; Enter never toggles it (Enter in this form is Save). */}
+            {showSignIn && (
+              <>
+                {/* Layout from utilities the entry stylesheet already has, and the
+                    dimming inline, so this row adds no CSS to any chunk (UX §1). */}
+                <div className="flex min-h-[44px] justify-between gap-3">
+                  <span id={signInLabelId} className="tile-edit-label pt-3">
+                    {SIGNIN_LABEL}
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    className="settings-switch"
+                    data-testid="tile-signin-switch"
+                    aria-checked={signInUsable && keepSignIn}
+                    aria-disabled={signInUsable ? undefined : true}
+                    // UX §4 — greyed out dims only the track and thumb; the reason
+                    // line below keeps its full colour.
+                    style={signInUsable ? undefined : { opacity: 0.5, cursor: 'not-allowed' }}
+                    aria-labelledby={signInLabelId}
+                    aria-describedby={signInLineId}
+                    onClick={() => {
+                      if (signInUsable) setKeepSignIn((v) => !v);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.preventDefault();
+                    }}
+                  >
+                    <span className="settings-switch-thumb" aria-hidden="true" />
+                  </button>
+                </div>
+                <p id={signInLineId} className="tile-edit-help" data-testid="tile-signin-help" aria-live="polite">
+                  {SIGNIN_LINE[signInKind]}
+                </p>
+              </>
+            )}
           </div>
 
           <div className="tile-edit-field">

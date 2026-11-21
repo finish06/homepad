@@ -42,7 +42,9 @@ function blocks(conf: string): Block[] {
   let buf = '';
   for (const ch of text) {
     if (ch === '{') {
-      const head = buf.trim();
+      // The block's name is the last line before its brace (compose.yaml puts
+      // `content: |` on the lines above `server {`).
+      const head = (buf.trim().split('\n').pop() ?? '').trim();
       buf = '';
       const b: Block = { name: head, directives: [] };
       stack.push(b);
@@ -125,8 +127,8 @@ describe('nothing can frame Homepad (SPEC-iframe-sandbox-optin AC-006)', () => {
 
   it('the image build refuses a snippet without the frame headers', () => {
     const docker = read('Dockerfile');
-    expect(docker).toMatch(/grep -q "X-Frame-Options \\"DENY\\"" \/etc\/nginx\/snippets\/security-headers\.conf/);
-    expect(docker).toMatch(/grep -q "frame-ancestors 'none'" \/etc\/nginx\/snippets\/security-headers\.conf/);
+    expect(docker).toContain(`grep -q 'X-Frame-Options "DENY"' /etc/nginx/snippets/security-headers.conf`);
+    expect(docker).toContain(`grep -q "frame-ancestors 'none'" /etc/nginx/snippets/security-headers.conf`);
   });
 
   // Negative controls: the checker can fail.
