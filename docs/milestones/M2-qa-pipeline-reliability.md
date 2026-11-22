@@ -15,10 +15,12 @@ Make every PR's QA cycle cheap and trustworthy: one reviewer per PR, a staging s
 
 - [ ] The QA lease is live, and over the next 20 merged PRs **no PR is worked by two pool members** — measured by joining reviews **and** issue comments, because a reviews-only query is blind to the losing reviewer (L-003)
 - [ ] Staging-slot reservation (#493); owner **Joe**, active. First step is detection (briefs assert the deployed SHA), then the lease. Distinct from #492 (task lease): a PR's staging deploy can't be overwritten by another PR while QA is running against it, and briefs assert the SHA
-- [ ] QA-pod Playwright environment fixed: #507 ✅ (pod 100/100, 2026-10-13), #455 ✅, #452 ✅, #254 (Joe: repro on current main first)
+- [ ] QA-pod Playwright environment fixed: #507 ✅ (pod 100/100, 2026-10-13), #455 ✅, #452 ✅, #254 (Joe: repro on current main first). **New since 10-13:** the runner container's Playwright browser doesn't match the installed package, so `test:gate` fails entirely (#614, same cause as #604), and `test:e2e` is missing `libglib-2.0.so.0` on the QA pod (#547)
+- [ ] The mobile e2e flakes are fixed or quarantined with a cause: kid-accounts TC-001 (#553, #552) and the WebKit layout instability (#567)
+- [ ] Staging is usable for every QA check: its HTTPS ingress serves the right certificate (#576), so the Copy-button paths can be exercised (#607); it has an SSO-only adult (#606); and QA adult accounts can be deleted so they stop piling up (#591)
 - [x] Real-browser gates added for the admin modals that have none (#523) — AdminSettings and the custom-app form (#423; TileEdit already has two)
 - [x] #414 verified **in-cluster** (staging security headers) and closed or fixed — it can't be checked from the LAN, where the ingress returns Traefik 404s for every host
-- [ ] #256 and #261 (July staging env) confirmed obsolete or fixed by QA; #487 resolved ✅. **#256 is live**: unguarded storage tests write into staging (homepad-api#72, guard first). Then **#261** needs Caleb to pick the admin test account, then a Joe reseed
+- [ ] #256 and #261 (July staging env) confirmed obsolete or fixed by QA; #487 resolved ✅, #261 closed ✅ (2026-11-20). **#256 is still open**: unguarded storage tests write into staging (homepad-api#72, guard first)
 
 ## Appetite
 
@@ -32,10 +34,12 @@ Two cycles. Much of this lives in ci-shared and QA infrastructure, so it moves a
 |---------|------|----------|--------|-------|
 | QA task lease | ci-shared | IN_PROGRESS | Dispatched to Stitch as `stitch-qa-lease-20260929`; must expire and fail open | — |
 | Staging-slot reservation | — | SHAPED | #493 — 'one defect behind 10 QA advisories' | — |
-| QA-pod Playwright env | — | DOWNHILL | #452 #455 #507 closed; #254 to repro | cycle-2 |
+| QA-pod Playwright env | — | UPHILL | #452 #455 #507 closed; #254 to repro; regressed: #614/#604 browser mismatch, #547 libglib | cycle-2 |
+| Mobile e2e flakes | — | SHAPED | #553 #552 #567 | — |
+| Staging fit for QA | — | SHAPED | #576 HTTPS cert, #607 Copy path, #606 SSO-only adult, #591 test-account cleanup | — |
 | Admin-modal browser coverage | — | DONE | #423, closed by #523 | cycle-2 |
 | Staging security headers | — | DONE | #414 closed in-cluster; CSP split out as #529 (M3) | cycle-2 |
-| Old staging-env advisories | — | UPHILL | #487 closed; #256 is live (homepad-api#72); #261 needs a decision | cycle-2 |
+| Old staging-env advisories | — | DOWNHILL | #487 and #261 closed; #256 is live (homepad-api#72) | cycle-2 |
 
 Every issue listed here was **re-checked against `main` at `57733eb` on 2026-10-11** and is still true. Issues that turned out to be fixed, obsolete or duplicates were closed with evidence rather than carried in.
 

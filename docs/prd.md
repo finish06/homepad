@@ -1,6 +1,6 @@
 # homepad — Product Requirements Document
 
-**Version:** 0.1.0
+**Version:** 0.2.5
 **Created:** 2026-09-15
 **Author:** Caleb Dunn
 **Status:** Adopted (retroactive — written at ADD adoption, v16.2.0 already in production)
@@ -122,13 +122,21 @@ status and detail.
 
 | Horizon | Milestone | Goal | Status |
 |---|---|---|---|
-| **Now** | [M7 — Growth: install funnel + launch](milestones/M7-growth-install-funnel.md) | 3× gethomepad.dev traffic in 30 days: one-command install, then a launch | IN_PROGRESS (2026-10-13) |
-| **Now** | [M2 — QA pipeline reliability](milestones/M2-qa-pipeline-reliability.md) | One reviewer per PR, a reserved staging slot, a QA browser env that fails only for real | IN_PROGRESS (lease dispatched) |
-| **Next** | [M3 — Robustness & security](milestones/M3-robustness-security.md) | Iframe sandbox (#334), ErrorBoundary for lazy overlays (#341) | NOT_STARTED |
+| **Now** | [M9 — 18.0.1: release follow-ups](milestones/M9-18-0-1-follow-ups.md) | Fix what QA found on the 18.0.0 release, and clean up the spec and doc drift from 17.x–18.0 | NOT_STARTED (active) |
+| **Now** | [M2 — QA pipeline reliability](milestones/M2-qa-pipeline-reliability.md) | One reviewer per PR, a reserved staging slot, a QA browser env that fails only for real | IN_PROGRESS |
+| **Now** | [M7 — Growth: install funnel + launch](milestones/M7-growth-install-funnel.md) | Organic growth plus the launch posts. The 3× by 11-12 target was missed (accepted by Caleb 11-07) | IN_PROGRESS (funnel done; launch waits on Caleb) |
+| **Next** | [M3 — Robustness & security](milestones/M3-robustness-security.md) | ErrorBoundary for lazy overlays (#341), a Content-Security-Policy (#529). The iframe sandbox (#334) shipped in 18.0.0 | NOT_STARTED |
 | **Next** | [M4 — Accessibility debt](milestones/M4-accessibility-debt.md) | AA everywhere, starting with the dark-mode login (#379) | NOT_STARTED |
 | **Later** | [M5 — Non-admin arrange](milestones/M5-non-admin-arrange.md) | Per-user tile drag for non-admins (v29 §3.3) — needs a spec first | NOT_STARTED |
 | **Later** | [M6 — Layout & design evolution](milestones/M6-layout-design-evolution.md) | Kare-led layout and visual decisions | NOT_STARTED |
+| **Done** | [M8 — Household accounts (17.0.0 → 18.0.0)](milestones/M8-household-accounts.md) | Kid accounts, household accounts, backup and import, status widgets, managing adults, safer sign-in | COMPLETE (2026-11-22 — 18.0.0 in production) |
 | **Done** | [M1 — 16.7.0 release + quick wins](milestones/M1-release-16-7-quick-wins.md) | Ship the 10 unreleased commits; clear 10 verified quick wins and 5 spec-cleanup decisions | COMPLETE (2026-10-12 — 16.7.1 in production) |
+
+**Refreshed 2026-11-22.** Between 10-13 and 11-22 the work that shipped (17.0.0,
+17.1.0, 18.0.0) came from Caleb's household-accounts priorities, not from this
+table. M8 records it after the fact. The refresh re-checked every issue the
+milestones name against Gitea, and sorted the 40 issues opened since 10-11 into
+M2, M3 and M9.
 
 **Decisions are folded into milestones**, not held in a separate queue (Caleb,
 2026-10-11): #368 #172 #295 #449 #200 → M1; #487 → M2; #488 #477 → M4; #403 → M6.
@@ -176,3 +184,4 @@ it.
 | 2026-10-12 | 0.2.2 | roadmap | M1 archived: Now → Done (milestone file kept). Now holds M2 only. Spec count corrected 39 → 40 |
 | 2026-10-13 | 0.2.3 | roadmap | M7 (growth: install funnel + launch) added to Now, ahead of M3 (Caleb's 30-day goal). Cycle-2 closed; 16.7.2 in production |
 | 2026-11-07 | 0.2.4 | Caleb Dunn | §4 amended for SPEC-status-widgets (Q1 a): one line of server-fetched numbers per tile, a clock and weather strip, and ⌘K web search are in scope; charts, lists, history and detail pages stay out |
+| 2026-11-22 | 0.2.5 | roadmap | Refresh after 18.0.0: M8 (household accounts, 17.0.0–18.0.0) added as Done; M9 (18.0.1 follow-ups) added to Now as the active milestone; M7 target marked missed; #334 done; #529 into M3; new QA-env issues into M2 |

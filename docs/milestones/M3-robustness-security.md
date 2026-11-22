@@ -9,14 +9,15 @@
 
 ## Goal
 
-Close the two verified robustness and security gaps in the client — the iframe sandbox and the missing error boundary — and tidy the two smaller behaviour issues alongside them.
+Close the remaining robustness and security gaps in the client: the missing error boundary and the missing Content-Security-Policy. Tidy the two smaller behaviour issues alongside them. (The iframe sandbox, the other original gap, shipped in 18.0.0.)
 
 ## Success Criteria
 
-- [ ] #334: decide on the iframe sandbox — drop `allow-same-origin`, or keep it with a documented threat model — and pin it with a test. Today `IframeOverlay.tsx:21` combines `allow-scripts` with `allow-same-origin`
+- [x] #334: iframe sandbox decided and pinned. 18.0.0 uses a strict sandbox by default, and an app gets `allow-same-origin` only when an admin opts it in (see the 18.0.0 CHANGELOG, "Overlay apps")
 - [ ] #341: every lazy overlay sits inside an ErrorBoundary; a failed chunk fetch shows a recoverable error instead of crashing the app — tested by simulating the failure. There is no ErrorBoundary anywhere in `src/` today
 - [ ] #335: blocked-embed detection (X-Frame-Options / CSP) — improve it, or document the limitation in the UI copy
 - [ ] #451: `retryNote` resets when the health panel re-enters STALE
+- [ ] #529: a Content-Security-Policy on staging and prod, from a spec and an audit of inline code and origins. It lives in the homelab ConfigMap, so the rollout goes through Joe
 
 ## Appetite
 
@@ -28,7 +29,8 @@ One cycle.
 
 | Feature | Spec | Position | Status | Cycle |
 |---------|------|----------|--------|-------|
-| Iframe sandbox | — | SHAPED | #334 — security advisory | — |
+| Iframe sandbox | 18.0.0 | DONE | #334 — strict sandbox + per-app opt-in | — |
+| Content-Security-Policy | — | SHAPED | #529 — needs a spec | — |
 | ErrorBoundary for lazy overlays | — | SHAPED | #341 | — |
 | Blocked-embed fallback | — | SHAPED | #335 | — |
 | Stale retry note | — | SHAPED | #451 | — |
@@ -37,7 +39,7 @@ Every issue listed here was **re-checked against `main` at `57733eb` on 2026-10-
 
 ## Dependencies
 
-None — self-contained client work.
+Client work, except #529: the CSP header is set in the homelab ConfigMap (Joe).
 
 ## Risks
 

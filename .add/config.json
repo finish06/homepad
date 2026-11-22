@@ -11,7 +11,7 @@
     "level": "ga",
     "promoted_from": null,
     "promoted_date": null,
-    "next_promotion_criteria": "GA is the top level. Sole outstanding evidence gap at adoption: no enforced coverage threshold (resolved by this init \u2014 90% configured in vite.config.ts)."
+    "next_promotion_criteria": "GA is the top level. Sole outstanding evidence gap at adoption: no enforced coverage threshold (resolved by this init — 90% configured in vite.config.ts)."
   },
   "architecture": {
     "languages": [
@@ -169,8 +169,8 @@
     "archival_max_severity": "medium"
   },
   "planning": {
-    "current_milestone": "M7-growth-install-funnel",
-    "current_cycle": "cycle-3",
+    "current_milestone": "M9-18-0-1-follow-ups",
+    "current_cycle": null,
     "wip_limit": 5,
     "parallel_agents": 5,
     "cycle_history": [
@@ -194,8 +194,10 @@
         "cycle": "cycle-3",
         "milestone": "M7-growth-install-funnel",
         "planned": "2026-10-13",
-        "status": "IN_PROGRESS",
-        "plan": ".add/cycles/cycle-3.md"
+        "status": "COMPLETE",
+        "plan": ".add/cycles/cycle-3.md",
+        "completed": "2026-11-22",
+        "note": "Funnel items done; launch posts carried in M7 (Caleb posts them)"
       }
     ]
   },

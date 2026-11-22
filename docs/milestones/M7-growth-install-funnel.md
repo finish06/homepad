@@ -4,7 +4,7 @@
 **Status:** IN_PROGRESS
 **Horizon:** NOW
 **Started:** 2026-10-13
-**Target:** 2026-11-12 (30 days)
+**Target:** 2026-11-12 (30 days) — **missed**; Caleb accepted this on 2026-11-07 and the work continues as organic growth
 **Owner:** Caleb (goal); homepad-21 runs it autonomously (Caleb, 2026-10-13: "free to run here, keep me updated, never share confidential info")
 
 ## Goal
@@ -45,13 +45,14 @@ From this baseline there is little to lose, and every visitor we win is lost at 
 
 ## Success Criteria
 
-- [ ] Umami: 30-day visitors at ≥ 3× the baseline by 2026-11-12, measured by Joe's pull
+- [ ] Umami: 30-day visitors at ≥ 3× the baseline by 2026-11-12, measured by Joe's pull — **missed** (45 of 96 on 11-09, 46 on 11-16; accepted 11-07). Still the goal, with no date
 - [x] A stranger installs with **one command** and sees a working dashboard. Verified on a clean Docker host, with a log (16.7.4, 2026-10-13: healthy in 16s, arm64)
 - [x] Public, version-tagged images for **both** web and API on GHCR (`:16.7.x`, `:latest`), amd64 and arm64
 - [x] The README leads with a screenshot, the one-command install and the comparison
 - [x] The site's install steps match the README; CTAs are tracked as Umami events; SEO basics are in place (getHomepad 0.4.0)
 - [~] A launch kit drafted for Caleb (r/selfhosted, r/homelab, selfh.st, Show HN, AlternativeTo); posting dates and results logged here
-- [ ] GitHub stars and GHCR pulls tracked weekly in this file
+- [ ] GitHub stars and GHCR pulls tracked weekly in this file — stars are in the weekly table; GHCR pulls are not yet. #540: the rows need a timestamp and source
+- [ ] The launch posts go out (Caleb posts them; drafts are ready)
 
 ## Features
 
@@ -77,12 +78,13 @@ From this baseline there is little to lose, and every visitor we win is lost at 
 
 | Cycle | Features Advanced | Status | Outcome |
 |---|---|---|---|
-| cycle-3 | API image, quickstart compose, README, site, launch kit | IN_PROGRESS | `.add/cycles/cycle-3.md` |
+| cycle-3 | API image, quickstart compose, README, site, launch kit | COMPLETE (2026-11-22) | `.add/cycles/cycle-3.md` — funnel done; launch posts wait on Caleb |
 
 ## Progress log
 
 | Date | Event |
 |---|---|
+| 2026-11-22 | Roadmap refresh: target marked missed, milestone kept in Now for organic growth and the launch. 17.0.0, 17.1.0 and 18.0.0 shipped in the meantime (M8); the README and site show 18.0.0 (homepad #616, getHomepad #41) |
 | 2026-10-13 | Goal set. GitHub metadata fixed on both repos: homepage gethomepad.dev, a user-facing description, 12 topics |
 | 2026-10-13 | 16.7.3 and 16.7.4 released (public multi-arch images, one-file install, user README, public App Library seed). Site 0.4.0 live. GitHub Releases created. Demo live status redesigned to option A (homelab snapshot), waiting on Joe/Gus. Launch kit drafted. Baseline hint from Joe: the demo had zero visitors on 18 of the last 31 days |
 
