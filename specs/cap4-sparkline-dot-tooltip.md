@@ -1,9 +1,9 @@
 # Spec: Sparkline Dot Hover Tooltip — Capability #4
 
-**Version:** 1.0.0
+**Version:** 1.0.1
 **Created:** 2026-06-23
 **Author:** Walt (product lead)
-**Status:** BUILT 2026-09-22 (restored) — see §8. Originally shipped 2026-06-23 (PR #145),
+**Status:** SHIPPED — 16.5.0 (2026-09-22, restored) — see §8. Originally shipped 2026-06-23 (PR #145),
 lost 2026-07-02 with its host component, rebuilt on AppGrid.
 **Repo:** `Code/homepad` (frontend only — no backend changes)
 **Estimate:** ~30 minutes
@@ -284,3 +284,4 @@ and anchoring, and D-5's density split.
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
 | 2026-09-22 | 1.0.0 | Claude (Opus 5) | Rebuilt on AppGrid after the strip was found missing from the product. Added §8 recording the loss, six deviations, the AC-006 gap that predates this build, and the cap6 density finding. |
+| 2026-11-22 | 1.0.1 | Claude (Opus 5.5) | Status: the restored tooltip shipped in 16.5.0 (CHANGELOG "The dots are back"). It read BUILT. |

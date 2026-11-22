@@ -1,6 +1,6 @@
 # UX: Household basics
 
-**Spec:** [`SPEC-household-basics.md`](../SPEC-household-basics.md) §9 (v0.1.0, Draft)
+**Spec:** [`SPEC-household-basics.md`](../SPEC-household-basics.md) §9 (v0.1.1, shipped 17.1.0)
 **Author:** Kare (design), drafted 2026-11-07
 **Status:** Approved — Caleb, 2026-11-07: all recommended defaults.
 
@@ -212,4 +212,4 @@ The auth card again, opened from `/#invite=…`. The token leaves the address ba
 | Role | Name | Status |
 |---|---|---|
 | Design | Kare | Drafted 2026-11-07 |
-| Product | Caleb | Pending |
+| Product | Caleb | Approved 2026-11-07 (all recommended defaults: H-1…H-4 as proposed) |

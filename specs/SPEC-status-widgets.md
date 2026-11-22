@@ -1,14 +1,14 @@
 # Spec: Status Widgets — a few useful numbers on tiles, fetched by the server
 
-**Version:** 0.1.0
+**Version:** 0.1.2
 **Created:** 2026-11-07
 **Author:** Caleb Dunn (via /add:spec — the interview is replaced by §0, Open questions)
-**Status:** Approved — Caleb, 2026-11-07: all recommended defaults (Q1–Q12 = a; W-1…W-4 as proposed. Migration number: 0020 (household-basics takes 0019)).
+**Status:** Phase 1 SHIPPED — 17.1.0 (2026-11-20): clock, weather, web search, Jellyfin, Sonarr, Radarr, migration `0020`. Phase 2 (Pi-hole, qBittorrent, Proxmox VE) is not built. Approved — Caleb, 2026-11-07: all recommended defaults (Q1–Q12 = a; W-1…W-4 as proposed. Migration number: 0020 (household-basics takes 0019)). Status line read "Approved" until 2026-11-22.
 **Repo:** `Code/homepad` (frontend) + `Code/homepad-api` (Go backend)
 **Estimate:** Phase 1 ~4–5 days (widget manager, secret store, address guard, 3 service providers, clock, weather, web search, admin UI, tests). Phase 2 ~2–3 days (3 more providers).
 **Depends on:** shared catalog model (SPEC-245-224), kid accounts route classes (SPEC-kid-accounts §7), tile density (SPEC-tile-density), live status refresh (v13), admin settings (`system_settings`, cap6)
 **Target version:** Phase 1 → the next 17.x minor (additive: one migration, new routes, no breaking change). Phase 2 → the minor after it. The exact numbers are set when the plan is cut, alongside the other next-work specs.
-**UX:** [`specs/ux/status-widgets-ux.md`](./ux/status-widgets-ux.md) (Draft)
+**UX:** [`specs/ux/status-widgets-ux.md`](./ux/status-widgets-ux.md) (Approved 2026-11-07, W-1…W-4)
 
 ---
 
@@ -224,7 +224,7 @@ Phase tags: **P1** ships in Phase 1; **P2** in Phase 2.
 | AC-015 | Every widget admin route (§7.3) is class `admin-only` and appears in `routes_test.go`. A kid and an adult non-admin both get 403. | Must | P1 |
 | AC-016 | Widgets are fetched by a background manager beside the Gatus poller. `GET /api/services` reads its snapshot and never waits on, or fails because of, an upstream app. | Must | P1 |
 | AC-017 | Every widget request goes through one guarded client: `http`/`https` only; 5s per request, 10s per widget refresh; response bodies capped at 1 MiB; **no redirects followed**; TLS verified unless the admin ticks "Allow self-signed certificate" on that widget. | Must | P1 |
-| AC-018 | The guarded client refuses link-local and metadata addresses (`169.254.0.0/16`, `fe80::/10`, `fd00:ec2::254`), checked on the resolved IP at connect time, so DNS rebinding can't get around it. Private and loopback addresses are allowed (Q5 a). | Must | P1 |
+| AC-018 | The guarded client refuses link-local addresses (`169.254.0.0/16`, `fe80::/10`, which cover the cloud metadata endpoints), the AWS IPv6 metadata address `fd00:ec2::254`, and the unspecified (`0.0.0.0`, `::`) and multicast addresses, also when written as IPv4-mapped or NAT64 (`64:ff9b::/96`) IPv6. The check runs on the resolved IP: the dialer refuses the whole DNS answer if any address in it is blocked, dials only the checked IP, and re-checks the connected address in its `Control` hook, so DNS rebinding can't get around it. **Private and loopback addresses are allowed and fetched** (Q5 a): `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `fc00::/7` (apart from `fd00:ec2::254`), `127.0.0.0/8`, `::1` and `localhost`, including the API's own host and port. A blocked address answers `blocked_address`. | Must | P1 |
 | AC-019 | Only the provider's typed fields leave the widget package. Raw upstream bodies are never returned to a browser, stored or logged. Logs name the widget and the error code, never the full URL or a header. | Must | P1 |
 | AC-020 | Refresh interval: 1 min by default; 1, 5 or 15 min. After repeated failures a widget backs off (doubling, up to 15 min); a successful fetch or a config change resets it. Test connection ignores the backoff. | Must | P1 |
 | AC-021 | **Test connection** tests the form's unsaved values. A blank key field means "use the saved key". It returns either OK with a one-line summary (app version and one value), or one error code with fixed copy (UX §6.4). An admin can run at most one test every 2 seconds. | Must | P1 |
@@ -525,11 +525,12 @@ See §6.4. Tests:
 - **Admin-only writes and tests** (AC-015). The existing session cookie, SameSite and `requireAdmin` apply.
 - **Typed output only** (AC-019). The server returns parsed numbers or an error code, never a body. That makes it useless as a general proxy for reading internal pages. Test connection reports "OK + numbers" or a code.
 - **No redirects** (AC-017). This blocks a redirect to another host. It also matters because Go forwards custom headers such as `X-Api-Key` across redirects (it strips only `Authorization`, `Cookie` and `WWW-Authenticate` cross-domain). A redirect is usually an SSO login page, so it gets its own code and copy ("Use the app's internal address").
-- **Address deny-list on the dialed IP** (AC-018): link-local `169.254.0.0/16` and `fe80::/10`, which covers the cloud metadata endpoints, plus `fd00:ec2::254`. Checked in the dialer's `Control` hook after DNS resolution, so a rebinding hostname can't get past it.
+- **Address deny-list on the dialed IP** (AC-018): link-local `169.254.0.0/16` and `fe80::/10`, which covers the cloud metadata endpoints, plus `fd00:ec2::254`, the unspecified and multicast addresses, and the IPv4-mapped and NAT64 forms of all of these. Checked on the resolved answer before dialing and again in the dialer's `Control` hook, so a rebinding hostname can't get past it. Proxy settings from the environment are ignored, so `HTTP(S)_PROXY` can't route around it.
+- **Loopback and private addresses are not on the list** (Q5 a). That includes `127.0.0.1`, `localhost` and the API's own port. The known cost: an admin, or a stolen admin session, can use Test connection as a coarse probe of internal and loopback services. It learns only a code (`ok`, `unreachable`, `timeout`, `bad_response`, …), never a body, and the AC-021 rate limit slows it down.
 - **Keys bound to the origin they were entered for** (AC-023).
 - **Size and time caps** (AC-017), so a slow or huge response can't tie up the server.
 - **Test-connection rate limit** (AC-021), so the button isn't a fast port scanner.
-- **Out of scope here, but recorded:** the favicon fetcher (`icons.go`) should move onto the same guarded client. That's a follow-up issue, so this spec doesn't change icon behaviour.
+- **Favicon fetcher:** recorded here as a follow-up, it moved onto the same guarded client in the Phase 1 build (homepad-api #94, shipped in 17.1.0).
 
 ### 8.3 Kid filtering
 - With Q3 (a), `widget` is dropped for kids in `handleListServices`.
@@ -715,7 +716,7 @@ The lazy chunk was checked in the same scratch build. A `.css` import in the laz
 
 ## 14. Design (Kare)
 
-UX artifact: [`specs/ux/status-widgets-ux.md`](./ux/status-widgets-ux.md) (Draft). Surfaces:
+UX artifact: [`specs/ux/status-widgets-ux.md`](./ux/status-widgets-ux.md) (Approved 2026-11-07, W-1…W-4). Surfaces:
 
 1. the tile widget line in Large, Compact, List and on a phone, with ok, stale, loading, error and offline states;
 2. the glance strip (desktop, iPad, phone);
@@ -728,11 +729,13 @@ UX artifact: [`specs/ux/status-widgets-ux.md`](./ux/status-widgets-ux.md) (Draft
 
 | Role | Name | Status |
 |---|---|---|
-| Product | Caleb | Pending — §0 Q1…Q12 |
-| Design | Kare | Pending — `specs/ux/status-widgets-ux.md` |
+| Product | Caleb | Approved 2026-11-07 (Q1–Q12 = a) |
+| Design | Kare | Drafted 2026-11-07; Caleb approved W-1…W-4 as proposed, 2026-11-07 (`specs/ux/status-widgets-ux.md`) |
 
 ## 16. Revision History
 
 | Date | Version | Change |
 |---|---|---|
 | 2026-11-07 | 0.1.0 | Draft from next-work item 4, with demand data (§1c), code grounding (§1a) and CSS measurements (§11). |
+| 2026-11-22 | 0.1.1 | Phase 1 marked SHIPPED (17.1.0); Phase 2 not built. Header, §14 and §15 record the 2026-11-07 approval, which only the Status line carried (#564). |
+| 2026-11-22 | 0.1.2 | AC-018 and §8.2 list exactly what the guard refuses and say that loopback and private addresses are fetched, with the probe cost (#588). The favicon fetcher already uses the guarded client. Checked against `homepad-api` `0a35b42` (`internal/widgets/client.go`). |

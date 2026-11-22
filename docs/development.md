@@ -19,7 +19,7 @@ flowchart LR
     web["web<br/>nginx · serves the SPA"]
     api["homepad-api<br/>Go HTTP API"]
     poller["status poller"]
-    pg[("Postgres<br/>users · catalog · favorites · layout")]
+    pg[("Postgres<br/>users · sessions · catalog · favorites · layout")]
   end
 
   gatus["Gatus<br/>uptime probes"]
@@ -41,7 +41,10 @@ session (spec AC A11).
 ## Authentication
 
 Both login paths land on the **same** `homepad_session` cookie, so the rest of
-the app is identical regardless of how you signed in.
+the app is identical regardless of how you signed in. Sessions live in
+Postgres (since 17.0.0), and only a hash of each token is stored, so a restart
+or deploy signs nobody out. An adult's session lasts 30 days and a kid's 180
+days, both renewed as they're used.
 
 ```mermaid
 sequenceDiagram
@@ -55,6 +58,7 @@ sequenceDiagram
   note over B,DB: Local — email / password
   B->>A: POST /api/login (email, password)
   A->>DB: look up user, verify bcrypt hash
+  A->>DB: store a hash of the new session token
   A-->>B: Set-Cookie homepad_session → 200
   end
 
@@ -93,8 +97,11 @@ bar, and the sign-in card loads the line for it from the lazy
 answer 429 with `Retry-After` over their limits; the card shows the wait with
 `src/lib/waitMessage.ts`.
 
-`GET /api/auth/config` returns `{"oidcEnabled":bool}` so the web app knows
-whether to render the PocketID button. When OIDC is disabled the two `/oidc/*`
+`GET /api/auth/config` returns
+`{"oidcEnabled":bool,"registration":"open"|"invite_only","setupNeeded":bool}`.
+The web app uses it to show the PocketID button, the **Create account**
+button (only when registration is `open`), and the **Set up Homepad** screen
+(only when no adult account exists yet). When OIDC is disabled the two `/oidc/*`
 endpoints are unregistered (404) and homepad is local-only.
 
 ## Layout

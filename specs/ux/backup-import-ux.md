@@ -1,6 +1,6 @@
 # UX: Backup, restore, and import from Homepage
 
-**Spec:** [`SPEC-backup-import.md`](../SPEC-backup-import.md) §11 (v0.1.0, Draft)
+**Spec:** [`SPEC-backup-import.md`](../SPEC-backup-import.md) §11 (v0.1.1, shipped 17.1.0)
 **Author:** Claude for Kare (design), drafted 2026-11-07
 **Status:** Approved — Caleb, 2026-11-07: all recommended defaults.
 
@@ -360,4 +360,4 @@ One map in `src/library/importCopy.ts`. Every message is one or two short senten
 | Role | Name | Status |
 |---|---|---|
 | Design | Kare | Drafted 2026-11-07 |
-| Product | Caleb | Pending (B-1…B-3) |
+| Product | Caleb | Approved 2026-11-07 (all recommended defaults: B-1 last section, B-2 show the link, B-3 first 20 then Show all) |

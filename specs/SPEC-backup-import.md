@@ -1,9 +1,9 @@
 # Spec: Backup, restore, and import from Homepage
 
-**Version:** 0.1.0
+**Version:** 0.1.2
 **Created:** 2026-11-07
 **Author:** Claude for Caleb Dunn (via /add:spec)
-**Status:** Approved — Caleb, 2026-11-07: all recommended defaults (OQ-1 c, OQ-2 a, OQ-3 a, OQ-4 b, OQ-5 c, OQ-6 a, OQ-7 a, OQ-8 a, OQ-9 b; B-1…B-3 as proposed).
+**Status:** SHIPPED — 17.1.0 (2026-11-20). Approved — Caleb, 2026-11-07: all recommended defaults (OQ-1 c, OQ-2 a, OQ-3 a, OQ-4 b, OQ-5 c, OQ-6 a, OQ-7 a, OQ-8 a, OQ-9 b; B-1…B-3 as proposed). 18.0.0 moved exports to `schemaVersion` 2 (SPEC-household-catalog-owner Q5; see §3). Status line read "Approved" until 2026-11-22.
 **Repo:** `Code/homepad` (frontend) + `Code/homepad-api` (Go backend)
 **Estimate:** ~4–5 days (export, restore with preview, Homepage parser and mapping, Admin Panel UI, tests)
 **Depends on:** shared catalog model (SPEC-245-224), kid accounts (SPEC-kid-accounts, shipped 17.0.0), the shared-catalog write fix tracked in `Code/homepad-api#87`
@@ -240,6 +240,8 @@ Rules:
 
 A JSON Schema for v1 ships at `docs/schema/homepad-backup-v1.json`. Tests check exports against it.
 
+**Since 18.0.0** exports are `schemaVersion` 2. SPEC-household-catalog-owner Q5 chose this bump although no key was renamed or removed, so a 17.x server refuses an 18.0.0 file as newer. Both schema files live in `homepad-api` under `docs/schema/`. `homepad-backup-v1.json` is the 17.x file (`schemaVersion` const 1) and is not changed. `homepad-backup-v2.json` is a new file for 18.0.0 (`schemaVersion` const 2): the v1 keys, plus the optional `iframeSameOrigin` on each app (SPEC-iframe-sandbox-optin AC-011). Tests check 18.0.0 exports against the v2 file, and the CI restore test keeps a v1 and a v2 fixture.
+
 ---
 
 ## 4. Homepage mapping
@@ -337,7 +339,7 @@ Homepad has no catalog-wide app order (§1a). The importing admin's own order (`
 
 | ID | Criterion | Priority |
 |---|---|---|
-| AC-001 | An admin can download a backup from the Admin Panel. The file is JSON matching `docs/schema/homepad-backup-v1.json`, named `homepad-backup-YYYY-MM-DD.json`. | Must |
+| AC-001 | An admin can download a backup from the Admin Panel. The file is JSON matching `docs/schema/homepad-backup-v1.json` (`homepad-backup-v2.json` from 18.0.0, §3), named `homepad-backup-YYYY-MM-DD.json`. | Must |
 | AC-002 | The backup holds every section (order, width), every catalog app (all fields in §3), every uploaded icon variant, every App Library offer (in order), and System settings. | Must |
 | AC-003 | With "Include people" ticked, the backup holds adults (by email) and kids (by name) with prefs, favorites, order, folded sections and kid allowed apps. With it unticked, the file has no `people` key and no email address anywhere. | Must |
 | AC-004 | No backup ever contains a password hash, a session token or hash, OIDC config or secrets, env config, the Gatus base URL, or a database ID. A test greps a backup made from a fully populated test DB for each of these. | Must |
@@ -525,7 +527,7 @@ The route-coverage test in `routes_test.go` gets the five new routes with class 
 
 ## 11. Design (Kare)
 
-UX artifact: [`specs/ux/backup-import-ux.md`](./ux/backup-import-ux.md) (Draft). Surfaces:
+UX artifact: [`specs/ux/backup-import-ux.md`](./ux/backup-import-ux.md) (Approved 2026-11-07, B-1…B-3). Surfaces:
 
 1. the Backup and import section in the Admin Panel;
 2. the Download backup confirm, with the Include people box;
@@ -548,11 +550,13 @@ UX artifact: [`specs/ux/backup-import-ux.md`](./ux/backup-import-ux.md) (Draft).
 
 | Role | Name | Status |
 |---|---|---|
-| Product | Caleb | Pending (OQ-1…OQ-9) |
-| Design | Kare | Pending (`specs/ux/backup-import-ux.md`, B-1…B-3) |
+| Product | Caleb | Approved 2026-11-07 (OQ-1 c, OQ-2 a, OQ-3 a, OQ-4 b, OQ-5 c, OQ-6 a, OQ-7 a, OQ-8 a, OQ-9 b) |
+| Design | Kare | Drafted 2026-11-07; Caleb approved B-1…B-3 as proposed, 2026-11-07 (B-1 last section, B-2 show the link, B-3 first 20 then Show all; `specs/ux/backup-import-ux.md`) |
 
 ## 14. Revision History
 
 | Date | Version | Change |
 |---|---|---|
 | 2026-11-07 | 0.1.0 | Draft from item 3 of Caleb's approved next-work list, with recommended defaults for OQ-1…OQ-9. |
+| 2026-11-22 | 0.1.1 | Marked SHIPPED (17.1.0). §11 and §13 record the 2026-11-07 approval, which only the Status line carried (#563). |
+| 2026-11-22 | 0.1.2 | §3 and AC-001: 18.0.0 exports are version 2 and validate against `homepad-backup-v2.json` (#594). |

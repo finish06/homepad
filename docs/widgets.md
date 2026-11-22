@@ -52,7 +52,7 @@ docker compose up -d
 
 ## Add a widget to a tile
 
-1. Open **Edit dashboard** from the gear, then the ✎ on the tile.
+1. Open **Arrange apps** from the gear, then the ✎ on the tile.
 2. Under **Widget**, pick the **Type**. When the tile's name matches, the type
    is suggested for you.
 3. **Address:** leave it blank to use the tile's link. If that link goes
@@ -112,8 +112,15 @@ shows an "Open-Meteo" credit link, as the licence asks. Open-Meteo's free tier
 is for non-commercial use.
 
 App widgets (Jellyfin, Sonarr, Radarr) talk only to the addresses you give
-them. Homepad refuses link-local and cloud metadata addresses, follows no
-redirects, and reads at most 1 MiB per answer.
+them. Homepad follows no redirects and reads at most 1 MiB per answer.
+
+Your apps usually live on your home network, so Homepad does fetch private
+and local addresses, such as `192.168.x.x`, `10.x.x.x`, `127.0.0.1` or
+`localhost`. It refuses link-local addresses (`169.254.x.x`, `fe80::`), which
+include the cloud metadata addresses, and a few others that name no app (such
+as `0.0.0.0`). It checks the address a name points to, not just the name. A
+refused address shows "Homepad doesn't fetch from this address." Only admins
+can set an address or press Test connection.
 
 ## Who sees what
 

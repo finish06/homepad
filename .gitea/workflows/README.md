@@ -134,8 +134,11 @@ leaked secrets, so a failure can mean something sensitive ended up in the bundle
 
 **What it does** (most steps come from ci-shared's `mr-staging`):
 
-- If the PR only changes docs (Markdown, text, `docs/`, `specs/`, README,
-  CHANGELOG, LICENSE), it skips everything below. No build, no deploy, no QA.
+- If the PR only changes docs, it skips everything below. No build, no deploy,
+  no QA. "Docs" means every changed file matches ci-shared's `DOCS_RE`
+  (`mr-staging/action.yml`, v3): a `.md`, `.mdx` or `.txt` file; anything in a
+  `docs/` or `specs/` folder, at any depth; anything in `one-pagers/` at the
+  top; or a README, CHANGELOG or LICENSE file.
   It then tries to auto-approve the PR as the `ci-docs-approver` bot, but today
   that **doesn't work**: this workflow doesn't pass the approver's token, so the
   run only logs a warning (and stays green). A docs-only PR still needs someone

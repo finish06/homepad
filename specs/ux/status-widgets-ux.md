@@ -1,6 +1,6 @@
 # UX: Status Widgets
 
-**Spec:** [`SPEC-status-widgets.md`](../SPEC-status-widgets.md) §14 (v0.1.0, Draft)
+**Spec:** [`SPEC-status-widgets.md`](../SPEC-status-widgets.md) §14 (v0.1.1, Phase 1 shipped 17.1.0)
 **Author:** Kare (design), drafted 2026-11-07
 **Status:** Approved — Caleb, 2026-11-07: all recommended defaults.
 
@@ -405,4 +405,4 @@ These are design calls inside the spec's §0 answers.
 | Role | Name | Status |
 |---|---|---|
 | Design | Kare | Drafted 2026-11-07 |
-| Product | Caleb | Pending (W-1…W-4) |
+| Product | Caleb | Approved 2026-11-07 (all recommended defaults: W-1 22px clock, W-2 fixed order, W-3 after System, W-4 editor only) |

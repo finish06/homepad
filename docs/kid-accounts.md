@@ -77,8 +77,9 @@ library, layout, settings and admin change is refused for a kid session.
 ## Changing a kid's apps later
 
 Open **Administration → Accounts** from any device, tap the kid, change the
-ticks and save. The kid's dashboard picks the change up on its next refresh,
-within about a minute, without reloading or signing out.
+ticks and save. A kid's dashboard checks for changes every 20 seconds, so it
+picks the change up within about 30 seconds, without reloading or signing
+out.
 
 Apps you add to the catalog later **stay hidden from every kid until you tick
 them**. Nothing appears on a kid's dashboard unless you chose it.

@@ -72,7 +72,7 @@ Merge order inside the pair: whichever is green first. The other rebases. The on
 | Spec | Main files | Conflicts with |
 |---|---|---|
 | 4 | `internal/api/ratelimit.go`, `auth.go` (login), `oidc.go` (callback and start-route redirects, incl. `too_many`), `cmd/homepad-api/main.go` (env), `internal/api/env_config.go`; web `src/app/App.tsx` (fragment read), `src/app/AuthForm.tsx`, `src/accounts/AddAdultDialog.tsx` (PocketID line, AC-021), `src/library/SettingsPanel.tsx` (env labels), `src/api.ts` (`retryAfter`), README, `.env.example`, `docs/single-sign-on.md`. Entry-chunk rule: AC-020. | 3's routes in `server.go` (wrapper swap only); after 2 and 3 merge, so no file overlap in flight |
-| 5 | `migrations/0023_*`, `internal/api/services.go`, `internal/storage/storage.go` (service columns), `internal/transfer/*`, `docs/schema/homepad-backup-v1.json`; web `src/grid/IframeOverlay.tsx`, `TileEditModal.tsx`, `src/lib/sandbox.ts`, both nginx configs | none of 2–4 |
+| 5 | `migrations/0023_*`, `internal/api/services.go`, `internal/storage/storage.go` (service columns), `internal/transfer/*`, `docs/schema/homepad-backup-v2.json` (as built; the v1 file is unchanged, #594); web `src/grid/IframeOverlay.tsx`, `TileEditModal.tsx`, `src/lib/sandbox.ts`, both nginx configs | none of 2–4 |
 
 ## 3. Estimates
 

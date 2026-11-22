@@ -1,9 +1,9 @@
 # Spec: Tile density moves to My settings · gear "Edit dashboard" becomes "Arrange apps"
 
-**Status:** BUILT 2026-09-23 · **AC-008 and TC-006 partially SUPERSEDED 2026-10-01** by `v29-favorite-star-arrange-only` (arrange mode is no longer admin-only — see those entries)
+**Status:** SHIPPED — 16.6.0 (2026-09-25). Built 2026-09-23 · **AC-008 and TC-006 partially SUPERSEDED 2026-10-01** by `v29-favorite-star-arrange-only` (arrange mode is no longer admin-only — see those entries)
 
 **Original status:** BUILT 2026-09-23 — all three open questions resolved (§3, §7). Kare §9 not authored; OQ-1 stands as a product call over a design placement.
-**Version:** 0.1.0
+**Version:** 0.1.1
 **Created:** 2026-09-23
 **Author:** Claude (Opus 5), from Caleb's direction
 **Repo:** `Code/homepad` (frontend only — no API, no migration)
@@ -246,3 +246,4 @@ than implying a sign-off nobody gave.
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
 | 2026-09-23 | 0.1.0 | Claude (Opus 5) | Initial spec from Caleb's direction. §1 corrects the premise the request was made under — the density toggle is on the dashboard toolbar, not in the gear menu. |
+| 2026-11-22 | 0.1.1 | Claude (Opus 5.5) | Status: SHIPPED in 16.6.0 (CHANGELOG; "Arrange apps" in `src/app/AppHeader.tsx`). It read BUILT, and the spec index listed it as "Ready for build". |

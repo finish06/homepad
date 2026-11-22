@@ -1,9 +1,9 @@
 # Spec: Household basics — safe sign-up, adding an adult, every admin can edit
 
-**Version:** 0.1.0
+**Version:** 0.1.1
 **Created:** 2026-11-07
 **Author:** Claude (spec step for Caleb's approved next-work list, item 2)
-**Status:** Approved — Caleb, 2026-11-07: all recommended defaults (Q1–Q12 = A; H-1…H-4 as proposed).
+**Status:** SHIPPED — 17.1.0 (2026-11-20). Approved — Caleb, 2026-11-07: all recommended defaults (Q1–Q12 = A; H-1…H-4 as proposed). Two answers were changed later by 18.0.0 specs: Q5 (SSO under `invite_only` now needs an admin or member group, SPEC-signin-hardening Q2) and Q7 (the invisible rows are archived, then deleted, SPEC-household-catalog-owner Q2). Status line read "Approved" until 2026-11-22.
 **Repo:** `Code/homepad` (frontend, quickstart, docs) + `Code/homepad-api` (Go backend) + `demo-seed` branch config (demo only)
 **Estimate:** ~3–4 days (invites API + migration, catalog-owner fix, account limit, auth-config + login/setup screen, Add-an-adult UI, docs, tests)
 **Depends on:** SPEC-kid-accounts (17.0.0: Accounts section, persistent hashed sessions, route classes), SPEC-245-224 (shared catalog owner)
@@ -100,7 +100,8 @@ Caleb's next-work item 2, "Household basics": the pieces a household needs befor
 
 ### 1b. Decisions
 
-Pending: §0 Q1–Q12. This section records Caleb's answers once given.
+- Caleb, 2026-11-07: all recommended defaults, Q1–Q12 = A (§0).
+- Caleb, 2026-11-07: UX H-1…H-4 as proposed (`specs/ux/household-basics-ux.md`).
 
 ---
 
@@ -366,7 +367,7 @@ The five new routes are registered through `router.handle` with the classes abov
 
 ## 9. Design (Kare)
 
-UX artifact: [`specs/ux/household-basics-ux.md`](./ux/household-basics-ux.md) (Draft). Surfaces:
+UX artifact: [`specs/ux/household-basics-ux.md`](./ux/household-basics-ux.md) (Approved 2026-11-07, H-1…H-4). Surfaces:
 
 1. the sign-in screen's three states (set up, sign in, sign in with sign-up);
 2. Accounts: **+ Add an adult**, Pending invites, the open-sign-up warning;
@@ -403,11 +404,12 @@ UX artifact: [`specs/ux/household-basics-ux.md`](./ux/household-basics-ux.md) (D
 
 | Role | Name | Status |
 |---|---|---|
-| Product | Caleb | Pending (§0 Q1–Q12) |
-| Design | Kare | Drafted 2026-11-07 (`specs/ux/household-basics-ux.md`) |
+| Product | Caleb | Approved 2026-11-07 (Q1–Q12 = A) |
+| Design | Kare | Drafted 2026-11-07; Caleb approved H-1…H-4 as proposed, 2026-11-07 (`specs/ux/household-basics-ux.md`) |
 
 ## 13. Revision History
 
 | Date | Version | Change |
 |---|---|---|
 | 2026-11-07 | 0.1.0 | Draft from Caleb's next-work item 2, homepad-api #87 and #88, and homepad #548, checked against `homepad-api` `32f3200` and `homepad` `9c7ce48`. |
+| 2026-11-22 | 0.1.1 | Marked SHIPPED (17.1.0). §1b, §9 and §12 record the 2026-11-07 approval, which only the Status line carried. Notes the two answers 18.0.0 changed (Q5, Q7). |

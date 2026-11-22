@@ -23,7 +23,9 @@ Select **Download backup**. Your browser saves `homepad-backup-YYYY-MM-DD.json`.
 The file holds:
 
 - every section, in order, with its width;
-- every app: name, description, link, icon, section, click action and status key;
+- every app: name, description, link, icon, section, click action, status key
+  and, from 18.0.0, its overlay sign-in setting (**Let this app keep its
+  sign-in**);
 - uploaded icons, inside the file;
 - the App Library, in order;
 - System settings: the uptime default for new accounts and the slow threshold.
@@ -180,11 +182,12 @@ The file is pretty-printed JSON. It starts with:
 ```
 
 Homepad 18.0.0 and later write version 2. It has the same fields as version
-1, which Homepad 17.x wrote. Every later Homepad can restore a version 1 file.
-A file from a newer Homepad than yours is refused with "This backup is from a
-newer Homepad. Update Homepad, then try again." Homepad 17.x says this about a
-version 2 file.
+1, which Homepad 17.x wrote, plus each app's overlay sign-in setting. Every
+later Homepad can restore a version 1 file. A file from a newer Homepad than
+yours is refused with "This backup is from a newer Homepad. Update Homepad,
+then try again." Homepad 17.x says this about a version 2 file.
 
-The JSON Schemas are `docs/schema/homepad-backup-v2.json` and
-`docs/schema/homepad-backup-v1.json` in
-[homepad-api](https://github.com/finish06/homepad-api).
+The JSON Schemas are in
+[homepad-api](https://github.com/finish06/homepad-api):
+`docs/schema/homepad-backup-v2.json` for version 2 files (18.0.0 and later)
+and `docs/schema/homepad-backup-v1.json` for version 1 files (17.x).

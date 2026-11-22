@@ -1,10 +1,10 @@
 # Spec: Manage adults — remove an adult, change a role
 
 **Spec ID:** SPEC-household-manage-adults
-**Version:** 0.1.1
+**Version:** 0.1.2
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
-**Status:** Approved — Caleb, 2026-11-20: every §0 question decided.
+**Status:** SHIPPED — 18.0.0 (2026-11-22). Approved — Caleb, 2026-11-20: every §0 question decided. Status line read "Approved" until 2026-11-22.
 **Repo:** `Code/homepad-api` (routes, storage) + `Code/homepad` (Accounts UI, docs)
 **Estimate:** ~2 days (two routes under the account lock, session ending, Accounts row actions, confirm dialogs, tests)
 **Depends on:** SPEC-household-catalog-owner (hard: removing or demoting the first admin is unsafe until it ships), SPEC-household-basics (Accounts adult rows, invites; web half #565 must be on `homepad` main)
@@ -51,7 +51,8 @@ An admin can add an adult today (invites), but not take one away, and not make a
 
 ### 1b. Decisions
 
-- Caleb, 2026-11-19: the actions and the last-admin rule (above). Pending: §0 Q1–Q5.
+- Caleb, 2026-11-19: the actions and the last-admin rule (above).
+- Caleb, 2026-11-20: Q1 A (not on yourself), Q2 A (a role change ends every session), Q3 A (the removed adult's invites are revoked), Q4 A (SSO adults can be removed, with the identity-provider caveat), Q5 A (any adult can be removed, never the last admin).
 
 ---
 
@@ -215,3 +216,4 @@ UX artifact: [`specs/ux/household-manage-adults-ux.md`](./ux/household-manage-ad
 |---|---|---|
 | 2026-11-19 | 0.1.0 | Draft for 18.0.0, checked against `homepad-api` `79e3b03` and `homepad` `6eb8a35`. |
 | 2026-11-20 | 0.1.1 | UX artifact approved (A-1…A-6). AC-016: adults go to the sign-in screen on a 401 (A-5), with the `App.tsx` line in §8. AC-007 and AC-010 point at the UX. Docs home is `docs/accounts.md`. |
+| 2026-11-22 | 0.1.2 | Marked SHIPPED (18.0.0). §1b records Q1–Q5 in place of the stale "Pending" line (#593). |

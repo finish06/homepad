@@ -1,10 +1,10 @@
 # Spec: Sign-in hardening — rate limits, verified emails for single sign-on, invite-only for SSO
 
 **Spec ID:** SPEC-signin-hardening
-**Version:** 0.1.3
+**Version:** 0.1.4
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
-**Status:** Approved — Caleb, 2026-11-20: every §0 question decided.
+**Status:** SHIPPED — 18.0.0 (2026-11-22). The `email_verified` refusal and the three small bug fixes (login timing, the callback cookie, the 72-byte limit) shipped earlier, in 17.1.0. Approved — Caleb, 2026-11-20: every §0 question decided. Status line read "Approved" until 2026-11-22.
 **Repo:** `Code/homepad-api` (limiter, client address, OIDC rules) + `Code/homepad` (sign-in screen messages, README, `.env.example`, docs)
 **Estimate:** ~2.5 days (per-client limiter with trusted proxies, login limits and timing, OIDC invite-only rule, OIDC error landing, docs and PocketID guide, tests)
 **Depends on:** SPEC-household-basics (registration modes, invite bucket), SPEC-password-reset-link (its public routes move onto this limiter). Builds after SPEC-household-manage-adults and SPEC-password-reset-link.
@@ -28,7 +28,7 @@ All questions are decided.
 
 **Decided — Q4, the quickstart and trusted proxies (Caleb, 2026-11-19: "yes").** [AC-007, AC-008] Proxy headers are trusted only when `HOMEPAD_TRUSTED_PROXIES` is set. The quickstart leaves it unset. The docs explain the effect (every client shares one limit) and how to set it.
 
-**Decided — fix three small bugs now (Caleb, 2026-11-19).** These are fixed ahead of 18.0.0 in a homepad-api bug-fix PR (number TBD), separate from this spec's build. Their ACs stay here as regression guards:
+**Decided — fix three small bugs now (Caleb, 2026-11-19).** These were fixed ahead of 18.0.0 in homepad-api #99, which shipped in 17.1.0, separate from this spec's build. Their ACs stay here as regression guards:
 - login timing shows whether an email exists (§2.3, AC-009);
 - the OIDC callback cookie ignores `COOKIE_SECURE` (former Q5, AC-016);
 - passwords over 72 bytes cause a 500 (AC-018).
@@ -75,8 +75,8 @@ So the setting Caleb remembered ("Emails Verified") is the pre-v2.2.0 name. On c
 - Caleb, 2026-11-19: verified emails required; `X-Forwarded-For` untrusted unless configured.
 - Caleb, 2026-11-19: the `email_verified` refusal ships in 17.1.0 as a security fix, with the PocketID steps in the 17.1.0 notes (Q1, "a").
 - Caleb, 2026-11-19: login limits as proposed (Q3, "yes"); proxy headers trusted only when `HOMEPAD_TRUSTED_PROXIES` is set (Q4, "yes").
-- Caleb, 2026-11-19: login timing, the callback cookie and the 72-byte 500 are fixed ahead of 18.0.0 in a homepad-api bug-fix PR (number TBD).
-- Pending: §0 Q2.
+- Caleb, 2026-11-19: login timing, the callback cookie and the 72-byte 500 are fixed ahead of 18.0.0 in a homepad-api bug-fix PR (it became #99, shipped in 17.1.0).
+- Caleb, 2026-11-20: Q2 A — under `invite_only`, a new SSO identity gets an account only through `OIDC_ADMIN_GROUP` or the new `OIDC_MEMBER_GROUP`; an existing account always signs in.
 
 ---
 
@@ -106,7 +106,7 @@ One limiter, keyed by client, replaces the per-process bucket.
 - A value that doesn't parse stops the API at startup with a message naming it, like `HOMEPAD_MAX_ACCOUNTS`.
 - **What this means for the quickstart (Q4, decided):** every API request comes from the web container, so every client has the same key. The per-client limits then act as one shared limit. Someone hammering the login form can make everyone wait. The per-email lock still protects each account. The docs say this plainly and show the setting.
 
-### 2.3 Login timing (fixed ahead of 18.0.0 in a homepad-api bug-fix PR, number TBD)
+### 2.3 Login timing (fixed ahead of 18.0.0 in homepad-api #99, shipped in 17.1.0)
 
 When `UserByEmail` finds no adult, `handleLogin` compares the password against a fixed dummy bcrypt hash at `DefaultCost` before answering 401. Unknown and known emails then take about the same time. AC-009 stays as a regression guard.
 
@@ -191,7 +191,7 @@ Plain copy, ready to paste:
 | AC-006 | The bcrypt routes share a process-wide ceiling of 120 a minute. | Must |
 | AC-007 | With `HOMEPAD_TRUSTED_PROXIES` unset, a request with a forged `X-Forwarded-For` is keyed by its peer address. | Must |
 | AC-008 | With `HOMEPAD_TRUSTED_PROXIES` set and the peer in it, the client is the right-most untrusted `X-Forwarded-For` entry. With the peer not in it, the header is ignored. An unparsable value stops the API at startup with a message naming the variable. | Must |
-| AC-009 | Login for an unknown email runs one bcrypt compare. In a test, the median time for unknown and known-wrong-password emails differs by under 20%. Fixed ahead of 18.0.0 in a homepad-api bug-fix PR (number TBD); kept as a regression guard. | Should |
+| AC-009 | Login for an unknown email runs one bcrypt compare. In a test, the median time for unknown and known-wrong-password emails differs by under 20%. Fixed in homepad-api #99 (shipped in 17.1.0); kept as a regression guard. | Should |
 
 ### invite-only and SSO
 
@@ -208,9 +208,9 @@ Plain copy, ready to paste:
 |---|---|---|
 | AC-014 | The README "Single sign-on" section and `docs/single-sign-on.md` carry the §2.6 text. `.env.example` lists `OIDC_MEMBER_GROUP` and `HOMEPAD_TRUSTED_PROXIES` with one-line comments. | Must |
 | AC-015 | The CHANGELOG lists exactly what breaks (§10) and links the PocketID steps. | Must |
-| AC-016 | The OIDC callback sets the session cookie's `Secure` from `COOKIE_SECURE`, like local login. Fixed ahead of 18.0.0 in a homepad-api bug-fix PR (number TBD); kept as a regression guard. | Should |
+| AC-016 | The OIDC callback sets the session cookie's `Secure` from `COOKIE_SECURE`, like local login. Fixed in homepad-api #99 (shipped in 17.1.0); kept as a regression guard. | Should |
 | AC-017 | `HOMEPAD_TRUSTED_PROXIES` joins the env-config allowlist. | Must |
-| AC-018 | `POST /api/register` and `POST /api/invites/accept` refuse a password over 72 bytes with 400, never 500. Fixed ahead of 18.0.0 in a homepad-api bug-fix PR (number TBD); kept as a regression guard. (SPEC-password-reset-link AC-017 asks for the same.) | Should |
+| AC-018 | `POST /api/register` and `POST /api/invites/accept` refuse a password over 72 bytes with 400, never 500. Fixed in homepad-api #99 (shipped in 17.1.0); kept as a regression guard. (SPEC-password-reset-link AC-017 asks for the same.) | Should |
 
 ### Web (from the UX artifact, approved 2026-11-20)
 
@@ -290,7 +290,7 @@ Exactly these, and nothing else:
 1. **SSO sign-in stops for anyone whose provider doesn't send `email_verified: true`**, including people who already have a Homepad account. They see the `email_unverified` message. Fix: §2.6. Shipped in 17.1.0 (Q1, decided); the 18.0.0 notes repeat it for anyone who skipped 17.1.0.
 2. **Under `invite_only`, SSO no longer creates accounts for new people outside `OIDC_ADMIN_GROUP` and `OIDC_MEMBER_GROUP`.** This includes installs with no `HOMEPAD_REGISTRATION` set, which are `invite_only` since 17.1.0. People who already have an account are not affected. Fix: set `OIDC_MEMBER_GROUP`, or send an invite.
 3. **Fast repeated sign-in attempts get "Too many tries".** Scripts that log in in a loop need to slow down. With no trusted proxy set, the limit is shared by everyone.
-4. **With `COOKIE_SECURE` on (the default) and Homepad served over plain HTTP, SSO sign-in stops working**, the same way password sign-in already does there. Fix: `COOKIE_SECURE=false` on plain-HTTP installs, which password sign-in already needs. This lands with the homepad-api bug-fix PR (number TBD), ahead of 18.0.0.
+4. **With `COOKIE_SECURE` on (the default) and Homepad served over plain HTTP, SSO sign-in stops working**, the same way password sign-in already does there. Fix: `COOKIE_SECURE=false` on plain-HTTP installs, which password sign-in already needs. This landed in homepad-api #99, in 17.1.0.
 
 Not affected: existing sessions (nobody is signed out), password sign-in under the limits, invites, kids.
 
@@ -325,3 +325,4 @@ Release-note lines:
 | 2026-11-19 | 0.1.1 | Caleb decided Q1 ("a": ships in 17.1.0), Q3 and Q4 ("yes"), and to fix login timing, the callback cookie and the 72-byte 500 ahead of 18.0.0 in a homepad-api bug-fix PR. |
 | 2026-11-20 | 0.1.2 | UX artifact approved (S-1…S-6). AC-019: the OIDC start route's limit redirects with `too_many` (S-5). AC-020: the entry-chunk measure-before-merge rule (S-1). AC-021: `AddAdultDialog.tsx` joins the file list with the two-mode PocketID line (S-4). `AuthForm` path corrected. |
 | 2026-11-22 | 0.1.3 | §2.1: the invite and reset-link lookups skip the process ceiling (they run no bcrypt); only the `/accept` routes, login and register share it (homepad-api #110, from the #109 review). |
+| 2026-11-22 | 0.1.4 | Marked SHIPPED (18.0.0). §1c records Q2 in place of the stale "Pending" line (#593). The bug-fix PR is named: homepad-api #99, shipped in 17.1.0. |

@@ -1,10 +1,10 @@
 # Spec: The catalog belongs to the household
 
 **Spec ID:** SPEC-household-catalog-owner
-**Version:** 0.1.2
+**Version:** 0.1.4
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
-**Status:** Approved — Caleb, 2026-11-20: every §0 question decided.
+**Status:** SHIPPED — 18.0.0 (2026-11-22). Migration `0021` and the `schema_migrations` runner are live. Approved — Caleb, 2026-11-20: every §0 question decided. Status line read "Approved" until 2026-11-22.
 **Repo:** `Code/homepad-api` (migration, storage, handlers) + `Code/homepad` (CHANGELOG, docs; no UI change)
 **Estimate:** ~3 days (migration runner, migration 0021, storage and handler rewrite off the owner id, transfer, tests, upgrade rehearsal on a copy of a real database)
 **Depends on:** SPEC-household-basics (17.1.0: shared catalog writes, account lock), SPEC-backup-import, SPEC-status-widgets. All three are merged on `homepad-api` `gitea/main`; the web halves (#565, #566, #568) are not on `homepad` main yet.
@@ -86,6 +86,7 @@ This spec makes the catalog belong to the install. No user owns it. That is what
 ### 2.3 Backup and import
 
 - **Export** writes `schemaVersion: 2` with the same keys as 17.1.0. No field is added or removed by this spec. A 1→2 upgrader changes only the number (Q5).
+- **Schema file.** Both schema files live in `homepad-api` under `docs/schema/`. `homepad-backup-v1.json` is the 17.x file (`schemaVersion` const 1) and is not changed. `homepad-backup-v2.json` is a new file for 18.0.0 (`schemaVersion` const 2): the v1 keys, plus the optional `iframeSameOrigin` on each app (SPEC-iframe-sandbox-optin AC-011). Tests check 18.0.0 exports against the v2 file, and the CI restore test keeps a v1 and a v2 fixture.
 - **Restore of a file made by 17.1.0** works unchanged: it never named an owner. Merge matches sections by name and apps by slug, as before. Replace deletes the whole catalog instead of "the owner's rows".
 - **Restore of an 18.0.0 file on 17.1.0** is refused with the "newer Homepad" message (SPEC-backup-import AC-016), because the file says `schemaVersion: 2` (Q5).
 - **Homepage import** writes into the catalog, as before.
@@ -133,7 +134,7 @@ This spec makes the catalog belong to the install. No user owns it. That is what
 | ID | Criterion | Priority |
 |---|---|---|
 | AC-011 | Every existing API test passes, apart from tests that asserted owner behavior, which are rewritten to assert the household behavior. The second-admin suite passes unmodified. | Must |
-| AC-012 | Export writes `schemaVersion: 2` with the same keys as 17.1.0 (Q5). A 17.1.0 (v1) export restores on 18.0.0 in both modes, through the 1→2 upgrader, with the same plan it would get on 17.1.0. A v1 fixture stays in the CI restore test. | Must |
+| AC-012 | Export writes `schemaVersion: 2` with the same keys as 17.1.0 (Q5), and validates against `docs/schema/homepad-backup-v2.json` in `homepad-api` (§2.3). A 17.1.0 (v1) export restores on 18.0.0 in both modes, through the 1→2 upgrader, with the same plan it would get on 17.1.0. A v1 fixture stays in the CI restore test. | Must |
 | AC-013 | Replace mode deletes every app and section and the App Library, then loads the file, as before. | Must |
 | AC-014 | The `added` hint in `GET /api/library` is true when any app has that offer as `source_library_id`. | Must |
 | AC-015 | `PUT /api/admin/kids/{id}/services` accepts any catalog app id and rejects any other id with 400, as before. | Must |
@@ -267,3 +268,5 @@ Release-note lines (plain copy, for the CHANGELOG):
 | 2026-11-19 | 0.1.0 | Draft for 18.0.0, checked against `homepad-api` `79e3b03` and `homepad` `6eb8a35`. |
 | 2026-11-19 | 0.1.1 | Caleb decided Q2 and Q3 ("yes"). |
 | 2026-11-20 | 0.1.2 | Caleb decided Q1, Q4 (defaults) and Q5 (B, `schemaVersion` 2). §2.3 follows Q5. AC-010 names the real schema comparison. Release-note copy and the `psql` quoting fixed, from the build (homepad-api #101). |
+| 2026-11-22 | 0.1.3 | Marked SHIPPED (18.0.0). |
+| 2026-11-22 | 0.1.4 | §2.3 and AC-012 name the schema file for version 2: a new `homepad-backup-v2.json`; the v1 file is unchanged (#594). Checked against `homepad-api` `0a35b42`. |

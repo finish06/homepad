@@ -1,10 +1,10 @@
 # Spec: Stricter iframe sandbox, with a per-app opt-in
 
 **Spec ID:** SPEC-iframe-sandbox-optin
-**Version:** 0.1.2
+**Version:** 0.1.4
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
-**Status:** Approved — Caleb, 2026-11-20: every §0 question decided.
+**Status:** SHIPPED — 18.0.0 (2026-11-22). Approved — Caleb, 2026-11-20: every §0 question decided. Status line read "Approved" until 2026-11-22.
 **Repo:** `Code/homepad` (overlay, tile editor, nginx headers) + `Code/homepad-api` (column, read and write model, backup field)
 **Estimate:** ~1.5 days (migration, API field, backup field, overlay sandbox rule, tile-edit toggle, frame headers, tests)
 **Depends on:** SPEC-tile-click-action (v23, shipped 14.0.0), SPEC-backup-import (the App field list), SPEC-household-catalog-owner (ships in the same release; migration runner)
@@ -51,7 +51,8 @@ A tile can open its app in an overlay on top of Homepad (click action **Inline o
 - Caleb, 2026-11-19: stricter by default, per-app opt-in.
 - Caleb, 2026-11-19: existing Inline overlay apps stay opted in on upgrade (Q1, "keep them opt in").
 - Caleb, 2026-11-19: `X-Frame-Options: DENY` and `frame-ancestors 'none'` on both nginx configs (Q4, "yes").
-- Pending: §0 Q2–Q3.
+- Caleb, 2026-11-20: admins set it, in the tile editor (Q2 A).
+- Caleb, 2026-11-20: apps on Homepad's own origin never get `allow-same-origin`; the switch shows greyed out with a reason (Q3 A).
 
 ---
 
@@ -164,7 +165,7 @@ Down migration: `ALTER TABLE services DROP COLUMN IF EXISTS iframe_same_origin`.
 | `GET /api/services` | Each app gains `iframeSameOrigin` (boolean). Additive. Kids get it for their allowed apps. |
 | `POST /api/services` | Optional `iframeSameOrigin`; default false. |
 | `PATCH /api/services/{id}` | Optional `iframeSameOrigin`. |
-| `GET /api/admin/export`, restore | App gains `iframeSameOrigin` (AC-011). The JSON Schema `docs/schema/homepad-backup-v1.json` gains it as an optional boolean. |
+| `GET /api/admin/export`, restore | App gains `iframeSameOrigin` (AC-011). The JSON Schema for version 2, `docs/schema/homepad-backup-v2.json` (new in 18.0.0, `homepad-api`), has it as an optional boolean. `homepad-backup-v1.json` stays as it was: v1 files never carry the field. |
 
 An 18.0.0 backup restored on 17.1.0 is refused as a newer file (`schemaVersion` 2, SPEC-household-catalog-owner Q5; SPEC-backup-import AC-016), whatever its fields.
 
@@ -209,3 +210,5 @@ UX artifact: [`specs/ux/iframe-sandbox-optin-ux.md`](./ux/iframe-sandbox-optin-u
 | 2026-11-19 | 0.1.0 | Draft for 18.0.0, checked against `homepad` `6eb8a35` and `homepad-api` `79e3b03`. |
 | 2026-11-19 | 0.1.1 | Caleb decided Q1 ("keep them opt in") and Q4 ("yes"). |
 | 2026-11-20 | 0.1.2 | AC-011 and §7: backups are on `schemaVersion` 2 (SPEC-household-catalog-owner Q5), fixing the "stays 1" mismatch. UX artifact approved (I-1…I-4): the unparseable-address reason (I-1) and the saved value under the greyed state (I-2) go into §2.2; AC-005 points at the UX. |
+| 2026-11-22 | 0.1.3 | Marked SHIPPED (18.0.0). §1b records Q2 and Q3 in place of the stale "Pending" line (#593). |
+| 2026-11-22 | 0.1.4 | §7: `iframeSameOrigin` is in the v2 schema file, not the v1 file (#594). |

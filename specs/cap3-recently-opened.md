@@ -3,7 +3,7 @@
 **Version:** 1.0.0
 **Created:** 2026-06-23
 **Author:** Walt (product lead)
-**Status:** BUILT 2026-09-20 — see §8 for the two deviations from this spec's original guidance. Awaiting QA.
+**Status:** SHIPPED — 16.5.0 (2026-09-22). Built 2026-09-20 — see §8 for the two deviations from this spec's original guidance. *(Status line read "BUILT … Awaiting QA" until 2026-11-22.)*
 **Repo:** `Code/homepad` (frontend only — no backend changes)
 **Estimate:** ~45 minutes
 

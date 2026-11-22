@@ -1,9 +1,9 @@
 # Spec: Kid Accounts — a managed dashboard for kids on the family iPad
 
-**Version:** 0.2.0
+**Version:** 0.2.1
 **Created:** 2026-10-20
 **Author:** Caleb Dunn (via /add:spec)
-**Status:** APPROVED (product and UX, 2026-10-22)
+**Status:** SHIPPED — 17.0.0 (2026-10-30). Approved (product and UX) 2026-10-22. Two differences from this spec, both in the code: kid accounts have no password (§2.2, §7), and the migration is split in two (§6). Status line read "APPROVED" until 2026-11-22.
 **Repo:** `Code/homepad` (frontend) + `Code/homepad-api` (Go backend)
 **Estimate:** ~3–4 days (persistent sessions, accounts admin, per-kid allow-list, server-side filtering, UI, tests)
 **Depends on:** shared catalog model (SPEC-245-224), v12-settings-boundary-clarity, per-user preferences (`PATCH /api/me`)
@@ -57,7 +57,7 @@ Sessions move to Postgres (`sessions`: token hash, user id, created_at, last_see
 
 On the iPad, the admin signs in as themselves, opens **Accounts → [kid] → Sign in this device as [kid]**, and confirms. The admin's session on that device ends, and a kid session starts in its place. That's the only way to sign in a kid that has no password. A kid can't reach the admin's session from there: the swap is one-way and needs the admin's session to start.
 
-Optional: the admin can set a password on a kid account, so an older kid can sign in on another device.
+Optional: the admin can set a password on a kid account, so an older kid can sign in on another device. **Not built (17.0.0).** A kid has no email, so no sign-in path could use a password. `PATCH /api/admin/kids/{id}` refuses `password` with 400, and the database requires a kid's email and password to be empty. Kid passwords need their own sign-in design first.
 
 ### 2.3 Accounts admin (new)
 
@@ -133,11 +133,11 @@ Managing adult accounts (create, delete, reset password) stays out of scope, apa
 
 ## 6. Data Model
 
-Migration `0017_kid_accounts`:
+As built in 17.0.0, this is two migrations: `0017_sessions` (the `sessions` table) and `0018_kid_accounts` (everything else below).
 
-- `users.role`: allow `'kid'`. `users.email` and `users.password_hash` become nullable for `role = 'kid'` only (CHECK constraint). Add `users.display_name` and `users.avatar_color`.
+- `users.role`: allow `'kid'`. `users.email` and `users.password_hash` become nullable for `role = 'kid'` only (CHECK constraint). Add `users.avatar_color`. `users.display_name` already exists (migration `0006`), so it is not added here.
 - `kid_allowed_services (user_id → users ON DELETE CASCADE, service_id → services ON DELETE CASCADE, PRIMARY KEY (user_id, service_id))`. Deleting a service drops it from every kid's list.
-- `sessions (token_hash bytea PRIMARY KEY, user_id → users ON DELETE CASCADE, created_at, last_seen_at, expires_at, user_agent text)`, indexed on `user_id` and `expires_at`. A sweep deletes expired rows.
+- `sessions (token_hash bytea PRIMARY KEY, handle text UNIQUE, user_id → users ON DELETE CASCADE, created_at, last_seen_at, expires_at, user_agent text)`. `handle` is the opaque id the sessions API shows (§7), indexed on `user_id` and `expires_at`. A sweep deletes expired rows.
 
 The down migration restores the in-memory model, ending all sessions, and drops kid users.
 
@@ -149,7 +149,7 @@ New, admin-only:
 |---|---|---|
 | GET | `/api/admin/accounts` | `[{id, name, role, lastSeenAt}]` |
 | POST | `/api/admin/kids` | `{name, avatarColor}` → `201 {id, …}` |
-| PATCH | `/api/admin/kids/{id}` | `{name?, avatarColor?, password?}` |
+| PATCH | `/api/admin/kids/{id}` | `{name?, avatarColor?}`. `password` is refused with 400 (§2.2, not built). |
 | DELETE | `/api/admin/kids/{id}` | `204` |
 | PUT | `/api/admin/kids/{id}/services` | `{serviceIds: [...]}` (whole-set replace, like `PUT /api/layout`) → `204` |
 | GET | `/api/admin/kids/{id}/services` | `{serviceIds: [...]}` |
@@ -197,3 +197,4 @@ UX artifact: [`specs/ux/kid-accounts-ux.md`](./ux/kid-accounts-ux.md) (APPROVED 
 |---|---|---|
 | 2026-10-20 | 0.1.0 | Draft from Caleb's request and the D1–D4 interview answers. |
 | 2026-10-22 | 0.2.0 | Approved by Caleb; OQ-1…OQ-4 resolved at the proposed defaults. |
+| 2026-11-22 | 0.2.1 | Marked SHIPPED (17.0.0). §6: only `avatar_color` is added, since `display_name` exists from `0006` (#543); the migration is `0017_sessions` plus `0018_kid_accounts`. §2.2 and §7: kid passwords were not built, as the code refuses them. Checked against `homepad-api` `0a35b42`. |
