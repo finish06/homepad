@@ -337,3 +337,80 @@ describe('Homepage — Done (UX §4.3)', () => {
     expect(await axe(document.body)).toHaveNoViolations();
   });
 });
+
+// #584 / #587 — on plain http (a LAN address) the browser gives the page no
+// navigator.clipboard. Copy falls back to execCommand('copy'); where that fails
+// too, the snippet is selected and the user is told how to copy it by hand.
+// Never a silent no-op.
+describe('Homepage — Copy without the Clipboard API (#584, #587)', () => {
+  let execCommand: ReturnType<typeof vi.fn>;
+  beforeEach(() => {
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    execCommand = vi.fn(() => false);
+    Object.defineProperty(document, 'execCommand', { value: execCommand, configurable: true });
+  });
+  afterEach(() => {
+    delete (document as { execCommand?: unknown }).execCommand;
+  });
+
+  it('step 2: copies with execCommand where the page allows it', async () => {
+    execCommand.mockReturnValue(true);
+    setup();
+    await toPreview(importPlan());
+    const copy = screen.getByRole('button', { name: 'Copy' });
+    copy.focus();
+    await act(async () => {
+      fireEvent.click(copy);
+    });
+    expect(execCommand).toHaveBeenCalledWith('copy');
+    expect(screen.getByTestId('copy-status')).toHaveTextContent('Copied');
+    // The helper's own field is gone, and focus is back on Copy.
+    expect(screen.getAllByRole('textbox', { name: 'Gatus endpoints' })).toHaveLength(1);
+    expect(copy).toHaveFocus();
+  });
+
+  it('step 2: where nothing can copy, selects the snippet and says how', async () => {
+    setup();
+    await toPreview(importPlan());
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    });
+    const box = screen.getByRole('textbox', { name: 'Gatus endpoints' }) as HTMLTextAreaElement;
+    expect(box).toHaveFocus();
+    expect([box.selectionStart, box.selectionEnd]).toEqual([0, box.value.length]);
+    expect(screen.getByTestId('copy-status')).toHaveTextContent('Press Ctrl+C to copy.');
+  });
+
+  it('a Clipboard API that refuses falls back too', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn(() => Promise.reject(new Error('denied'))) },
+      configurable: true,
+    });
+    execCommand.mockReturnValue(true);
+    setup();
+    await toPreview(importPlan());
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    });
+    expect(execCommand).toHaveBeenCalledWith('copy');
+    expect(screen.getByTestId('copy-status')).toHaveTextContent('Copied');
+  });
+
+  it('Done: where nothing can copy, shows the snippet selected, with how to copy it', async () => {
+    vi.mocked(applyHomepageImport).mockResolvedValue(asResult(importPlan()));
+    setup();
+    await toPreview(importPlan());
+    fireEvent.click(screen.getByRole('button', { name: 'Import 4 apps' }));
+    await screen.findByRole('heading', { name: 'Import from Homepage, step 3 of 3' });
+    expect(screen.queryByRole('textbox', { name: 'Gatus endpoints' })).toBeNull();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Copy snippet' }));
+    });
+    const box = screen.getByRole('textbox', { name: 'Gatus endpoints' }) as HTMLTextAreaElement;
+    expect(box.value).toBe(importPlan().gatusSnippet);
+    expect(box).toHaveFocus();
+    expect([box.selectionStart, box.selectionEnd]).toEqual([0, box.value.length]);
+    expect(screen.getAllByText('Press Ctrl+C to copy.').length).toBeGreaterThan(0);
+    expect(await axe(document.body)).toHaveNoViolations();
+  });
+});

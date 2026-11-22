@@ -58,7 +58,6 @@ services:
       # Proxies whose X-Forwarded-For the sign-in limits believe. Empty: every
       # client shares one limit. `web` is this file's nginx. See docs/single-sign-on.md.
       HOMEPAD_TRUSTED_PROXIES: ${HOMEPAD_TRUSTED_PROXIES:-}
-      SESSION_SECRET: ${SESSION_SECRET:-}
       # Status tiles read from Gatus (compose service name `gatus`, port 8080).
       GATUS_BASE_URL: ${GATUS_BASE_URL:-http://gatus:8080}
       # Widgets: encrypts the API keys widgets use (64 hex chars). Optional.

@@ -38,6 +38,9 @@ export const IMPORT_COPY: Record<string, string> = {
   icon_local: "Local icon files can't be copied. Upload it on the app.",
   icon_glyph: 'Shows initials ({icon}).',
   icon_unsupported: "This icon can't be used. Shows initials.",
+  // Not an API code: icon_unsupported on an item that is already here, which
+  // keeps the icon it has (homepad#585). itemNote picks it by the row's action.
+  icon_unsupported_kept: "This icon can't be restored. The current icon is kept.",
   description_variable: 'The description uses a Homepage variable. It was kept as text.',
   section_missing: 'Its section is not in the file. It goes to Uncategorized.',
   kid_needs_device: 'Sign their device in again from Accounts.',

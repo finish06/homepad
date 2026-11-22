@@ -7,6 +7,16 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [Unreleased]
+
+- The reset-link and invite-link dialogs no longer have a large empty space under the link.
+- If pending invites can't load, Accounts still lists everyone and you can still manage kids. Only the invites part shows an error, with its own Retry.
+- An invite or reset link opened in a tab that already shows Homepad now opens its screen, and the link leaves the address bar. Before, nothing happened until you reloaded.
+- The Copy and Copy snippet buttons in Import from Homepage now work when you reach Homepad over plain http. If the browser won't copy at all, the snippet is selected and Homepad tells you how to copy it yourself.
+- What's new now opens on its own the first time you load Homepad after an upgrade, once per browser. A browser that has never opened Homepad before, and kid devices, don't get it.
+- When a backup restore can't use an app's icon, the preview now says what happens: an app that's already here keeps its current icon, and a new one shows initials.
+- In What's new, the 16.7.4 fix has the amber "bug-fix" label, not a grey one.
+
 ## [18.0.0] — 2026-11-22 — One app list for the household, managing adults, and safer sign-in
 
 The app list now belongs to the household. Every admin edits the same list,

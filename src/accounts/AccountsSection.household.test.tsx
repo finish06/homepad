@@ -187,13 +187,38 @@ describe('Pending invites (AC-011, AC-019)', () => {
     window.removeEventListener('keydown', outer);
   });
 
-  it('loads with the account list and shares its error', async () => {
-    vi.mocked(listInvites).mockRejectedValue(new Error('boom'));
+  // #583 — a web build ahead of its API (no invites route, 404) must not take
+  // the account list, and kid management with it, down with the invites.
+  it('a failed invites load leaves the accounts, and says so on its own', async () => {
+    const user = userEvent.setup();
+    vi.mocked(listAccounts).mockResolvedValue([ADMIN, ALEX, MAYA]);
+    vi.mocked(listInvites).mockRejectedValue(new Error('404'));
+    render(<AccountsSection currentUserId="u-admin" />);
+    expect(await screen.findAllByTestId('account-row')).toHaveLength(3);
+    expect(screen.getByRole('button', { name: /^Edit Maya, kid/ })).toBeInTheDocument();
+    expect(screen.queryByTestId('accounts-error')).not.toBeInTheDocument();
+    const err = await screen.findByTestId('invites-error');
+    expect(within(err).getByRole('alert')).toHaveTextContent("Couldn't load pending invites.");
+
+    vi.mocked(listAccounts).mockClear();
+    vi.mocked(listInvites).mockResolvedValue([JORDAN]);
+    await user.click(within(err).getByRole('button', { name: 'Retry' }));
+    expect(await screen.findAllByTestId('invite-row')).toHaveLength(1);
+    expect(screen.queryByTestId('invites-error')).not.toBeInTheDocument();
+    // Retry here reloads the invites only.
+    expect(listAccounts).not.toHaveBeenCalled();
+  });
+
+  it('a failed accounts load still shows the section error, and Retry reloads both', async () => {
+    vi.mocked(listAccounts).mockRejectedValue(new Error('boom'));
     render(<AccountsSection currentUserId="u-admin" />);
     expect(await screen.findByTestId('accounts-error')).toHaveTextContent("Couldn't load accounts.");
+    expect(screen.queryByTestId('invites-error')).not.toBeInTheDocument();
+    vi.mocked(listAccounts).mockResolvedValue([ADMIN, ALEX]);
     vi.mocked(listInvites).mockResolvedValue([JORDAN]);
     await userEvent.setup().click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findAllByTestId('invite-row')).toHaveLength(1);
+    expect(screen.getAllByTestId('account-row')).toHaveLength(2);
   });
 
   it('SPEC-signin-hardening AC-021 — the dialog gets the registration mode', async () => {

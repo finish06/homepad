@@ -1,7 +1,7 @@
 # Spec: Sign-in hardening — rate limits, verified emails for single sign-on, invite-only for SSO
 
 **Spec ID:** SPEC-signin-hardening
-**Version:** 0.1.4
+**Version:** 0.1.5
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
 **Status:** SHIPPED — 18.0.0 (2026-11-22). The `email_verified` refusal and the three small bug fixes (login timing, the callback cookie, the 72-byte limit) shipped earlier, in 17.1.0. Approved — Caleb, 2026-11-20: every §0 question decided. Status line read "Approved" until 2026-11-22.
@@ -90,12 +90,13 @@ One limiter, keyed by client, replaces the per-process bucket.
 |---|---|---|---|
 | `POST /api/login` | 10/min, burst 10 | 10 failures in 15 min → 15-min lock for that email (Q3, decided) | 120/min |
 | `POST /api/register` | 5/min, burst 5 | — | 120/min |
-| `POST /api/invites/lookup`, `/accept` | 30/min, burst 10 | — | 120/min (`/accept` only) |
-| `POST /api/password-resets/lookup`, `/accept` | 30/min, burst 10 | — | 120/min (`/accept` only) |
+| `POST /api/invites/lookup`, `/accept` | 30/min, burst 10 | — | `/accept`: 120/min. `/lookup`: the lookup ceiling, 600/min, burst 60 |
+| `POST /api/password-resets/lookup`, `/accept` | 30/min, burst 10 | — | `/accept`: 120/min. `/lookup`: the lookup ceiling, 600/min, burst 60 |
 | `POST /api/me/password` | — | 5 failures in 15 min → 15-min lock (SPEC-password-reset-link) | — |
 | `GET /api/auth/oidc/login` | 20/min, burst 10 | — | — |
 
 - The process ceiling bounds bcrypt work on the box whatever the client keys are. The bcrypt routes share it.
+- The lookup ceiling bounds the two lookup routes the same way: one token bucket for the whole process, 600 a minute, burst 60, shared by `/api/invites/lookup` and `/api/password-resets/lookup`. It is separate from the bcrypt ceiling, so a lookup flood can't use up sign-in, and the per-client bucket still applies first. A lookup is one SHA-256 and one indexed read, so it allows five times the bcrypt ceiling; a household opens a link a few times a day and never comes close. Over it, the same `429` with `Retry-After` (homepad-api #112, from the #110 review).
 - Over a limit: `429`, `Retry-After` in whole seconds, body "too many attempts". The per-email lock answers 429 for that email whether or not the password is right, so it reveals nothing.
 - Buckets live in memory, per process, in a map capped at 10,000 keys; idle keys are dropped after 15 minutes. A restart clears them. More than one API replica means each has its own limits, which the docs say.
 
@@ -326,3 +327,4 @@ Release-note lines:
 | 2026-11-20 | 0.1.2 | UX artifact approved (S-1…S-6). AC-019: the OIDC start route's limit redirects with `too_many` (S-5). AC-020: the entry-chunk measure-before-merge rule (S-1). AC-021: `AddAdultDialog.tsx` joins the file list with the two-mode PocketID line (S-4). `AuthForm` path corrected. |
 | 2026-11-22 | 0.1.3 | §2.1: the invite and reset-link lookups skip the process ceiling (they run no bcrypt); only the `/accept` routes, login and register share it (homepad-api #110, from the #109 review). |
 | 2026-11-22 | 0.1.4 | Marked SHIPPED (18.0.0). §1c records Q2 in place of the stale "Pending" line (#593). The bug-fix PR is named: homepad-api #99, shipped in 17.1.0. |
+| 2026-11-22 | 0.1.5 | §2.1: the invite and reset-link lookups get a process-wide bound of their own, the lookup ceiling: one shared token bucket, 600/min, burst 60, the same 429 and `Retry-After`, separate from the bcrypt ceiling (homepad-api #112, 18.0.1). |

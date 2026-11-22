@@ -110,5 +110,28 @@ for (const [label, w, h] of [
       await expect(panel).toBeVisible();
       await expect(page.getByRole('button', { name: 'Manage Jo' })).toBeFocused();
     });
+
+    // #617 — the link field sat in a ~220px box: `.kid-field`'s 220px flex
+    // basis, meant as a width in the kid editor's row, became a height in this
+    // column. The field box ends where its last line does, and Copy link sits
+    // one row gap (14px) under the field.
+    test('no empty gap between the link and Copy link', async ({ page }) => {
+      await openAccounts(page, w, h);
+      await page.getByRole('button', { name: 'Manage Jo' }).click();
+      await page.getByRole('menuitem', { name: 'Make a reset link' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Reset link for Jo' });
+      const input = dialog.getByLabel('Reset link', { exact: true });
+      await expect(input).toBeVisible();
+      await settled(dialog);
+      const slack = await input.evaluate((el) => {
+        const box = el.parentElement!;
+        const last = box.lastElementChild!;
+        return box.getBoundingClientRect().bottom - last.getBoundingClientRect().bottom;
+      });
+      expect(slack, 'empty space at the bottom of the link field').toBeLessThanOrEqual(1);
+      const fieldBottom = (await input.boundingBox())!;
+      const copy = (await dialog.getByRole('button', { name: 'Copy link' }).boundingBox())!;
+      expect(copy.y - (fieldBottom.y + fieldBottom.height), 'gap between the link and Copy link').toBeLessThanOrEqual(20);
+    });
   });
 }

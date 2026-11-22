@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { canCopy, copyHint } from '../lib/copyText';
 
 // SPEC-household-basics UX §3.3 and SPEC-password-reset-link UX §2.2 — the
 // link-once view the invite dialog and the reset-link dialog share: the link
@@ -6,15 +7,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 // the browser has a share sheet. Browsers block the clipboard on plain http (a
 // LAN address), so there the field is selected instead, with how to copy it.
 // The server keeps only a hash, so this is the one time the link is shown.
-
-function canCopy(): boolean {
-  return window.isSecureContext === true && typeof navigator.clipboard?.writeText === 'function';
-}
-
-function copyHint(): string {
-  if (window.matchMedia?.('(pointer: coarse)').matches) return 'Press and hold to copy.';
-  return /Mac|iPhone|iPad/.test(navigator.userAgent) ? 'Press ⌘C to copy.' : 'Press Ctrl+C to copy.';
-}
+// canCopy and copyHint are shared with every other Copy button (lib/copyText).
 
 export default function LinkOnce({
   link,

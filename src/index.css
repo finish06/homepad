@@ -2728,6 +2728,10 @@
     display: flex;
     flex-direction: column;
     gap: 5px;
+  }
+  /* The 220px basis is a width, for the name and colour row. In a column
+     (the link and password dialogs) it became a 220px height (#617). */
+  .kid-identity > .kid-field {
     flex: 1 1 220px;
   }
   .kid-field .settings-input {

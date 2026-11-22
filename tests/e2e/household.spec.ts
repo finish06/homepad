@@ -69,6 +69,24 @@ test('TC-003 — an invite link: Join screen, token gone from the address bar, J
   expect(mock.urls.some((u) => u.includes('tok-live-123'))).toBe(false);
 });
 
+// #582 — the link opened in a tab that already shows Homepad: only the
+// fragment changes, with no reload. Same result as a fresh load.
+test('AC-020 — an invite link opened in an already-open tab', async ({ page }) => {
+  await mockHousehold(page, { setupDone: true, token: 'tok-live-123' });
+  await page.goto('/');
+  await expect(page.getByText('Sign in to your dashboard')).toBeVisible();
+  const loads: string[] = [];
+  page.on('load', () => loads.push(page.url()));
+
+  await page.evaluate(() => {
+    window.location.hash = 'invite=tok-live-123';
+  });
+  await expect(page.getByRole('heading', { name: 'Join Homepad' })).toBeVisible();
+  await expect(page.getByText('Caleb invited you.')).toBeVisible();
+  await expect.poll(() => page.url()).not.toContain('tok-live-123');
+  expect(loads, 'the page did not reload').toEqual([]);
+});
+
 test('TC-004 — a dead link: one message, and a way to sign in', async ({ page }) => {
   await mockHousehold(page, { setupDone: true, token: 'tok-live-123' });
   await page.goto('/#invite=tok-used');

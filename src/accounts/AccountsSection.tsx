@@ -27,8 +27,10 @@ const REGISTRATION_DOCS = 'https://github.com/finish06/homepad#registration';
 //
 // SPEC-household-basics UX §3.1 — "+ Add an adult" sits next to "+ Add a kid"
 // (H-1); the open-sign-up warning shows while HOMEPAD_REGISTRATION=open
-// (AC-006); the user role reads "member" (AC-021); Pending invites load with
-// the account list and share its error state (AC-011, AC-019).
+// (AC-006); the user role reads "member" (AC-021); Pending invites list under
+// the accounts (AC-011, AC-019). They load on their own, with their own error
+// and Retry: a web build ahead of its API (no invites route) still lists the
+// accounts and manages kids (#583, spec §10).
 
 type Load = 'loading' | 'ready' | 'error';
 
@@ -55,6 +57,7 @@ export default function AccountsSection({
   const [invites, setInvites] = useState<Invite[]>([]);
   const [config, setConfig] = useState<AuthConfig | null>(null);
   const [state, setState] = useState<Load>('loading');
+  const [invitesState, setInvitesState] = useState<Load>('loading');
   const [editor, setEditor] = useState<EditorState>(null);
   const [addingAdult, setAddingAdult] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
@@ -77,23 +80,41 @@ export default function AccountsSection({
     };
   }, []);
 
-  const load = useCallback(() => {
+  const loadInvites = useCallback(() => {
     let live = true;
-    setState('loading');
-    Promise.all([listAccounts(), listInvites()])
-      .then(([rows, pending]) => {
+    setInvitesState('loading');
+    listInvites()
+      .then((pending) => {
         if (!live) return;
-        setAccounts(rows);
         setInvites(pending);
-        setState('ready');
+        setInvitesState('ready');
       })
       .catch(() => {
-        if (live) setState('error');
+        if (live) setInvitesState('error');
       });
     return () => {
       live = false;
     };
   }, []);
+
+  const load = useCallback(() => {
+    let live = true;
+    setState('loading');
+    listAccounts()
+      .then((rows) => {
+        if (!live) return;
+        setAccounts(rows);
+        setState('ready');
+      })
+      .catch(() => {
+        if (live) setState('error');
+      });
+    const stopInvites = loadInvites();
+    return () => {
+      live = false;
+      stopInvites();
+    };
+  }, [loadInvites]);
 
   useEffect(() => load(), [load]);
 
@@ -257,7 +278,19 @@ export default function AccountsSection({
               Kids get a dashboard with only the apps you choose, signed in on their own device.
             </p>
           )}
-          <PendingInvites invites={invites} onRevoked={(id) => setInvites((cur) => cur.filter((i) => i.id !== id))} />
+          {invitesState === 'ready' && (
+            <PendingInvites invites={invites} onRevoked={(id) => setInvites((cur) => cur.filter((i) => i.id !== id))} />
+          )}
+          {invitesState === 'error' && (
+            <div className="accounts-error invites" data-testid="invites-error">
+              <span className="settings-error" role="alert">
+                Couldn't load pending invites.
+              </span>
+              <button type="button" className="settings-ghost-btn" onClick={loadInvites}>
+                Retry
+              </button>
+            </div>
+          )}
         </>
       )}
 

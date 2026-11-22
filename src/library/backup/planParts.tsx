@@ -56,11 +56,17 @@ const MARKS: Record<PlanItem['action'], { mark: string; words: string }> = {
   unchanged: { mark: '=', words: 'Unchanged' },
 };
 
+// homepad#585 — restore skips an icon that isn't a URL. An item already here
+// (update, unchanged) keeps the icon it has; a new one shows initials.
+function warningCode(item: PlanItem, w: string): string {
+  return w === 'icon_unsupported' && (item.action === 'update' || item.action === 'unchanged') ? 'icon_unsupported_kept' : w;
+}
+
 export function itemNote(item: PlanItem): string {
   const parts: string[] = [];
   if (item.reason) parts.push(codeCopy(item.reason));
   if (item.action === 'update' && item.fields?.length && !item.reason) parts.push(fieldWords(item.fields));
-  for (const w of item.warnings ?? []) parts.push(codeCopy(w, { icon: item.detail }));
+  for (const w of item.warnings ?? []) parts.push(codeCopy(warningCode(item, w), { icon: item.detail }));
   return parts.join(' ');
 }
 

@@ -123,6 +123,53 @@ describe('invite link (AC-020)', () => {
     expect(screen.queryByTestId('app-grid-stub')).not.toBeInTheDocument();
   });
 
+  // #582 — a link opened in a tab that already shows Homepad changes only the
+  // fragment: no reload, no new mount. It must do what a fresh load does.
+  describe('opened in an already-open tab (hashchange)', () => {
+    const openLink = (hash: string) => {
+      window.history.pushState(null, '', hash);
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    };
+
+    it('from the sign-in card: the Join screen, and the token leaves the address bar', async () => {
+      render(<App />);
+      await screen.findByText('Sign in to your dashboard');
+      openLink('/#invite=tok-abc');
+      expect(await screen.findByText('Caleb invited you.')).toBeInTheDocument();
+      expect(lookupInvite).toHaveBeenCalledWith('tok-abc');
+      expect(window.location.href).not.toContain('tok-abc');
+    });
+
+    it('from the dashboard: the already-signed-in state', async () => {
+      vi.mocked(me).mockResolvedValue(CALEB);
+      render(<App />);
+      await screen.findByTestId('app-grid-stub');
+      openLink('/#invite=tok-abc');
+      expect(await screen.findByText("You're signed in as Caleb. Sign out to use this invite.")).toBeInTheDocument();
+      expect(window.location.href).not.toContain('tok-abc');
+    });
+
+    it('a second link on the Join screen looks up the new token', async () => {
+      window.history.replaceState(null, '', '/#invite=tok-abc');
+      render(<App />);
+      await screen.findByText('Caleb invited you.');
+      vi.mocked(lookupInvite).mockResolvedValue({ ok: false, status: 404, error: 'invite not found' });
+      openLink('/#invite=tok-dead');
+      expect(await screen.findByText("This invite link doesn't work anymore.")).toBeInTheDocument();
+      expect(lookupInvite).toHaveBeenLastCalledWith('tok-dead');
+      expect(window.location.href).not.toContain('tok-dead');
+    });
+
+    it('other fragments still do nothing', async () => {
+      render(<App />);
+      await screen.findByText('Sign in to your dashboard');
+      openLink('/#settings');
+      await waitFor(() => expect(window.location.hash).toBe('#settings'));
+      expect(screen.getByText('Sign in to your dashboard')).toBeInTheDocument();
+      expect(lookupInvite).not.toHaveBeenCalled();
+    });
+  });
+
   it('ignores other fragments', async () => {
     window.history.replaceState(null, '', '/#settings');
     render(<App />);

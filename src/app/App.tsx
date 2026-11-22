@@ -30,6 +30,7 @@ import { CONTENT_WIDTH } from '../lib/layout';
 import { ShowWidgetsContext, WidgetsInfoContext } from '../widgets/context';
 import { useShowWidgetsPref } from '../widgets/showWidgetsPref';
 import { useWidgetsInfo } from '../widgets/useWidgetsInfo';
+import { shouldOpenWhatsNew } from './whatsNew';
 
 // v14.0.1 optimize — these three surfaces only ever mount after a user action
 // (open the Library, open the custom-app form, open admin Settings), so they are
@@ -47,7 +48,8 @@ const ResetPasswordScreen = lazy(() => import('./ResetPasswordScreen'));
 
 // readLinkToken returns the kind and token of an `/#invite=<token>` or
 // `/#reset=<token>` link, or null. It only reads: App removes the fragment
-// once, after mount (household-basics AC-020, reset-link AC-019). The token
+// after mount, and again whenever a link arrives in the open tab (household-
+// basics AC-020, reset-link AC-019). The token
 // lives in the fragment because browsers never send a fragment to the server,
 // so it stays out of access logs and Referer headers (spec §3.2).
 type LinkToken = { kind: string; token: string };
@@ -71,9 +73,10 @@ const HomepageImportModal = lazy(() => import('../library/backup/HomepageImportM
 // chunk too: it renders only once the admin turns the clock or weather on, so
 // a dashboard without it never downloads it. Its CSS stays in the entry.
 const GlanceStrip = lazy(() => import('./GlanceStrip'));
-// The changelog overlay opens only from the footer version badge, and it carries
-// src/changelog.json (every release ever shipped, ~47 kB raw). Lazy, so a
-// dashboard load never downloads it; it mounts only while open.
+// The changelog overlay opens from the footer version badge, or on its own once
+// after an upgrade (whatsNew.ts, #590). It carries src/changelog.json (every
+// release ever shipped, ~47 kB raw). Lazy, so a dashboard load never downloads
+// it; it mounts only while open.
 const ChangelogOverlay = lazy(() => import('./ChangelogOverlay'));
 
 export default function App() {
@@ -87,10 +90,21 @@ export default function App() {
   // session exists and the sign-in card never mounts. Nothing else in the app
   // uses the fragment.
   useEffect(() => {
-    if (link || ssoError !== undefined) {
+    const clear = () =>
       window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
-    }
-    // Once, on mount: the token was read by the state initializer.
+    // On mount: the state initializer read the token.
+    if (link || ssoError !== undefined) clear();
+    // #582 — a link opened in a tab that already shows Homepad changes only
+    // the fragment: read and clear it the same way. replaceState also takes
+    // the token out of the tab's history.
+    const onHash = () => {
+      const next = readLinkToken();
+      if (!next) return;
+      setLink(next);
+      clear();
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -145,10 +159,11 @@ export default function App() {
         </main>
       ) : link ? (
         <Suspense fallback={null}>
+          {/* Keyed by the token, so a second link starts its screen afresh. */}
           {link.kind === 'reset' ? (
-            <ResetPasswordScreen {...linkProps} onDone={linkDone} />
+            <ResetPasswordScreen key={link.token} {...linkProps} onDone={linkDone} />
           ) : (
-            <JoinScreen {...linkProps} onJoined={linkDone} />
+            <JoinScreen key={link.token} {...linkProps} onJoined={linkDone} />
           )}
         </Suspense>
       ) : user ? (
@@ -243,6 +258,14 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [sysConfig, setSysConfig] = useState<SystemConfig>({ showUptimeDisplay: true, statusDegradedMs: 1000 });
   // v15 — version badge in the footer opens the changelog overlay.
   const [changelogOpen, setChangelogOpen] = useState(false);
+  // #590 — and it opens on its own on the first load after an upgrade. Not on
+  // a kid device: a release note over the kid's tiles helps nobody. In an
+  // effect, not the state initializer, because the check writes storage.
+  useEffect(() => {
+    if (!isKid && shouldOpenWhatsNew(__APP_VERSION__)) setChangelogOpen(true);
+    // Once per mount: a role never changes under a mounted Home.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // v17 — alert-history panel open-state + the bell ref (focus returns here on
   // close, AC-009). The log + unread badge live in AlertHistoryProvider.
   const [alertOpen, setAlertOpen] = useState(false);

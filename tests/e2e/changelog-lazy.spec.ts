@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
 
 // The changelog overlay (and src/changelog.json inside it) is a lazy chunk.
@@ -59,4 +61,33 @@ test('the changelog chunk loads only when the footer badge is clicked', async ({
   await expect(dialog).toBeHidden();
   await expect(badge).toBeFocused();
   expect(chunks).toHaveLength(1);
+});
+
+// #590 — on the first load after an upgrade, What's new opens on its own at
+// the running version; once closed, a reload leaves it closed. A browser with
+// no record (the test above) never gets it.
+test("What's new opens once on the first load after an upgrade", async ({ page }) => {
+  const { version } = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8')) as { version: string };
+  await seedUser(page);
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Open changelog' })).toBeVisible();
+  const dialog = page.getByRole('dialog', { name: 'Changelog' });
+  await expect(dialog).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem('homepad:whats-new-seen'))).toBe(version);
+
+  // As if this browser last saw an older release.
+  await page.evaluate(() => localStorage.setItem('homepad:whats-new-seen', '0.0.1'));
+  await page.reload();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('button', { name: new RegExp(`^v${version.replace(/\./g, '\\.')}\\b`) })).toHaveAttribute(
+    'aria-current',
+    'true',
+  );
+  await page.getByRole('button', { name: 'Close changelog' }).click();
+  await expect(dialog).toBeHidden();
+
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Open changelog' })).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  await expect(dialog).toHaveCount(0);
 });

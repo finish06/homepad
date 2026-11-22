@@ -125,6 +125,44 @@ for (const [label, w, h] of [
   });
 }
 
+// #584 / #587 — on plain http the page has no navigator.clipboard. The gate
+// serves localhost (a secure context), so the init script takes it away. Copy
+// must still put the snippet on the clipboard, here through execCommand in
+// real Chromium, and say "Copied". The copy event shows what was copied.
+test('Copy works without the Clipboard API, as on plain http', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, 'clipboard', { get: () => undefined, configurable: true });
+    const w = window as unknown as { copied: string[] };
+    w.copied = [];
+    document.addEventListener('copy', (e) => {
+      const t = e.target as HTMLTextAreaElement;
+      w.copied.push(t.value?.slice(t.selectionStart, t.selectionEnd) ?? '');
+    });
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mockTransfer(page);
+  await page.goto('/');
+  expect(await page.evaluate(() => typeof navigator.clipboard)).toBe('undefined');
+  await page.getByTestId('user-menu-trigger').click();
+  await page.getByTestId('menu-admin-settings').click();
+  await page.getByTestId('settings-backup').getByRole('button', { name: 'Import…' }).click();
+  const dialog = page.getByRole('dialog', { name: /Import from Homepage/ });
+  await dialog.getByRole('textbox', { name: 'services.yaml' }).fill(SERVICES_YAML);
+  await dialog.getByRole('button', { name: 'Preview' }).click();
+  const snippet = await dialog.getByRole('textbox', { name: 'Gatus endpoints' }).inputValue();
+  const copy = dialog.getByRole('button', { name: 'Copy' });
+  await copy.click();
+  await expect(dialog.getByTestId('copy-status')).toHaveText('Copied');
+  expect(await page.evaluate(() => (window as unknown as { copied: string[] }).copied)).toEqual([snippet]);
+  await expect(copy).toBeFocused();
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByRole('button', { name: 'Import 4 apps' }).click();
+  await dialog.getByRole('button', { name: 'Copy snippet' }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { copied: string[] }).copied.length)).toBe(2);
+  expect(await page.evaluate(() => (window as unknown as { copied: string[] }).copied[1])).toBe(snippet);
+});
+
 test('a parse error selects the line in the pasted file (UX §4.1)', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await mockTransfer(page, {

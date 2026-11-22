@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import Modal from '../../ui/Modal';
 import { trapTab } from '../../ui/trapTab';
 import { initialBadge } from '../../lib/icons';
+import { copyHint, copyText } from '../../lib/copyText';
 import {
   applyHomepageImport,
   previewHomepageImport,
@@ -72,11 +73,14 @@ export default function HomepageImportModal({ onClose, onApplied }: { onClose: (
   const [stale, setStale] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const [discarding, setDiscarding] = useState(false);
-  const [copied, setCopied] = useState(false);
+  // Copy: 'copied' reads "Copied" for 2 seconds; 'manual' means nothing could
+  // copy (plain http), so the snippet is selected with how to copy it (#584).
+  const [copy, setCopy] = useState<CopyState>('idle');
   const pendingSelect = useRef<FieldError | null>(null);
 
   useEffect(() => {
     headingRef.current?.focus();
+    setCopy('idle');
   }, [step]);
 
   // After a parse error renders (and an optional file has opened), select the line.
@@ -91,10 +95,10 @@ export default function HomepageImportModal({ onClose, onApplied }: { onClose: (
   }, [fieldError, open]);
 
   useEffect(() => {
-    if (!copied) return;
-    const t = setTimeout(() => setCopied(false), 2000);
+    if (copy !== 'copied') return;
+    const t = setTimeout(() => setCopy('idle'), 2000);
     return () => clearTimeout(t);
-  }, [copied]);
+  }, [copy]);
 
   // Only services.yaml is required; an empty optional file is left out.
   const texts = (): HomepageTexts => {
@@ -174,12 +178,7 @@ export default function HomepageImportModal({ onClose, onApplied }: { onClose: (
   }
 
   async function copySnippet(text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-    } catch {
-      setCopied(false);
-    }
+    setCopy((await copyText(text)) ? 'copied' : 'manual');
   }
 
   function attemptClose() {
@@ -259,12 +258,12 @@ export default function HomepageImportModal({ onClose, onApplied }: { onClose: (
             </>
           )}
           {step === 2 && plan && (
-            <ImportPreview plan={plan} stale={stale} copied={copied} onCopy={copySnippet} />
+            <ImportPreview plan={plan} stale={stale} copy={copy} onCopy={copySnippet} />
           )}
-          {step === 3 && result && <ImportDone result={result} onCopy={copySnippet} />}
+          {step === 3 && result && <ImportDone result={result} copy={copy} onCopy={copySnippet} />}
           {step !== 2 && (
             <span className="sr-only" aria-live="polite">
-              {step === 3 && copied ? 'Copied' : ''}
+              {step === 3 ? copyStatus(copy) : ''}
             </span>
           )}
         </div>
@@ -476,12 +475,12 @@ function bySection(plan: Plan): SectionGroup[] {
 function ImportPreview({
   plan,
   stale,
-  copied,
+  copy,
   onCopy,
 }: {
   plan: Plan;
   stale: boolean;
-  copied: boolean;
+  copy: CopyState;
   onCopy: (s: string) => void;
 }) {
   const long = isLongPreview(plan);
@@ -532,7 +531,7 @@ function ImportPreview({
         <PlanGroup label={`Skipped (${skipped.length})`} defaultOpen long={long} rows={skipped.map(row)} />
       )}
 
-      {plan.gatusSnippet && <StatusChecks snippet={plan.gatusSnippet} copied={copied} onCopy={onCopy} />}
+      {plan.gatusSnippet && <StatusChecks snippet={plan.gatusSnippet} copy={copy} onCopy={onCopy} />}
 
       {notImported.length > 0 && (
         <p className="settings-section-note" data-testid="not-imported">
@@ -544,7 +543,32 @@ function ImportPreview({
   );
 }
 
-function StatusChecks({ snippet, copied, onCopy }: { snippet: string; copied: boolean; onCopy: (s: string) => void }) {
+type CopyState = 'idle' | 'copied' | 'manual';
+
+const copyStatus = (copy: CopyState) => (copy === 'copied' ? 'Copied' : copy === 'manual' ? copyHint() : '');
+
+// The snippet, read-only. When nothing could copy it, it takes focus with all
+// of it selected, so the user's own copy keys work (#584).
+function SnippetBox({ snippet, select }: { snippet: string; select: boolean }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (!select) return;
+    ref.current?.focus();
+    ref.current?.select();
+  }, [select]);
+  return (
+    <textarea
+      ref={ref}
+      className="settings-input bi-yaml bi-snippet"
+      aria-label="Gatus endpoints"
+      readOnly
+      rows={8}
+      value={snippet}
+    />
+  );
+}
+
+function StatusChecks({ snippet, copy, onCopy }: { snippet: string; copy: CopyState; onCopy: (s: string) => void }) {
   const n = snippetCount(snippet);
   return (
     <section className="bi-status" aria-label="Status checks">
@@ -553,10 +577,14 @@ function StatusChecks({ snippet, copied, onCopy }: { snippet: string; copied: bo
         {plural(n, 'app')} had siteMonitor or ping. Homepad reads status from Gatus. Add these to your Gatus config, then
         import again to turn on their status.
       </p>
-      <textarea className="settings-input bi-yaml bi-snippet" aria-label="Gatus endpoints" readOnly rows={8} value={snippet} />
+      <SnippetBox snippet={snippet} select={copy === 'manual'} />
       <div className="bi-status-actions">
-        <span className="bi-copied" data-testid="copy-status" aria-live="polite">
-          {copied ? 'Copied' : ''}
+        <span
+          className={copy === 'manual' ? 'bi-copied bi-copy-hint' : 'bi-copied'}
+          data-testid="copy-status"
+          aria-live="polite"
+        >
+          {copyStatus(copy)}
         </span>
         <button type="button" className="settings-ghost-btn bi-btn" onClick={() => onCopy(snippet)}>
           Copy
@@ -574,7 +602,7 @@ function StatusChecks({ snippet, copied, onCopy }: { snippet: string; copied: bo
 }
 
 // UX §4.3 — where the apps went, and what to do next.
-function ImportDone({ result, onCopy }: { result: Plan; onCopy: (s: string) => void }) {
+function ImportDone({ result, copy, onCopy }: { result: Plan; copy: CopyState; onCopy: (s: string) => void }) {
   const s = result.summary;
   const apps = s.create.apps;
   let title: string;
@@ -604,6 +632,15 @@ function ImportDone({ result, onCopy }: { result: Plan; onCopy: (s: string) => v
             Copy snippet
           </button>
         </div>
+      )}
+      {/* Nothing could copy it (plain http): show it, selected, with how. */}
+      {result.gatusSnippet && copy === 'manual' && (
+        <>
+          <SnippetBox snippet={result.gatusSnippet} select />
+          <p className="settings-section-note" aria-hidden="true">
+            {copyHint()}
+          </p>
+        </>
       )}
     </div>
   );

@@ -74,4 +74,15 @@ describe('changelog.json stays in step with the release', () => {
         if (!c.type || !c.text?.trim()) bad.push(`${v.version}: ${JSON.stringify(c)}`);
     expect(bad).toEqual([]);
   });
+
+  it('every change type is one the overlay colours (#537)', () => {
+    // v15 spec §2: an unknown type still renders, as a grey chip, so a typo
+    // like "bugfix" ships unnoticed. Pending entries count too.
+    const valid = new Set(['feature', 'enhancement', 'bug-fix', 'security']);
+    const bad: string[] = [];
+    for (const c of overlay.pending) if (!valid.has(c.type)) bad.push(`pending: ${c.type}`);
+    for (const v of overlay.versions)
+      for (const c of v.changes) if (!valid.has(c.type)) bad.push(`${v.version}: ${c.type}`);
+    expect(bad).toEqual([]);
+  });
 });

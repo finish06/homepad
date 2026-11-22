@@ -89,7 +89,7 @@ Same auth card, same width, same 44px controls. Only the title, subtitle, fields
   - Each row: name, role pill, who made it, when it ends, **Revoke**.
   - **Revoke** asks first: "Revoke Jordan's invite? The link stops working." Buttons: [Cancel] [Revoke]. A link might already be in someone's messages, so a slip can't be undone by trying again.
   - Used and expired invites drop off. The account list shows who joined.
-- **Loading and error:** the same skeleton rows and inline "Couldn't load accounts. Retry" as today. Pending invites load with the account list and share its error.
+- **Loading and error:** the same skeleton rows and inline "Couldn't load accounts. Retry" as today. Pending invites load on their own. If only they fail, the account list still shows and kids can still be managed; under it, "Couldn't load pending invites. Retry" reloads only the invites (18.0.1, #583).
 
 ### 3.2 Add-an-adult dialog: the form
 

@@ -3,6 +3,7 @@ import { render, screen, waitForElementToBeRemoved, within } from '@testing-libr
 import userEvent from '@testing-library/user-event';
 import App from './App';
 import { authConfig, me, setThemePref, type User } from '../api';
+import { WHATS_NEW_KEY } from './whatsNew';
 
 // Mirror App.test's isolation: stub the heavy children + the api module so the
 // logged-in dashboard mounts without a backend. The footer (v15) lives in Home,
@@ -108,5 +109,47 @@ describe('v15 version footer', () => {
     expect(
       within(screen.getByRole('navigation', { name: 'Versions' })).getByRole('button', { current: true }),
     ).toHaveTextContent(defaultLabel!);
+  });
+});
+
+// #590 — What's new opens on its own on the first load after an upgrade.
+describe("What's new after an upgrade", () => {
+  beforeEach(() => localStorage.clear());
+
+  it('opens on its own when this browser last saw an older version, at the running version', async () => {
+    localStorage.setItem(WHATS_NEW_KEY, '0.0.1');
+    render(<App />);
+    const dialog = await screen.findByRole('dialog', { name: 'Changelog' });
+    expect(within(dialog).getByRole('button', { name: new RegExp(`v${__APP_VERSION__.replace(/\./g, '\\.')}`) })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+    expect(localStorage.getItem(WHATS_NEW_KEY)).toBe(__APP_VERSION__);
+    await userEvent.setup().click(within(dialog).getByRole('button', { name: 'Close changelog' }));
+    expect(screen.queryByRole('dialog', { name: 'Changelog' })).toBeNull();
+  });
+
+  it('stays closed on the next load', async () => {
+    localStorage.setItem(WHATS_NEW_KEY, __APP_VERSION__);
+    render(<App />);
+    await dropLoading();
+    await screen.findByTestId('app-footer');
+    expect(screen.queryByRole('dialog', { name: 'Changelog' })).toBeNull();
+  });
+
+  it('a brand-new browser: stays closed, and records the version', async () => {
+    render(<App />);
+    await dropLoading();
+    await screen.findByTestId('app-footer');
+    expect(screen.queryByRole('dialog', { name: 'Changelog' })).toBeNull();
+    expect(localStorage.getItem(WHATS_NEW_KEY)).toBe(__APP_VERSION__);
+  });
+
+  it('not on a kid device', async () => {
+    vi.mocked(me).mockResolvedValue({ id: 'k1', email: '', role: 'kid', themePref: 'system', name: 'Sam' });
+    localStorage.setItem(WHATS_NEW_KEY, '0.0.1');
+    render(<App />);
+    await dropLoading();
+    expect(screen.queryByRole('dialog', { name: 'Changelog' })).toBeNull();
   });
 });

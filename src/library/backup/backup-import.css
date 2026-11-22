@@ -325,6 +325,10 @@
   font-size: 13px;
   color: #047857;
 }
+/* "Press Ctrl+C to copy." is an instruction, not a success: no green. */
+.bi-copied.bi-copy-hint {
+  color: inherit;
+}
 
 /* --- Done --------------------------------------------------------------- */
 .bi-done {
@@ -401,4 +405,8 @@
   .bi-row {
     flex-direction: column;
   }
+}
+/* After the .dark rules, so the hint isn't green in dark mode either. */
+.dark .bi-copied.bi-copy-hint {
+  color: inherit;
 }
