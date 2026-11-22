@@ -29,6 +29,11 @@ jobs:
           image-name: homepad
           staging-url: http://homepad-staging.10.17.2.213.nip.io
           qa-backend: ${{ vars.QA_BACKEND || 'nats' }}
+          # qa-gate logs in through the API (the runner supplies QA_EMAIL /
+          # QA_PASSWORD). Same staging host as staging-url above. Needs a
+          # ci-shared @v3 that declares this input (ci-shared#46); an older @v3
+          # just drops it.
+          qa-login-url: http://homepad-staging.10.17.2.213.nip.io/api/login
           # Test-dedup: the unit suite is NOT re-run here. ci.yml ("Web (build,
           # unit tests)") and browser-gate.yml are required status checks on
           # this same PR head sha — branch protection already blocks the QA
@@ -124,3 +129,8 @@ jobs:
           QA_TRIGGER_TOKEN:   ${{ secrets.QA_TRIGGER_TOKEN }}
           KUBECONFIG_STAGING: ${{ secrets.KUBECONFIG_STAGING }}
           GITEA_READ_TOKEN:   ${{ secrets.HOMELAB_READ_TOKEN }}
+          # The composite's docs-only auto-approve step (as ci-docs-approver)
+          # reads its credential from THIS env block; it can't read the secret
+          # itself (#616, run 6969: empty token, warn, no approval). Map it so
+          # docs-only PRs, which skip QA, still get their approval.
+          DOCS_APPROVER_TOKEN: ${{ secrets.DOCS_APPROVER_TOKEN }}

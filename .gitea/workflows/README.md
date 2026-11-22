@@ -25,7 +25,7 @@ A few words used below:
 flowchart TD
     A["Open or push to a PR"] --> B["ci + browser-gate + e2e<br/>tests on the PR"]
     A --> C["mr-staging<br/>build PR image, deploy it to the shared staging slot"]
-    C --> D["QA of the PR on staging<br/>today: started by hand (QA_BACKEND=manual)"]
+    C --> D["QA of the PR on staging<br/>started automatically by the qa-runner"]
     B --> E{"Required checks green<br/>and 1 approval?"}
     D --> E
     E -->|yes| F["Merge to main"]
@@ -139,10 +139,10 @@ leaked secrets, so a failure can mean something sensitive ended up in the bundle
   (`mr-staging/action.yml`, v3): a `.md`, `.mdx` or `.txt` file; anything in a
   `docs/` or `specs/` folder, at any depth; anything in `one-pagers/` at the
   top; or a README, CHANGELOG or LICENSE file.
-  It then tries to auto-approve the PR as the `ci-docs-approver` bot, but today
-  that **doesn't work**: this workflow doesn't pass the approver's token, so the
-  run only logs a warning (and stays green). A docs-only PR still needs someone
-  to approve it.
+  It then auto-approves the PR as the `ci-docs-approver` bot, which clears the
+  one-approval rule, so a docs-only PR needs no human approval. This workflow
+  passes the bot's token (`DOCS_APPROVER_TOKEN`) into the step; without it the
+  approve step only logs a warning.
 - It does **not** re-run the unit tests. CI and Browser gate already test this
   exact commit.
 - Builds the PR's image and pushes it with two tags: `<short-sha>-test` and
@@ -150,8 +150,9 @@ leaked secrets, so a failure can mean something sensitive ended up in the bundle
 - Deploys it to staging: applies the web nginx settings from Code/homelab, points
   the `homepad-web` deployment at the new image, restarts it, and waits up to
   2 minutes for it to come up.
-- Then it tries to start QA of the PR on staging. Who does the QA depends on the
-  repo variable `QA_BACKEND` (see below).
+- Then it starts QA of the PR on staging. Who does the QA depends on the repo
+  variable `QA_BACKEND` (see below). For homepad that's `docker-claude`: the
+  qa-runner QAs every PR automatically, nobody has to start it.
 
 **What it changes outside the repo:**
 
@@ -167,12 +168,14 @@ leaked secrets, so a failure can mean something sensitive ended up in the bundle
   - `nats` (the default if the variable is unset): sends a task to the QA bot
     pool. On a pass the QA bot approves and merges the PR; on a fail it asks for
     changes.
-  - `docker-claude`: starts a one-off QA job on the cluster that tests staging,
-    checks that staging is really running this PR's commit, and approves and
-    squash-merges on a pass.
-  - **Any other value (today it's `manual`)**: no QA is started. The run logs an
-    error note but still goes green. On this repo, QA is started by hand, because
-    there is only one staging slot.
+  - `docker-claude` (what homepad uses): starts a one-off qa-runner job on the
+    cluster that tests staging, checks that staging is really running this PR's
+    commit, and approves and squash-merges on a pass. It logs in to staging
+    through `http://homepad-staging.10.17.2.213.nip.io/api/login` (the
+    `qa-login-url` input) with the test login the qa-runner holds. The model is
+    Sonnet 5.5 at medium effort, set on the qa-runner trigger, not here.
+  - Any other value: no QA is started. The run logs an error note but still
+    goes green, and someone has to start QA by hand.
   - Either way, QA is only started for the PR's newest commit. Older pushes are
     skipped.
 
