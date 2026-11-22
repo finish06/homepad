@@ -1,16 +1,16 @@
 # Session Handoff
 
-**Written:** 2026-11-20 (17.1.0 release PR opened)
+**Written:** 2026-11-21 (18.0.0 release commit drafted)
 
 ## In progress
-- **17.1.0 is in its release PR** (`release/17.1.0`). Everything is merged on main: web #560, #565, #566, #568, #574, #586; API #91, #93, #94, #97, #98, #99.
-  - After merge: Caleb and Joe tag homepad-api `v17.1.0` on `2ef3d95` (or newer main) and homepad `v17.1.0`. The quickstart `compose.yaml` pins `17.1.0`, so tag both together.
-  - Deploy the API first, then web. Prod promotion is Caleb's go, via Joe.
-  - `HOMEPAD_SECRET_KEY` was unset on staging and prod at the 11-13 handoff; widget keys can't be saved until it's set. Creating it needs Caleb's go, via Joe.
-- **18.0.0 specs are approved** on PR #579 (household management: strict iframe sandbox with opt-in, OIDC verified email, admin reset link).
+- **18.0.0 is drafted on `release/18.0.0`**, on top of the sign-in hardening branch. It goes to main after specs 3 (reset link) and 4 (sign-in hardening) merge, web and API; then rebase it onto main.
+  - Web on main: #592, #600, #601. API on main: #101, #103, #104. API still open: reset link and sign-in hardening.
+  - The CHANGELOG and changelog.json date (2026-11-21) is a placeholder; set it to the merge day.
+  - After merge: tag homepad-api `v18.0.0` and homepad `v18.0.0` together. The quickstart `compose.yaml` pins `18.0.0`.
+  - Deploy the API first, then web. Prod promotion is Caleb's go, via Joe. Take a database dump first: migration `0021` is one way.
 
 ## Next
-- The 18.0.0 build, from the approved specs and plan on #579.
+- Ship 18.0.0: prod deploy, site and README.
 
 ## Follow-ups
 - Close #562 (superseded by #570); delete the `diag/kid-accounts-e2e-frame-cost` branch.

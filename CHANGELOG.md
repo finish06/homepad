@@ -7,7 +7,7 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
-## [Unreleased — 18.0.0] — The app list belongs to the household
+## [18.0.0] — 2026-11-22 — One app list for the household, managing adults, and safer sign-in
 
 The app list now belongs to the household. Every admin edits the same list,
 and it stays when an account is removed. This is why the version is 18.0.0.
@@ -22,6 +22,9 @@ docker compose exec -T postgres pg_dump -U homepad homepad > homepad-before-18.s
 
 Use the user and database names from your `.env`.
 
+**No way back.** You can't go back to 17.x after this upgrade. To go back,
+restore the database backup.
+
 **Hidden copies.** Some old, hidden copies of apps are moved out of the way.
 Nobody could see them. They go to a table called `catalog_archive`, and the
 API log says how many, once. To look at them:
@@ -29,9 +32,6 @@ API log says how many, once. To look at them:
 ```sh
 docker compose exec postgres psql -U homepad -c "select kind, former_owner_email, row->>'name' from catalog_archive"
 ```
-
-**No way back.** You can't go back to 17.x after this upgrade. To go back,
-restore the database backup.
 
 **An admin must exist.** If the database has apps but no admin account, the
 API stops at start-up with: "migration 0021: the catalog has apps but no
@@ -71,7 +71,8 @@ front of Homepad, set `HOMEPAD_TRUSTED_PROXIES` to its address. In the
 quickstart, that's `web`, plus your proxy if you have one. Without it,
 everyone shares one limit. Scripts that sign in in a loop need to slow down.
 After 10 wrong passwords in 15 minutes, an email can't sign in with a
-password for 15 minutes; single sign-on and signed-in devices keep working.
+password for 15 minutes. Single sign-on and signed-in devices keep working,
+and a reset link from an admin clears the lock.
 
 **If you skipped 17.1.0.** Single sign-on needs a verified email, and on
 plain `http://` it needs `COOKIE_SECURE=false`. In PocketID, open
@@ -86,6 +87,13 @@ Settings → Users and turn on "Mark as verified" for each person, and turn on
   ask you to sign in every time, turn on 'Let this app keep its sign-in' in the
   app's settings. Only do this for apps you trust.
 - Homepad can no longer be shown inside another page or dashboard.
+
+**Upgrading.** Deploy the API and web images as a pair, API first. Nobody is
+signed out by this upgrade. The API runs three migrations on start-up: `0021`
+moves the app list to the household, `0022` adds reset links, and `0023` adds
+the overlay sign-in setting.
+
+The quickstart `compose.yaml` now pins `18.0.0` for both images.
 
 ## [17.1.0] — 2026-11-20 — Household accounts, backup and import, and status widgets
 

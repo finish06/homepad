@@ -47,7 +47,7 @@ Open **http://localhost:8080**. It shows **Set up Homepad**: **the first account
 Next steps:
 - **Add your apps.** Pick from the built-in App Library of 50+ self-hosted apps with icons, or add your own.
 - **Live status.** Connect [Gatus](https://gatus.io): add `COMPOSE_PROFILES=gatus` and `GATUS_BASE_URL=http://gatus:8080` to `.env` to run one alongside. See [docs/monitoring.md](./docs/monitoring.md).
-- **Add adults.** In Administration → Accounts, **+ Add an adult** makes an invite link. See [Registration](#registration).
+- **Add adults.** In Administration → Accounts, **+ Add an adult** makes an invite link. See [Registration](#registration) and [docs/accounts.md](./docs/accounts.md).
 - **Kids.** Give a kid a dashboard with only the apps you choose, signed in on the family iPad for months. See [docs/kid-accounts.md](./docs/kid-accounts.md).
 - **Widgets.** A few numbers on your Jellyfin, Sonarr and Radarr tiles, plus a clock, the weather and web search. Add `HOMEPAD_SECRET_KEY` to `.env` to store API keys. See [docs/widgets.md](./docs/widgets.md).
 - **Back up, or import from Homepage.** Download your whole dashboard as one file, restore it, or bring in your Homepage `services.yaml`. See [docs/backup-import.md](./docs/backup-import.md).
@@ -60,11 +60,13 @@ Images: `ghcr.io/finish06/homepad` and `ghcr.io/finish06/homepad-api`, for linux
 
 Homepad is a dashboard for a household. The admin keeps one list of apps. Everyone in the house signs in and gets their own view of it.
 
-- **Sign in, built in.** Local accounts, or OIDC with PKCE from a provider such as PocketID. Members of your admin group become admins. See [Single sign-on](#single-sign-on).
-- **Edit in the browser.** The admin adds and edits apps, sections and icons in the browser. Pick from the App Library or add your own. Each tile opens in a new tab, the same tab, or an overlay.
+- **Sign in, built in.** Local accounts, or OIDC with PKCE from a provider such as PocketID. People in your admin group become admins, and people in your member group become members. Sign-in has a speed limit. See [Single sign-on](#single-sign-on).
+- **Edit in the browser.** The admin adds and edits apps, sections and icons in the browser. Pick from the App Library or add your own. Each tile opens in a new tab, the same tab, or an overlay. Apps in the overlay are locked down by default. To let a trusted app keep its sign-in there, turn on **Let this app keep its sign-in** in its settings.
 - **A view for each person.** Each person keeps their own favorites, tile order, theme and tile size.
 - **Light, dark or system.** Each person picks Light, Dark or System. System follows the device as it changes. The theme is set before the page draws, so it does not flash on load.
 - **Live status, checked on the server.** Each tile can show UP, DEGRADED or DOWN, its response time and recent uptime, from [Gatus](https://gatus.io). The API asks Gatus. The browser gets only each tile's result, never the addresses Gatus checks. Admins can see the Gatus address in Settings.
+- **Manage the household.** Admins add adults with an invite link, make them an admin or a member, or remove them. Homepad always keeps at least one admin. Every admin edits the same app list. See [docs/accounts.md](./docs/accounts.md).
+- **Passwords.** An admin can make a one-time reset link for an adult who forgot their password. It works for 24 hours. Everyone can change their own password in **My settings**. Homepad sends no email.
 - **Kid accounts.** A kid account is a name and a color, with only the apps you pick. See [docs/kid-accounts.md](./docs/kid-accounts.md).
 - **Installs like an app.** Add it to the home screen of a phone or iPad. Touch-sized targets.
 - **Fast to get around.** ⌘K search across every app, apps grouped into sections, and Large, Compact or List tiles.
@@ -103,7 +105,7 @@ Homepage has more than 100 service widgets and can run next to Homepad. Homepad 
 
 Sign-up is closed by default (`HOMEPAD_REGISTRATION=invite_only`). The first account on a fresh install is the admin. After that:
 
-- **Adults** join through an invite link. In **Administration → Accounts**, tap **+ Add an adult**, enter a name, pick **Member** or **Admin**, and send them the link. It works once, for 7 days, and they pick their own email and password. You can revoke a link that hasn't been used.
+- **Adults** join through an invite link. In **Administration → Accounts**, tap **+ Add an adult**, enter a name, pick **Member** or **Admin**, and send them the link. It works once, for 7 days, and they pick their own email and password. You can revoke a link that hasn't been used. Each adult's row has a **Manage** menu to change their role, make a reset link, or remove them. See [docs/accounts.md](./docs/accounts.md).
 - **Kids** are added in the same place. See [docs/kid-accounts.md](./docs/kid-accounts.md).
 - **Single sign-on** makes accounts for people in your admin or member group (`OIDC_ADMIN_GROUP`, `OIDC_MEMBER_GROUP`). Anyone else needs an invite. Their provider must mark their email as verified. See [Single sign-on](#single-sign-on).
 
@@ -153,11 +155,14 @@ The full guide, with how to make the groups in PocketID, is [docs/single-sign-on
 - **Port.** Set `HOMEPAD_WEB_PORT` (default 8080).
 - **Data.** Everything lives in the `homepad_pg` Postgres volume; the web and API containers are disposable. Back that volume up. Admins can also download a backup in the Admin Panel, under **Backup and import**.
 - **Widget keys.** Keep a copy of `HOMEPAD_SECRET_KEY` with your backups. If it is lost or changed, saved widget keys have to be entered again.
+- **Behind a proxy.** Set `HOMEPAD_TRUSTED_PROXIES` so the sign-in speed limit can tell people apart. In the quickstart, that's `web`, plus your proxy if you have one. See [Single sign-on](#single-sign-on).
+- **Locked out.** If you are the only admin and forget your password, run `docker compose exec api /homepad-api reset-link you@example.com` on the server. See [docs/accounts.md](./docs/accounts.md#forgotten-passwords).
+- **Framing.** Homepad can't be shown inside another page or dashboard.
 - **All settings** are documented in [`.env.example`](./.env.example).
 
 ## Project
 
-- **Docs:** [monitoring](./docs/monitoring.md) · [single sign-on](./docs/single-sign-on.md) · [kid accounts](./docs/kid-accounts.md) · [widgets](./docs/widgets.md) · [backup and import](./docs/backup-import.md) · [development](./docs/development.md) · [changelog](./CHANGELOG.md)
+- **Docs:** [monitoring](./docs/monitoring.md) · [single sign-on](./docs/single-sign-on.md) · [accounts](./docs/accounts.md) · [kid accounts](./docs/kid-accounts.md) · [widgets](./docs/widgets.md) · [backup and import](./docs/backup-import.md) · [development](./docs/development.md) · [changelog](./CHANGELOG.md)
 - **Backend:** [finish06/homepad-api](https://github.com/finish06/homepad-api) (Go + Postgres)
 - **Contributing:** issues and PRs are welcome. Start with [docs/development.md](./docs/development.md).
 - **License:** [MIT](./LICENSE)

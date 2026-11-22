@@ -26,9 +26,9 @@ describe('docs/accounts.md — Forgotten passwords', () => {
 });
 
 describe('CHANGELOG — the 18.0.0 passwords line (plan §5 item 4)', () => {
-  it('is under Unreleased — 18.0.0', () => {
+  it('is under 18.0.0', () => {
     const md = read('CHANGELOG.md');
-    const start = md.indexOf('## [Unreleased — 18.0.0]');
+    const start = md.indexOf('## [18.0.0]');
     expect(start).toBeGreaterThan(-1);
     const next = md.indexOf('\n## [', start + 1);
     const block = md.slice(start, next === -1 ? undefined : next).replace(/\s+/g, ' ');

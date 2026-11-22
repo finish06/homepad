@@ -55,11 +55,11 @@ describe('docs/accounts.md — Adults (UX §9)', () => {
 });
 
 describe('CHANGELOG — the 18.0.0 line for managing adults (§10)', () => {
-  it('is under [Unreleased — 18.0.0], in the spec\'s words', () => {
+  it('is under [18.0.0], in the spec\'s words', () => {
     const md = read('CHANGELOG.md');
-    const at = md.search(/^## \[Unreleased — 18\.0\.0\]/m);
-    expect(at, 'no [Unreleased — 18.0.0] section').toBeGreaterThanOrEqual(0);
-    const body = md.slice(at).split(/^## \[(?!Unreleased)/m)[0];
+    const at = md.search(/^## \[18\.0\.0\]/m);
+    expect(at, 'no [18.0.0] section').toBeGreaterThanOrEqual(0);
+    const body = md.slice(at + 3).split(/^## \[/m)[0];
     expect(body).toContain(
       'Admins can now remove an adult, or make someone an admin or a member, in Administration → Accounts. Homepad always keeps at least one admin.',
     );

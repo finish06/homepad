@@ -1,7 +1,7 @@
 # Spec: Sign-in hardening — rate limits, verified emails for single sign-on, invite-only for SSO
 
 **Spec ID:** SPEC-signin-hardening
-**Version:** 0.1.2
+**Version:** 0.1.3
 **Created:** 2026-11-19
 **Author:** Claude (spec step for Caleb's 18.0.0 theme, "a household you can manage")
 **Status:** Approved — Caleb, 2026-11-20: every §0 question decided.
@@ -90,8 +90,8 @@ One limiter, keyed by client, replaces the per-process bucket.
 |---|---|---|---|
 | `POST /api/login` | 10/min, burst 10 | 10 failures in 15 min → 15-min lock for that email (Q3, decided) | 120/min |
 | `POST /api/register` | 5/min, burst 5 | — | 120/min |
-| `POST /api/invites/lookup`, `/accept` | 30/min, burst 10 | — | 120/min |
-| `POST /api/password-resets/lookup`, `/accept` | 30/min, burst 10 | — | 120/min |
+| `POST /api/invites/lookup`, `/accept` | 30/min, burst 10 | — | 120/min (`/accept` only) |
+| `POST /api/password-resets/lookup`, `/accept` | 30/min, burst 10 | — | 120/min (`/accept` only) |
 | `POST /api/me/password` | — | 5 failures in 15 min → 15-min lock (SPEC-password-reset-link) | — |
 | `GET /api/auth/oidc/login` | 20/min, burst 10 | — | — |
 
@@ -252,7 +252,7 @@ No migration. Limits are in memory.
 |---|---|
 | `POST /api/login` | Per-client and per-email limits (AC-004, AC-005); dummy compare (AC-009). |
 | `POST /api/register` | Per-client limit. |
-| `POST /api/invites/lookup`, `/accept`, `POST /api/password-resets/lookup`, `/accept` | Per-client limit and shared ceiling, replacing the single bucket. |
+| `POST /api/invites/lookup`, `/accept`, `POST /api/password-resets/lookup`, `/accept` | Per-client limit, replacing the single bucket. The two `/accept` routes also share the ceiling; the lookups run no bcrypt and skip it (homepad-api #110). |
 | `GET /api/auth/oidc/login` | Per-client limit. Over it: 302 to `/#signin-error=too_many` (AC-019). |
 | `GET /api/auth/oidc/callback` | Failures redirect to `/#signin-error=<code>` (AC-002). `invite_only` rule (AC-010). Cookie `Secure` from `COOKIE_SECURE` (AC-016). |
 | `GET /api/admin/env-config` | Allowlist gains `OIDC_MEMBER_GROUP`, `HOMEPAD_TRUSTED_PROXIES`. |
@@ -324,3 +324,4 @@ Release-note lines:
 | 2026-11-19 | 0.1.0 | Draft for 18.0.0, checked against `homepad-api` `79e3b03`, `homepad` `6eb8a35`, and PocketID v2.19.3 (`c0abd93`). |
 | 2026-11-19 | 0.1.1 | Caleb decided Q1 ("a": ships in 17.1.0), Q3 and Q4 ("yes"), and to fix login timing, the callback cookie and the 72-byte 500 ahead of 18.0.0 in a homepad-api bug-fix PR. |
 | 2026-11-20 | 0.1.2 | UX artifact approved (S-1…S-6). AC-019: the OIDC start route's limit redirects with `too_many` (S-5). AC-020: the entry-chunk measure-before-merge rule (S-1). AC-021: `AddAdultDialog.tsx` joins the file list with the two-mode PocketID line (S-4). `AuthForm` path corrected. |
+| 2026-11-22 | 0.1.3 | §2.1: the invite and reset-link lookups skip the process ceiling (they run no bcrypt); only the `/accept` routes, login and register share it (homepad-api #110, from the #109 review). |

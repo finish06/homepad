@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
 
 const md = read('CHANGELOG.md');
-const start = md.search(/^## \[Unreleased — 18\.0\.0\]/m);
+const start = md.search(/^## \[18\.0\.0\]/m);
 const entry = start < 0 ? '' : md.slice(start, start + md.slice(start + 3).search(/^## /m) + 3);
 // Prose wraps at any space; compare it on one line.
 const flat = entry.replace(/\s+/g, ' ');

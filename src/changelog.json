@@ -2,6 +2,44 @@
   "pending": [],
   "versions": [
     {
+      "version": "18.0.0",
+      "date": "2026-11-22",
+      "changes": [
+        {
+          "type": "feature",
+          "text": "The app list belongs to the household. Every admin edits the same list, and it stays when an account is removed."
+        },
+        {
+          "type": "feature",
+          "text": "Admins can remove an adult, or make someone an admin or a member, in Administration → Accounts. Homepad always keeps at least one admin."
+        },
+        {
+          "type": "feature",
+          "text": "An admin can make a one-time reset link for an adult, from the Manage menu in Accounts. It works for 24 hours."
+        },
+        {
+          "type": "feature",
+          "text": "You can change your own password in My settings → Password."
+        },
+        {
+          "type": "security",
+          "text": "Sign-in has a speed limit. If a proxy sits in front of Homepad, set HOMEPAD_TRUSTED_PROXIES to its address."
+        },
+        {
+          "type": "security",
+          "text": "With invite-only sign-up, single sign-on only makes accounts for people in your admin group or in OIDC_MEMBER_GROUP. Others need an invite."
+        },
+        {
+          "type": "security",
+          "text": "Apps in the overlay are more locked down. Apps already set to open there keep working. For a new one, turn on Let this app keep its sign-in in the app's settings, and only for apps you trust."
+        },
+        {
+          "type": "security",
+          "text": "Homepad can no longer be shown inside another page or dashboard."
+        }
+      ]
+    },
+    {
       "version": "17.1.0",
       "date": "2026-11-20",
       "changes": [
