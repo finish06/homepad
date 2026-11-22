@@ -1,0 +1,84 @@
+{
+  "sections": [
+    { "name": "Media", "gridWidth": 6 },
+    { "name": "Tools", "gridWidth": 6 },
+    { "name": "Kids", "gridWidth": 12 }
+  ],
+  "apps": [
+    {
+      "slug": "qa-movies",
+      "name": "Movies",
+      "description": "QA fixture: opens in a new tab",
+      "url": "https://example.com/movies",
+      "clickAction": "new_tab",
+      "iframeSameOrigin": false,
+      "section": "Media"
+    },
+    {
+      "slug": "qa-music",
+      "name": "Music",
+      "description": "QA fixture: opens in the same tab",
+      "url": "https://example.com/music",
+      "clickAction": "same_tab",
+      "iframeSameOrigin": false,
+      "section": "Media"
+    },
+    {
+      "slug": "qa-overlay-keeps-signin",
+      "name": "Overlay Keeps Sign-in",
+      "description": "QA fixture: Inline overlay, keeps its sign-in ON",
+      "url": "https://example.org/",
+      "clickAction": "iframe",
+      "iframeSameOrigin": true,
+      "section": "Tools"
+    },
+    {
+      "slug": "qa-overlay-strict",
+      "name": "Overlay Strict",
+      "description": "QA fixture: Inline overlay, keeps its sign-in OFF",
+      "url": "https://example.net/",
+      "clickAction": "iframe",
+      "iframeSameOrigin": false,
+      "section": "Tools"
+    },
+    {
+      "slug": "qa-kids-games",
+      "name": "Kids Games",
+      "description": "QA fixture: on the kid's allowed list",
+      "url": "https://example.org/games",
+      "clickAction": "new_tab",
+      "iframeSameOrigin": false,
+      "section": "Kids"
+    },
+    {
+      "slug": "qa-kids-videos",
+      "name": "Kids Videos",
+      "description": "QA fixture: on the kid's allowed list",
+      "url": "https://example.net/videos",
+      "clickAction": "new_tab",
+      "iframeSameOrigin": false,
+      "section": "Kids"
+    },
+    {
+      "slug": "qa-notes",
+      "name": "Notes",
+      "description": "QA fixture: in no section",
+      "url": "https://example.com/notes",
+      "clickAction": "new_tab",
+      "iframeSameOrigin": false,
+      "section": null
+    }
+  ],
+  "glance": {
+    "clockEnabled": true,
+    "clockHour12": false,
+    "weatherEnabled": false
+  },
+  "kids": [
+    {
+      "name": "QA Kid",
+      "avatarColor": "green",
+      "apps": ["qa-kids-games", "qa-kids-videos", "qa-overlay-strict"]
+    }
+  ]
+}
