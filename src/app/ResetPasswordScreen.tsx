@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { logout, type User } from '../api';
 import { acceptReset, lookupReset, type ResetInfo } from '../passwordApi';
-import { endTime, newPasswordProblem, PW_HINT, PW_MISMATCH, tooManyTries } from '../lib/passwordCopy';
+import { endTime, newPasswordProblem, PW_HINT, PW_MISMATCH } from '../lib/passwordCopy';
+import { waitMessage } from '../lib/waitMessage';
 
 // SPEC-password-reset-link AC-006…AC-009, AC-019, UX §3 — the reset screen,
 // opened from a reset link (/#reset=…). It is the sign-in card again. App reads
@@ -18,7 +19,7 @@ type Phase =
   | { kind: 'ask'; info: ResetInfo }
   | { kind: 'live'; info: ResetInfo }
   | { kind: 'dead' }
-  | { kind: 'retry' };
+  | { kind: 'retry'; wait?: number };
 
 const TITLE = 'Set a new password';
 
@@ -48,7 +49,7 @@ export default function ResetPasswordScreen({
     lookupReset(token).then((r) => {
       if (!live) return;
       if (r.ok && r.info) setPhase({ kind: user && user.email !== r.info.email ? 'ask' : 'live', info: r.info });
-      else setPhase({ kind: r.status === 404 ? 'dead' : 'retry' });
+      else setPhase(r.status === 404 ? { kind: 'dead' } : { kind: 'retry', wait: r.retryAfter });
     });
     return () => {
       live = false;
@@ -119,7 +120,7 @@ export default function ResetPasswordScreen({
     case 'retry':
       body = (
         <Card title={TITLE}>
-          <p className="auth-error mt-3 text-sm">{tooManyTries()}</p>
+          <p className="auth-error mt-3 text-sm">{waitMessage(phase.wait)}</p>
           <button
             type="button"
             onClick={() => setPhase({ kind: 'loading' })}
@@ -204,7 +205,7 @@ function ResetForm({
     setBusy(false);
     if (r.ok && r.user) return onDone(r.user);
     if (r.status === 404) return onDead();
-    setErrors({ form: r.status === 429 ? tooManyTries() : "Couldn't save the password. Try again." });
+    setErrors({ form: r.status === 429 ? waitMessage(r.retryAfter) : "Couldn't save the password. Try again." });
   }
 
   const describe = (...ids: (string | false | undefined)[]) => ids.filter(Boolean).join(' ') || undefined;

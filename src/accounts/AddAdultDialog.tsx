@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { createInvite, type CreatedInvite, type InviteRole } from '../api';
+import { createInvite, type CreatedInvite, type InviteRole, type RegistrationMode } from '../api';
 import { accountLimitMessage, isAccountLimit } from '../lib/accountLimit';
 import Modal from '../ui/Modal';
 import { trapTab } from '../ui/trapTab';
@@ -25,10 +25,14 @@ function nameProblem(raw: string): string | null {
 
 export default function AddAdultDialog({
   oidcEnabled,
+  registration,
   onClose,
   onCreated,
 }: {
   oidcEnabled: boolean;
+  // The sign-up mode decides the PocketID line (SPEC-signin-hardening
+  // AC-021). Unknown reads as invite_only.
+  registration?: RegistrationMode;
   onClose: () => void;
   onCreated: (invite: CreatedInvite) => void;
 }) {
@@ -86,6 +90,7 @@ export default function AddAdultDialog({
         ) : (
           <InviteForm
             oidcEnabled={oidcEnabled}
+            registration={registration}
             onCancel={onClose}
             onCreated={(inv) => {
               setCreated(inv);
@@ -101,10 +106,12 @@ export default function AddAdultDialog({
 
 function InviteForm({
   oidcEnabled,
+  registration,
   onCancel,
   onCreated,
 }: {
   oidcEnabled: boolean;
+  registration?: RegistrationMode;
   onCancel: () => void;
   onCreated: (invite: CreatedInvite) => void;
 }) {
@@ -195,8 +202,14 @@ function InviteForm({
       <p className="settings-section-note">
         You'll get a link to send them. It works once, for 7 days. They pick their own email and password.
       </p>
+      {/* SPEC-signin-hardening AC-021, UX §5 — under invite_only, PocketID
+          makes accounts only for the admin and member groups. */}
       {oidcEnabled && (
-        <p className="settings-section-note">They use PocketID? They can sign in with it. No invite needed.</p>
+        <p className="settings-section-note">
+          {registration === 'open'
+            ? 'They can also sign in with PocketID. No invite needed.'
+            : 'PocketID only makes accounts for people in your admin or member group. Anyone else needs this invite. After they join, they can use PocketID too if it has the same email.'}
+        </p>
       )}
 
       {error && (

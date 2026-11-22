@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { authConfig, login, register, type AuthConfig, type User } from '../api';
+import { authConfig, login, register, type AuthConfig, type Result, type User } from '../api';
 import { accountLimitMessage, isAccountLimit } from '../lib/accountLimit';
+import { waitMessage } from '../lib/waitMessage';
 
 // v27 login-glass — if a PocketID/OIDC redirect stalls (e.g. a PocketBase
 // restart), the browser keeps our page on screen while the request hangs, so a
@@ -17,12 +18,18 @@ type Mode = 'login' | 'register' | 'setup';
 
 const SETUP_RACE = 'Someone else just finished setup. Sign in instead.';
 
-export default function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) {
+export default function AuthForm({ onAuthed, ssoError }: { onAuthed: (u: User) => void; ssoError?: string }) {
   const [mode, setMode] = useState<Mode>('login');
   const [config, setConfig] = useState<AuthConfig | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  // SPEC-signin-hardening UX §2 — the single sign-on line, for the code App
+  // read from /#signin-error=. Its copy is a lazy module, loaded only when a
+  // code is present (AC-020). It stays until the next try, a submit or
+  // PocketID, which sets it to false; a module that lands after that is
+  // dropped.
+  const [sso, setSso] = useState<string | false>('');
   const [busy, setBusy] = useState(false);
   const [oidcBusy, setOidcBusy] = useState(false);
   const oidcTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -30,6 +37,7 @@ export default function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) 
 
   useEffect(() => {
     let live = true;
+    if (ssoError) import('./ssoMessage').then((m) => setSso((s) => s === '' && m.ssoMessage(ssoError)));
     authConfig().then((c) => {
       if (!live) return;
       setConfig(c);
@@ -40,14 +48,21 @@ export default function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) 
       live = false;
       if (oidcTimer.current) clearTimeout(oidcTimer.current);
     };
+    // Once, on mount: App hands over the code once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const canRegister = config?.registration === 'open';
   const oidcEnabled = config?.oidcEnabled === true;
+  // UX §3 — the 429 line. The per-email lock touches only password sign-in,
+  // so where the PocketID button shows, it's still a way in (S-2).
+  const wait = (r: Result) =>
+    waitMessage(r.retryAfter) + (oidcEnabled && mode !== 'setup' ? ' You can still use PocketID.' : '');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    setSso(false);
     setBusy(true);
     try {
       if (mode !== 'login') {
@@ -61,7 +76,9 @@ export default function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) 
             setError(SETUP_RACE);
             return;
           }
-          setError(isAccountLimit(r) ? accountLimitMessage(r.error) : (r.error ?? 'registration failed'));
+          setError(
+            r.status === 429 ? wait(r) : isAccountLimit(r) ? accountLimitMessage(r.error) : (r.error ?? 'registration failed'),
+          );
           return;
         }
       }
@@ -69,7 +86,7 @@ export default function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) 
       if (r.ok && r.user) {
         onAuthed(r.user);
       } else {
-        setError(r.error ?? 'login failed');
+        setError(r.status === 429 ? wait(r) : (r.error ?? 'login failed'));
       }
     } finally {
       setBusy(false);
@@ -78,6 +95,7 @@ export default function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) 
 
   function handlePocketId() {
     setError('');
+    setSso(false);
     setOidcBusy(true);
     oidcTimer.current = setTimeout(() => {
       setOidcBusy(false);
@@ -101,6 +119,11 @@ export default function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) 
         <h1 className="auth-title text-xl font-semibold">homepad</h1>
         <p className="auth-subtitle mt-1 text-sm">{subtitle}</p>
         {mode === 'setup' && <p className="auth-subtitle mt-1 text-sm">This first account is the admin.</p>}
+        {sso && (
+          <p role="alert" className="auth-error mt-3 text-sm">
+            {sso}
+          </p>
+        )}
 
         <label className="auth-label mt-5 block text-[13px] font-medium">
           Email
@@ -134,7 +157,11 @@ export default function AuthForm({ onAuthed }: { onAuthed: (u: User) => void }) 
           </p>
         )}
 
-        {error && <p className="auth-error mt-3 text-sm">{error}</p>}
+        {error && (
+          <p role="alert" className="auth-error mt-3 text-sm">
+            {error}
+          </p>
+        )}
 
         <button
           type="submit"

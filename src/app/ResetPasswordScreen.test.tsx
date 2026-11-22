@@ -247,3 +247,22 @@ describe('too many tries on lookup (AC-012)', () => {
     expect(lookupReset).toHaveBeenCalledTimes(2);
   });
 });
+
+// SPEC-signin-hardening UX §3.1 — the reset screen's wait line uses the
+// server's Retry-After.
+describe('the wait line follows Retry-After', () => {
+  it('on save', async () => {
+    vi.mocked(acceptReset).mockResolvedValue({ ok: false, status: 429, error: 'too many attempts', retryAfter: 120 });
+    renderReset();
+    await screen.findByLabelText('New password');
+    const user = await fill('a new password');
+    await user.click(screen.getByRole('button', { name: 'Save password' }));
+    expect(await screen.findByText('Too many tries. Wait 2 minutes and try again.')).toBeInTheDocument();
+  });
+
+  it('on lookup', async () => {
+    vi.mocked(lookupReset).mockResolvedValueOnce({ ok: false, status: 429, error: 'too many attempts', retryAfter: 180 });
+    renderReset();
+    expect(await screen.findByText('Too many tries. Wait 3 minutes and try again.')).toBeInTheDocument();
+  });
+});

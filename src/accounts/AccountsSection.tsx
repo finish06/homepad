@@ -270,6 +270,7 @@ export default function AccountsSection({
       {addingAdult && (
         <AddAdultDialog
           oidcEnabled={config?.oidcEnabled === true}
+          registration={config?.registration}
           onClose={() => setAddingAdult(false)}
           onCreated={(inv) => {
             // Pending invites list newest first. The token is not kept: the

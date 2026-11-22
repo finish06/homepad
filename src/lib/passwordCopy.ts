@@ -16,13 +16,6 @@ export function newPasswordProblem(pw: string): string | null {
   return null;
 }
 
-// tooManyTries — the 429 line. `seconds` is Retry-After when the server sent
-// one; under two minutes (or none) it reads "a minute".
-export function tooManyTries(seconds?: number): string {
-  const minutes = Math.ceil((seconds ?? 0) / 60);
-  return `Too many tries. Wait ${minutes > 1 ? `${minutes} minutes` : 'a minute'} and try again.`;
-}
-
 // endTime — "Nov 21 at 3:40 PM", in the device's locale and 12/24-hour
 // choice. A day alone is too vague for a link that works for 24 hours (R-4).
 export function endTime(iso: string): string {

@@ -58,6 +58,9 @@ services:
       # Most accounts (all roles) plus pending invites this Homepad allows.
       # Empty or 0 means no limit.
       HOMEPAD_MAX_ACCOUNTS: ${HOMEPAD_MAX_ACCOUNTS:-}
+      # Proxies whose X-Forwarded-For the sign-in limits believe. Empty: every
+      # client shares one limit. `web` is this file's nginx. See docs/single-sign-on.md.
+      HOMEPAD_TRUSTED_PROXIES: ${HOMEPAD_TRUSTED_PROXIES:-}
       GATUS_BASE_URL: ${GATUS_BASE_URL:-}
       GATUS_DEGRADED_MS: ${GATUS_DEGRADED_MS:-1000}
       # Widgets: encrypts the API keys widgets use (64 hex chars). Optional;
@@ -72,6 +75,7 @@ services:
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
       OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-}
       OIDC_ADMIN_GROUP: ${OIDC_ADMIN_GROUP:-}
+      OIDC_MEMBER_GROUP: ${OIDC_MEMBER_GROUP:-}
     # No healthcheck here: the api image is distroless (no shell to probe with).
     # The web healthcheck below proxies through to the api instead.
     restart: unless-stopped

@@ -149,7 +149,9 @@ export type CategoryLayout = {
   layoutWidthPct: number;
 };
 
-export type Result = { ok: boolean; status: number; error?: string };
+// retryAfter is the server's Retry-After in seconds, on a refusal that sent a
+// usable one (a 429 from the sign-in limits, SPEC-signin-hardening §8).
+export type Result = { ok: boolean; status: number; error?: string; retryAfter?: number };
 
 // The admin-editable catalog fields for create/update (A6), keyed by their
 // snake_case wire names. As of v25 the server DOES return `gatus_key` on the read
@@ -296,6 +298,7 @@ async function resultRequest<T extends object = Record<never, never>>(
     ok: false,
     status,
     error: res ? await errorText(res) : 'network error',
+    retryAfter: Number(res?.headers.get('Retry-After')) || undefined,
   };
   // A failure carries none of T's optional entity keys — Partial<T> is satisfied
   // vacuously, but tsc can't prove that for an arbitrary T, hence the cast.

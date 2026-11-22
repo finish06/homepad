@@ -206,3 +206,21 @@ describe('already signed in', () => {
     expect(logout).not.toHaveBeenCalled();
   });
 });
+
+// SPEC-signin-hardening UX §3.1 — the Join screen's wait line uses the
+// server's Retry-After.
+describe('the wait line follows Retry-After', () => {
+  it('on join', async () => {
+    vi.mocked(acceptInvite).mockResolvedValue({ ok: false, status: 429, error: 'too many attempts', retryAfter: 120 });
+    renderJoin();
+    await screen.findByText('Caleb invited you.');
+    await fillAndJoin();
+    expect(await screen.findByText('Too many tries. Wait 2 minutes and try again.')).toBeInTheDocument();
+  });
+
+  it('on lookup', async () => {
+    vi.mocked(lookupInvite).mockResolvedValueOnce({ ok: false, status: 429, error: 'too many attempts', retryAfter: 180 });
+    renderJoin();
+    expect(await screen.findByText('Too many tries. Wait 3 minutes and try again.')).toBeInTheDocument();
+  });
+});

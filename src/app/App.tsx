@@ -60,6 +60,11 @@ function readLinkToken(): LinkToken | null {
     return null;
   }
 }
+// SPEC-signin-hardening AC-003 — a failed single sign-on comes back as
+// `/#signin-error=<code>`. App clears any such fragment and hands what follows
+// `=` to the sign-in card, whose lazy ssoMessage shows a line only for a
+// well-formed code (UX §2.3).
+const readSsoError = () => /^#signin-error=(.*)/.exec(window.location.hash)?.[1];
 // SPEC-backup-import B-2 — the admin empty state opens the Homepage import here.
 const HomepageImportModal = lazy(() => import('../library/backup/HomepageImportModal'));
 // SPEC-status-widgets — the glance strip (clock, weather, its icons) is a lazy
@@ -75,11 +80,14 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [link, setLink] = useState<LinkToken | null>(readLinkToken);
+  const [ssoError, setSsoError] = useState(readSsoError);
 
-  // Take the token out of the address bar as soon as it has been read, keeping
-  // the path and query. Nothing else in the app uses the fragment.
+  // Take the token, or the sign-in error, out of the address bar as soon as it
+  // has been read, keeping the path and query. That happens even when a
+  // session exists and the sign-in card never mounts. Nothing else in the app
+  // uses the fragment.
   useEffect(() => {
-    if (link) {
+    if (link || ssoError !== undefined) {
       window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
     }
     // Once, on mount: the token was read by the state initializer.
@@ -99,6 +107,12 @@ export default function App() {
     setLink(null);
     setUser(u);
   };
+
+  // The sign-in error is for the first sign-in card only, not the one a later
+  // sign-out shows.
+  useEffect(() => {
+    if (user) setSsoError(undefined);
+  }, [user]);
 
   useEffect(() => {
     me().then((u) => {
@@ -162,7 +176,7 @@ export default function App() {
           </AlertHistoryProvider>
         </LauncherProvider>
       ) : (
-        <AuthForm onAuthed={setUser} />
+        <AuthForm onAuthed={setUser} ssoError={ssoError} />
       )}
       {/* Release awareness — polls /version.json (CI-emitted, no-store) and
           offers a refresh when a newer build is live. Mounted outside the auth

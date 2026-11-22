@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { changePassword } from '../passwordApi';
-import { newPasswordProblem, PW_HINT, PW_MISMATCH, tooManyTries } from '../lib/passwordCopy';
+import { newPasswordProblem, PW_HINT, PW_MISMATCH } from '../lib/passwordCopy';
+import { waitMessage } from '../lib/waitMessage';
 
 // SPEC-password-reset-link AC-013, AC-014, UX §4 — My settings → Password.
 // Change password expands in place (R-5): three fields under the section, no
@@ -111,7 +112,7 @@ function PasswordForm({
       setCurrent('');
       return setErrors({ current: "That's not your current password." });
     }
-    if (r.status === 429) return setErrors({ form: tooManyTries(r.retryAfter) });
+    if (r.status === 429) return setErrors({ form: waitMessage(r.retryAfter) });
     if (r.status === 409) {
       return setErrors({ form: 'This account signs in with single sign-on. It has no password to change here.' });
     }

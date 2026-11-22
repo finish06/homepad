@@ -133,11 +133,35 @@ describe('the form (UX §3.2)', () => {
   });
 
   it('AC-022 — the PocketID line shows only when single sign-on is on', () => {
-    const { unmount } = renderDialog();
+    const { unmount } = renderDialog({ registration: 'open' });
     expect(screen.queryByText(/PocketID/)).not.toBeInTheDocument();
     unmount();
+    renderDialog({ oidcEnabled: true, registration: 'open' });
+    expect(screen.getByText(/PocketID/)).toBeInTheDocument();
+  });
+
+  // SPEC-signin-hardening AC-021, UX §5 (S-4) — the line follows the
+  // registration mode: under invite_only, PocketID makes accounts only for
+  // the admin and member groups.
+  it('AC-021 — open: anyone can use PocketID', () => {
+    renderDialog({ oidcEnabled: true, registration: 'open' });
+    expect(screen.getByText('They can also sign in with PocketID. No invite needed.')).toBeInTheDocument();
+    expect(screen.queryByText(/They use PocketID\?/)).not.toBeInTheDocument();
+  });
+
+  it('AC-021 — invite_only: only the groups, everyone else needs this invite', () => {
+    renderDialog({ oidcEnabled: true, registration: 'invite_only' });
+    expect(
+      screen.getByText(
+        'PocketID only makes accounts for people in your admin or member group. Anyone else needs this invite. After they join, they can use PocketID too if it has the same email.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/No invite needed/)).not.toBeInTheDocument();
+  });
+
+  it('AC-021 — an unknown mode reads as invite_only', () => {
     renderDialog({ oidcEnabled: true });
-    expect(screen.getByText('They use PocketID? They can sign in with it. No invite needed.')).toBeInTheDocument();
+    expect(screen.getByText(/Anyone else needs this invite\./)).toBeInTheDocument();
   });
 
   it('sends the trimmed name and the API role ("user" for Member, "admin" for Admin)', async () => {

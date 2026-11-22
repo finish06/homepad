@@ -32,7 +32,14 @@ async function post(path: string, success: number, json?: unknown) {
   };
 }
 
-const result = ({ ok, status, error }: Result): Result => (error === undefined ? { ok, status } : { ok, status, error });
+// result keeps { ok, status, error? }, plus retryAfter (seconds) on a refusal
+// that sent a usable Retry-After (SPEC-signin-hardening §8).
+function result({ ok, status, error, res }: Result & { res: Response | null }): Result {
+  const out: Result = error === undefined ? { ok, status } : { ok, status, error };
+  const wait = Number(res?.headers.get('Retry-After'));
+  if (!ok && wait > 0) out.retryAfter = wait;
+  return out;
+}
 
 // createResetLink — 201 with the token; 404 when the account isn't an adult
 // any more; 409 with {"error":"self"|"sso_account"}.
@@ -42,7 +49,7 @@ export async function createResetLink(id: string): Promise<Result & { link?: Cre
 }
 
 // lookupReset — 200 for a live link; every dead link is the same 404; 429
-// when rate limited.
+// when rate limited, with retryAfter.
 export async function lookupReset(token: string): Promise<Result & { info?: ResetInfo }> {
   const r = await post('/api/password-resets/lookup', 200, { token });
   return r.ok ? { ...result(r), info: r.data as ResetInfo } : result(r);
@@ -57,11 +64,6 @@ export async function acceptReset(token: string, password: string): Promise<Resu
 
 // changePassword — 204; 403 wrong_password; 409 sso_account; 429 with the
 // wait in `retryAfter` (seconds) after too many wrong current passwords.
-export async function changePassword(
-  currentPassword: string,
-  newPassword: string,
-): Promise<Result & { retryAfter?: number }> {
-  const r = await post('/api/me/password', 204, { currentPassword, newPassword });
-  const retryAfter = Number(r.res?.headers.get('Retry-After') || NaN);
-  return !r.ok && retryAfter > 0 ? { ...result(r), retryAfter } : result(r);
+export async function changePassword(currentPassword: string, newPassword: string): Promise<Result> {
+  return result(await post('/api/me/password', 204, { currentPassword, newPassword }));
 }

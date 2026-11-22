@@ -55,6 +55,9 @@ services:
       HOMEPAD_REGISTRATION: ${HOMEPAD_REGISTRATION:-invite_only}
       # Most accounts plus pending invites allowed. Empty or 0: no limit.
       HOMEPAD_MAX_ACCOUNTS: ${HOMEPAD_MAX_ACCOUNTS:-}
+      # Proxies whose X-Forwarded-For the sign-in limits believe. Empty: every
+      # client shares one limit. `web` is this file's nginx. See docs/single-sign-on.md.
+      HOMEPAD_TRUSTED_PROXIES: ${HOMEPAD_TRUSTED_PROXIES:-}
       SESSION_SECRET: ${SESSION_SECRET:-}
       # Status tiles read from Gatus (compose service name `gatus`, port 8080).
       GATUS_BASE_URL: ${GATUS_BASE_URL:-http://gatus:8080}
@@ -69,6 +72,7 @@ services:
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
       OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-}
       OIDC_ADMIN_GROUP: ${OIDC_ADMIN_GROUP:-}
+      OIDC_MEMBER_GROUP: ${OIDC_MEMBER_GROUP:-}
     # No container healthcheck: the api image is distroless/static (no shell,
     # no wget/curl) so it can't probe itself. Its readiness is gated end-to-end
     # by the web healthcheck below, which proxies through to /api/system/config.

@@ -56,6 +56,29 @@ are the only admin and forget your password, run
 `docker compose exec api /homepad-api reset-link you@example.com` on the
 server.
 
+**Single sign-on under invite-only.** With invite-only sign-up, single
+sign-on only creates accounts for people in your admin group, or in the new
+`OIDC_MEMBER_GROUP`. Others need an invite. This includes installs with no
+`HOMEPAD_REGISTRATION` set, which are invite-only since 17.1.0. People who
+already have an account are not affected. To keep letting your household in
+through PocketID, make a member group and set `OIDC_MEMBER_GROUP`. A failed
+single sign-on now lands on the sign-in screen with a plain message, not a
+text page. The PocketID steps, for groups and for verified emails, are in
+[docs/single-sign-on.md](./docs/single-sign-on.md).
+
+**Sign-in speed limit.** Sign-in now has a speed limit. If a proxy sits in
+front of Homepad, set `HOMEPAD_TRUSTED_PROXIES` to its address. In the
+quickstart, that's `web`, plus your proxy if you have one. Without it,
+everyone shares one limit. Scripts that sign in in a loop need to slow down.
+After 10 wrong passwords in 15 minutes, an email can't sign in with a
+password for 15 minutes; single sign-on and signed-in devices keep working.
+
+**If you skipped 17.1.0.** Single sign-on needs a verified email, and on
+plain `http://` it needs `COOKIE_SECURE=false`. In PocketID, open
+Settings → Users and turn on "Mark as verified" for each person, and turn on
+"Emails verified by default" for new people. Details:
+[docs/single-sign-on.md](./docs/single-sign-on.md).
+
 **Overlay apps.**
 
 - Apps that open in the overlay are now more locked down by default. Apps you

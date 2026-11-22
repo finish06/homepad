@@ -134,6 +134,16 @@ import { describe, expect, it } from 'vitest';
 //   lazy, new  ResetPasswordScreen 1,901 · ResetLinkDialog 1,499
 //   lazy, grew SettingsPanel → 17,101 (Change password)
 // Budgets unchanged: 15,428 B JS and 793 B CSS of headroom remain.
+//
+// SPEC-signin-hardening AC-020, re-measured 2026-11-21 on feat/password-reset-link
+// f4c333c (gitea/main b43d80f plus SPEC-password-reset-link), same method:
+//   entry JS    89,570 →  89,813 B gzip (+243): reading /#signin-error=, the
+//              429 wait line and its formatter, Result.retryAfter, role="alert"
+//              on the card's errors
+//   entry CSS   19,707 →  19,707 B gzip (+0): no new CSS
+//   lazy, new  ssoMessage 304: the single sign-on lines, loaded only when a
+//              code is present (UX S-1; inline they cost about 75 B more)
+// Budgets unchanged: 15,187 B JS and 793 B CSS of headroom remain.
 const ENTRY_JS_GZIP_BUDGET = 105_000;
 const ENTRY_CSS_GZIP_BUDGET = 20_500;
 
@@ -165,6 +175,9 @@ const LAZY_CHUNKS = [
   // hang off App.tsx, so a stray static import there would land in the entry.
   'JoinScreen',
   'ResetPasswordScreen',
+  // SPEC-signin-hardening AC-020 — the single sign-on lines load only when the
+  // sign-in card has a /#signin-error= code.
+  'ssoMessage',
 ] as const;
 
 const dist = resolve(process.cwd(), 'dist');
@@ -303,6 +316,16 @@ describe('bundle budget — the built artifact stays within its byte budget', ()
       lazy.some((f) => readFileSync(resolve(assets, f), 'utf8').includes('allow-scripts allow-forms allow-popups')),
       'no lazy chunk carries the strict sandbox',
     ).toBe(true);
+  });
+
+  // SPEC-signin-hardening AC-020 — the SSO copy is not in the entry, and the
+  // wait line (which every 429 on the card needs) is.
+  it('the single sign-on lines stay out of the entry chunk', () => {
+    const entry = readdirSync(assets).find((f) => /^index-[A-Za-z0-9_-]+\.js$/.test(f))!;
+    const js = readFileSync(resolve(assets, entry), 'utf8');
+    expect(js).not.toContain("hasn't confirmed your email");
+    expect(js).not.toContain("Single sign-on didn't work");
+    expect(js).toContain('Too many tries. Wait');
   });
 
   it.each(LAZY_CHUNKS)('%s ships as its own async chunk, not inside the entry', (name) => {

@@ -216,6 +216,7 @@ const ENV_LABELS: Record<string, string> = {
   COOKIE_SECURE: 'Secure cookies',
   HOMEPAD_REGISTRATION: 'Registration mode',
   HOMEPAD_MAX_ACCOUNTS: 'Account limit',
+  HOMEPAD_TRUSTED_PROXIES: 'Trusted proxies',
   PORT: 'Server port',
   OIDC_ENABLED: 'OIDC sign-in',
   OIDC_ISSUER: 'OIDC issuer',
@@ -223,9 +224,17 @@ const ENV_LABELS: Record<string, string> = {
   OIDC_REDIRECT_URL: 'OIDC redirect URL',
   OIDC_CLIENT_ID: 'OIDC client ID',
   OIDC_ADMIN_GROUP: 'OIDC admin group',
+  OIDC_MEMBER_GROUP: 'OIDC member group',
 };
 
-const SERVER_KEYS = new Set(['GATUS_BASE_URL', 'COOKIE_SECURE', 'HOMEPAD_REGISTRATION', 'HOMEPAD_MAX_ACCOUNTS', 'PORT']);
+const SERVER_KEYS = new Set([
+  'GATUS_BASE_URL',
+  'COOKIE_SECURE',
+  'HOMEPAD_REGISTRATION',
+  'HOMEPAD_MAX_ACCOUNTS',
+  'HOMEPAD_TRUSTED_PROXIES',
+  'PORT',
+]);
 
 // SPEC-v26 §8.5 — presentation-only grouping derived by walking the ordered API
 // array; a caption is emitted whenever the group changes. Any future allowlisted
@@ -342,6 +351,11 @@ function EnvConfigRows({ entries }: { entries: EnvConfigEntry[] }) {
         <dt>
           <span className="settings-kv-label">{ENV_LABELS[e.key] ?? e.key}</span>
           <code className="settings-kv-var">{e.key}</code>
+          {/* SPEC-signin-hardening UX §4 (S-3) — the one default whose cost
+              isn't visible: say it where the admin looks. */}
+          {e.key === 'HOMEPAD_TRUSTED_PROXIES' && e.value === '' && (
+            <span className="settings-kv-help">When this is empty, everyone shares one sign-in limit.</span>
+          )}
         </dt>
         <dd>
           {e.value === '' ? (

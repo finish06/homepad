@@ -196,6 +196,16 @@ describe('Pending invites (AC-011, AC-019)', () => {
     expect(await screen.findAllByTestId('invite-row')).toHaveLength(1);
   });
 
+  it('SPEC-signin-hardening AC-021 — the dialog gets the registration mode', async () => {
+    const user = userEvent.setup();
+    mode('invite_only', true);
+    render(<AccountsSection currentUserId="u-admin" />);
+    await ready();
+    await user.click(screen.getByRole('button', { name: '+ Add an adult' }));
+    const dialog = screen.getByRole('dialog', { name: 'Add an adult' });
+    expect(within(dialog).getByText(/^PocketID only makes accounts for people in your admin or member group\./)).toBeInTheDocument();
+  });
+
   it('a new invite from the dialog lands in Pending invites', async () => {
     const user = userEvent.setup();
     vi.mocked(createInvite).mockResolvedValue({

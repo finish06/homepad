@@ -1,5 +1,6 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { acceptInvite, logout, lookupInvite, type InviteInfo, type User } from '../api';
+import { waitMessage } from '../lib/waitMessage';
 
 // SPEC-household-basics AC-020, UX §4 — the Join screen, opened from an invite
 // link (/#invite=…). It is the sign-in card again, in one of four states:
@@ -13,9 +14,7 @@ type Phase =
   | { kind: 'loading' }
   | { kind: 'live'; invite: InviteInfo }
   | { kind: 'dead' }
-  | { kind: 'retry' };
-
-const TOO_MANY = 'Too many tries. Wait a minute and try again.';
+  | { kind: 'retry'; wait?: number };
 
 function endDay(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -47,7 +46,7 @@ export default function JoinScreen({
       if (!live) return;
       if (r.ok && r.invite) setPhase({ kind: 'live', invite: r.invite });
       else if (r.status === 404) setPhase({ kind: 'dead' });
-      else setPhase({ kind: 'retry' });
+      else setPhase({ kind: 'retry', wait: r.retryAfter });
     });
     return () => {
       live = false;
@@ -113,7 +112,7 @@ export default function JoinScreen({
     case 'retry':
       body = (
         <Card title="Join Homepad">
-          <p className="auth-error mt-3 text-sm">{TOO_MANY}</p>
+          <p className="auth-error mt-3 text-sm">{waitMessage(phase.wait)}</p>
           <button
             type="button"
             onClick={() => setPhase({ kind: 'loading' })}
@@ -197,7 +196,7 @@ function JoinForm({
     if (r.ok && r.user) return onJoined(r.user);
     if (r.status === 404) return onDead();
     if (r.status === 409) return setEmailTaken(true);
-    if (r.status === 429) return setError(TOO_MANY);
+    if (r.status === 429) return setError(waitMessage(r.retryAfter));
     if (r.status === 400 && r.error) return setError(r.error);
     setError("Couldn't join. Try again.");
   }

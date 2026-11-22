@@ -105,7 +105,7 @@ Sign-up is closed by default (`HOMEPAD_REGISTRATION=invite_only`). The first acc
 
 - **Adults** join through an invite link. In **Administration → Accounts**, tap **+ Add an adult**, enter a name, pick **Member** or **Admin**, and send them the link. It works once, for 7 days, and they pick their own email and password. You can revoke a link that hasn't been used.
 - **Kids** are added in the same place. See [docs/kid-accounts.md](./docs/kid-accounts.md).
-- **Single sign-on** users need no invite. Their provider must mark their email as verified. See [Single sign-on](#single-sign-on).
+- **Single sign-on** makes accounts for people in your admin or member group (`OIDC_ADMIN_GROUP`, `OIDC_MEMBER_GROUP`). Anyone else needs an invite. Their provider must mark their email as verified. See [Single sign-on](#single-sign-on).
 
 `HOMEPAD_REGISTRATION=open` lets anyone who can open Homepad make an account. Accounts shows a warning while it's on, because a kid who signs out could make an adult account. To close it, set `HOMEPAD_REGISTRATION=invite_only` in `.env` and run `docker compose up -d`. Check the current mode in **Admin Panel → System → Registration mode**.
 
@@ -121,18 +121,31 @@ OIDC_ISSUER=https://auth.example.com
 OIDC_CLIENT_ID=homepad
 OIDC_CLIENT_SECRET=...
 OIDC_REDIRECT_URL=https://homepad.example.com/api/auth/oidc/callback
-OIDC_ADMIN_GROUP=admins        # optional: members of this group become admins
+OIDC_ADMIN_GROUP=homepad-admins   # people in this group become admins
+OIDC_MEMBER_GROUP=homepad         # people in this group become members
 ```
 
 Register the redirect URL with your provider, then run `docker compose up -d`. With `OIDC_ENABLED=false`, the SSO endpoints aren't registered and the login screen shows local sign-in only.
 
-**The email must be verified.** Homepad links or creates an account only when the provider says the email is verified (`email_verified` is true). Otherwise it refuses the sign-in. In PocketID:
+**Single sign-on needs verified emails.** Homepad signs you in with single sign-on only when your identity provider says your email is verified. Without that, anyone who could change their email at the provider could sign in as someone else here.
 
-- existing users: **Settings → Users**, edit the user, and turn on the toggle next to **Email** ("Mark as verified");
-- new users: **Application Configuration → Email**, and turn on **Emails verified by default**;
-- or set `EMAILS_VERIFIED=true` in PocketID's environment.
+**PocketID 2.2 and newer**
 
-On plain `http://`, single sign-on also needs `COOKIE_SECURE=false`. See [Running it for real](#running-it-for-real).
+1. For people who already have a PocketID account: open **Settings → Users** and open each person. Next to **Email**, turn on the toggle ("Mark as verified"). Save.
+2. For people you add later: open **Settings → Application Configuration → Email** and turn on **Emails verified by default**. This does not change people who already exist.
+3. Or set **Email Verification** to **Optional** or **Required**, and set up email in PocketID. Then people verify their own address.
+
+If you run PocketID with `UI_CONFIG_DISABLED=true`, set `EMAILS_VERIFIED=true` in its environment instead of step 2.
+
+**PocketID 2.1 and older:** turn on **Emails Verified** in Application Configuration. This marks every user's email as verified.
+
+**Other providers:** make sure the ID token or the userinfo answer has `"email_verified": true`. Homepad asks for the `openid profile email groups` scopes.
+
+**Who gets an account.** With `HOMEPAD_REGISTRATION=invite_only` (the default), single sign-on creates an account only for people in `OIDC_ADMIN_GROUP` (they become admins) or `OIDC_MEMBER_GROUP` (they become members). Anyone else needs an invite first. After they accept it, they can sign in with single sign-on if their email matches.
+
+**Sign-in limits.** Homepad limits how fast sign-in can be tried. If another proxy sits in front of Homepad, set `HOMEPAD_TRUSTED_PROXIES` to its address so Homepad can tell people apart. Without it, everyone shares one limit. In the quickstart, list Homepad's own `web` container too: `HOMEPAD_TRUSTED_PROXIES=web`, or `web,<your proxy's address>`.
+
+The full guide, with how to make the groups in PocketID, is [docs/single-sign-on.md](./docs/single-sign-on.md). On plain `http://`, single sign-on also needs `COOKIE_SECURE=false`. See [Running it for real](#running-it-for-real).
 
 ## Running it for real
 
@@ -144,7 +157,7 @@ On plain `http://`, single sign-on also needs `COOKIE_SECURE=false`. See [Runnin
 
 ## Project
 
-- **Docs:** [monitoring](./docs/monitoring.md) · [kid accounts](./docs/kid-accounts.md) · [widgets](./docs/widgets.md) · [backup and import](./docs/backup-import.md) · [development](./docs/development.md) · [changelog](./CHANGELOG.md)
+- **Docs:** [monitoring](./docs/monitoring.md) · [single sign-on](./docs/single-sign-on.md) · [kid accounts](./docs/kid-accounts.md) · [widgets](./docs/widgets.md) · [backup and import](./docs/backup-import.md) · [development](./docs/development.md) · [changelog](./CHANGELOG.md)
 - **Backend:** [finish06/homepad-api](https://github.com/finish06/homepad-api) (Go + Postgres)
 - **Contributing:** issues and PRs are welcome. Start with [docs/development.md](./docs/development.md).
 - **License:** [MIT](./LICENSE)

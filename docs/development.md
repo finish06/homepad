@@ -61,6 +61,9 @@ sequenceDiagram
   rect rgb(2,6,23)
   note over B,P: PocketID — Authorization Code + PKCE
   B->>A: GET /api/auth/oidc/login
+  alt over 20 a minute from this client
+    A-->>B: 302 → /#signin-error=too_many
+  end
   A-->>B: 302 → PocketID authorize<br/>(state, nonce, PKCE S256 challenge)
   B->>P: authorize + consent
   P-->>B: 302 → /api/auth/oidc/callback?code&state
@@ -68,10 +71,27 @@ sequenceDiagram
   A->>P: exchange code + PKCE verifier → tokens
   P-->>A: id_token (+ JWKS for verify)
   A->>A: verify RS256 sig · iss / aud / exp / nonce
-  A->>DB: link-by-email or provision user<br/>(admin iff in OIDC_ADMIN_GROUP)
+  alt email_verified is not true
+    A-->>B: 302 → /#signin-error=email_unverified
+  end
+  A->>DB: link-by-email, or provision user<br/>(admin iff in OIDC_ADMIN_GROUP; under invite_only,<br/>member only via OIDC_MEMBER_GROUP)
+  alt new identity in no allowed group (invite_only)
+    A-->>B: 302 → /#signin-error=not_invited
+  else at HOMEPAD_MAX_ACCOUNTS
+    A-->>B: 302 → /#signin-error=account_limit
+  else any other failure
+    A-->>B: 302 → /#signin-error=sso_failed
+  end
   A-->>B: Set-Cookie homepad_session → 302 /
   end
 ```
+
+Every single sign-on failure lands on the sign-in screen as
+`/#signin-error=<code>`. `App.tsx` reads it once, clears it from the address
+bar, and the sign-in card loads the line for it from the lazy
+`src/app/ssoMessage.ts`. Login, register and the invite and reset-link routes
+answer 429 with `Retry-After` over their limits; the card shows the wait with
+`src/lib/waitMessage.ts`.
 
 `GET /api/auth/config` returns `{"oidcEnabled":bool}` so the web app knows
 whether to render the PocketID button. When OIDC is disabled the two `/oidc/*`
