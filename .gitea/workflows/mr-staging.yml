@@ -24,6 +24,16 @@ on:
   pull_request:
     branches: [main]
 
+# One preview deploy per PR at a time; a newer push cancels the older run.
+# Two pushes 0s apart started runs 7069 and 7071 for PR #632, and the one that
+# failed tore down the preview the other had just deployed (#632). Gitea honours
+# workflow-level `concurrency` with cancel-in-progress since 1.26.0 (go-gitea/gitea#32751);
+# the deploy's failure trap also checks ownership (teardown-if-owner.sh), in
+# case a cancelled run still reaches it.
+concurrency:
+  group: preview-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   mr-staging:
     runs-on: ubuntu-latest
@@ -60,10 +70,14 @@ jobs:
             # templates, render them for this PR, apply, wait for db/api/web,
             # then seed the fresh Postgres (#623) so qa-gate can log in.
             #
-            # A failure anywhere from the fetch to the seed tears this PR's
+            # A failure anywhere from the apply to the seed tears this PR's
             # preview down before the step goes red (AC-007). Without that, a
             # refused 4th preview leaves its Services/ConfigMap/IngressRoute
             # behind, and a broken rollout keeps holding one of the 3 slots.
+            # It tears down only what THIS run deployed (#632): if the web
+            # Deployment carries another run's stamp, that run owns the preview
+            # and it stays (scripts/preview/teardown-if-owner.sh). A fetch or
+            # render failure applied nothing, so it deletes nothing.
             #
             # Kubeconfig lands 0600 (default umask leaves /tmp/kc world-readable
             # for the rest of the job otherwise) and is removed after the deploy.
@@ -82,11 +96,13 @@ jobs:
             cleanup() {
               rc=$?; set +e
               if [ "$rc" -ne 0 ] && [ "$stage" != setup ]; then
-                echo "::error::Preview deploy for PR #$PR_NUMBER failed at '$stage' (exit $rc). Tearing down its preview."
+                echo "::error::Preview deploy for PR #$PR_NUMBER failed at '$stage' (exit $rc)."
                 if [ "$stage" = apply ] && grep -q 'exceeded quota' "$WORK/apply.log"; then
                   echo "::error::3 previews already running; merge or close one, then re-run this job."
                 fi
-                kubectl -n homepad-preview delete deployment,service,configmap,ingressroute -l pr="$PR_NUMBER"
+                case "$stage" in
+                  apply|rollout|seed) bash scripts/preview/teardown-if-owner.sh ;;
+                esac
               fi
               rm -rf "$WORK"; rm -f /tmp/kc
               exit $rc
@@ -123,8 +139,11 @@ jobs:
               fi
             done
             # (b) Render and apply. DEPLOYED_AT is stamped on EVERY deploy: the
-            # 48h preview-janitor keys on it. The API image is whatever main's
-            # staging runs (the preview SA may read exactly that one field).
+            # 48h preview-janitor keys on it, so it stays pure RFC3339. Two runs
+            # can stamp the same second (#632), so PREVIEW_RUN (env, run id +
+            # attempt) goes on as homepad.preview/run and names the owner for
+            # the failure trap. The API image is whatever main's staging runs
+            # (the preview SA may read exactly that one field).
             # Assign, then export: `export X=$(cmd)` would hide cmd's failure.
             stage=render
             DEPLOYED_AT=$(date -u +%FT%TZ)
@@ -162,6 +181,9 @@ jobs:
           QA_PASSWORD:        ${{ secrets.QA_PASSWORD }}
           PR_NUMBER:          ${{ github.event.pull_request.number }}
           PR_SHA:             ${{ github.event.pull_request.head.sha }}
+          # This run's ownership stamp on the preview (#632). The attempt part
+          # keeps a re-run (same run id) distinct.
+          PREVIEW_RUN:        ${{ github.run_id }}-${{ github.run_attempt }}
           # The composite's docs-only auto-approve step (as ci-docs-approver)
           # reads its credential from THIS env block; it can't read the secret
           # itself (#616, run 6969: empty token, warn, no approval). Map it so

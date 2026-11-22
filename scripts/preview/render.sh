@@ -2,7 +2,7 @@
 # Render the per-PR preview templates (Code/homelab apps/homepad/preview/template/)
 # for one PR, for mr-staging's deploy-cmd (SPEC-preview-environments §7).
 #
-#   PR_NUMBER=… PR_SHA=… DEPLOYED_AT=… IMAGE_REF=… API_IMAGE=… \
+#   PR_NUMBER=… PR_SHA=… DEPLOYED_AT=… PREVIEW_RUN=… IMAGE_REF=… API_IMAGE=… \
 #     bash scripts/preview/render.sh <template-dir> <out-dir>
 #
 # envsubst gets the explicit variable list ON PURPOSE. A bare envsubst also
@@ -12,9 +12,9 @@
 set -euo pipefail
 
 in=$1 out=$2
-: "${PR_NUMBER:?}" "${PR_SHA:?}" "${DEPLOYED_AT:?}" "${IMAGE_REF:?}" "${API_IMAGE:?}"
+: "${PR_NUMBER:?}" "${PR_SHA:?}" "${DEPLOYED_AT:?}" "${PREVIEW_RUN:?}" "${IMAGE_REF:?}" "${API_IMAGE:?}"
 
 for f in 01-db 02-api 03-web 04-ingress; do
-  envsubst '${PR_NUMBER} ${PR_SHA} ${DEPLOYED_AT} ${IMAGE_REF} ${API_IMAGE}' \
+  envsubst '${PR_NUMBER} ${PR_SHA} ${DEPLOYED_AT} ${PREVIEW_RUN} ${IMAGE_REF} ${API_IMAGE}' \
     < "$in/$f.yaml" > "$out/$f.yaml"
 done

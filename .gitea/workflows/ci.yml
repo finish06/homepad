@@ -28,10 +28,11 @@ jobs:
       - uses: actions/checkout@v4
       # The per-PR preview templates must render safely (mr-staging deploy-cmd,
       # SPEC-preview-environments). The runner image ships no envsubst.
-      - name: Preview template render check
+      - name: Preview render + teardown checks
         run: |
           bash scripts/preview/install-envsubst.sh
           bash scripts/preview/render.test.sh
+          bash scripts/preview/teardown-if-owner.test.sh
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

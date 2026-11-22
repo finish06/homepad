@@ -2,7 +2,8 @@
 # Render check for the per-PR preview templates (SPEC-preview-environments §7).
 #
 # Renders a scratch copy of tests/fixtures/preview-templates/ (copied from
-# Code/homelab apps/homepad/preview/template/ at 447bda2d) through
+# Code/homelab apps/homepad/preview/template/ at 447bda2d, plus the
+# homepad.preview/run annotation that lands in homelab alongside #632's fix) through
 # scripts/preview/render.sh, the same script mr-staging's deploy-cmd runs, and
 # asserts the output is safe to apply. Needs bash + envsubst (gettext-base).
 #
@@ -24,7 +25,7 @@ check() { # check <AC id + name> <command...>
 
 render() {
   PR_NUMBER=1 PR_SHA=0123456789abcdef0123456789abcdef01234567 \
-    DEPLOYED_AT=2026-11-22T22:00:00Z IMAGE_REF=registry.example/homepad:0123456-test \
+    DEPLOYED_AT=2026-11-22T22:00:00Z PREVIEW_RUN=7071-2 IMAGE_REF=registry.example/homepad:0123456-test \
     API_IMAGE=registry.example/homepad-api:abc1234-beta \
     bash "$repo/scripts/preview/render.sh" "$work/templates" "$work/out"
 }
@@ -60,6 +61,11 @@ check "AC-001 web image is the PR's IMAGE_REF" \
   grep -qF 'image: registry.example/homepad:0123456-test' "$web"
 check "AC-006 deployed-at annotation carries DEPLOYED_AT" \
   grep -qF 'homepad.preview/deployed-at: 2026-11-22T22:00:00Z' "$ingress"
+# The deploy's failure trap compares this to decide whether THIS run owns the
+# preview (#632). Quoted so YAML never reads it as a number, which an
+# annotation value can't be.
+check "AC-007 web Deployment's run annotation is the quoted PREVIEW_RUN" \
+  grep -qF 'homepad.preview/run: "7071-2"' "$web"
 
 echo "# $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

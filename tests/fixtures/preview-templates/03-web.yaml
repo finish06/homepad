@@ -96,6 +96,7 @@ metadata:
   annotations:
     homepad.preview/sha: ${PR_SHA}
     homepad.preview/deployed-at: ${DEPLOYED_AT}
+    homepad.preview/run: "${PREVIEW_RUN}"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -110,6 +111,7 @@ metadata:
   annotations:
     homepad.preview/sha: ${PR_SHA}
     homepad.preview/deployed-at: ${DEPLOYED_AT}
+    homepad.preview/run: "${PREVIEW_RUN}"
 spec:
   replicas: 1
   selector:
@@ -185,6 +187,7 @@ metadata:
   annotations:
     homepad.preview/sha: ${PR_SHA}
     homepad.preview/deployed-at: ${DEPLOYED_AT}
+    homepad.preview/run: "${PREVIEW_RUN}"
 spec:
   ports:
   - port: 80

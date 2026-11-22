@@ -30,7 +30,7 @@ A few words used below:
 flowchart TD
     A["Open or push to a PR"] --> B["ci + browser-gate + e2e<br/>tests on the PR"]
     A --> C["mr-staging<br/>build PR image, deploy this PR's preview<br/>pr-N.homepad-preview, then seed it"]
-    C -->|"4th preview, or deploy / seed failed"| X["Run goes red,<br/>the preview is deleted"]
+    C -->|"4th preview, or deploy / seed failed"| X["Run goes red,<br/>the preview it deployed is deleted"]
     C --> D["QA of the PR on its preview<br/>started automatically by the qa-runner"]
     B --> E{"Required checks green<br/>and 1 approval?"}
     D --> E
@@ -145,6 +145,10 @@ leaked secrets, so a failure can mean something sensitive ended up in the bundle
 ## `mr-staging.yml`: PR -> staging gate
 
 **When it runs:** every time a PR into `main` is opened or gets new commits.
+Only one run per PR at a time: a new push cancels the PR's run that is still
+going (`concurrency`, group `preview-pr-<number>`). Two pushes in the same second
+once started two runs for PR #632, and one deleted the preview the other had just
+deployed.
 
 **What it does** (most steps come from ci-shared's `mr-staging`):
 
@@ -165,8 +169,9 @@ leaked secrets, so a failure can mean something sensitive ended up in the bundle
   - Downloads the four preview templates from Code/homelab
     `apps/homepad/preview/template/` (database, API, web + nginx settings, and the
     web address).
-  - Fills in the PR number, commit, image, the time of this deploy, and the API
-    image that staging runs (`scripts/preview/render.sh`).
+  - Fills in the PR number, commit, image, the time of this deploy, this run's
+    id (`homepad.preview/run`, run id and attempt), and the API image that
+    staging runs (`scripts/preview/render.sh`).
   - Applies them, then waits up to 2 minutes each for the database, the API and
     the web app to come up.
   - Runs the QA seed (`scripts/seed-qa.sh`, #623) against the preview. It creates
@@ -174,8 +179,11 @@ leaked secrets, so a failure can mean something sensitive ended up in the bundle
     sample data. It runs on every push; a second run changes nothing.
   - The first push creates the preview. Later pushes update the web app in place
     and keep the database.
-  - If any of these steps fails, it **deletes this PR's preview** before going
-    red, so a broken preview doesn't keep one of the 3 slots.
+  - If the apply, rollout or seed fails, it **deletes this PR's preview** before
+    going red, so a broken preview doesn't keep one of the 3 slots. It deletes
+    only a preview this run deployed: if the web app carries another run's id,
+    a newer deploy owns the preview, so it is kept and the run logs "a newer
+    deploy owns pr-<number>; not tearing down" (`scripts/preview/teardown-if-owner.sh`).
 - Then it starts QA of the PR on its preview. Who does the QA depends on the repo
   variable `QA_BACKEND` (see below). For homepad that's `docker-claude`: the
   qa-runner QAs every PR automatically, nobody has to start it.
@@ -220,8 +228,9 @@ that failed:
 - `rollout`: the database, API or web app didn't become ready within 2 minutes.
 - `seed`: the QA seed failed, so QA would have run against an empty install.
 
-In every case this PR's preview has already been deleted; a re-run starts from
-scratch. A QA dispatch problem never turns the run red; look for an error note in
+After an `apply`, `rollout` or `seed` failure, the preview this run deployed has
+already been deleted; a re-run starts from scratch. A `fetch` failure deployed
+nothing, so it deletes nothing: an earlier push's preview stays up. A QA dispatch problem never turns the run red; look for an error note in
 the "Dispatch QA" step instead.
 
 ---
