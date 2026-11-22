@@ -13,7 +13,12 @@ A few words used below:
   as `abc1234-test`).
 - **Staging**: the test copy of homepad on the homelab staging cluster, in the
   `homepad-staging` namespace (a namespace is a named folder inside the cluster).
-  There is only **one** staging slot. Whatever was deployed last is what's there.
+  It runs whatever is on `main`. PRs no longer deploy there.
+- **Preview**: a short-lived copy of homepad for **one PR**: its own web, API and
+  empty database, in the `homepad-preview` namespace, at
+  `http://pr-<number>.homepad-preview.10.17.2.213.nip.io`. At most **3** previews
+  can run at once. Each PR's QA runs against its own preview
+  (`specs/SPEC-preview-environments.md`).
 - **Prod**: the real homepad everyone uses.
 - **Required check**: a check that must be green before Gitea lets a PR merge.
 - **ci-shared**: a shared repo (`Code/ci-shared`) holding reusable steps. Three of
@@ -24,16 +29,24 @@ A few words used below:
 ```mermaid
 flowchart TD
     A["Open or push to a PR"] --> B["ci + browser-gate + e2e<br/>tests on the PR"]
-    A --> C["mr-staging<br/>build PR image, deploy it to the shared staging slot"]
-    C --> D["QA of the PR on staging<br/>started automatically by the qa-runner"]
+    A --> C["mr-staging<br/>build PR image, deploy this PR's preview<br/>pr-N.homepad-preview, then seed it"]
+    C -->|"4th preview, or deploy / seed failed"| X["Run goes red,<br/>the preview is deleted"]
+    C --> D["QA of the PR on its preview<br/>started automatically by the qa-runner"]
     B --> E{"Required checks green<br/>and 1 approval?"}
     D --> E
     E -->|yes| F["Merge to main"]
+    F --> T["preview-teardown<br/>delete this PR's preview"]
+    A -.->|"PR closed without merging"| T
     F --> G["staging-release<br/>build main image, deploy it to staging"]
     G --> H["Push a version tag, for example v18.0.0"]
     H --> I["prod-release<br/>build release image, print its digest.<br/>Does NOT deploy."]
     I --> J["Joe deploys prod by hand<br/>from Code/homelab apps/homepad/prod/"]
+    K["Daily preview-janitor in the cluster"] -.->|"preview older than 48h"| T2["delete that preview"]
 ```
+
+The janitor is not a workflow in this repo. It is a CronJob in `homepad-preview`
+(Code/homelab `apps/homepad/preview/05-cleanup.yaml`) that catches a preview
+whose teardown never ran.
 
 ## At a glance
 
@@ -42,7 +55,8 @@ flowchart TD
 | `ci.yml` (CI) | A PR is opened or updated | Nothing | **Yes**: required check |
 | `browser-gate.yml` (Browser gate) | A PR is opened or updated | Nothing | **Yes**: required check |
 | `e2e.yml` (E2E) | A PR is opened or updated | Nothing | No: reports only, not required yet |
-| `mr-staging.yml` (PR -> staging gate) | A PR into `main` is opened or updated | `homepad-staging` (the one shared slot) | Not by itself. The merge needs an approval, and that approval normally comes from the QA this workflow is meant to start |
+| `mr-staging.yml` (PR -> staging gate) | A PR into `main` is opened or updated | `homepad-preview`: this PR's own preview | Not by itself. The merge needs an approval, and that approval normally comes from the QA this workflow is meant to start |
+| `preview-teardown.yml` (Preview teardown) | A PR into `main` is closed or merged | Deletes this PR's preview | No: runs after the PR is closed |
 | `staging-release.yml` (main -> staging build) | Every push to `main` (every merge) | `homepad-staging` | No: runs after the merge |
 | `prod-release.yml` (Prod release) | A tag starting with `v` is pushed, or someone starts it by hand | **Nothing.** Prod is deployed by Joe | No: runs after the release |
 
@@ -147,32 +161,44 @@ leaked secrets, so a failure can mean something sensitive ended up in the bundle
   exact commit.
 - Builds the PR's image and pushes it with two tags: `<short-sha>-test` and
   `<short-sha>`. ("short-sha" is the first 7 characters of the commit id.)
-- Deploys it to staging: applies the web nginx settings from Code/homelab, points
-  the `homepad-web` deployment at the new image, restarts it, and waits up to
-  2 minutes for it to come up.
-- Then it starts QA of the PR on staging. Who does the QA depends on the repo
+- Deploys it to **this PR's preview** in `homepad-preview`:
+  - Downloads the four preview templates from Code/homelab
+    `apps/homepad/preview/template/` (database, API, web + nginx settings, and the
+    web address).
+  - Fills in the PR number, commit, image, the time of this deploy, and the API
+    image that staging runs (`scripts/preview/render.sh`).
+  - Applies them, then waits up to 2 minutes each for the database, the API and
+    the web app to come up.
+  - Runs the QA seed (`scripts/seed-qa.sh`, #623) against the preview. It creates
+    the QA admin from the `QA_EMAIL` / `QA_PASSWORD` secrets and a fixed set of
+    sample data. It runs on every push; a second run changes nothing.
+  - The first push creates the preview. Later pushes update the web app in place
+    and keep the database.
+  - If any of these steps fails, it **deletes this PR's preview** before going
+    red, so a broken preview doesn't keep one of the 3 slots.
+- Then it starts QA of the PR on its preview. Who does the QA depends on the repo
   variable `QA_BACKEND` (see below). For homepad that's `docker-claude`: the
   qa-runner QAs every PR automatically, nobody has to start it.
 
 **What it changes outside the repo:**
 
 - **Registry:** pushes `homepad:<short-sha>-test` and `homepad:<short-sha>`.
-- **Staging:** replaces what's running in `homepad-staging` with this PR's build.
-  There is **one** shared staging slot. Any push to any open PR replaces it. If
-  two PRs are open, staging shows whichever one pushed last.
-- **ConfigMap:** re-applies the `homepad-web` nginx config in `homepad-staging`
-  (a ConfigMap is a settings file the cluster stores). The nginx config comes
-  from Code/homelab `apps/homepad/staging/03-web.yaml`, **not** from the image.
-  Changing `nginx.conf` in this repo does not change what staging serves.
+- **Preview:** creates or updates this PR's objects in `homepad-preview`, all
+  labelled `pr=<number>`: three deployments (web, API, database), their services,
+  the nginx ConfigMap (a settings file the cluster stores) and the web address.
+  Other PRs' previews and `homepad-staging` are not touched. The nginx config
+  comes from the Code/homelab template, **not** from the image, so changing
+  `nginx.conf` in this repo does not change what the preview serves.
 - **QA**, picked by the `QA_BACKEND` repo variable:
   - `nats` (the default if the variable is unset): sends a task to the QA bot
     pool. On a pass the QA bot approves and merges the PR; on a fail it asks for
     changes.
   - `docker-claude` (what homepad uses): starts a one-off qa-runner job on the
-    cluster that tests staging, checks that staging is really running this PR's
-    commit, and approves and squash-merges on a pass. It logs in to staging
-    through `http://homepad-staging.10.17.2.213.nip.io/api/login` (the
-    `qa-login-url` input) with the test login the qa-runner holds. The model is
+    cluster that tests the PR's preview, checks that the preview is really
+    running this PR's commit, and approves and squash-merges on a pass. It logs
+    in through `http://pr-<number>.homepad-preview.10.17.2.213.nip.io/api/login`
+    (the `qa-login-url` input) with the test login the qa-runner holds, the same
+    one the seed created. The model is
     Sonnet 5.5 at medium effort, set on the qa-runner trigger, not here.
   - Any other value: no QA is started. The run logs an error note but still
     goes green, and someone has to start QA by hand.
@@ -184,10 +210,36 @@ run does not mean the PR was QA'd; it means the image was built and deployed.
 The merge still needs an approval.
 
 **If it fails:** usually the image build (the Dockerfile or `npm run build`
-inside it), or the staging deploy: the nginx manifest couldn't be fetched from
-Code/homelab, or the new pod didn't become ready within 2 minutes (look at the
-staging pod's logs). A QA dispatch problem never turns the run red; look for an
-error note in the "Dispatch QA" step instead.
+inside it), or the preview deploy. The deploy step's error note names the step
+that failed:
+
+- `apply` with "3 previews already running; merge or close one": three other PRs
+  already have previews. Merge or close one of them, then re-run this job. Nothing
+  is evicted automatically.
+- `fetch`: a template couldn't be downloaded from Code/homelab.
+- `rollout`: the database, API or web app didn't become ready within 2 minutes.
+- `seed`: the QA seed failed, so QA would have run against an empty install.
+
+In every case this PR's preview has already been deleted; a re-run starts from
+scratch. A QA dispatch problem never turns the run red; look for an error note in
+the "Dispatch QA" step instead.
+
+---
+
+## `preview-teardown.yml`: Preview teardown
+
+**When it runs:** when a PR into `main` is closed, merged or not.
+
+**What it does:** deletes every deployment, service, ConfigMap and web address
+labelled `pr=<number>` in `homepad-preview`, which is this PR's whole preview.
+
+**What it changes outside the repo:** frees one of the 3 preview slots.
+
+**What it does NOT do:** nothing else. If the PR never had a preview (a docs-only
+PR, say), it finds nothing and still goes green.
+
+**If it fails:** the preview stays up until the daily janitor deletes it, at the
+latest 48 hours after its last deploy. Re-run the job to free the slot sooner.
 
 ---
 
@@ -199,16 +251,15 @@ error note in the "Dispatch QA" step instead.
 
 - Builds the image from `main` and pushes it with two tags:
   `<short-sha>-beta` and `<short-sha>`.
-- Deploys it to staging the same way mr-staging does: applies the nginx config
-  from Code/homelab, points `homepad-web` at the new image, restarts it, and waits
-  up to 2 minutes.
+- Deploys it to staging: applies the nginx config from Code/homelab, points
+  `homepad-web` at the new image, restarts it, and waits up to 2 minutes.
 - No tests and no QA. The PR was already tested and approved before it merged.
 
 **What it changes outside the repo:**
 
 - **Registry:** pushes `homepad:<short-sha>-beta` and `homepad:<short-sha>`.
-- **Staging:** `homepad-staging` now runs `main`. This replaces any PR build that
-  was there.
+- **Staging:** `homepad-staging` now runs `main`. PR previews in
+  `homepad-preview` are not touched, so a merge never interrupts another PR's QA.
 - **ConfigMap:** re-applies the `homepad-web` nginx config from Code/homelab
   `apps/homepad/staging/03-web.yaml`.
 

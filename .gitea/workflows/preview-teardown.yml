@@ -1,0 +1,38 @@
+# Removes a PR's preview environment when the PR is closed or merged
+# (SPEC-preview-environments §7, AC-005). mr-staging.yml creates it: web + api +
+# Postgres in namespace homepad-preview, every object labelled pr=<n>.
+#
+# Kinds are listed explicitly: `kubectl delete all` skips ConfigMaps and
+# IngressRoutes. Nothing labelled pr=<n> (a docs-only PR, or one whose deploy
+# already tore itself down) is a no-op: kubectl prints "No resources found" and
+# exits 0. If this run fails, the daily preview-janitor in homepad-preview
+# deletes any preview whose deployed-at is older than 48h.
+name: Preview teardown
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+jobs:
+  teardown:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete pr=${{ github.event.pull_request.number }} from homepad-preview
+        env:
+          KUBECONFIG_PREVIEW: ${{ secrets.KUBECONFIG_PREVIEW }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # Kubeconfig lands 0600 and is removed on every exit path (see
+          # mr-staging.yml's deploy-cmd for why the trap keeps the status).
+          trap 'rc=$?; set +e; rm -f /tmp/kc; exit $rc' EXIT
+          install -m 600 /dev/null /tmp/kc
+          printf '%s' "$KUBECONFIG_PREVIEW" > /tmp/kc && export KUBECONFIG=/tmp/kc
+          # Same pinned, checksum-verified kubectl as mr-staging's deploy-cmd.
+          if ! command -v kubectl >/dev/null 2>&1; then
+            curl -sSLf -o /usr/local/bin/kubectl https://dl.k8s.io/release/v1.34.13/bin/linux/amd64/kubectl
+            echo "b4bb494e9466a7a94bb851414548bc0d3e2f8da90757e6eccc3371e648648591  /usr/local/bin/kubectl" | sha256sum -c -
+            chmod +x /usr/local/bin/kubectl
+          fi
+          kubectl -n homepad-preview delete deployment,service,configmap,ingressroute -l pr="$PR_NUMBER"

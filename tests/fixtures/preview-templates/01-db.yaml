@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: homepad-db
+    pr: "${PR_NUMBER}"
+    app.kubernetes.io/part-of: homepad
+    homepad.preview/pr: "${PR_NUMBER}"
+  name: homepad-db-pr-${PR_NUMBER}
+  namespace: homepad-preview
+  annotations:
+    homepad.preview/sha: ${PR_SHA}
+    homepad.preview/deployed-at: ${DEPLOYED_AT}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: homepad-db
+      pr: "${PR_NUMBER}"
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: homepad-db
+        pr: "${PR_NUMBER}"
+        app.kubernetes.io/part-of: homepad
+        homepad.preview/pr: "${PR_NUMBER}"
+    spec:
+      containers:
+      - env:
+        - name: POSTGRES_USER
+          value: homepad
+        - name: POSTGRES_PASSWORD
+          value: homepad
+        - name: POSTGRES_DB
+          value: homepad
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        image: postgres:17.10-alpine
+        imagePullPolicy: IfNotPresent
+        name: postgres
+        ports:
+        - containerPort: 5432
+          protocol: TCP
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - pg_isready -U homepad -d homepad
+          failureThreshold: 3
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 3
+        resources:
+          limits:
+            cpu: '1'
+            memory: 512Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: data
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - emptyDir: {}
+        name: data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: homepad-db-pr-${PR_NUMBER}
+  namespace: homepad-preview
+  labels:
+    app: homepad-db
+    pr: "${PR_NUMBER}"
+    app.kubernetes.io/part-of: homepad
+    homepad.preview/pr: "${PR_NUMBER}"
+  annotations:
+    homepad.preview/sha: ${PR_SHA}
+    homepad.preview/deployed-at: ${DEPLOYED_AT}
+spec:
+  ports:
+  - port: 5432
+    protocol: TCP
+    targetPort: 5432
+  selector:
+    app: homepad-db
+    pr: "${PR_NUMBER}"
+  type: ClusterIP

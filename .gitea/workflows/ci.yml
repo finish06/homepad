@@ -5,8 +5,8 @@
 #   - commit/push to a feat branch, no PR yet  -> nothing in CI (run locally)
 #   - PR opened/updated                        -> THIS workflow (required check)
 #                                                 + browser-gate (required check)
-#                                                 + mr-staging (image -> staging
-#                                                   deploy -> QA pool = e2e gate)
+#                                                 + mr-staging (image -> per-PR
+#                                                   preview -> QA pool = e2e gate)
 #   - merge to main                            -> staging-release BUILDS ONLY;
 #                                                 no re-test (main is branch-
 #                                                 protected: the exact tested
@@ -26,6 +26,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The per-PR preview templates must render safely (mr-staging deploy-cmd,
+      # SPEC-preview-environments). The runner image ships no envsubst.
+      - name: Preview template render check
+        run: |
+          bash scripts/preview/install-envsubst.sh
+          bash scripts/preview/render.test.sh
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

@@ -6,11 +6,15 @@
 #
 # On a pull_request to main: build the candidate image homepad:<sha>-test
 # (unit + browser gates run once in ci.yml / browser-gate.yml — see test-cmd),
-# push it, deploy it to staging
-# (homepad-staging ns), then dispatch the QA POOL (friend.qa.task.*). On a PASS the
-# pool bot approves + merges this PR via the Gitea API with its own PAT; main is
-# branch-protected (required_approvals=1, whitelist gracie) so the merge only lands
-# behind the QA gate.
+# push it, deploy it to this PR's own preview environment (SPEC-preview-environments:
+# namespace homepad-preview, objects labelled pr=<n>, at
+# http://pr-<n>.homepad-preview.10.17.2.213.nip.io), then dispatch QA to the
+# docker-claude qa-runner via ci-shared's dispatch-qa.sh (QA_BACKEND=docker-claude).
+# PRs no longer touch homepad-staging; that stays "what's on main"
+# (staging-release.yml). preview-teardown.yml removes the preview on close. On a
+# PASS the QA runner approves + merges this PR via the Gitea API; main is
+# branch-protected (required_approvals=1, approvals whitelist ci-docs-approver,
+# qa-claude) so the merge only lands behind the QA gate.
 #
 # ci.yml (Web build+unit) and browser-gate.yml (#35) stay as separate required
 # status checks.
@@ -27,20 +31,21 @@ jobs:
       - uses: http://gitea-http.gitea.svc.cluster.local:3000/Code/ci-shared/mr-staging@v3
         with:
           image-name: homepad
-          staging-url: http://homepad-staging.10.17.2.213.nip.io
+          # This PR's preview (Code/homelab apps/homepad/preview/README.md).
+          staging-url: http://pr-${{ github.event.pull_request.number }}.homepad-preview.10.17.2.213.nip.io
           qa-backend: ${{ vars.QA_BACKEND || 'nats' }}
           # qa-gate logs in through the API (the runner supplies QA_EMAIL /
-          # QA_PASSWORD). Same staging host as staging-url above. Needs a
+          # QA_PASSWORD). Same preview host as staging-url above. Needs a
           # ci-shared @v3 that declares this input (ci-shared#46); an older @v3
           # just drops it.
-          qa-login-url: http://homepad-staging.10.17.2.213.nip.io/api/login
+          qa-login-url: http://pr-${{ github.event.pull_request.number }}.homepad-preview.10.17.2.213.nip.io/api/login
           # Test-dedup: the unit suite is NOT re-run here. ci.yml ("Web (build,
           # unit tests)") and browser-gate.yml are required status checks on
           # this same PR head sha — branch protection already blocks the QA
           # bot's merge if they fail, so a third `npm ci && npm run build &&
           # npm test` (~3 min) bought nothing. Kaniko's image build below
           # still compiles the app (its `npm run build` includes tsc), and the
-          # staging deploy + QA pool remain this workflow's actual gate: the
+          # preview deploy + QA pool remain this workflow's actual gate: the
           # e2e/browser level, which runs only here.
           #
           # NOTE: the composite splices this string into a shell double-quoted
@@ -50,85 +55,113 @@ jobs:
           test-cmd: |
             echo skipping duplicate unit suite - ci.yml and browser-gate.yml already gate this sha
           deploy-cmd: |
+            # Per-PR preview (SPEC-preview-environments §7; cluster contract in
+            # Code/homelab apps/homepad/preview/README.md): fetch the four
+            # templates, render them for this PR, apply, wait for db/api/web,
+            # then seed the fresh Postgres (#623) so qa-gate can log in.
+            #
+            # A failure anywhere from the fetch to the seed tears this PR's
+            # preview down before the step goes red (AC-007). Without that, a
+            # refused 4th preview leaves its Services/ConfigMap/IngressRoute
+            # behind, and a broken rollout keeps holding one of the 3 slots.
+            #
             # Kubeconfig lands 0600 (default umask leaves /tmp/kc world-readable
-            # for the rest of the job otherwise) and is removed after the rollout.
-            # Cleanup runs on EVERY exit path, success or failure (#503). The two
-            # deploy temp files AND /tmp/kc — the staging kubeconfig, i.e. cluster
-            # credentials — used to be removed by `rm -f` lines that `bash -e` skips
-            # the moment any command before them fails (curl, kubectl apply, or the
-            # common one: `rollout status` timing out). The advisory covered the temp
-            # files; the kubeconfig had the same failure mode and was the one that
-            # mattered.
+            # for the rest of the job otherwise) and is removed after the deploy.
+            # Cleanup runs on EVERY exit path, success or failure (#503): `rm -f`
+            # lines at the end are skipped by `bash -e` the moment any command
+            # before them fails, and /tmp/kc is cluster credentials.
             #
             # `rc=$?; set +e; …; exit $rc` is deliberate, not decoration. Under
             # `bash -e`, errexit stays ACTIVE inside an EXIT trap, so a failing
             # cleanup command would abort the trap with status 1 — turning a
             # successful deploy red, which is the #502 failure mode again. Capturing
             # the status and switching errexit off first means cleanup can never
-            # change the outcome. Verified: success -> 0, failure(7) -> 7,
-            # curl-23 -> 23, with a deliberately failing cleanup command.
+            # change the outcome.
             WORK="$(mktemp -d)"
-            trap 'rc=$?; set +e; rm -rf "$WORK"; rm -f /tmp/kc; exit $rc' EXIT
+            stage=setup
+            cleanup() {
+              rc=$?; set +e
+              if [ "$rc" -ne 0 ] && [ "$stage" != setup ]; then
+                echo "::error::Preview deploy for PR #$PR_NUMBER failed at '$stage' (exit $rc). Tearing down its preview."
+                if [ "$stage" = apply ] && grep -q 'exceeded quota' "$WORK/apply.log"; then
+                  echo "::error::3 previews already running; merge or close one, then re-run this job."
+                fi
+                kubectl -n homepad-preview delete deployment,service,configmap,ingressroute -l pr="$PR_NUMBER"
+              fi
+              rm -rf "$WORK"; rm -f /tmp/kc
+              exit $rc
+            }
+            trap cleanup EXIT
             install -m 600 /dev/null /tmp/kc
-            printf '%s' "$KUBECONFIG_STAGING" > /tmp/kc && export KUBECONFIG=/tmp/kc
+            printf '%s' "$KUBECONFIG_PREVIEW" > /tmp/kc && export KUBECONFIG=/tmp/kc
             # catthehacker runner image ships no kubectl — install the pinned
             # binary and verify the sha256 (pinned from kubectl.sha256 at pin
             # time, NOT fetched alongside the binary) before executing it with
             # cluster credentials in scope.
             if ! command -v kubectl >/dev/null 2>&1; then
-              curl -sSLf -o /usr/local/bin/kubectl https://dl.k8s.io/release/v1.30.2/bin/linux/amd64/kubectl
-              echo "c6e9c45ce3f82c90663e3c30db3b27c167e8b19d83ed4048b61c1013f6a7c66e  /usr/local/bin/kubectl" | sha256sum -c -
+              curl -sSLf -o /usr/local/bin/kubectl https://dl.k8s.io/release/v1.34.13/bin/linux/amd64/kubectl
+              echo "b4bb494e9466a7a94bb851414548bc0d3e2f8da90757e6eccc3371e648648591  /usr/local/bin/kubectl" | sha256sum -c -
               chmod +x /usr/local/bin/kubectl
             fi
-            # Converge the deploy-owned nginx ConfigMap from Code/homelab BEFORE
-            # rolling the image. That ConfigMap shadows the image's nginx.conf
-            # entirely (issue #414: PR #412's security headers + version.json
-            # no-store never reached staging because only the image conf had
-            # them). The manifest's FIRST yaml doc is the ConfigMap — apply just
-            # that, never the Deployment doc (its image field would fight the
-            # set-image below).
-            #
-            # Download, extract, apply — three steps, NO pipes, deliberately.
-            # This was `curl ... | sed '/^---$/q' | kubectl apply -f -`, which
-            # fails intermittently: sed quits at the first `---` and closes the
-            # pipe while curl is still writing, curl exits 23
-            # (CURLE_WRITE_ERROR), and ci-shared runs deploy-cmd under
-            # `bash -e -o pipefail`, so that failure fails the whole job — AFTER
-            # kubectl apply has already succeeded. Reproduced 25/25 against a
-            # manifest shaped like this one; 0/25 with the form below. It is
-            # timing-dependent on how much follows the `---`, which is why
-            # consecutive runs on an identical manifest disagreed (#499 and #500
-            # passed, #501 failed).
-            #
-            # Code/homelab is moving homepad-staging/ to apps/homepad/staging/.
-            # Try the new path, fall back to the old one only on a 404, and log
-            # which one was used; any other HTTP status fails here.
+            # ...nor envsubst, which scripts/preview/render.sh needs.
+            bash scripts/preview/install-envsubst.sh
+            # (a) Fetch the templates. Download to files, NO pipes, deliberately:
+            # ci-shared runs deploy-cmd under `bash -e -o pipefail`, and a reader
+            # that quits early (`curl ... | sed '/^---$/q'`) made curl exit 23
+            # AFTER a successful apply, failing the job intermittently (#499-#501).
+            # Any HTTP status but 200 fails here and names the file.
+            stage=fetch
             HOMELAB_RAW=http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main
-            for path in apps/homepad/staging/03-web.yaml homepad-staging/03-web.yaml; do
+            mkdir "$WORK/templates" "$WORK/out"
+            for f in 01-db 02-api 03-web 04-ingress; do
+              path=apps/homepad/preview/template/$f.yaml
               code=$(curl -sS -H "Authorization: token $GITEA_READ_TOKEN" \
-                -o "$WORK/manifest.yaml" -w '%{http_code}' "$HOMELAB_RAW/$path")
-              [ "$code" = 404 ] || break
+                -o "$WORK/templates/$f.yaml" -w '%{http_code}' "$HOMELAB_RAW/$path")
+              if [ "$code" != 200 ]; then
+                echo "homelab template fetch failed: HTTP $code for $path" >&2
+                exit 1
+              fi
             done
-            if [ "$code" != 200 ]; then
-              echo "homelab manifest fetch failed: HTTP $code for $path" >&2
-              exit 1
-            fi
-            echo "homelab manifest: $path"
-            sed '/^---$/q' "$WORK/manifest.yaml" > "$WORK/configmap.yaml"
-            kubectl -n homepad-staging apply -f "$WORK/configmap.yaml"
-            kubectl -n homepad-staging set image deploy/homepad-web web="$IMAGE_REF"
-            # Restart even when the image tag is unchanged so a ConfigMap-only
-            # change still reaches the pods (mounted configs don't hot-reload).
-            kubectl -n homepad-staging rollout restart deploy/homepad-web
-            kubectl -n homepad-staging rollout status deploy/homepad-web --timeout=120s
+            # (b) Render and apply. DEPLOYED_AT is stamped on EVERY deploy: the
+            # 48h preview-janitor keys on it. The API image is whatever main's
+            # staging runs (the preview SA may read exactly that one field).
+            # Assign, then export: `export X=$(cmd)` would hide cmd's failure.
+            stage=render
+            DEPLOYED_AT=$(date -u +%FT%TZ)
+            API_IMAGE=$(kubectl -n homepad-staging get deploy homepad-api -o jsonpath='{.spec.template.spec.containers[0].image}')
+            export DEPLOYED_AT API_IMAGE
+            bash scripts/preview/render.sh "$WORK/templates" "$WORK/out"
+            # A 4th concurrent preview is refused HERE (count/deployments.apps
+            # quota): kubectl exits 1 and pipefail carries it through tee.
+            stage=apply
+            kubectl apply -f "$WORK/out" 2>&1 | tee "$WORK/apply.log"
+            # (c) An update push rolls web in place; the db pod template carries
+            # no per-deploy field, so its emptyDir survives (AC-009).
+            stage=rollout
+            for app in db api web; do
+              kubectl -n homepad-preview rollout status "deploy/homepad-$app-pr-$PR_NUMBER" --timeout=120s
+            done
+            # (d) Seed (#623): idempotent, so it runs on every deploy. The QA
+            # login goes to this command only and is never echoed.
+            stage=seed
+            PREVIEW_URL="http://pr-$PR_NUMBER.homepad-preview.10.17.2.213.nip.io"
+            bash scripts/seed-qa.sh "$PREVIEW_URL"
+            echo "::notice::Preview for PR #$PR_NUMBER: $PREVIEW_URL"
         env:
           REGISTRY_USERNAME:  ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASSWORD:  ${{ secrets.REGISTRY_PASSWORD }}
           NATS_PUBLISH_URL:   ${{ secrets.NATS_PUBLISH_URL }}
           NATS_PUBLISH_TOKEN: ${{ secrets.NATS_PUBLISH_TOKEN }}
           QA_TRIGGER_TOKEN:   ${{ secrets.QA_TRIGGER_TOKEN }}
-          KUBECONFIG_STAGING: ${{ secrets.KUBECONFIG_STAGING }}
+          # Preview deploy (deploy-cmd above). KUBECONFIG_PREVIEW is the
+          # homepad-preview ci-deployer SA; HOMELAB_READ_TOKEN reads the
+          # templates from Code/homelab; QA_EMAIL / QA_PASSWORD feed the seed.
+          KUBECONFIG_PREVIEW: ${{ secrets.KUBECONFIG_PREVIEW }}
           GITEA_READ_TOKEN:   ${{ secrets.HOMELAB_READ_TOKEN }}
+          QA_EMAIL:           ${{ secrets.QA_EMAIL }}
+          QA_PASSWORD:        ${{ secrets.QA_PASSWORD }}
+          PR_NUMBER:          ${{ github.event.pull_request.number }}
+          PR_SHA:             ${{ github.event.pull_request.head.sha }}
           # The composite's docs-only auto-approve step (as ci-docs-approver)
           # reads its credential from THIS env block; it can't read the secret
           # itself (#616, run 6969: empty token, warn, no approval). Map it so

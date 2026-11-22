@@ -1,0 +1,196 @@
+apiVersion: v1
+data:
+  default.conf: |
+    server {
+      listen 80;
+      server_name _;
+      root /usr/share/nginx/html;
+      index index.html;
+
+      # Don't advertise the nginx version (homepad PR #412 / issue #414).
+      server_tokens off;
+
+      # Baseline security headers. INLINED (not `include`d from the image) because
+      # this deploy-owned ConfigMap shadows the image's /etc/nginx/conf.d/default.conf
+      # entirely — an include of an image path would couple ConfigMap validity to the
+      # image version. nginx's add_header does NOT cascade into any location that
+      # declares its own add_header, so these five lines are REPEATED in every such
+      # location below. TLS/HSTS terminates at Pangolin, not here.
+      # Spec 5 (homepad 18.0.0, #601): framing forbidden everywhere (DENY + CSP frame-ancestors 'none').
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-Frame-Options "DENY" always;
+      add_header Content-Security-Policy "frame-ancestors 'none'" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+      add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+      # Same-domain API proxy — homepad-api handles everything under /api.
+      # (Deploy-owned override of the repo nginx.conf so homepad is a single
+      # backend for both the LAN ingress and the Pangolin/Newt path.)
+      location /api/ {
+        # Backup/restore uploads (SPEC-backup-import): nginx defaults to 1m -> 413.
+        client_max_body_size 16m;
+        proxy_pass http://homepad-api-pr-${PR_NUMBER}.homepad-preview.svc.cluster.local:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+      }
+
+      # PWA manifest — must be served as application/manifest+json or install breaks.
+      location = /manifest.webmanifest {
+        types { }
+        default_type application/manifest+json;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Content-Security-Policy "frame-ancestors 'none'" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+      }
+
+      # Release awareness (homepad PR #412) — the UI polls /version.json to learn a
+      # newer build is deployed. no-store so no proxy/browser ever serves a stale
+      # copy; a cached version.json would tell a stale tab its own build is current.
+      location = /version.json {
+        add_header Cache-Control "no-store";
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Content-Security-Policy "frame-ancestors 'none'" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+      }
+
+      # SPA fallback.
+      location / {
+        try_files $uri $uri/ /index.html;
+      }
+
+      location ~* \.(?:js|css|woff2?|png|jpg|jpeg|svg|webp|avif|ico)$ {
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000, immutable";
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Content-Security-Policy "frame-ancestors 'none'" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+      }
+      location = /index.html {
+        add_header Cache-Control "no-cache";
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Content-Security-Policy "frame-ancestors 'none'" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+      }
+    }
+kind: ConfigMap
+metadata:
+  name: homepad-web-nginx-pr-${PR_NUMBER}
+  namespace: homepad-preview
+  labels:
+    app: homepad-web-nginx
+    pr: "${PR_NUMBER}"
+    app.kubernetes.io/part-of: homepad
+    homepad.preview/pr: "${PR_NUMBER}"
+  annotations:
+    homepad.preview/sha: ${PR_SHA}
+    homepad.preview/deployed-at: ${DEPLOYED_AT}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: homepad-web
+    pr: "${PR_NUMBER}"
+    app.kubernetes.io/part-of: homepad
+    homepad.preview/pr: "${PR_NUMBER}"
+  name: homepad-web-pr-${PR_NUMBER}
+  namespace: homepad-preview
+  annotations:
+    homepad.preview/sha: ${PR_SHA}
+    homepad.preview/deployed-at: ${DEPLOYED_AT}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: homepad-web
+      pr: "${PR_NUMBER}"
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: homepad-web
+        pr: "${PR_NUMBER}"
+        app.kubernetes.io/part-of: homepad
+        homepad.preview/pr: "${PR_NUMBER}"
+    spec:
+      containers:
+      - image: ${IMAGE_REF}
+        imagePullPolicy: Always
+        name: web
+        ports:
+        - containerPort: 80
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 25m
+            memory: 32Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/nginx/conf.d/default.conf
+          name: nginxconf
+          subPath: default.conf
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: dockerhub-creds
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: homepad-web-nginx-pr-${PR_NUMBER}
+        name: nginxconf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: homepad-web-pr-${PR_NUMBER}
+  namespace: homepad-preview
+  labels:
+    app: homepad-web
+    pr: "${PR_NUMBER}"
+    app.kubernetes.io/part-of: homepad
+    homepad.preview/pr: "${PR_NUMBER}"
+  annotations:
+    homepad.preview/sha: ${PR_SHA}
+    homepad.preview/deployed-at: ${DEPLOYED_AT}
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: homepad-web
+    pr: "${PR_NUMBER}"
+  type: ClusterIP
