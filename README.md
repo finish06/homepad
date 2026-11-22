@@ -79,6 +79,17 @@ Homepad is a dashboard for a household. The admin keeps one list of apps. Everyo
   <img src="./docs/screenshots/phone-dark.webp" alt="Homepad on a phone, dark mode" width="24%">
 </p>
 
+The admin's view, in order: an adult's **Manage** menu in Accounts, a reset link, the overlay sign-in switch, and a restore preview.
+
+<p align="center">
+  <img src="./docs/screenshots/accounts-manage.webp" alt="Administration → Accounts in dark mode. Sam Rivera is the admin, Alex Chen and Jordan Lee are members, and Maya and Leo are kids. Alex Chen's Manage menu is open with Make admin, Make a reset link and Remove Alex Chen" width="49%">
+  <img src="./docs/screenshots/reset-link.webp" alt="The Reset link for Alex Chen dialog in dark mode, with the link, a Copy link button, and a line saying it works once, until the next day" width="49%">
+</p>
+<p align="center">
+  <img src="./docs/screenshots/tile-editor-signin.webp" alt="The Edit tile dialog for Home Assistant in dark mode. Click action is Inline overlay, and the Let this app keep its sign-in switch is on" width="49%">
+  <img src="./docs/screenshots/restore-preview.webp" alt="Step 2 of 3 of Restore from backup in dark mode, in Merge mode. It lists 1 section and 2 apps to add, 1 app to update, 1 kid to add, and 1 unchanged item" width="49%">
+</p>
+
 ## How it compares
 
 Each cell was checked on 2026-11-07 against the project's own docs and code: Homepage 2.7, Homarr 2.12, Dashy 4.9 and Heimdall 2.8. If something here is wrong or out of date, please open an issue.
