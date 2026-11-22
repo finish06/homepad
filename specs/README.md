@@ -91,9 +91,13 @@ UX artifacts are in [`ux/`](./ux/).
 | [`v28-tile-drag-reorder.md`](./v28-tile-drag-reorder.md) | homepad v28 — Tile Drag-and-Drop Reorder in Edit Mode | SHIPPED — v15.6.0 (`03fa922`, PR #402). dnd-kit sortable tiles in edit mode. Status line read "Ready for Build" until 2026-09-22. |
 | [`SPEC-density-to-my-settings.md`](./SPEC-density-to-my-settings.md) | Tile density moves to My settings · gear "Edit dashboard" becomes "Arrange apps" | SHIPPED — 16.6.0 (2026-09-25). AC-008 and TC-006 partly superseded by v29. *(Listed here as "Ready for build" until 2026-11-22.)* |
 
-## Open — not shipped (0)
+## Open — not shipped (1)
 
-No spec is fully open. One part of a shipped spec is: Phase 2 of
+| File | Feature | Status |
+|------|---------|------|
+| [`SPEC-preview-environments.md`](./SPEC-preview-environments.md) | Per-PR Preview Environments — isolated QA envs, one per open PR | Ready for build — Caleb approved 2026-11-22. Joe dispatches Stitch. Depends on homepad-api PR #623 (seed). |
+
+One part of a shipped spec is also open: Phase 2 of
 [`SPEC-status-widgets.md`](./SPEC-status-widgets.md) (Pi-hole, qBittorrent,
 Proxmox VE widgets) is not built.
 
