@@ -306,6 +306,49 @@ describe('seed-qa is idempotent (#623)', () => {
   });
 });
 
+describe('seed-qa under concurrent runs (#633)', () => {
+  // Two deploys of one preview can both see an empty install. The other run
+  // registers the QA admin first, so this run's register gets the API's
+  // plain-text 409 ("email already registered"). That is "already
+  // registered", not "not a Homepad": sign in and carry on.
+  it('treats a plain-text 409 on register as already registered, then signs in', async () => {
+    const fake = await startFake();
+    let raced = false;
+    fake.override = (req, res, path) => {
+      if (req.method === 'GET' && path === '/api/auth/config' && !raced) {
+        // This run reads config before the other run's register lands.
+        raced = true;
+        res.writeHead(200, { 'Content-Type': 'application/json' }).end(
+          JSON.stringify({ oidcEnabled: false, registration: fake.registration, setupNeeded: true }),
+        );
+        fake.users.push({ id: 'qa', email: EMAIL, password: PASSWORD, role: 'admin', name: '', avatarColor: '' });
+        return true;
+      }
+      return false;
+    };
+    const run = await seed([fake.url]);
+    expect(run.stderr).toBe('');
+    expect(run.code).toBe(0);
+    expect(fake.log).toContain('POST /api/register');
+    expect(run.stdout).toMatch(/already registered/);
+    expect(run.stdout).toMatch(/done: /);
+  });
+
+  it('still fails when the 409 is followed by a failed sign-in', async () => {
+    const fake = await startFake();
+    fake.override = (req, res, path) => {
+      if (req.method === 'POST' && path === '/api/register') {
+        res.writeHead(409, { 'Content-Type': 'text/plain' }).end('email already registered\n');
+        return true;
+      }
+      return false;
+    };
+    const run = await seed([fake.url]);
+    expect(run.code).toBe(1);
+    expect(run.stderr).toMatch(/QA_EMAIL could not sign in \(HTTP 401\)/);
+  });
+});
+
 describe('seed-qa fails loudly (#623)', () => {
   const failed = (run: Run, why: RegExp) => {
     expect(run.code).toBe(1);

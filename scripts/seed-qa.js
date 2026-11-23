@@ -41,7 +41,7 @@ const log = (msg) => console.log(`seed-qa: ${msg}`);
 function client(base) {
   let cookie = '';
 
-  async function call(method, path, { body, expect, auth = true, quiet = false } = {}) {
+  async function call(method, path, { body, expect, auth = true, quiet = false, textOn = [] } = {}) {
     const headers = { Accept: 'application/json' };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     if (auth) {
@@ -78,7 +78,9 @@ function client(base) {
       throw e;
     }
     let json = null;
-    if (text.trim() !== '') {
+    // textOn: expected statuses whose body is plain text (the API answers
+    // some errors with http.Error), so the status alone is the answer.
+    if (text.trim() !== '' && !textOn.includes(res.status)) {
       try {
         json = JSON.parse(text);
       } catch {
@@ -119,11 +121,13 @@ async function signIn(http, email, password, waitSeconds) {
   let how;
   if (config.setupNeeded) {
     // Empty install: the first adult registered becomes admin, in every mode.
-    // 409 = this email won a race to register; 403 = another account won it
-    // (invite_only). Either way, the sign-in below decides.
+    // 409 = this email is already registered (a re-run, or a concurrent seed
+    // run won the race, #633); 403 = another account won it (invite_only).
+    // Both come back as plain text. Either way, the sign-in below decides.
     const r = await http.call('POST', '/api/register', {
       body: { email, password },
       expect: [201, 403, 409],
+      textOn: [403, 409],
       auth: false,
     });
     if (r.status === 201 && r.json?.role !== 'admin') {
