@@ -16,7 +16,10 @@ import { join } from 'node:path';
 // these tests run. A missing dist/ is therefore a genuine failure, not a reason
 // to stand down.
 
-const SENTINEL_GATUS_URL = 'gatus.10.17.2.213.nip.io';
+// The deployed Gatus host is gatus.<IPv4>.nip.io. Match that shape rather than
+// the literal, so the internal cluster address stays out of this public repo;
+// the pattern still catches that address (and any other IP-based Gatus host).
+const SENTINEL_GATUS_HOST = /gatus\.\d{1,3}(\.\d{1,3}){3}\.nip\.io/;
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -43,9 +46,10 @@ test('built bundle does not contain the Gatus URL', async () => {
 
   for (const f of files) {
     const content = readFileSync(f, 'utf8');
+    const leaked = content.match(SENTINEL_GATUS_HOST);
     expect(
-      content.includes(SENTINEL_GATUS_URL),
-      `built asset ${f} contains the Gatus URL (${SENTINEL_GATUS_URL}); v1 forbids it`,
-    ).toBe(false);
+      leaked,
+      `built asset ${f} contains the Gatus URL (${leaked?.[0]}); v1 forbids it`,
+    ).toBeNull();
   }
 });

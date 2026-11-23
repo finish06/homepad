@@ -3,7 +3,7 @@ package api_test
 import (
 	"io"
 	"net/http"
-	"strings"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,7 +16,11 @@ import (
 // appears in any backend response payload. The frontend bundle-grep half of
 // this AC lives in the homepad (web) repo.
 
-const sentinelGatusURL = "http://gatus.10.17.2.213.nip.io"
+// sentinelGatusHost matches the shape of the deployed Gatus host, a
+// gatus.<IPv4>.nip.io name, without writing the internal cluster address into
+// this public repo. It catches that address and any other IP-based Gatus host,
+// so it is at least as strict as the literal it replaced.
+var sentinelGatusHost = regexp.MustCompile(`gatus\.\d{1,3}(\.\d{1,3}){3}\.nip\.io`)
 
 func TestNoGatusURLInAnyResponse(t *testing.T) {
 	s := testsupport.NewServer(t)
@@ -44,8 +48,8 @@ func TestNoGatusURLInAnyResponse(t *testing.T) {
 			require.Equal(t, http.StatusOK, resp.StatusCode,
 				"%s must return 200 so we can inspect the response body for the AC", ep)
 
-			assert.False(t, strings.Contains(string(body), sentinelGatusURL),
-				"%s response body must not contain the Gatus URL — leaked %q", ep, sentinelGatusURL)
+			assert.False(t, sentinelGatusHost.Match(body),
+				"%s response body must not contain the Gatus URL — leaked %q", ep, sentinelGatusHost.Find(body))
 		})
 	}
 }

@@ -77,6 +77,22 @@ check "AC-012 the preview keeps the per-PR concurrency group" grep -qF 'group: p
 check "AC-012 the preview keeps the ownership-checked teardown" grep -qF 'bash scripts/preview/teardown-if-owner.sh' "$mr"
 check "AC-012 the preview keeps PREVIEW_RUN" grep -qF 'PREVIEW_RUN:        ${{ github.run_id }}-${{ github.run_attempt }}' "$mr"
 check "AC-012 the preview keeps the seed" grep -qF 'bash scripts/seed-qa.sh "$PREVIEW_URL"' "$mr"
+# #680: the preview domain comes from the PREVIEW_DOMAIN repo variable, not a
+# literal internal host (the GitHub mirror is public).
+check "#680 staging-url is pr-<n>.\$PREVIEW_DOMAIN" \
+  grep -qF 'staging-url: http://pr-${{ github.event.pull_request.number }}.${{ vars.PREVIEW_DOMAIN }}' "$mr"
+check "#680 qa-login-url is the same host plus /api/login" \
+  grep -qF 'qa-login-url: http://pr-${{ github.event.pull_request.number }}.${{ vars.PREVIEW_DOMAIN }}/api/login' "$mr"
+check "#680 deploy-cmd builds PREVIEW_URL from PREVIEW_DOMAIN" \
+  grep -qF 'PREVIEW_URL="http://pr-$PR_NUMBER.$PREVIEW_DOMAIN"' "$mr"
+check "#680 the step maps PREVIEW_DOMAIN into its env" \
+  grep -qE '^ +PREVIEW_DOMAIN: +\$\{\{ vars\.PREVIEW_DOMAIN \}\}$' "$mr"
+# An unset variable must stop the deploy before the kubeconfig is written or
+# anything is applied, not produce a preview at "pr-<n>.".
+unset_line=$(grep -nF '::error::PREVIEW_DOMAIN repo variable is not set' "$mr" | head -1 | cut -d: -f1 || true)
+kc_line=$(grep -nF '> /tmp/kc' "$mr" | head -1 | cut -d: -f1 || true)
+check "#680 an empty PREVIEW_DOMAIN errors and exits 1 before the deploy touches the cluster" \
+  bash -c '[ -n "$0" ] && [ "$0" -lt "$1" ] && sed -n "$0,$(($0 + 1))p" "$2" | grep -q "exit 1"' "${unset_line:-}" "${kc_line:-0}" "$mr"
 
 sr="$wf/staging-release.yml"
 check "AC-016 staging-release runs on every push to main" grep -qE '^    branches: \[main\]$' "$sr"

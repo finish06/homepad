@@ -16,7 +16,8 @@ A few words used below:
   It runs whatever is on `main`. PRs no longer deploy there.
 - **Preview**: a short-lived copy of homepad for **one PR**: its own web, API and
   empty database, in the `homepad-preview` namespace, at
-  `http://pr-<number>.homepad-preview.10.17.2.213.nip.io`. At most **3** previews
+  `http://pr-<number>.homepad-preview.<cluster-domain>` (the real
+  domain is in `docs/environments.local.md`, gitignored). At most **3** previews
   can run at once. Each PR's QA runs against its own preview
   (`specs/SPEC-preview-environments.md`).
 - **Prod**: the real homepad everyone uses.
@@ -218,7 +219,7 @@ deployed.
   - `docker-claude` (what homepad uses): starts a one-off qa-runner job on the
     cluster that tests the PR's preview, checks that the preview is really
     running this PR's commit, and approves and squash-merges on a pass. It logs
-    in through `http://pr-<number>.homepad-preview.10.17.2.213.nip.io/api/login`
+    in through `http://pr-<number>.homepad-preview.<cluster-domain>/api/login`
     (the `qa-login-url` input) with the test login the qa-runner holds, the same
     one the seed created. The model is
     Sonnet 5.5 at medium effort, set on the qa-runner trigger, not here.

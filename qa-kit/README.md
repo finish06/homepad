@@ -118,12 +118,13 @@ const ev = await readEvents(page);
 ## Runnable demo
 
 ```bash
-node qa-kit/demo-gridscan.js
+BASE=http://homepad-staging.<cluster-domain> node qa-kit/demo-gridscan.js
 ```
 
 Logs into staging, grid-scans live tile-menu buttons, fires a `realTap`, then
 **injects a synthetic #35-style overlay and proves `gridScan` flags it**
-(`occlusionDetectionProofPassed:true`). Env overrides: `BASE`, `CDP_URL`,
+(`occlusionDetectionProofPassed:true`). `BASE` is required (no default; the real address is in
+`docs/environments.local.md`, gitignored). Env overrides: `CDP_URL`,
 `QA_EMAIL`, `QA_PASSWORD`.
 
 ## Preflight first
@@ -133,5 +134,5 @@ browser environment (inotify/ENOSPC/fontconfig starvation, blank paint) so a
 false-FAIL isn't mistaken for a real bug:
 
 ```bash
-node qa-kit/preflight.js   # exits non-zero + prints why if the sidecar is untrustworthy
+BASE=http://homepad-staging.<cluster-domain> node qa-kit/preflight.js   # exits non-zero + prints why if the sidecar is untrustworthy
 ```

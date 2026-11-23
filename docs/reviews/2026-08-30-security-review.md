@@ -88,7 +88,7 @@ Fetch the hash once and pin it — don't fetch hash and binary from the same ori
 
 ### L2. Default QA credentials committed
 
-`qa-kit/demo-gridscan.js:15` and `qa-kit/preflight.js:26` — fallback `qa@test.local / Test12345!`. Harmless as a fixture, but the staging URL is public in the workflow (`https://homepad-staging.10.17.2.213.nip.io`); if the staging QA account actually uses this default, it's a valid login. **Fix:** make `QA_PASSWORD` required (fail fast when unset); rotate the staging QA account if it ever used the default.
+`qa-kit/demo-gridscan.js:15` and `qa-kit/preflight.js:26` — fallback `qa@test.local / Test12345!`. Harmless as a fixture, but the staging URL is public in the workflow (`https://homepad-staging.<cluster-domain>`); if the staging QA account actually uses this default, it's a valid login. **Fix:** make `QA_PASSWORD` required (fail fast when unset); rotate the staging QA account if it ever used the default.
 
 ### L3. Vite 5.4.8 dev-server advisories
 

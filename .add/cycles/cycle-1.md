@@ -97,7 +97,7 @@ Caleb is **away**. Elevated autonomy within these lines:
 ## Monitoring & Rollback (GA)
 
 - **Staging:** every PR's `mr-staging` and each merge's `staging-release` must succeed, and the log must show `successfully rolled out` — a green status alone is not evidence (L-007: a deploy step can fail after partially applying, and pass with nothing applied).
-- **Verification vantage point:** staging **can't be reached from the LAN** for checks (every `*.10.17.2.213.nip.io` host returns Traefik's 404 from here). Destination checks of `/version.json` therefore go through the in-cluster QA pool or Joe, asserting the **SHA**, never the version (L-010).
+- **Verification vantage point:** staging **can't be reached from the LAN** for checks (every `*.<cluster-domain>` host returns Traefik's 404 from here). Destination checks of `/version.json` therefore go through the in-cluster QA pool or Joe, asserting the **SHA**, never the version (L-010).
 - **Production:** not touched this cycle. On promotion, `/version.json` at prod with the expected SHA, Gatus green, the Umami alert quiet.
 - **Rollback:** staging — revert the PR. Production (on promotion) — re-pin the previous digest in `Code/homelab`; for 16.7.0 that is v16.6.0's `sha256:56a64ebc…`.
 

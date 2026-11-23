@@ -8,7 +8,7 @@
 # (unit + browser gates run once in ci.yml / browser-gate.yml — see test-cmd),
 # push it, deploy it to this PR's own preview environment (SPEC-preview-environments:
 # namespace homepad-preview, objects labelled pr=<n>, at
-# http://pr-<n>.homepad-preview.10.17.2.213.nip.io), then dispatch QA to the
+# http://pr-<n>.homepad-preview.<cluster-domain>), then dispatch QA to the
 # docker-claude qa-runner via ci-shared's dispatch-qa.sh (QA_BACKEND=docker-claude).
 # PRs no longer touch homepad-staging; that stays "what's on main"
 # (staging-release.yml). preview-teardown.yml removes the preview on close. On a
@@ -50,13 +50,13 @@ jobs:
         with:
           image-name: homepad
           # This PR's preview (Code/homelab apps/homepad/preview/README.md).
-          staging-url: http://pr-${{ github.event.pull_request.number }}.homepad-preview.10.17.2.213.nip.io
+          staging-url: http://pr-${{ github.event.pull_request.number }}.${{ vars.PREVIEW_DOMAIN }}
           qa-backend: ${{ vars.QA_BACKEND || 'nats' }}
           # qa-gate logs in through the API (the runner supplies QA_EMAIL /
           # QA_PASSWORD). Same preview host as staging-url above. Needs a
           # ci-shared @v3 that declares this input (ci-shared#46); an older @v3
           # just drops it.
-          qa-login-url: http://pr-${{ github.event.pull_request.number }}.homepad-preview.10.17.2.213.nip.io/api/login
+          qa-login-url: http://pr-${{ github.event.pull_request.number }}.${{ vars.PREVIEW_DOMAIN }}/api/login
           # Test-dedup: the unit suite is NOT re-run here. ci.yml ("Web (build,
           # unit tests)") and browser-gate.yml are required status checks on
           # this same PR head sha — branch protection already blocks the QA
@@ -99,6 +99,12 @@ jobs:
             # successful deploy red, which is the #502 failure mode again. Capturing
             # the status and switching errexit off first means cleanup can never
             # change the outcome.
+            # The preview domain is the PREVIEW_DOMAIN repo variable (kept out of
+            # the public mirror, #680). Unset, it would deploy a preview nobody
+            # can reach, so stop before anything touches the cluster.
+            if [ -z "$PREVIEW_DOMAIN" ]; then
+              echo "::error::PREVIEW_DOMAIN repo variable is not set"; exit 1
+            fi
             WORK="$(mktemp -d)"
             stage=setup
             cleanup() {
@@ -184,7 +190,7 @@ jobs:
             # (e) Seed (#623): idempotent, so it runs on every deploy. The QA
             # login goes to this command only and is never echoed.
             stage=seed
-            PREVIEW_URL="http://pr-$PR_NUMBER.homepad-preview.10.17.2.213.nip.io"
+            PREVIEW_URL="http://pr-$PR_NUMBER.$PREVIEW_DOMAIN"
             bash scripts/seed-qa.sh "$PREVIEW_URL"
             echo "::notice::Preview for PR #$PR_NUMBER: $PREVIEW_URL"
         env:
@@ -201,6 +207,8 @@ jobs:
           QA_EMAIL:           ${{ secrets.QA_EMAIL }}
           QA_PASSWORD:        ${{ secrets.QA_PASSWORD }}
           PR_NUMBER:          ${{ github.event.pull_request.number }}
+          # Preview host suffix: pr-<n>.<PREVIEW_DOMAIN> (repo Actions variable).
+          PREVIEW_DOMAIN:     ${{ vars.PREVIEW_DOMAIN }}
           PR_SHA:             ${{ github.event.pull_request.head.sha }}
           # scripts/preview/api-image.sh diffs the PR from here (did it touch api/?).
           BASE_SHA:           ${{ github.event.pull_request.base.sha }}

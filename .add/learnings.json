@@ -242,7 +242,7 @@
       "classified_by": "agent",
       "source": "2026-10-27 staging false alarm",
       "title": "Staging is http-only; an https 404 is not an outage",
-      "body": "homepad-staging.10.17.2.213.nip.io is served only on Traefik's web entrypoint. Over https every path returns Traefik's 'no router' 404. I reported staging down and pinged Joe twice; Joe found it healthy. How to apply: probe http:// /version.json (200) and /api/me (401) before calling staging down. CLAUDE.md and .add/config.json listed https:// \u2014 corrected."
+      "body": "homepad-staging.<cluster-domain> is served only on Traefik's web entrypoint. Over https every path returns Traefik's 'no router' 404. I reported staging down and pinged Joe twice; Joe found it healthy. How to apply: probe http:// /version.json (200) and /api/me (401) before calling staging down. CLAUDE.md and .add/config.json listed https:// \u2014 corrected."
     },
     {
       "id": "L-020",

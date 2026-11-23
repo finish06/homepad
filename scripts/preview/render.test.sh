@@ -3,7 +3,9 @@
 #
 # Renders a scratch copy of tests/fixtures/preview-templates/ (copied from
 # Code/homelab apps/homepad/preview/template/ at 447bda2d, plus the
-# homepad.preview/run annotation that lands in homelab alongside #632's fix) through
+# homepad.preview/run annotation that lands in homelab alongside #632's fix, with the
+# ingress host domain swapped for the placeholder cluster.example so the
+# internal cluster address stays out of this public repo) through
 # scripts/preview/render.sh, the same script mr-staging's deploy-cmd runs, and
 # asserts the output is safe to apply. Needs bash + envsubst (gettext-base).
 #
@@ -54,8 +56,8 @@ check "AC-008 nginx \$remote_addr survives in 03-web.yaml" \
   grep -qF 'proxy_set_header X-Real-IP $remote_addr;' "$web"
 check "AC-008 nginx \$uri survives in 03-web.yaml" \
   grep -qF 'try_files $uri $uri/ /index.html;' "$web"
-check "AC-008 IngressRoute host is pr-1.homepad-preview.10.17.2.213.nip.io" \
-  grep -qF 'Host(`pr-1.homepad-preview.10.17.2.213.nip.io`)' "$ingress"
+check "AC-008 IngressRoute host is pr-1.homepad-preview.cluster.example" \
+  grep -qF 'Host(`pr-1.homepad-preview.cluster.example`)' "$ingress"
 check "AC-005 every pr label is the quoted string \"1\"" pr_labels_quoted
 check "AC-001 web image is the PR's IMAGE_REF" \
   grep -qF 'image: registry.example/homepad:0123456-test' "$web"

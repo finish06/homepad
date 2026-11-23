@@ -66,7 +66,7 @@ What `homepad-api` (Go backend) needs from the cluster:
 | Health probe | `GET /health` → 200 when ready (DB + Gatus reachable); `GET /live` → 200 always-on |
 | Required env vars | `DATABASE_URL`, `GATUS_BASE_URL`, `SESSION_SECRET`, `HOMEPAD_REGISTRATION` (`open` / `invite_only`) |
 | Required secrets | Postgres credentials inside `DATABASE_URL`; `SESSION_SECRET` (32+ random bytes) |
-| Egress needed | Postgres service, `gatus.10.17.2.213.nip.io` (cluster-internal) |
+| Egress needed | Postgres service, `gatus.<cluster-domain>` (cluster-internal) |
 | Replicas | 1 (v1; sessions are in-memory until we add a session store) |
 | Persistent storage | None — all state in Postgres |
 
@@ -104,7 +104,7 @@ Locally during dev, the Vite dev server proxies `/api/*` to `http://localhost:80
 
 ## External dependencies
 
-- **Gatus** at `http://gatus.10.17.2.213.nip.io` (LAN / cluster-internal only).
+- **Gatus** at `http://gatus.<cluster-domain>` (LAN / cluster-internal only).
   - No native API auth — security is network-level (LAN reachability only).
   - Endpoints homepad backend uses:
     - `GET /api/v1/endpoints/statuses` — full snapshot (polled).
@@ -181,7 +181,7 @@ Implications baked into the design:
 
 | # | Decision | Resolution |
 |---|---|---|
-| Q1 | Gatus URL + auth | ✅ `http://gatus.10.17.2.213.nip.io`, no auth, internal-only (per Joe/homie 2026-05-26) |
+| Q1 | Gatus URL + auth | ✅ `http://gatus.<cluster-domain>`, no auth, internal-only (per Joe/homie 2026-05-26) |
 | Q2 | Admin bootstrap | ✅ First-registered = admin + `HOMEPAD_REGISTRATION` env (`open` / `invite_only`) |
 | Q3 | Password reset in v1 | ✅ Out — OIDC arriving in v2; admin can manual-reset until then |
 | Q4 | Visual direction | ✅ Stitch's call — see "Visual direction" section above (Linear/Vercel/Things lineage, no glassmorphism) |

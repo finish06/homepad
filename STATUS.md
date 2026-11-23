@@ -467,7 +467,7 @@ Q4 = **live** OS following.
 
 **Build/test state:** `npm run build` clean (tsc over `src`+`tests` + vite) ·
 `vitest run` **103/103** green · bundle 163 kB (52 kB gzip) · A11 intact — the
-Gatus monitoring URL sentinel (`10.17.2.213`) is absent from `dist/` (the four
+Gatus monitoring URL sentinel (the internal cluster address) is absent from `dist/` (the four
 `gatus` substrings are the pre-existing `gatus_key` field text, not the URL).
 
 **NEEDS JOE:** the new e2e (like the other `tests/e2e/*`) can't run in this
@@ -579,7 +579,7 @@ was already complete + tested — this is web-only.
 
 **Build/test state:** `npm run build` clean (tsc over `src` **and** `tests` +
 vite) · `vitest run` **85/85** green · A11 intact — the no-gatus-leak sentinel
-URL (`gatus.10.17.2.213.nip.io`) is absent from `dist/`. (The new `gatus_key`
+URL (the internal Gatus host) is absent from `dist/`. (The new `gatus_key`
 field name + "Gatus key" label are API/UI text, not the monitoring URL.)
 
 A6 is now **UI-complete + tested**: create / edit / delete all in the browser.

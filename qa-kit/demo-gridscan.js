@@ -3,14 +3,23 @@
 // context, and grid-scans a tile-menu (⋯) button — printing per-point
 // elementFromPoint so a stacking occlusion is visible. Also fires a realTap.
 //
-//   node qa-kit/demo-gridscan.js
+//   BASE=http://homepad-staging.<cluster-domain> node qa-kit/demo-gridscan.js
 //
-// Env: BASE (default staging), CDP_URL (default http://127.0.0.1:9222),
+// Env: BASE (required, no default), CDP_URL (default http://127.0.0.1:9222),
 //      QA_EMAIL / QA_PASSWORD (default qa@test.local / Test12345!).
 
 const { connect, gridScan, realTap, recordEvents, readEvents, clearEvents } = require("./cdp.js");
 
-const BASE = process.env.BASE || "http://homepad-staging.10.17.2.213.nip.io";
+// No default: the staging address is not in the repo (it is in
+// docs/environments.local.md, gitignored). BASE is the homepad URL under test.
+const BASE = process.env.BASE;
+if (!BASE) {
+  console.error(
+    "qa-kit: BASE is not set. Set it to the homepad URL under test, e.g.\n" +
+      "  BASE=http://homepad-staging.<cluster-domain> node qa-kit/demo-gridscan.js",
+  );
+  process.exit(2);
+}
 const EMAIL = process.env.QA_EMAIL || "qa@test.local";
 const PASSWORD = process.env.QA_PASSWORD || "Test12345!";
 

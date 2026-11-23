@@ -140,7 +140,7 @@ Caleb: 'better follow up to completion and interaction with other agents, or sol
 ### L-019 — Staging is http-only; an https 404 is not an outage
 *2026-10-30 · project · anti-pattern · high · classified by agent*
 
-homepad-staging.10.17.2.213.nip.io is served only on Traefik's web entrypoint. Over https every path returns Traefik's 'no router' 404. I reported staging down and pinged Joe twice; Joe found it healthy. How to apply: probe http:// /version.json (200) and /api/me (401) before calling staging down. CLAUDE.md and .add/config.json listed https:// — corrected.
+homepad-staging.<cluster-domain> is served only on Traefik's web entrypoint. Over https every path returns Traefik's 'no router' 404. I reported staging down and pinged Joe twice; Joe found it healthy. How to apply: probe http:// /version.json (200) and /api/me (401) before calling staging down. CLAUDE.md and .add/config.json listed https:// — corrected.
 
 
 ### L-020 — Build work goes to an Opus agent at high effort, with a full brief and side-effect rules

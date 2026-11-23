@@ -16,7 +16,7 @@ labels:
 -->
 
 ### Page / URL
-<!-- e.g. http://homepad-staging.10.17.2.213.nip.io/  (which app/env/build if known) -->
+<!-- e.g. http://homepad-staging.<cluster-domain>/  (which app/env/build if known) -->
 
 
 ### How to auth / set up the repro
