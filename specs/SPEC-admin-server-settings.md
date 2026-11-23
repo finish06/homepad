@@ -222,7 +222,7 @@ If a saved value breaks sign-in, the admin can't reach the UI to fix it. The way
 - **The allowlist stays in one place.** The table's `CHECK` lists the keys; so does the Go allowlist. A test keeps them equal (AC-002).
 - The cost: values are text, so typing is in Go. Every value is validated on write, and again on boot (§3.3).
 
-`GATUS_DEGRADED_MS` stays in `system_settings.status_degraded_ms`. Backups and the public `GET /api/system/config` already read it there. Reset sets it to NULL, which closes SPEC-status-degraded-threshold OQ-1.
+`GATUS_DEGRADED_MS` stays in `system_settings.status_degraded_ms`. Backups and the public `GET /api/system/config` already read it there. Reset sets it to NULL, which closes SPEC-status-degraded-threshold OQ-1. Migration `0025_status_degraded_meta` adds `status_degraded_updated_by` and `status_degraded_updated_at` beside it, so it records who saved it and when, like a `server_settings` row (AC-007). A value saved before 0025 keeps working; its time is taken from the row's `updated_at` and its saver stays unknown (`updatedBy: null`).
 
 ### 3.2 Migration `0024_server_settings`
 
@@ -276,7 +276,7 @@ No data is moved. A fresh install and an upgraded one both start with an empty t
 
 | ID | Criterion | Priority |
 |---|---|---|
-| AC-007 | `GET /api/admin/server-settings` returns `{envOnly, settings:[…]}` with, per key: `key`, `group`, `value`, `source` (`ui`/`env`/`default`), `envValue`, `defaultValue`, `editable`, `applies` (`live`/`restart`), `updatedAt`, `updatedBy`. Secrets carry `isSet`, `envIsSet`, `unreadable` and no value. | Must |
+| AC-007 | `GET /api/admin/server-settings` returns `{envOnly, settings:[…]}` with, per key: `key`, `group`, `type`, `value`, `source` (`ui`/`env`/`default`), `envValue`, `defaultValue`, `editable`, `applies` (`live`/`restart`), `saved`, `updatedAt`, `updatedBy`; plus `choices` for a `choice` key, `savedValue` when a saved value passes today's rule, `savedInvalid` when it doesn't, and `readOnlyReason` when `editable` is false. `updatedAt` (RFC 3339) and `updatedBy` (`{id, name}`) are set for every key saved in the UI, `GATUS_DEGRADED_MS` included. Secrets carry `isSet`, `envIsSet`, `unreadable` and no value. | Must |
 | AC-008 | `PATCH /api/admin/server-settings` takes `{set:{KEY:value…}, confirm?:[code…], oidcTest?:token}`. All keys in one request save in one transaction, or none do. The response is the full GET body. | Must |
 | AC-009 | `DELETE /api/admin/server-settings/{key}` resets one key and returns the full GET body. | Must |
 | AC-010 | All three routes are `classAdminOnly`: no session 401, member 403, kid 403. `routes_test.go` lists them. | Must |
@@ -425,7 +425,7 @@ Where §7 was open, the API picked the reading simplest for the web app:
 - **Every `Setting`** also has `type` (`boolean`, `number`, `string`, `list`, `choice`, `secret`), `saved` (a UI value is stored, used or not) and, for `choice`, `choices`. `settings` comes in display order. `group` is `server`, `status`, `accounts` or `signin`.
 - **`envValue`** has the same JSON type as `value`, and is `null` when the env var is unset. So the Reset line is "Reset to env: `envValue`" when it isn't null, else "Reset to default: `defaultValue`".
 - **`savedValue`** is the stored UI value, when `saved` and it passes today's rule (never for the secret). The env-only banner's "Saved value ignored: …" reads it. **`savedInvalid: true`** marks a stored value that fails today's rule and is ignored (§3.3).
-- **`editable: false`** comes with `readOnlyReason`: `restart` (`PORT`), `env_only` (every row while the flag is on), or `no_secret_key` (the secret row with no server key). `updatedAt` and `updatedBy` are `null` when nothing is saved, and always for `GATUS_DEGRADED_MS`, which lives in `system_settings`.
+- **`editable: false`** comes with `readOnlyReason`: `restart` (`PORT`), `env_only` (every row while the flag is on), or `no_secret_key` (the secret row with no server key). `updatedAt` and `updatedBy` are `null` when nothing is saved. `updatedBy` is also `null` when the saver is unknown: their account is gone, or a `GATUS_DEGRADED_MS` value was saved before migration 0025.
 - **Trusted proxies** travel as one comma-separated string. The server trims each entry and stores `a,b`.
 - **Error bodies** are `{error, message, key?, missing?, warnings?}`. Turning single sign-on on without the values it needs is 400 `{"error":"invalid","key":"OIDC_ENABLED","missing":["OIDC_CLIENT_ID",…]}`. A 404 `unknown_key` never echoes the key, so `DATABASE_URL` can't come back (AC-012). The 409 `no_secret_key` message doesn't name the env var; the web app has the §2.4 copy.
 - **Confirm warnings** are `{code, message}` plus, for `trusted_proxies`, `currentAddress` and `newAddress`; for `max_accounts_below_count`, `accounts`, `pendingInvites` and `limit`.
