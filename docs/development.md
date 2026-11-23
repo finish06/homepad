@@ -225,6 +225,10 @@ make test-db                   # full suite on a throwaway Postgres
 `DATABASE_URL` set, then removes the database. To use your own Postgres, set
 `DATABASE_URL` and run `go test ./... -count=1 -p 1`. The database name must
 end in `_test`. The tests empty every table, so they refuse any other name.
+The tests also check the server: a fresh database is marked as a test
+database on first use. A database that already has homepad tables but no mark
+is refused, and the error gives the one `COMMENT ON DATABASE` line that marks
+it. That happens once for a `make db-up` database made before 18.2.0.
 Without `DATABASE_URL`, the database tests skip.
 
 ## Deploy

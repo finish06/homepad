@@ -123,6 +123,8 @@ func TestSharedCatalog_NonAdminWritesForbidden(t *testing.T) {
 	}{
 		{"AC-005", "POST /api/categories", http.MethodPost, "/api/categories", map[string]any{"name": "X"}},
 		{"AC-006", "PATCH /api/categories/{id}", http.MethodPatch, "/api/categories/" + cat.ID, map[string]any{"name": "X"}},
+		// #652 — a width-only PATCH hits the same gate as a rename.
+		{"AC-006b", "PATCH /api/categories/{id} gridWidth", http.MethodPatch, "/api/categories/" + cat.ID, map[string]any{"gridWidth": 12}},
 		{"AC-007", "DELETE /api/categories/{id}", http.MethodDelete, "/api/categories/" + cat.ID, nil},
 		{"AC-008", "PUT /api/categories/order", http.MethodPut, "/api/categories/order", map[string]any{"order": []string{cat.ID}}},
 		{"AC-009", "POST /api/services", http.MethodPost, "/api/services", map[string]any{"slug": "x", "name": "X", "url": "https://x.example.com"}},

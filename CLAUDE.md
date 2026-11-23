@@ -70,7 +70,8 @@ make test-db                     # full suite on a throwaway Postgres, then remo
 The integration tests read `DATABASE_URL`. Without it they skip, so a bare
 `go test` prints `ok` without testing much. The database name must end in
 `_test` (for example `homepad_test`); `internal/dbguard` refuses any other name
-and the production host, and has no override.
+and the production host, and has no override. It also refuses a database that
+has homepad tables but no test mark; the error gives the SQL that marks it.
 
 ### Run the API and the web together
 ```

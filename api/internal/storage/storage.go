@@ -112,9 +112,9 @@ type Service struct {
 }
 
 // Category is an admin-curated catalog section (v4). Ordering is the explicit
-// admin-controlled SortIndex, not alphabetical. GridWidth (SPEC-app-grid §3B) is
-// the App Grid box width 1–8 — it drives both the box's page-column span and its
-// links-per-row; new categories default to 3.
+// admin-controlled SortIndex, not alphabetical. GridWidth (SPEC-app-grid §10.4)
+// is the box's span on a 12-column row: 3, 4, 6 or 12. New categories default
+// to 6 (half). Migration 0013 replaced the old 1–8 width.
 type Category struct {
 	ID        string
 	Name      string
@@ -314,64 +314,38 @@ func (s *Store) UserByID(ctx context.Context, id string) (User, error) {
 	return s.userBy(ctx, `WHERE id = $1`, id)
 }
 
-// SetThemePref updates a single user's theme preference (v3). The handler
-// validates pref against the allowed set first; the column CHECK is a backstop.
-// Writes only userID's row. Returns ErrNotFound when userID names no user.
-func (s *Store) SetThemePref(ctx context.Context, userID, pref string) error {
-	tag, err := s.pool.Exec(ctx,
-		`UPDATE users SET theme_pref = $2 WHERE id = $1`, userID, pref)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return ErrNotFound
-	}
-	return nil
+// UserPrefs is a partial update of a user's display preferences
+// (PATCH /api/me). A nil field is left unchanged.
+type UserPrefs struct {
+	ThemePref         *string
+	DensityPref       *string
+	ShowHealthBar     *bool
+	ShowUptimeDisplay *bool
+	ShowWidgets       *bool
 }
 
-// SetDensityPref updates a single user's tile density (v16, OQ-9). Same shape
-// as SetThemePref: the handler validates first, the column CHECK is a backstop,
-// only userID's row is written, ErrNotFound when it names no user.
-func (s *Store) SetDensityPref(ctx context.Context, userID, pref string) error {
-	tag, err := s.pool.Exec(ctx,
-		`UPDATE users SET density_pref = $2 WHERE id = $1`, userID, pref)
+// SetUserPrefs writes every given preference of one user in a single UPDATE,
+// so either all of them are saved or none is (#665). The handler validates
+// the values first; the column CHECKs are the backstop. Only userID's row is
+// written. Returns the updated user, or ErrNotFound when userID names no user.
+func (s *Store) SetUserPrefs(ctx context.Context, userID string, p UserPrefs) (User, error) {
+	u, err := scanUser(s.pool.QueryRow(ctx,
+		`UPDATE users SET
+		   theme_pref          = COALESCE($2::text, theme_pref),
+		   density_pref        = COALESCE($3::text, density_pref),
+		   show_health_bar     = COALESCE($4::boolean, show_health_bar),
+		   show_uptime_display = COALESCE($5::boolean, show_uptime_display),
+		   show_widgets        = COALESCE($6::boolean, show_widgets)
+		 WHERE id = $1
+		 RETURNING `+userColumns,
+		userID, p.ThemePref, p.DensityPref, p.ShowHealthBar, p.ShowUptimeDisplay, p.ShowWidgets))
+	if isNoRowsOrBadID(err) {
+		return User{}, ErrNotFound
+	}
 	if err != nil {
-		return err
+		return User{}, err
 	}
-	if tag.RowsAffected() == 0 {
-		return ErrNotFound
-	}
-	return nil
-}
-
-// SetShowHealthBar updates a single user's health-bar visibility
-// (SPEC-health-bar-visibility-toggle AC-006/AC-008). Scoped to one row by id —
-// the handler supplies the session's user, so a user can only write their own.
-// SetShowUptimeDisplay updates a single user's uptime-display preference
-// (cap6 v2, AC-016/AC-018). Scoped to one row by id — the handler supplies the
-// session's user, so a user can only write their own.
-func (s *Store) SetShowUptimeDisplay(ctx context.Context, userID string, show bool) error {
-	tag, err := s.pool.Exec(ctx,
-		`UPDATE users SET show_uptime_display = $2 WHERE id = $1`, userID, show)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return ErrNotFound
-	}
-	return nil
-}
-
-func (s *Store) SetShowHealthBar(ctx context.Context, userID string, show bool) error {
-	tag, err := s.pool.Exec(ctx,
-		`UPDATE users SET show_health_bar = $2 WHERE id = $1`, userID, show)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return u, nil
 }
 
 // ListServices returns the household's catalog decorated with viewerID's

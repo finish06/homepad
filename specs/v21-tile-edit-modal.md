@@ -266,7 +266,7 @@ Endpoints requiring `requireAdmin` (per SPEC-245-224 §2):
   5. Fetch the resolved icon URL; download the bytes.
   6. Store in `service_icons` as `variant=light` (upsert).
   7. Return `200 { "iconUrl": "/api/services/{id}/icon/light" }`.
-  8. On any failure (timeout, DNS error, 404, non-image content-type): return `422 { "error": "Could not fetch favicon: <reason>" }`. Leave existing icon unchanged.
+  8. On any failure (timeout, DNS error, 404, non-image content-type, not a PNG): return `422` with a plain-text body `Could not fetch favicon: <reason>`, like the API's other errors. Leave existing icon unchanged. (Corrected 2026-11-23, #657: the shipped API has always sent plain text, and the tile editor shows that text as is. A JSON body would show up as raw JSON.)
 - **Note:** Mark as optional. If favicon fetch adds unexpected complexity (redirects, auth-walled
   internal services, content-type negotiation), defer to a follow-up spec.
 

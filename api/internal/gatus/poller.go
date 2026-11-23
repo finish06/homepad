@@ -68,17 +68,19 @@ type Snapshot struct {
 const DefaultDegradedAfter = time.Second
 
 type Client struct {
-	// BaseURL is GATUS_BASE_URL, or the address saved in Admin Panel → System
-	// (SPEC-admin-server-settings). Set it with SetBaseURL once polling has
-	// started; read it with baseURL.
-	BaseURL string
-	// DegradedAfter — a succeeded check slower than this is DEGRADED. Strictly
-	// greater than; 0 disables. See DefaultDegradedAfter. Guarded by mu because
-	// the admin System panel changes it at runtime while the poller is running:
-	// read via degradedAfter(), write via SetDegradedAfter.
-	DegradedAfter time.Duration
-	mu            sync.RWMutex
-	http          *http.Client
+	// The admin System panel changes both of these while the poller runs, so
+	// both are guarded by mu and unexported: the setters are the only way to
+	// change them (#668).
+	//
+	// base is GATUS_BASE_URL, or the address saved in Admin Panel → System
+	// (SPEC-admin-server-settings). Write with SetBaseURL, read with baseURL.
+	base string
+	// slowAfter — a succeeded check slower than this is DEGRADED. Strictly
+	// greater than; 0 disables. See DefaultDegradedAfter. Write with
+	// SetDegradedAfter, read with degradedAfter.
+	slowAfter time.Duration
+	mu        sync.RWMutex
+	http      *http.Client
 }
 
 // NewClient returns a client with a plain 10 s-timeout HTTP client. main
@@ -91,35 +93,35 @@ func NewClient(baseURL string) *Client {
 // the guarded outbound client, because the address is admin-typed
 // (SPEC-admin-server-settings §1a).
 func NewClientWith(baseURL string, hc *http.Client) *Client {
-	return &Client{BaseURL: strings.TrimRight(baseURL, "/"), DegradedAfter: DefaultDegradedAfter, http: hc}
+	return &Client{base: strings.TrimRight(baseURL, "/"), slowAfter: DefaultDegradedAfter, http: hc}
 }
 
 // SetBaseURL points every poll from now on at baseURL ("" turns status off:
 // every poll fails and keyed services read UNKNOWN).
 func (c *Client) SetBaseURL(baseURL string) {
 	c.mu.Lock()
-	c.BaseURL = strings.TrimRight(baseURL, "/")
+	c.base = strings.TrimRight(baseURL, "/")
 	c.mu.Unlock()
 }
 
 func (c *Client) baseURL() string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.BaseURL
+	return c.base
 }
 
 // SetDegradedAfter changes the "Slow" threshold for every poll from now on
 // (runtime System setting). 0 disables the derivation.
 func (c *Client) SetDegradedAfter(d time.Duration) {
 	c.mu.Lock()
-	c.DegradedAfter = d
+	c.slowAfter = d
 	c.mu.Unlock()
 }
 
 func (c *Client) degradedAfter() time.Duration {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.DegradedAfter
+	return c.slowAfter
 }
 
 // FetchAll pulls the full endpoint snapshot from Gatus. Status is derived from

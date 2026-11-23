@@ -104,12 +104,12 @@ func TestServerSettingsLive_EveryKey(t *testing.T) {
 			code, _, _ := login(t, env, xff, "nobody@example.com", "short")
 			return code
 		}
-		require.Equal(t, http.StatusBadRequest, try("192.0.2.1"))
+		require.Equal(t, http.StatusUnauthorized, try("192.0.2.1"))
 		assert.Equal(t, http.StatusTooManyRequests, try("192.0.2.2"), "untrusted: one client, one bucket")
 		code, raw, _ := ssPatch(t, env, map[string]any{"HOMEPAD_TRUSTED_PROXIES": "127.0.0.1"}, "trusted_proxies")
 		require.Equal(t, http.StatusOK, code, raw)
-		assert.Equal(t, http.StatusBadRequest, try("192.0.2.3"), "trusted: the forwarded client has its own bucket")
-		assert.Equal(t, http.StatusBadRequest, try("192.0.2.4"))
+		assert.Equal(t, http.StatusUnauthorized, try("192.0.2.3"), "trusted: the forwarded client has its own bucket")
+		assert.Equal(t, http.StatusUnauthorized, try("192.0.2.4"))
 	})
 
 	t.Run("GATUS_BASE_URL", func(t *testing.T) {

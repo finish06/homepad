@@ -393,6 +393,9 @@ make test-unit     # fast subset, no database
 
 `make test` runs `go test ./... -count=1 -p 1`. The database name in
 `DATABASE_URL` must end in `_test`; `internal/dbguard` refuses any other.
+It also checks the server: a fresh database gets a test mark on first use, and
+a database with homepad tables but no mark is refused with the SQL that marks
+it.
 
 CI runs these from the root workflows in `.gitea/workflows/` (see its
 `README.md`). This folder has no workflows of its own.

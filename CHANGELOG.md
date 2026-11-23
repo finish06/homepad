@@ -7,6 +7,19 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [Unreleased] — 18.2.0 — API cleanup
+
+**Upgrading.** Deploy the API image. There are no database changes.
+
+- **Sign-in change:** sign-in no longer checks the 8-character minimum. An account whose password is shorter, from before that rule, can sign in again. A wrong short password now gets "invalid email or password" (401), not a 400. New passwords still need 8 characters.
+- **Response change:** `POST /api/services` now returns the saved `gatus_key`. Adding an app from the library now returns `clickAction`, `iframeSameOrigin` and `gatus_key`, like the other app responses.
+- Saving your display settings writes them all at once. If the save fails, none of them change.
+- The server settings contract now says numbers must be sent as JSON numbers. `"1500"` in quotes is refused; send `1500`. This was already how the API behaved.
+- The fetch-icon contract now says its errors are plain text, which is what the API sends and what the tile editor shows.
+- Workflows pin every outside action to a fixed commit, so a moved tag can't change what CI runs.
+- **For developers:** the integration tests now also check the database server before they empty it. A fresh database is marked as a test database on first use. A database that already has homepad tables but no mark is refused, and the error gives the one SQL line that marks it. A `make db-up` database made before this release needs that line once.
+- Small fixes: a memory leak of one lock per deleted widget, a setting that could skip its lock, stale code comments, and missing tests.
+
 ## [18.1.0] — 2026-11-23 — Admins change server settings in the Admin Panel
 
 **Upgrading.** Deploy the API first, then the web image. Migration `0024` adds the `server_settings` table. It starts empty, so every setting keeps its `.env` or default value. Migration `0025` records who last saved the "Slow" threshold and when.

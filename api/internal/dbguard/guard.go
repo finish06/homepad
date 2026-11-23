@@ -1,11 +1,16 @@
 package dbguard
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // CheckTestDatabase is the single safety guard protecting every destructive
@@ -62,5 +67,78 @@ func RequireTestDatabase(t testing.TB) string {
 	if err := CheckTestDatabase(dsn); err != nil {
 		t.Fatalf("%v", err)
 	}
+	if err := confirmOnce(dsn); err != nil {
+		t.Fatalf("%v", err)
+	}
 	return dsn
+}
+
+// Marker is the comment that marks a database as a throwaway test database.
+// ConfirmThrowaway writes it on a fresh database and requires it on any
+// database that already holds homepad tables.
+const Marker = "homepad-throwaway-test"
+
+// confirmed caches ConfirmThrowaway per DSN for the life of the test binary,
+// so the hundreds of tests in one package connect once, not once each.
+var confirmed sync.Map // dsn → error (nil = confirmed)
+
+func confirmOnce(dsn string) error {
+	if v, ok := confirmed.Load(dsn); ok {
+		if v == nil {
+			return nil
+		}
+		return v.(error)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	err := ConfirmThrowaway(ctx, dsn)
+	if err == nil {
+		confirmed.Store(dsn, nil)
+	} else {
+		confirmed.Store(dsn, err)
+	}
+	return err
+}
+
+// ConfirmThrowaway checks the server behind dsn, not just the string (#69).
+// CheckTestDatabase reads the DSN; a DSN like localhost:5432/homepad_test can
+// still reach some other Postgres that holds real data. So, connected:
+//
+//   - the database the server says we are in must pass the same name rule;
+//   - if the database carries Marker as its comment, it is ours;
+//   - if it has no homepad tables yet, it is fresh: we write Marker and use it;
+//   - otherwise (homepad tables, no marker) it is refused, with the one line
+//     of SQL that marks it, for a developer whose test database predates this.
+func ConfirmThrowaway(ctx context.Context, dsn string) error {
+	conn, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		return fmt.Errorf("refusing destructive test setup: cannot connect to check the database: %w", err)
+	}
+	defer conn.Close(ctx)
+
+	var name, comment string
+	var hasTables bool
+	err = conn.QueryRow(ctx, `
+		SELECT current_database(),
+		       COALESCE(shobj_description(d.oid, 'pg_database'), ''),
+		       to_regclass('public.users') IS NOT NULL OR to_regclass('public.schema_migrations') IS NOT NULL
+		  FROM pg_database d WHERE d.datname = current_database()`).Scan(&name, &comment, &hasTables)
+	if err != nil {
+		return fmt.Errorf("refusing destructive test setup: cannot read the database's identity: %w", err)
+	}
+	if name != "homepad_test" && !strings.HasSuffix(name, "_test") {
+		return fmt.Errorf("refusing destructive test setup: the server reports database %q, which is not a test database", name)
+	}
+	if comment == Marker {
+		return nil
+	}
+	mark := fmt.Sprintf("COMMENT ON DATABASE %s IS '%s'", pgx.Identifier{name}.Sanitize(), Marker)
+	if hasTables {
+		return fmt.Errorf("refusing destructive test setup: database %q already has homepad tables but is not marked as a throwaway test database. "+
+			"If it really is one, mark it once and re-run: %s", name, mark)
+	}
+	if _, err := conn.Exec(ctx, mark); err != nil {
+		return fmt.Errorf("refusing destructive test setup: cannot mark fresh database %q: %w", name, err)
+	}
+	return nil
 }

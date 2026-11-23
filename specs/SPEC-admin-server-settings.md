@@ -416,7 +416,7 @@ No data is moved. A fresh install and an upgraded one both start with an empty t
 
 For the secret: `{"key":"OIDC_CLIENT_SECRET","group":"signin","secret":true,"isSet":true,"envIsSet":false,"unreadable":false,"source":"ui",…}` — no `value`, no `envValue`.
 
-Values travel as JSON types: booleans as `true`/`false`, numbers as numbers, the rest as strings.
+Values travel as JSON types: booleans as `true`/`false`, numbers as numbers, the rest as strings. The PATCH is strict about it: a number sent as a string (`"GATUS_DEGRADED_MS": "1500"`) is a 400 `invalid` with that setting's message, and nothing is saved. Send `1500`. (#688)
 
 #### Build notes (API PR, 0.2.1) — the contract the web app codes against
 

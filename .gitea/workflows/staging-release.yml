@@ -31,7 +31,7 @@ jobs:
       # to dev-<sha>: it never fails the release. (Moved from Code/homepad-api's
       # staging-release.yml.)
       - name: Full checkout, for git describe
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
       - name: APP_VERSION from git describe (e.g. 18.0.0-3-gabc1234)

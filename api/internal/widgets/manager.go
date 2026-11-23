@@ -260,6 +260,9 @@ func (m *Manager) Reload(ctx context.Context, serviceID string) error {
 	old := m.entries[serviceID]
 	if !ok || !r.Enabled {
 		delete(m.entries, serviceID)
+		if !ok {
+			delete(m.locks, serviceID) // the row is gone (#651)
+		}
 		m.mu.Unlock()
 		return nil
 	}
@@ -274,10 +277,15 @@ func (m *Manager) Reload(ctx context.Context, serviceID string) error {
 	return nil
 }
 
-// Remove drops a widget (DELETE).
+// Remove drops a widget (DELETE) and its lock, so the lock map holds at most
+// one lock per configured widget (#651). A fetch still holding the old lock finds
+// no entry when it finishes and drops its result. Reload and a scheduled
+// fetch drop the lock too when the row is gone; a disabled widget keeps it,
+// since it may be turned back on.
 func (m *Manager) Remove(serviceID string) {
 	m.mu.Lock()
 	delete(m.entries, serviceID)
+	delete(m.locks, serviceID)
 	m.mu.Unlock()
 }
 
@@ -378,6 +386,11 @@ func (m *Manager) fetch(ctx context.Context, serviceID string) {
 		m.mu.Lock()
 		if cur, ok := m.entries[serviceID]; ok && cur.gen == gen {
 			delete(m.entries, serviceID)
+		}
+		if !found {
+			// The widget row is gone (its service was deleted): drop the
+			// lock too, as Remove does (#651).
+			delete(m.locks, serviceID)
 		}
 		m.mu.Unlock()
 		return

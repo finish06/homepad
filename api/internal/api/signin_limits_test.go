@@ -58,13 +58,14 @@ func requireTooMany(t *testing.T, code int, h http.Header, body string) int {
 // HOMEPAD_TRUSTED_PROXIES unset, a different forged X-Forwarded-For on every
 // try changes nothing: the 11th is 429.
 //
-// The first ten tries are refused before bcrypt (a password under 8
-// characters), so they take no time and no token refills before the 11th.
+// The first ten tries are wrong passwords for accounts that don't exist: each
+// is one bcrypt compare against the dummy hash (well under a second for all
+// ten), so no token refills before the 11th.
 func TestLogin_PerClientLimit_IgnoresForgedHeader(t *testing.T) {
 	env := testsupport.NewEnv(t)
 	for i := 0; i < 10; i++ {
 		code, _, body := login(t, env, fmt.Sprintf("198.51.100.%d", i+1), fmt.Sprintf("nobody%d@example.com", i), "short")
-		require.Equal(t, http.StatusBadRequest, code, "try %d: %s", i+1, body)
+		require.Equal(t, http.StatusUnauthorized, code, "try %d: %s", i+1, body)
 	}
 	code, h, body := login(t, env, "198.51.100.99", "alice@example.com", "correct horse battery staple")
 	requireTooMany(t, code, h, body)
@@ -277,17 +278,18 @@ func TestLogin_TrustedProxy_TellsClientsApart(t *testing.T) {
 	tp, err := api.ParseTrustedProxies("127.0.0.1")
 	require.NoError(t, err)
 	env := testsupport.NewEnvWith(t, testsupport.Options{TrustedProxies: tp})
-	// Short passwords are refused before bcrypt, so no token refills mid-test.
+	// Wrong passwords for missing accounts: one fast bcrypt each, so no token
+	// refills mid-test.
 	for i := 0; i < 10; i++ {
 		code, _, _ := login(t, env, "198.51.100.1", fmt.Sprintf("a%d@example.com", i), "short")
-		require.Equal(t, http.StatusBadRequest, code)
+		require.Equal(t, http.StatusUnauthorized, code)
 	}
 	code, _, _ := login(t, env, "198.51.100.1", "a@example.com", "not the password")
 	require.Equal(t, http.StatusTooManyRequests, code, "laptop one is out")
 	for i := 0; i < 9; i++ {
 		// A forged left-hand entry doesn't move laptop two into laptop one's bucket.
 		code, _, body := login(t, env, "198.51.100.1, 198.51.100.2", fmt.Sprintf("b%d@example.com", i), "short")
-		require.Equal(t, http.StatusBadRequest, code, "laptop two, try %d: %s", i+1, body)
+		require.Equal(t, http.StatusUnauthorized, code, "laptop two, try %d: %s", i+1, body)
 	}
 	code, _, body := login(t, env, "198.51.100.2", "b@example.com", "not the password")
 	assert.Equal(t, http.StatusUnauthorized, code, "laptop two's tenth try gets a real answer: %s", body)
@@ -300,7 +302,7 @@ func TestLogin_UntrustedPeer_HeaderIgnored(t *testing.T) {
 	env := testsupport.NewEnvWith(t, testsupport.Options{TrustedProxies: tp})
 	for i := 0; i < 10; i++ {
 		code, _, _ := login(t, env, fmt.Sprintf("198.51.100.%d", i+1), fmt.Sprintf("a%d@example.com", i), "short")
-		require.Equal(t, http.StatusBadRequest, code)
+		require.Equal(t, http.StatusUnauthorized, code)
 	}
 	code, _, _ := login(t, env, "198.51.100.200", "a@example.com", "not the password")
 	assert.Equal(t, http.StatusTooManyRequests, code)

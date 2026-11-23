@@ -186,15 +186,16 @@ func (s *Store) AddFromLibrary(ctx context.Context, libraryID string, categoryID
 			`WITH ins AS (
 			   INSERT INTO services (slug, name, description, url, icon, source_library_id, category_id)
 			   VALUES ($1, $2, $3, $4, $5, $6, $7)
-			   RETURNING id, slug, name, description, url, icon, gatus_key, category_id, source_library_id
+			   RETURNING id, slug, name, description, url, icon, gatus_key, category_id, source_library_id,
+			             click_action, iframe_same_origin
 			 )
 			 SELECT i.id, i.slug, i.name, i.description, i.url, i.icon, COALESCE(i.gatus_key, ''),
-			        i.category_id, c.name, i.source_library_id
+			        i.category_id, c.name, i.source_library_id, i.click_action, i.iframe_same_origin
 			   FROM ins i
 			   LEFT JOIN categories c ON c.id = i.category_id`,
 			slug, off.Name, off.Description, off.URL, off.Icon, off.ID, categoryID,
 		).Scan(&sv.ID, &sv.Slug, &sv.Name, &sv.Description, &sv.URL, &sv.Icon, &sv.GatusKey,
-			&sv.CategoryID, &sv.CategoryName, &sv.SourceLibraryID)
+			&sv.CategoryID, &sv.CategoryName, &sv.SourceLibraryID, &sv.ClickAction, &sv.IframeSameOrigin)
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" { // slug collision → try the next suffix
 			continue
 		}

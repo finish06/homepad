@@ -25,7 +25,7 @@ func fetchWith(t *testing.T, threshold time.Duration, success bool, durationNs i
 	srv := gatusStub(t, []map[string]any{res})
 	defer srv.Close()
 	c := gatus.NewClient(srv.URL)
-	c.DegradedAfter = threshold
+	c.SetDegradedAfter(threshold)
 	statuses, err := c.FetchAll(context.Background())
 	require.NoError(t, err)
 	require.Len(t, statuses, 1)

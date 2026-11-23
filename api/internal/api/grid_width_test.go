@@ -124,3 +124,19 @@ func TestPatchCategory_NameOnly_LeavesGridWidth(t *testing.T) {
 	assert.Equal(t, "Movies", got.Name, "name-only PATCH renames")
 	assert.Equal(t, 12, got.GridWidth, "name-only PATCH must not reset gridWidth")
 }
+
+// #652 — name and gridWidth in one PATCH both apply.
+func TestPatchCategory_NameAndGridWidthTogether(t *testing.T) {
+	s := testsupport.NewServer(t)
+	defer s.Close()
+
+	c := createCategory(t, s.URL, "admin-session", "Media")
+	resp := doJSON(t, http.MethodPatch, s.URL+"/api/categories/"+c.ID, "admin-session",
+		map[string]any{"name": "Movies", "gridWidth": 3})
+	resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	got := getGWCats(t, s.URL, "admin-session")[c.ID]
+	assert.Equal(t, "Movies", got.Name)
+	assert.Equal(t, 3, got.GridWidth)
+}

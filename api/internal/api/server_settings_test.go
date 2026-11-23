@@ -524,6 +524,9 @@ func TestServerSettings_Validation(t *testing.T) {
 		{"HOMEPAD_MAX_ACCOUNTS", 10001, "Enter a whole number from 0 to 10000."},
 		{"HOMEPAD_MAX_ACCOUNTS", 2.5, "Enter a whole number from 0 to 10000."},
 		{"GATUS_DEGRADED_MS", 600001, "Enter a whole number from 0 to 600000."},
+		// #688 — numbers travel as JSON numbers; a numeric string is refused.
+		{"GATUS_DEGRADED_MS", "1500", "Enter a whole number from 0 to 600000."},
+		{"HOMEPAD_MAX_ACCOUNTS", "5", "Enter a whole number from 0 to 10000."},
 		{"HOMEPAD_TRUSTED_PROXIES", "0.0.0.0/0", "That trusts every address. Anyone could pick their own address, and the sign-in limits would stop working."},
 		{"HOMEPAD_TRUSTED_PROXIES", "192.0.2.1, ::/0", "That trusts every address."},
 		{"HOMEPAD_TRUSTED_PROXIES", "not a proxy!", "is not an address"},

@@ -75,7 +75,7 @@ func main() {
 	// ("Slow" on the tile). Unset → 1000; 0 disables; junk is logged and ignored.
 	if v := os.Getenv("GATUS_DEGRADED_MS"); v != "" {
 		if ms, err := strconv.Atoi(v); err == nil && ms >= 0 {
-			gatusClient.DegradedAfter = time.Duration(ms) * time.Millisecond
+			gatusClient.SetDegradedAfter(time.Duration(ms) * time.Millisecond)
 		} else {
 			log.Printf("GATUS_DEGRADED_MS=%q is not a non-negative integer; using %s", v, gatus.DefaultDegradedAfter)
 		}

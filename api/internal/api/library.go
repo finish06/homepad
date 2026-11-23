@@ -215,6 +215,10 @@ func (s *server) handleAddFromLibrary(w http.ResponseWriter, r *http.Request) {
 		CategoryID:      sv.CategoryID,
 		CategoryName:    sv.CategoryName,
 		SourceLibraryID: sv.SourceLibraryID,
+		// The same service fields as create and update (#662).
+		ClickAction:      sv.ClickAction,
+		IframeSameOrigin: sv.IframeSameOrigin,
+		GatusKey:         sv.GatusKey,
 	})
 }
 

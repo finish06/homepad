@@ -18,7 +18,8 @@ import (
 // maxPatchMeBody caps the PATCH /api/me body; it carries four small fields.
 const maxPatchMeBody = 64 * 1024
 
-// minPasswordLen is the minimum length enforced at registration (#12). Kept
+// minPasswordLen is the minimum length for a new password (#12): register,
+// invite accept and password reset. Sign-in does not check it (#656). Kept
 // modest so it gates obviously-weak inputs without dictating a full policy.
 const minPasswordLen = 8
 
@@ -90,6 +91,10 @@ func newUserView(u storage.User) userView {
 func (s *server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	c, ok := decodeCredentials(w, r)
 	if !ok {
+		return
+	}
+	if len(c.Password) < minPasswordLen {
+		http.Error(w, "password must be at least 8 characters", http.StatusBadRequest)
 		return
 	}
 	if passwordTooLong(c.Password) {
@@ -303,46 +308,19 @@ func (s *server) handlePatchMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if body.ThemePref != nil {
-		if err := s.store.SetThemePref(r.Context(), u.ID, *body.ThemePref); err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		u.ThemePref = *body.ThemePref
-	}
-	if body.DensityPref != nil {
-		if err := s.store.SetDensityPref(r.Context(), u.ID, *body.DensityPref); err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		u.DensityPref = *body.DensityPref
-	}
-	// showHealthBar needs no value check: a non-boolean fails json.Decode above
-	// and 400s before anything is written, so the stored value is left alone.
-	if body.ShowHealthBar != nil {
-		if err := s.store.SetShowHealthBar(r.Context(), u.ID, *body.ShowHealthBar); err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		u.ShowHealthBar = *body.ShowHealthBar
-	}
-	// Like showHealthBar, no value check beyond the type: a non-boolean fails
-	// json.Decode above and 400s before anything is written.
-	if body.ShowUptimeDisplay != nil {
-		if err := s.store.SetShowUptimeDisplay(r.Context(), u.ID, *body.ShowUptimeDisplay); err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		u.ShowUptimeDisplay = *body.ShowUptimeDisplay
-	}
-	// SPEC-status-widgets AC-031 — the per-user "Show widgets" switch. A kid
-	// never reaches here with it (the themePref-only rule above).
-	if body.ShowWidgets != nil {
-		if err := s.store.SetShowWidgets(r.Context(), u.ID, *body.ShowWidgets); err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		u.ShowWidgets = *body.ShowWidgets
+	// One UPDATE for every field, so a failed write saves none of them (#665).
+	// The booleans need no value check: a non-boolean fails json.Unmarshal
+	// above and 400s before anything is written.
+	u, err = s.store.SetUserPrefs(r.Context(), u.ID, storage.UserPrefs{
+		ThemePref:         body.ThemePref,
+		DensityPref:       body.DensityPref,
+		ShowHealthBar:     body.ShowHealthBar,
+		ShowUptimeDisplay: body.ShowUptimeDisplay,
+		ShowWidgets:       body.ShowWidgets,
+	})
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
 	writeJSON(w, http.StatusOK, newUserView(u))
 }
@@ -404,10 +382,9 @@ func decodeCredentials(w http.ResponseWriter, r *http.Request) (credentials, boo
 		http.Error(w, "invalid email address", http.StatusBadRequest)
 		return c, false
 	}
-	if len(c.Password) < minPasswordLen {
-		http.Error(w, "password must be at least 8 characters", http.StatusBadRequest)
-		return c, false
-	}
+	// No length rule here: the 8-character minimum is for new passwords
+	// (register, invite, reset). Sign-in checks any password against its hash,
+	// so an account whose password predates the rule can still sign in (#656).
 	return c, true
 }
 

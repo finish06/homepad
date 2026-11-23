@@ -12,8 +12,9 @@ import (
 	"github.com/finish06/homepad/api/internal/testsupport"
 )
 
-// homepad SPEC-tile-density §5 / decision record OQ-9 — the tile density is a
-// per-USER preference held server-side (the decision), not per device. Same
+// Decision record OQ-9 — the tile density is a per-USER preference held
+// server-side, not per device. (SPEC-tile-density §5 describes the earlier
+// per-device localStorage build, so it is not the source for this.) Same
 // contract shape as themePref: surfaced on GET /api/me, written via PATCH
 // /api/me, enum-checked, session-gated, own row only.
 

@@ -212,6 +212,8 @@ func (s *server) handleCreateService(w http.ResponseWriter, r *http.Request) {
 		ClickAction: sv.ClickAction,
 		// The create response carries it like the list does.
 		IframeSameOrigin: sv.IframeSameOrigin,
+		// The saved key, so the 201 agrees with its own status (#662).
+		GatusKey: sv.GatusKey,
 	})
 }
 
