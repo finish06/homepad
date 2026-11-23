@@ -16,8 +16,16 @@
 # branch-protected (required_approvals=1, approvals whitelist ci-docs-approver,
 # qa-claude) so the merge only lands behind the QA gate.
 #
-# ci.yml (Web build+unit) and browser-gate.yml (#35) stay as separate required
-# status checks.
+# ci.yml (Web build+unit, API vet+tests) and browser-gate.yml (#35) stay as
+# separate required status checks.
+#
+# Two images, ONE mr-staging step (SPEC-monorepo-api AC-012): a second step
+# would dispatch QA a second time, and the two QA runs would race. The action
+# builds the web image every time, because qa-gate checks the preview's
+# /version.json against the PR head sha, and only the web serves it. The API
+# image is built only when the PR touches api/: scripts/preview/api-image.sh
+# builds homepad-api:<sha>-test inside deploy-cmd with ci-shared's own
+# build-push.sh, or else reads main's API from homepad-staging (AC-013).
 name: PR -> staging gate
 
 on:
@@ -138,29 +146,42 @@ jobs:
                 exit 1
               fi
             done
-            # (b) Render and apply. DEPLOYED_AT is stamped on EVERY deploy: the
+            # (b) The API image: this PR's own homepad-api:<sha>-test if it
+            # touches api/, built here with the script the action built the web
+            # with; otherwise whatever main's staging runs (the preview SA may
+            # read exactly that one field). SPEC-monorepo-api AC-013.
+            stage=api-image
+            BUILD_PUSH="${GITHUB_ACTION_PATH:-}/../scripts/build-push.sh"
+            if [ ! -f "$BUILD_PUSH" ]; then
+              echo "::error::ci-shared's build-push.sh not found at '$BUILD_PUSH' (GITHUB_ACTION_PATH='${GITHUB_ACTION_PATH:-}')" >&2
+              exit 1
+            fi
+            export BUILD_PUSH
+            API_IMAGE=$(bash scripts/preview/api-image.sh)
+            # (c) Render and apply. DEPLOYED_AT is stamped on EVERY deploy: the
             # 48h preview-janitor keys on it, so it stays pure RFC3339. Two runs
             # can stamp the same second (#632), so PREVIEW_RUN (env, run id +
             # attempt) goes on as homepad.preview/run and names the owner for
-            # the failure trap. The API image is whatever main's staging runs
-            # (the preview SA may read exactly that one field).
+            # the failure trap.
             # Assign, then export: `export X=$(cmd)` would hide cmd's failure.
             stage=render
             DEPLOYED_AT=$(date -u +%FT%TZ)
-            API_IMAGE=$(kubectl -n homepad-staging get deploy homepad-api -o jsonpath='{.spec.template.spec.containers[0].image}')
             export DEPLOYED_AT API_IMAGE
             bash scripts/preview/render.sh "$WORK/templates" "$WORK/out"
             # A 4th concurrent preview is refused HERE (count/deployments.apps
             # quota): kubectl exits 1 and pipefail carries it through tee.
             stage=apply
             kubectl apply -f "$WORK/out" 2>&1 | tee "$WORK/apply.log"
-            # (c) An update push rolls web in place; the db pod template carries
+            # (d) An update push rolls web in place; the db pod template carries
             # no per-deploy field, so its emptyDir survives (AC-009).
             stage=rollout
             for app in db api web; do
               kubectl -n homepad-preview rollout status "deploy/homepad-$app-pr-$PR_NUMBER" --timeout=120s
             done
-            # (d) Seed (#623): idempotent, so it runs on every deploy. The QA
+            for app in api web; do
+              echo "::notice::homepad-$app-pr-$PR_NUMBER runs $(kubectl -n homepad-preview get deploy "homepad-$app-pr-$PR_NUMBER" -o jsonpath='{.spec.template.spec.containers[0].image}')"
+            done
+            # (e) Seed (#623): idempotent, so it runs on every deploy. The QA
             # login goes to this command only and is never echoed.
             stage=seed
             PREVIEW_URL="http://pr-$PR_NUMBER.homepad-preview.10.17.2.213.nip.io"
@@ -181,6 +202,8 @@ jobs:
           QA_PASSWORD:        ${{ secrets.QA_PASSWORD }}
           PR_NUMBER:          ${{ github.event.pull_request.number }}
           PR_SHA:             ${{ github.event.pull_request.head.sha }}
+          # scripts/preview/api-image.sh diffs the PR from here (did it touch api/?).
+          BASE_SHA:           ${{ github.event.pull_request.base.sha }}
           # This run's ownership stamp on the preview (#632). The attempt part
           # keeps a re-run (same run id) distinct.
           PREVIEW_RUN:        ${{ github.run_id }}-${{ github.run_attempt }}
