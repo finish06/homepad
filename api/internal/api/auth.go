@@ -1,0 +1,417 @@
+package api
+
+import (
+	"encoding/json"
+	"errors"
+	"io"
+	"log"
+	"net/http"
+	"net/mail"
+	"strings"
+
+	"golang.org/x/crypto/bcrypt"
+
+	"gitea.kube.calebdunn.tech/code/homepad-api/internal/session"
+	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
+)
+
+// maxPatchMeBody caps the PATCH /api/me body; it carries four small fields.
+const maxPatchMeBody = 64 * 1024
+
+// minPasswordLen is the minimum length enforced at registration (#12). Kept
+// modest so it gates obviously-weak inputs without dictating a full policy.
+const minPasswordLen = 8
+
+// maxPasswordBytes is bcrypt's input limit. It is bytes, not characters: a
+// password of accented letters or emoji reaches it in fewer characters.
+// bcrypt.GenerateFromPassword refuses anything longer, and
+// bcrypt.CompareHashAndPassword silently ignores the bytes past it.
+const maxPasswordBytes = 72
+
+// passwordTooLongMsg is the 400 for a new password over maxPasswordBytes.
+const passwordTooLongMsg = "password must be at most 72 bytes (accented letters and emoji count as more than one)"
+
+// passwordTooLong reports whether pw is over bcrypt's 72-byte limit. A
+// handler that sets a password checks it with its other input checks and
+// answers 400 with passwordTooLongMsg; one that forgets gets
+// bcrypt.ErrPasswordTooLong from GenerateFromPassword, a 500.
+func passwordTooLong(pw string) bool { return len(pw) > maxPasswordBytes }
+
+// dummyPasswordHash is a bcrypt hash, at bcrypt.DefaultCost, of a random value
+// nobody kept. Login compares against it when there is no real hash to check,
+// so an unknown email costs the same bcrypt work as a known one and response
+// time does not reveal which emails have accounts.
+const dummyPasswordHash = "$2a$10$O.YsuStnwFgRlkSdkYcep.klXevT2FfHRe3fGvqNg7audcPxN2jZK"
+
+type credentials struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type userView struct {
+	ID        string `json:"id"`
+	Email     string `json:"email"`
+	Role      string `json:"role"`
+	ThemePref string `json:"themePref"`
+	// DensityPref is the v16 tile density (large|compact|list), per user (OQ-9).
+	DensityPref string `json:"densityPref"`
+	// ShowHealthBar is the per-user visibility of the health panel's
+	// distribution bar (SPEC-health-bar-visibility-toggle). Not a pointer —
+	// the column is NOT NULL, so it always has a value to report.
+	ShowHealthBar bool `json:"showHealthBar"`
+	// ShowUptimeDisplay is the per-user visibility of the per-tile uptime
+	// sparkline (cap6 v2). Not a pointer — the column is NOT NULL.
+	ShowUptimeDisplay bool `json:"showUptimeDisplay"`
+	// Name is the user's display name (v7 §6.2); empty when unset, in which
+	// case the frontend derives the avatar from the email's first letter.
+	Name string `json:"name"`
+	// DisplayName is the same display name under the name SPEC-kid-accounts
+	// §7 gives it; a kid always has one. Additive for adults.
+	DisplayName string `json:"displayName"`
+	// AvatarColor is the account's avatar color (an accent id), "" when unset.
+	AvatarColor string `json:"avatarColor"`
+	// ShowWidgets is the per-user "Show widgets" switch (SPEC-status-widgets
+	// AC-031). Not a pointer — the column is NOT NULL DEFAULT TRUE.
+	ShowWidgets bool `json:"showWidgets"`
+	// HasPassword is true for an adult who signs in with a password: false
+	// for kids and for accounts that only use single sign-on
+	// (SPEC-password-reset-link AC-020). My settings shows Change password
+	// only when it's true.
+	HasPassword bool `json:"hasPassword"`
+}
+
+func newUserView(u storage.User) userView {
+	return userView{ID: u.ID, Email: u.Email, Role: u.Role, ThemePref: u.ThemePref, DensityPref: u.DensityPref,
+		ShowHealthBar: u.ShowHealthBar, ShowUptimeDisplay: u.ShowUptimeDisplay, Name: u.DisplayName,
+		DisplayName: u.DisplayName, AvatarColor: u.AvatarColor, ShowWidgets: u.ShowWidgets,
+		HasPassword: u.HasLocalPassword()}
+}
+
+func (s *server) handleRegister(w http.ResponseWriter, r *http.Request) {
+	c, ok := decodeCredentials(w, r)
+	if !ok {
+		return
+	}
+	if passwordTooLong(c.Password) {
+		http.Error(w, passwordTooLongMsg, http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	open := s.registration == RegistrationOpen
+	// Fast refusal on a closed install that is already set up, before bcrypt.
+	// The store re-checks under the account lock, so this is only a shortcut.
+	if !open {
+		count, err := s.store.CountUsers(ctx)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		if count > 0 {
+			http.Error(w, "registration is invite-only", http.StatusForbidden)
+			return
+		}
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(c.Password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	// The first adult bootstraps as admin in every mode (spec Q2, AC-002);
+	// after that, self-registration needs RegistrationOpen, and any other mode
+	// fails closed (#10). RegisterUser decides both under one lock, so racing
+	// registrations on an empty install make exactly one admin (AC-003).
+	u, first, err := s.store.RegisterUser(ctx, c.Email, string(hash), open, s.maxAccounts)
+	switch {
+	case errors.Is(err, storage.ErrRegistrationClosed):
+		http.Error(w, "registration is invite-only", http.StatusForbidden)
+		return
+	case errors.Is(err, storage.ErrAccountLimit):
+		s.refuseAtLimit(w, r)
+		return
+	case errors.Is(err, storage.ErrEmailTaken):
+		http.Error(w, "email already registered", http.StatusConflict)
+		return
+	case err != nil:
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if first {
+		log.Printf("register: first account %s created as admin", u.ID)
+	}
+
+	writeJSON(w, http.StatusCreated, newUserView(u))
+}
+
+func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	c, ok := decodeCredentials(w, r)
+	if !ok {
+		return
+	}
+
+	// SPEC-signin-hardening AC-005 — after loginFailPolicy.max failures in
+	// its window, an email is locked: 429 whether or not the password is
+	// right, and whether or not the email has an account, so the answer
+	// reveals nothing. The lock touches password sign-in only.
+	key := loginFailKey(c.Email)
+	if wait, logIt := s.loginFails.lockedLog(key); wait > 0 {
+		if logIt {
+			log.Printf("ratelimit: login locked for an email")
+		}
+		tooMany(w, wait)
+		return
+	}
+
+	u, err := s.store.UserByEmail(r.Context(), c.Email)
+	if !s.loginPasswordOK(u, err, c.Password) {
+		// A failed lookup is the server's fault, not a guess: don't count it.
+		if err == nil || errors.Is(err, storage.ErrNotFound) {
+			s.loginFails.fail(key)
+			if _, logIt := s.loginFails.lockedLog(key); logIt {
+				log.Printf("ratelimit: login locked for an email")
+			}
+		}
+		http.Error(w, "invalid email or password", http.StatusUnauthorized)
+		return
+	}
+	s.loginFails.clear(key)
+
+	if !s.startSession(w, r, u) {
+		return
+	}
+	writeJSON(w, http.StatusOK, newUserView(u))
+}
+
+// loginPasswordOK reports whether password signs u in, given the error from
+// looking u up by email. It runs exactly one bcrypt compare on every path.
+// When there is no real hash to check (no such email, a failed lookup, a kid,
+// an OIDC-only account, a password over 72 bytes) it compares against
+// dummyPasswordHash and returns false, so the answer takes the same time
+// whether or not the email has an account.
+//
+// Only adults sign in here. UserByEmail cannot return a kid (kids have no
+// email or password), and the role check keeps it that way even if that ever
+// changed: a kid is signed in only by an admin, on the device. A password
+// over 72 bytes always fails: no such password can have been set, and bcrypt
+// would otherwise ignore the extra bytes and match on the first 72.
+func (s *server) loginPasswordOK(u storage.User, lookupErr error, password string) bool {
+	compare := s.comparePassword
+	if compare == nil {
+		compare = bcrypt.CompareHashAndPassword
+	}
+	hash := []byte(u.PasswordHash)
+	usable := lookupErr == nil && storage.IsAdultRole(u.Role) && !passwordTooLong(password) && isBcryptHash(hash)
+	if !usable {
+		hash = []byte(dummyPasswordHash)
+	}
+	return compare(hash, []byte(password)) == nil && usable
+}
+
+// isBcryptHash reports whether h parses as a bcrypt hash. An empty hash or
+// the OIDC placeholder does not, and comparing against one returns at once.
+func isBcryptHash(h []byte) bool {
+	_, err := bcrypt.Cost(h)
+	return err == nil
+}
+
+// handleLogout deletes the session row and clears the cookie. The cookie is
+// cleared even if the delete fails, but the failure is reported as a 500 so it
+// is not mistaken for a completed sign-out.
+func (s *server) handleLogout(w http.ResponseWriter, r *http.Request) {
+	status := http.StatusNoContent
+	if ck, err := r.Cookie(sessionCookie); err == nil {
+		if err := s.sessions.Destroy(r.Context(), ck.Value); err != nil {
+			log.Printf("logout: destroy session: %v", err)
+			status = http.StatusInternalServerError
+		}
+	}
+	http.SetCookie(w, s.clearedSessionCookie())
+	w.WriteHeader(status)
+}
+
+func (s *server) handleMe(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.currentUser(w, r)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	writeJSON(w, http.StatusOK, newUserView(u))
+}
+
+// handlePatchMe updates the current user's own account fields: themePref (v3,
+// system|light|dark), densityPref (v16, large|compact|list) and showHealthBar
+// (SPEC-health-bar-visibility-toggle, boolean). PATCH semantics
+// — only the fields present in the body are validated and written; a body with
+// neither is a 400. Session-gated: 401 if not logged in. An unknown value → 400,
+// leaving the stored value unchanged. It writes only the current user's row —
+// there is no path to another user's.
+func (s *server) handlePatchMe(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.currentUser(w, r)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	raw, err := io.ReadAll(io.LimitReader(r.Body, maxPatchMeBody))
+	if err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	var body struct {
+		ThemePref         *string `json:"themePref"`
+		DensityPref       *string `json:"densityPref"`
+		ShowHealthBar     *bool   `json:"showHealthBar"`
+		ShowUptimeDisplay *bool   `json:"showUptimeDisplay"`
+		ShowWidgets       *bool   `json:"showWidgets"`
+	}
+	if err := json.Unmarshal(raw, &body); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	// D3 / AC-007 — a kid may change its theme and nothing else. Any other key
+	// (known or not), alone or next to themePref, is refused before anything
+	// is written, so a mixed request cannot half-apply.
+	if !storage.IsAdultRole(u.Role) {
+		var keys map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &keys); err != nil {
+			http.Error(w, "invalid JSON body", http.StatusBadRequest)
+			return
+		}
+		for k := range keys {
+			if k != "themePref" {
+				http.Error(w, "kid accounts can only change themePref", http.StatusForbidden)
+				return
+			}
+		}
+	}
+	if body.ThemePref == nil && body.DensityPref == nil && body.ShowHealthBar == nil &&
+		body.ShowUptimeDisplay == nil && body.ShowWidgets == nil {
+		http.Error(w, "body must include themePref, densityPref, showHealthBar, showUptimeDisplay or showWidgets", http.StatusBadRequest)
+		return
+	}
+	// Validate everything before writing anything, so a bad field cannot
+	// half-apply a request.
+	if body.ThemePref != nil && !validThemePref(*body.ThemePref) {
+		http.Error(w, "themePref must be one of system, light, dark", http.StatusBadRequest)
+		return
+	}
+	if body.DensityPref != nil && !validDensityPref(*body.DensityPref) {
+		http.Error(w, "densityPref must be one of large, compact, list", http.StatusBadRequest)
+		return
+	}
+
+	if body.ThemePref != nil {
+		if err := s.store.SetThemePref(r.Context(), u.ID, *body.ThemePref); err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		u.ThemePref = *body.ThemePref
+	}
+	if body.DensityPref != nil {
+		if err := s.store.SetDensityPref(r.Context(), u.ID, *body.DensityPref); err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		u.DensityPref = *body.DensityPref
+	}
+	// showHealthBar needs no value check: a non-boolean fails json.Decode above
+	// and 400s before anything is written, so the stored value is left alone.
+	if body.ShowHealthBar != nil {
+		if err := s.store.SetShowHealthBar(r.Context(), u.ID, *body.ShowHealthBar); err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		u.ShowHealthBar = *body.ShowHealthBar
+	}
+	// Like showHealthBar, no value check beyond the type: a non-boolean fails
+	// json.Decode above and 400s before anything is written.
+	if body.ShowUptimeDisplay != nil {
+		if err := s.store.SetShowUptimeDisplay(r.Context(), u.ID, *body.ShowUptimeDisplay); err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		u.ShowUptimeDisplay = *body.ShowUptimeDisplay
+	}
+	// SPEC-status-widgets AC-031 — the per-user "Show widgets" switch. A kid
+	// never reaches here with it (the themePref-only rule above).
+	if body.ShowWidgets != nil {
+		if err := s.store.SetShowWidgets(r.Context(), u.ID, *body.ShowWidgets); err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		u.ShowWidgets = *body.ShowWidgets
+	}
+	writeJSON(w, http.StatusOK, newUserView(u))
+}
+
+func validDensityPref(v string) bool {
+	return v == "large" || v == "compact" || v == "list"
+}
+
+func validThemePref(v string) bool {
+	return v == "system" || v == "light" || v == "dark"
+}
+
+// currentUser resolves the request's session cookie to its user, or false when
+// there is no live session. It also slides the session: at most once per
+// session.TouchInterval it extends the expiry by the role's lifetime and
+// re-issues the cookie with a fresh Max-Age (AC-010). A failed slide is logged
+// and does not fail the request — the session is still valid.
+func (s *server) currentUser(w http.ResponseWriter, r *http.Request) (storage.User, bool) {
+	ck, err := r.Cookie(sessionCookie)
+	if err != nil {
+		return storage.User{}, false
+	}
+	ctx := r.Context()
+	sess, err := s.sessions.Lookup(ctx, ck.Value)
+	if err != nil {
+		if !errors.Is(err, session.ErrNotFound) {
+			log.Printf("session: lookup: %v", err)
+		}
+		return storage.User{}, false
+	}
+	u, err := s.store.UserByID(ctx, sess.UserID)
+	if err != nil {
+		return storage.User{}, false
+	}
+	if sess.TouchDue {
+		lifetime := session.Lifetime(u.Role)
+		slid, err := s.sessions.Touch(ctx, ck.Value, lifetime)
+		if err != nil {
+			log.Printf("session: slide: %v", err)
+		} else if slid {
+			http.SetCookie(w, s.sessionCookie(ck.Value, lifetime))
+		}
+	}
+	return u, true
+}
+
+func decodeCredentials(w http.ResponseWriter, r *http.Request) (credentials, bool) {
+	var c credentials
+	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return c, false
+	}
+	c.Email = strings.TrimSpace(c.Email)
+	if c.Email == "" || c.Password == "" {
+		http.Error(w, "email and password are required", http.StatusBadRequest)
+		return c, false
+	}
+	if _, err := mail.ParseAddress(c.Email); err != nil {
+		http.Error(w, "invalid email address", http.StatusBadRequest)
+		return c, false
+	}
+	if len(c.Password) < minPasswordLen {
+		http.Error(w, "password must be at least 8 characters", http.StatusBadRequest)
+		return c, false
+	}
+	return c, true
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
+}
