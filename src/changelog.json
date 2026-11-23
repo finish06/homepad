@@ -2,6 +2,40 @@
   "pending": [],
   "versions": [
     {
+      "version": "18.0.1",
+      "date": "2026-11-22",
+      "changes": [
+        {
+          "type": "bug-fix",
+          "text": "The reset-link and invite-link dialogs no longer have a large empty space under the link."
+        },
+        {
+          "type": "bug-fix",
+          "text": "If pending invites can't load, Accounts still lists everyone. Only the invites part shows an error, with its own Retry."
+        },
+        {
+          "type": "bug-fix",
+          "text": "An invite or reset link opened in a tab that already shows Homepad now opens its screen."
+        },
+        {
+          "type": "bug-fix",
+          "text": "Copy buttons in Import from Homepage work over plain http. If the browser won't copy, Homepad selects the text and tells you how."
+        },
+        {
+          "type": "enhancement",
+          "text": "What's new opens on its own the first time you load Homepad after an upgrade."
+        },
+        {
+          "type": "bug-fix",
+          "text": "Restoring an unchanged backup no longer clears app icons. The preview says which icon is kept."
+        },
+        {
+          "type": "security",
+          "text": "API responses also refuse to be shown inside another page, and invite and reset link lookups have their own speed limit."
+        }
+      ]
+    },
+    {
       "version": "18.0.0",
       "date": "2026-11-22",
       "changes": [
