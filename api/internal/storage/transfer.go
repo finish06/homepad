@@ -477,11 +477,12 @@ func (t *TransferTx) PutIcon(ctx context.Context, appID, variant string, png []b
 }
 
 func (t *TransferTx) SetSettings(ctx context.Context, in SystemSettings) error {
-	_, err := t.tx.Exec(ctx, `INSERT INTO system_settings (id, show_uptime_display, status_degraded_ms, updated_at)
-		VALUES (1, $1, $2, now())
+	_, err := t.tx.Exec(ctx, `INSERT INTO system_settings (id, show_uptime_display, status_degraded_ms,
+		  status_degraded_updated_by, status_degraded_updated_at, updated_at)
+		VALUES (1, $1, $2, `+degradedMetaValues("$2", "$3")+`, now())
 		ON CONFLICT (id) DO UPDATE SET show_uptime_display = EXCLUDED.show_uptime_display,
-		  status_degraded_ms = EXCLUDED.status_degraded_ms, updated_at = now()`,
-		in.ShowUptimeDisplay, in.StatusDegradedMs)
+		  status_degraded_ms = EXCLUDED.status_degraded_ms, updated_at = now(),`+degradedMetaSet,
+		in.ShowUptimeDisplay, in.StatusDegradedMs, uuidOrNil(in.StatusDegradedUpdatedBy))
 	if err != nil {
 		return fmt.Errorf("storage: transfer settings: %w", err)
 	}

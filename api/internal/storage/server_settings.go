@@ -9,8 +9,8 @@ import (
 // SPEC-admin-server-settings §3 — server settings saved in the UI. One row
 // per key in server_settings (migration 0024); no row means "not set in the
 // UI". The "Slow" threshold (GATUS_DEGRADED_MS) stays in
-// system_settings.status_degraded_ms, and a change writes both in one
-// transaction.
+// system_settings.status_degraded_ms, with its saver and time beside it
+// (migration 0025), and a change writes both in one transaction.
 
 // ServerSettingRow is one saved server setting. Value is nil only for
 // OIDC_CLIENT_SECRET, which is Sealed with Nonce instead.
@@ -89,9 +89,12 @@ func (s *Store) ApplyServerSettings(ctx context.Context, actorID string, ch Serv
 	}
 	if ch.Degraded != nil {
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO system_settings (id, status_degraded_ms, updated_at) VALUES (1, $1, now())
-			 ON CONFLICT (id) DO UPDATE SET status_degraded_ms = EXCLUDED.status_degraded_ms, updated_at = now()`,
-			ch.Degraded.Ms); err != nil {
+			`INSERT INTO system_settings (id, status_degraded_ms,
+			   status_degraded_updated_by, status_degraded_updated_at, updated_at)
+			 VALUES (1, $1, `+degradedMetaValues("$1", "$2")+`, now())
+			 ON CONFLICT (id) DO UPDATE SET status_degraded_ms = EXCLUDED.status_degraded_ms,
+			   updated_at = now(),`+degradedMetaSet,
+			ch.Degraded.Ms, actor); err != nil {
 			return fmt.Errorf("storage: save status_degraded_ms: %w", err)
 		}
 	}

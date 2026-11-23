@@ -508,7 +508,7 @@ func (s *server) handleResetServerSetting(w http.ResponseWriter, r *http.Request
 	delete(without.values, k)
 	delete(without.invalid, k)
 	if k == keyGatusDegradedMs {
-		without.degraded = nil
+		without.degraded, without.degradedMeta = nil, nil
 	}
 	if def.Type == typeSecret {
 		without.unreadable = false

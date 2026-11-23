@@ -114,15 +114,18 @@ type liveConfig struct {
 // uiValues is what the UI saved, opened: normalized value per key, plus the
 // row's metadata. The secret is plaintext here and never leaves memory.
 type uiValues struct {
-	values     map[string]string
-	rows       map[string]storage.ServerSettingRow
-	degraded   *int
-	unreadable bool // the saved secret can't be opened
-	invalid    map[string]string
+	values   map[string]string
+	rows     map[string]storage.ServerSettingRow
+	degraded *int
+	// degradedMeta is who saved degraded and when (only UpdatedBy,
+	// UpdatedByName and UpdatedAt are set); nil when that isn't recorded.
+	degradedMeta *storage.ServerSettingRow
+	unreadable   bool // the saved secret can't be opened
+	invalid      map[string]string
 }
 
 func (u uiValues) clone() uiValues {
-	n := uiValues{values: map[string]string{}, rows: u.rows, degraded: u.degraded, unreadable: u.unreadable, invalid: map[string]string{}}
+	n := uiValues{values: map[string]string{}, rows: u.rows, degraded: u.degraded, degradedMeta: u.degradedMeta, unreadable: u.unreadable, invalid: map[string]string{}}
 	for k, v := range u.values {
 		n.values[k] = v
 	}
@@ -180,6 +183,11 @@ func (s *server) loadUI(ctx context.Context) (uiValues, string, error) {
 		v := *sys.StatusDegradedMs
 		u.degraded = &v
 		fmt.Fprintf(h, "degraded|%d\n", v)
+		if at := sys.StatusDegradedUpdatedAt; at != nil {
+			u.degradedMeta = &storage.ServerSettingRow{Key: keyGatusDegradedMs, UpdatedBy: sys.StatusDegradedUpdatedBy,
+				UpdatedByName: sys.StatusDegradedUpdatedByName, UpdatedAt: *at}
+			fmt.Fprintf(h, "degraded-meta|%s|%d\n", sys.StatusDegradedUpdatedBy, at.UnixNano())
+		}
 	}
 	return u, hex.EncodeToString(h.Sum(nil)), nil
 }
@@ -206,6 +214,10 @@ func (s *server) build(ui uiValues, reuse ...*TrustedProxies) (*liveConfig, erro
 			_, err := def.norm(uiVal)
 			uiOK = err == nil
 			st.savedInvalid = !uiOK
+			if m := ui.degradedMeta; m != nil {
+				t := m.UpdatedAt
+				st.updatedAt, st.updatedBy = &t, m
+			}
 		}
 		if row, ok := ui.rows[def.Key]; ok {
 			st.saved = true

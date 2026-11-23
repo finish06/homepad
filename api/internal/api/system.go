@@ -46,7 +46,8 @@ func (s *server) handleSystemConfig(w http.ResponseWriter, r *http.Request) {
 // full state after the write. requireAdmin writes 401 (no session) / 403
 // (non-admin) itself (AC-011/012/013).
 func (s *server) handlePatchSystemSettings(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireAdmin(w, r); !ok {
+	admin, ok := s.requireAdmin(w, r)
+	if !ok {
 		return
 	}
 	raw, err := io.ReadAll(io.LimitReader(r.Body, 64<<10))
@@ -103,6 +104,7 @@ func (s *server) handlePatchSystemSettings(w http.ResponseWriter, r *http.Reques
 	if resetDegraded {
 		cur.StatusDegradedMs = nil
 	}
+	cur.StatusDegradedUpdatedBy = admin.ID // recorded only if the value changes (AC-007)
 	saved, err := s.store.UpsertSystemSettings(r.Context(), cur)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)

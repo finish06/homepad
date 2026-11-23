@@ -401,6 +401,58 @@ func TestServerSettings_GETShape(t *testing.T) {
 	assert.Equal(t, "server", b.get(t, "COOKIE_SECURE")["group"])
 }
 
+// AC-007 — the "Slow" threshold says who saved it and when, like every other
+// key, in the PATCH answer and in a fresh GET. QA on #684: it showed
+// updatedAt and updatedBy null. A reset clears both.
+func TestServerSettings_DegradedRecordsSaverAndTime(t *testing.T) {
+	env := newSettingsEnv(t, nil)
+	check := func(t *testing.T, g map[string]any) {
+		t.Helper()
+		assert.Equal(t, true, g["saved"])
+		assert.Equal(t, "ui", g["source"])
+		at, ok := g["updatedAt"].(string)
+		require.True(t, ok, "updatedAt is %v", g["updatedAt"])
+		_, err := time.Parse(time.RFC3339, at)
+		assert.NoError(t, err)
+		by, ok := g["updatedBy"].(map[string]any)
+		require.True(t, ok, "updatedBy is %v", g["updatedBy"])
+		assert.Equal(t, env.AdminID, by["id"])
+		assert.NotEmpty(t, by["name"])
+	}
+	code, raw, b := ssPatch(t, env, map[string]any{"GATUS_DEGRADED_MS": 1500})
+	require.Equal(t, http.StatusOK, code, raw)
+	t.Run("PATCH", func(t *testing.T) { check(t, b.get(t, "GATUS_DEGRADED_MS")) })
+	t.Run("GET", func(t *testing.T) { check(t, ssGet(t, env).get(t, "GATUS_DEGRADED_MS")) })
+
+	code, raw, b = ssReset(t, env, "GATUS_DEGRADED_MS")
+	require.Equal(t, http.StatusOK, code, raw)
+	g := b.get(t, "GATUS_DEGRADED_MS")
+	assert.Equal(t, false, g["saved"])
+	assert.Nil(t, g["updatedAt"])
+	assert.Nil(t, g["updatedBy"])
+}
+
+// AC-007 — the older PATCH /api/admin/settings also records who saved the
+// "Slow" threshold. A change to the other field keeps that record.
+func TestServerSettings_DegradedSaverFromAdminSettings(t *testing.T) {
+	env := newSettingsEnv(t, nil)
+	resp := doJSON(t, http.MethodPatch, env.URL+"/api/admin/settings", "admin-session", map[string]any{"statusDegradedMs": 250})
+	resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	g := ssGet(t, env).get(t, "GATUS_DEGRADED_MS")
+	require.IsType(t, map[string]any{}, g["updatedBy"])
+	assert.Equal(t, env.AdminID, g["updatedBy"].(map[string]any)["id"])
+	at := g["updatedAt"]
+	require.IsType(t, "", at)
+
+	resp = doJSON(t, http.MethodPatch, env.URL+"/api/admin/settings", "admin-session", map[string]any{"showUptimeDisplay": false})
+	resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	g = ssGet(t, env).get(t, "GATUS_DEGRADED_MS")
+	assert.Equal(t, at, g["updatedAt"], "an unchanged threshold keeps its time")
+	assert.Equal(t, env.AdminID, g["updatedBy"].(map[string]any)["id"])
+}
+
 // AC-008 — all keys in one request save in one transaction, or none do.
 func TestServerSettings_PatchIsAllOrNothing(t *testing.T) {
 	env := newSettingsEnv(t, nil)
