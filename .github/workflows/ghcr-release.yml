@@ -1,4 +1,7 @@
-# Publish the homepad image to GitHub Container Registry — on GITHUB runners.
+# Publish the homepad and homepad-api images to GitHub Container Registry — on
+# GITHUB runners. One vX.Y.Z tag pushes both at :X.Y.Z (SPEC-monorepo-api
+# AC-003, AC-006); the API job was homepad-api's own ghcr-release.yml before the
+# API moved into api/.
 #
 # How code reaches this workflow: the canonical repo lives on Gitea
 # (Code/homepad); a Gitea push mirror (sync_on_commit) pushes every ref to
@@ -101,3 +104,59 @@ jobs:
           build-args: GIT_SHA=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # homepad-api, from api/. It is the public image people outside the homelab
+  # install: the quickstart compose pulls ghcr.io/finish06/homepad-api:<version>
+  # next to ghcr.io/finish06/homepad:<version>. Same tag scheme as the web.
+  build-push-api:
+    name: Build & push homepad-api to ghcr.io
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/finish06/homepad-api
+          flavor: latest=false
+          tags: |
+            type=sha,format=short,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+          labels: |
+            org.opencontainers.image.title=homepad-api
+            org.opencontainers.image.description=Go API for Homepad, the self-hosted household dashboard
+            org.opencontainers.image.url=https://gethomepad.dev
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: api
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # The Dockerfile writes VERSION into backups as homepadVersion. A tag
+          # build gets the semver version without the leading v (e.g. 18.0.0).
+          # A main build gets dev-<commit sha>; metadata-action's version output
+          # would be "latest" there, which names no build.
+          build-args: VERSION=${{ startsWith(github.ref, 'refs/tags/v') && steps.meta.outputs.version || format('dev-{0}', github.sha) }}
+          # A separate cache scope, so the two images don't evict each other.
+          cache-from: type=gha,scope=homepad-api
+          cache-to: type=gha,mode=max,scope=homepad-api
