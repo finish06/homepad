@@ -7,9 +7,9 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
-## [Unreleased] — 18.1.0 — Admins change server settings in the Admin Panel
+## [18.1.0] — 2026-11-23 — Admins change server settings in the Admin Panel
 
-**Upgrading.** Deploy the API first, then the web image. Migration `0024` adds the `server_settings` table. It starts empty, so every setting keeps its `.env` or default value.
+**Upgrading.** Deploy the API first, then the web image. Migration `0024` adds the `server_settings` table. It starts empty, so every setting keeps its `.env` or default value. Migration `0025` records who last saved the "Slow" threshold and when.
 
 - Server settings can now be changed in **Admin Panel → System**: secure cookies, trusted proxies, the Gatus address, the "Slow" threshold, sign-up, the account limit and single sign-on. They apply at once, with no restart.
 - **New rule: a value saved there wins over the environment.** Each row shows where its value comes from, and **Reset** goes back to `.env`.
@@ -20,6 +20,7 @@ codename maps to a release it is noted in the heading.
 - Changes need a confirm on the server too when they could lock people out or weaken sign-in limits.
 - `GET /api/admin/env-config` is deprecated. It stays until 19.0.0.
 - Backups still hold no server settings.
+- Homepad is now one repo: the API lives in `api/` in `finish06/homepad`. `finish06/homepad-api` is archived. Both images keep their names.
 
 ## [18.0.1] — 2026-11-22 — Fixes from the 18.0.0 release
 

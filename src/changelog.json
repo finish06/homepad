@@ -2,6 +2,24 @@
   "pending": [],
   "versions": [
     {
+      "version": "18.1.0",
+      "date": "2026-11-23",
+      "changes": [
+        {
+          "type": "feature",
+          "text": "Admins can change server settings in Admin Panel → System: secure cookies, trusted proxies, the Gatus address, the Slow threshold, sign-up, the account limit and single sign-on. Changes apply at once."
+        },
+        {
+          "type": "enhancement",
+          "text": "Each setting shows where its value comes from. Reset goes back to the server's environment value."
+        },
+        {
+          "type": "security",
+          "text": "Changes that could lock people out ask you to confirm. Single sign-on changes are checked with the provider before they save."
+        }
+      ]
+    },
+    {
       "version": "18.0.1",
       "date": "2026-11-22",
       "changes": [
