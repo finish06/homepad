@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"time"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/widgets"
+	"github.com/finish06/homepad/api/internal/widgets"
 )
 
 // Sonarr and Radarr share one API (v3), so one provider serves both kinds.

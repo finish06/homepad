@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/testsupport"
+	"github.com/finish06/homepad/api/internal/testsupport"
 )
 
 // SPEC-app-grid §10.4 (2026-09-12, OQ-3) — category.grid_width is a 12-COLUMN

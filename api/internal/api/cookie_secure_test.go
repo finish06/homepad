@@ -11,10 +11,10 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/api"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/dbguard"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/session"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
+	"github.com/finish06/homepad/api/internal/api"
+	"github.com/finish06/homepad/api/internal/dbguard"
+	"github.com/finish06/homepad/api/internal/session"
+	"github.com/finish06/homepad/api/internal/storage"
 )
 
 // TestSessionCookieSecure locks issue #14: the session cookie's Secure attribute

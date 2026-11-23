@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
+	"github.com/finish06/homepad/api/internal/storage"
 )
 
 // SPEC-household-manage-adults §2.3 and §6 — the storage half of removing an

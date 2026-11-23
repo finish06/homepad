@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
+	"github.com/finish06/homepad/api/internal/storage"
 )
 
 // handleAddFavorite marks a service as a favorite for the current user (A5).

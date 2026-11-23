@@ -11,10 +11,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/crypto/bcrypt"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/api"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/dbguard"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/session"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
+	"github.com/finish06/homepad/api/internal/api"
+	"github.com/finish06/homepad/api/internal/dbguard"
+	"github.com/finish06/homepad/api/internal/session"
+	"github.com/finish06/homepad/api/internal/storage"
 )
 
 // TestRegistrationFailsClosed locks issue #10: HOMEPAD_REGISTRATION must FAIL

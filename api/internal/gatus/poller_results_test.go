@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/gatus"
+	"github.com/finish06/homepad/api/internal/gatus"
 )
 
 // fakeGatus serves a single endpoint whose results[] are the given (success,

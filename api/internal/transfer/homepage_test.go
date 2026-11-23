@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/transfer"
+	"github.com/finish06/homepad/api/internal/transfer"
 )
 
 // SPEC-backup-import §4 — parsing Homepage's files (AC-019, AC-020, AC-022,

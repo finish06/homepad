@@ -1,4 +1,4 @@
-module gitea.kube.calebdunn.tech/code/homepad-api
+module github.com/finish06/homepad/api
 
 go 1.25.0
 

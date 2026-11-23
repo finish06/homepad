@@ -18,7 +18,7 @@ RUN v="$VERSION"; \
     if [ "$v" = dev ] && [ -n "$APP_VERSION" ]; then v="$APP_VERSION"; fi; \
     if [ "$v" = dev ] && [ -n "$GIT_SHA" ]; then v="dev-$GIT_SHA"; fi; \
     echo "homepadVersion: $v"; \
-    go build -trimpath -ldflags="-s -w -X gitea.kube.calebdunn.tech/code/homepad-api/internal/api.Version=$v" -o /out/homepad-api ./cmd/homepad-api
+    go build -trimpath -ldflags="-s -w -X github.com/finish06/homepad/api/internal/api.Version=$v" -o /out/homepad-api ./cmd/homepad-api
 
 # --- runtime ---
 FROM gcr.io/distroless/static-debian12:nonroot

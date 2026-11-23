@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/gatus"
+	"github.com/finish06/homepad/api/internal/gatus"
 )
 
 // DEGRADED derivation (Caleb, 2026-09-13). Gatus has no "degraded" state of its

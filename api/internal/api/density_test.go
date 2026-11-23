@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/testsupport"
+	"github.com/finish06/homepad/api/internal/testsupport"
 )
 
 // homepad SPEC-tile-density §5 / decision record OQ-9 — the tile density is a

@@ -14,7 +14,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
+	"github.com/finish06/homepad/api/internal/storage"
 )
 
 // SPEC-backup-import §2.2, §2.4, §7, §8 — the plan.

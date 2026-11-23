@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/testsupport"
+	"github.com/finish06/homepad/api/internal/testsupport"
 )
 
 // SPEC-tile-click-action-20260710 (v23) — services.click_action: the per-tile

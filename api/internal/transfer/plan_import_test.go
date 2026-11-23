@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/transfer"
+	"github.com/finish06/homepad/api/internal/storage"
+	"github.com/finish06/homepad/api/internal/transfer"
 )
 
 // SPEC-backup-import §2.4, §4.3, §4.4 — Homepage import plans.

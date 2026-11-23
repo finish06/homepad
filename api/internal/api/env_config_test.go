@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/testsupport"
+	"github.com/finish06/homepad/api/internal/testsupport"
 )
 
 // SPEC-v26-admin-env-config §6.3 — GET /api/admin/env-config exposes an EXPLICIT

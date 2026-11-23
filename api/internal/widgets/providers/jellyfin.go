@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/widgets"
+	"github.com/finish06/homepad/api/internal/widgets"
 )
 
 // Jellyfin — auth api_key, sent as Authorization: MediaBrowser Token="<key>".

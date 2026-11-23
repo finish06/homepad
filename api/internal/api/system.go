@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
+	"github.com/finish06/homepad/api/internal/storage"
 )
 
 // systemConfigView is the wire shape of the global System settings, shared by

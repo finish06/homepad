@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/testsupport"
+	"github.com/finish06/homepad/api/internal/testsupport"
 )
 
 // homepad-api #89 — the OIDC callback links a sign-in to a local account by

@@ -16,7 +16,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
+	"github.com/finish06/homepad/api/internal/storage"
 )
 
 // SPEC-signin-hardening §2.1, §2.2 — the per-client limiter, the per-email

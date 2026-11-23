@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/session"
+	"github.com/finish06/homepad/api/internal/session"
 )
 
 // AC-010 — lifetimes are a function of role. Adults (admin, user) get 30 days;

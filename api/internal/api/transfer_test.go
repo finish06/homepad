@@ -21,10 +21,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/api"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/gatus"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/testsupport"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/testsupport/schemacheck"
+	"github.com/finish06/homepad/api/internal/api"
+	"github.com/finish06/homepad/api/internal/gatus"
+	"github.com/finish06/homepad/api/internal/testsupport"
+	"github.com/finish06/homepad/api/internal/testsupport/schemacheck"
 )
 
 // SPEC-backup-import — the five admin routes against a real Postgres.

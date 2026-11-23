@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
+	"github.com/finish06/homepad/api/internal/storage"
 )
 
 // SPEC-kid-accounts — the kid write lock and the filter helper the catalog

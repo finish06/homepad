@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/gatus"
+	"github.com/finish06/homepad/api/internal/gatus"
 )
 
 // AC A4 — Status staleness < 60s (the poller ticker runs at most every 30s

@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/gatus"
+	"github.com/finish06/homepad/api/internal/gatus"
 )
 
 // AC-U04 — the surfaced windows are exactly Gatus's own supported durations minus

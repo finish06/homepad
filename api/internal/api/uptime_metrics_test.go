@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/gatus"
+	"github.com/finish06/homepad/api/internal/gatus"
 )
 
 // AC-U02 — a service with no gatus_key maps to an empty (non-nil) map so the JSON

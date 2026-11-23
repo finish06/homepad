@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/api"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/testsupport"
+	"github.com/finish06/homepad/api/internal/api"
+	"github.com/finish06/homepad/api/internal/testsupport"
 )
 
 // homepad#612 — the ingress sends /api/* straight to the API, past the web

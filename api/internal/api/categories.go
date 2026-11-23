@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
+	"github.com/finish06/homepad/api/internal/storage"
 )
 
 // categoryView is the wire shape of a category (v4). sortIndex is the

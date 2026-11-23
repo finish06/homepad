@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/transfer"
+	"github.com/finish06/homepad/api/internal/storage"
+	"github.com/finish06/homepad/api/internal/transfer"
 )
 
 // SPEC-backup-import §8 — export, restore and Homepage import. All five

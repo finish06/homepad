@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/widgets"
+	"github.com/finish06/homepad/api/internal/widgets"
 )
 
 // SPEC-status-widgets §6.5 — the Phase 1 providers, each against an httptest

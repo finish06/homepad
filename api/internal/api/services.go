@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/gatus"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
+	"github.com/finish06/homepad/api/internal/gatus"
+	"github.com/finish06/homepad/api/internal/storage"
 )
 
 type serviceView struct {

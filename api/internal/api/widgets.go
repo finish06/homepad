@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/widgets"
+	"github.com/finish06/homepad/api/internal/storage"
+	"github.com/finish06/homepad/api/internal/widgets"
 )
 
 // Status widgets (SPEC-status-widgets §7). The API server talks to the

@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/transfer"
+	"github.com/finish06/homepad/api/internal/storage"
+	"github.com/finish06/homepad/api/internal/transfer"
 )
 
 // SPEC-household-catalog-owner AC-012 (Q5) — 18.0.0 writes schemaVersion 2

@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/api"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/testsupport"
+	"github.com/finish06/homepad/api/internal/api"
+	"github.com/finish06/homepad/api/internal/testsupport"
 )
 
 // SPEC-signin-hardening §2.1, §2.2 — the sign-in limits over HTTP. Every

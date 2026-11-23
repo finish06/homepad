@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
+	"github.com/finish06/homepad/api/internal/storage"
 )
 
 // SPEC-backup-import §2.3 and §3 — the backup file. Schema v2

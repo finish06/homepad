@@ -14,8 +14,8 @@ import (
 	"regexp"
 	"strings"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/widgets"
+	"github.com/finish06/homepad/api/internal/storage"
+	"github.com/finish06/homepad/api/internal/widgets"
 )
 
 // Icon validation caps (spec v2-app-icons). Kept in one place so they're

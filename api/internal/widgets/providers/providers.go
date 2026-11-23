@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"strings"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/widgets"
+	"github.com/finish06/homepad/api/internal/widgets"
 )
 
 // Default is the registry the server uses, in the order the editor lists

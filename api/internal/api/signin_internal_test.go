@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/session"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
+	"github.com/finish06/homepad/api/internal/session"
+	"github.com/finish06/homepad/api/internal/storage"
 )
 
 // Login does the same bcrypt work whether or not the email has an account,

@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/session"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/testsupport"
+	"github.com/finish06/homepad/api/internal/session"
+	"github.com/finish06/homepad/api/internal/testsupport"
 )
 
 // #84 — an uploaded icon lives on a catalog service. Every account reads the

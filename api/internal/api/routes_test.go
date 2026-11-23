@@ -17,9 +17,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/api"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/oidc"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/session"
+	"github.com/finish06/homepad/api/internal/api"
+	"github.com/finish06/homepad/api/internal/oidc"
+	"github.com/finish06/homepad/api/internal/session"
 )
 
 // SPEC-kid-accounts §7 / plan TASK-205 — the route-coverage test.

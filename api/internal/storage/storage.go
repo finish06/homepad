@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/migrations"
+	"github.com/finish06/homepad/api/migrations"
 )
 
 // ErrNotFound is returned by lookups when no matching row exists.

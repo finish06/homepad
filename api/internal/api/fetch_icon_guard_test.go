@@ -18,8 +18,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/testsupport"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/widgets"
+	"github.com/finish06/homepad/api/internal/testsupport"
+	"github.com/finish06/homepad/api/internal/widgets"
 )
 
 // homepad-api #90 — the favicon fetcher moves onto the guarded client: no

@@ -19,8 +19,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/oidc"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/testsupport"
+	"github.com/finish06/homepad/api/internal/oidc"
+	"github.com/finish06/homepad/api/internal/testsupport"
 )
 
 // --- mocked PocketID / OIDC provider ---------------------------------------

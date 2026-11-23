@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
-	"gitea.kube.calebdunn.tech/code/homepad-api/migrations"
+	"github.com/finish06/homepad/api/internal/storage"
+	"github.com/finish06/homepad/api/migrations"
 )
 
 // SPEC-household-catalog-owner §6.1 (Q3) — the runner records each migration

@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/session"
+	"github.com/finish06/homepad/api/internal/session"
 )
 
 // The session.Store contract (SPEC-kid-accounts AC-010, AC-011; plan TASK-101).

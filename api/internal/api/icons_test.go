@@ -16,8 +16,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/dbguard"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/testsupport"
+	"github.com/finish06/homepad/api/internal/dbguard"
+	"github.com/finish06/homepad/api/internal/testsupport"
 )
 
 // AC A3, A4, A5, A6, A10, A11, A12, A13 — custom app icons (v2).

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net/http"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/transfer"
+	"github.com/finish06/homepad/api/internal/storage"
+	"github.com/finish06/homepad/api/internal/transfer"
 )
 
 // RouteInfo is one registered route and its kid class, for the route-coverage

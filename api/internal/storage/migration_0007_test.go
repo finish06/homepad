@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/migrations"
+	"github.com/finish06/homepad/api/migrations"
 )
 
 // Migration 0007 (v9.1) is the global→per-user cutover, and is effectively

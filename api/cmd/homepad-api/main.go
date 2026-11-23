@@ -14,13 +14,13 @@ import (
 	"syscall"
 	"time"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/api"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/gatus"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/oidc"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/session"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/widgets"
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/widgets/providers"
+	"github.com/finish06/homepad/api/internal/api"
+	"github.com/finish06/homepad/api/internal/gatus"
+	"github.com/finish06/homepad/api/internal/oidc"
+	"github.com/finish06/homepad/api/internal/session"
+	"github.com/finish06/homepad/api/internal/storage"
+	"github.com/finish06/homepad/api/internal/widgets"
+	"github.com/finish06/homepad/api/internal/widgets/providers"
 )
 
 func main() {

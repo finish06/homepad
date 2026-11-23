@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"gitea.kube.calebdunn.tech/code/homepad-api/internal/storage"
+	"github.com/finish06/homepad/api/internal/storage"
 )
 
 // SPEC-household-manage-adults §7 — an admin changes an adult's role or
