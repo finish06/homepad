@@ -1,0 +1,235 @@
+/* SPEC-admin-server-settings — Admin Panel → System. Imported by
+   SystemSettings, so it ships in the lazy SettingsPanel CSS chunk and the entry
+   stylesheet does not grow (AC-037; tests/infra/bundle-budget.test.ts). */
+
+/* SPEC-admin-server-settings UX §2 — the one server-setting row. The dt
+   stacks label, env name and the muted detail lines; the dd holds the value,
+   the source badge, the save flag and the row's buttons. */
+.settings-kv-label {
+  display: block;
+}
+.settings-kv-group {
+  margin-top: 14px;
+}
+.settings-kv-group > .settings-kv {
+  margin-top: 6px;
+}
+.settings-setting {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+.dark .settings-setting {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+.settings-setting dt {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+.settings-setting dd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 14rem;
+}
+.settings-setting--editing dd {
+  flex-basis: 100%;
+  align-items: stretch;
+  text-align: left;
+}
+.settings-setting-head {
+  display: inline-flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.settings-kv-value {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.settings-kv-value--warn,
+.settings-setting-detail--warn,
+.settings-setting-pending {
+  color: var(--v-degraded);
+  font-weight: 600;
+}
+.settings-setting-detail {
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--v-muted);
+  overflow-wrap: anywhere;
+}
+.settings-setting-pending {
+  font-size: 11px;
+}
+.settings-setting-onoff {
+  font-size: 12px;
+  font-weight: 600;
+}
+/* A-2 — the UI badge takes the accent tint; env and default stay grey. The
+   text is the accent darkened in light (and lightened in dark) so it clears
+   4.5:1 for every accent, the yellow one included. */
+.settings-src-badge {
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+.settings-src-badge[data-source='ui'] {
+  color: color-mix(in srgb, var(--accent-3) 58%, #000);
+  background: rgb(var(--accent-1) / 0.16);
+}
+.dark .settings-src-badge[data-source='ui'] {
+  color: var(--accent);
+  background: rgb(var(--accent-1) / 0.18);
+}
+.settings-setting-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.settings-section .settings-setting-btn {
+  min-height: 36px;
+}
+.settings-setting-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.settings-setting-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.settings-setting-input {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  min-height: 36px;
+}
+.settings-setting-input[aria-invalid='true'] {
+  border-color: var(--v-down);
+}
+.settings-setting-error {
+  margin-top: 0;
+}
+.settings-segmented {
+  display: inline-flex;
+  align-self: flex-start;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.settings-segmented-opt {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475069;
+}
+.settings-segmented-opt[aria-checked='true'] {
+  color: var(--on-accent);
+  background: var(--accent-3);
+}
+.dark .settings-segmented {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+.dark .settings-segmented-opt {
+  color: #aab2c5;
+}
+.dark .settings-segmented-opt[aria-checked='true'] {
+  color: var(--on-accent);
+}
+.settings-setting-reset-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  font-size: 13px;
+  text-align: right;
+}
+/* UX §6 — the env-only banner, above the groups. */
+.settings-envonly-banner {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--v-degraded) 45%, transparent);
+  background: color-mix(in srgb, var(--v-degraded) 10%, transparent);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.settings-envonly-title {
+  font-weight: 700;
+}
+/* UX §7 — the Sign-in group's footer: what's held, the test, one Save. */
+.settings-signin-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(15, 23, 42, 0.12);
+  font-size: 13px;
+}
+.dark .settings-signin-foot {
+  border-top-color: rgba(255, 255, 255, 0.14);
+}
+.settings-signin-status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.settings-signin-link {
+  text-decoration: underline;
+}
+.server-setting-changes {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  list-style: disc;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: reduce) {
+  .settings-src-badge {
+    transition: none;
+  }
+}
+/* UX §2.3 — at phone width the row stacks, the value wraps, and every button
+   is a 44px target. */
+@media (max-width: 480px) {
+  .settings-setting {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .settings-setting dt,
+  .settings-setting dd {
+    flex-basis: auto;
+    width: 100%;
+  }
+  .settings-setting dd,
+  .settings-setting-head,
+  .settings-setting-reset-confirm {
+    align-items: flex-start;
+    justify-content: flex-start;
+    text-align: left;
+  }
+  .settings-setting-actions {
+    justify-content: space-between;
+    width: 100%;
+  }
+  .settings-section .settings-setting-btn,
+  .settings-segmented-opt,
+  .settings-setting-input {
+    min-height: 44px;
+  }
+}

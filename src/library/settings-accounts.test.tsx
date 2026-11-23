@@ -1,10 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import SettingsPanel from './SettingsPanel';
-import { adminEnvConfig, listAccounts, listLibrary } from '../api';
+import { listAccounts, listLibrary } from '../api';
 
 // SPEC-kid-accounts UX §1 / K-1 (TASK-402) — Accounts is a section of the Admin
 // Panel, placed FIRST (above System), and only in the admin scope.
+
+vi.mock('./serverSettingsApi', () => ({
+  adminServerSettings: vi.fn(() => Promise.resolve({ envOnly: false, settings: [] })),
+  saveServerSettings: vi.fn(),
+  resetServerSetting: vi.fn(),
+  startOidcTest: vi.fn(),
+  oidcTestStatus: vi.fn(),
+}));
 
 vi.mock('../api', () => ({
   listLibrary: vi.fn(),
@@ -12,7 +20,6 @@ vi.mock('../api', () => ({
   updateLibraryApp: vi.fn(),
   deleteLibraryApp: vi.fn(),
   setLibraryOrder: vi.fn(),
-  adminEnvConfig: vi.fn(),
   listAccounts: vi.fn(),
   listInvites: vi.fn(() => Promise.resolve([])),
   authConfig: vi.fn(() => Promise.resolve({ oidcEnabled: false, registration: 'invite_only', setupNeeded: false })),
@@ -30,7 +37,6 @@ vi.mock('../api', () => ({
 
 beforeEach(() => {
   vi.mocked(listLibrary).mockResolvedValue([]);
-  vi.mocked(adminEnvConfig).mockResolvedValue([]);
   vi.mocked(listAccounts).mockResolvedValue([
     { id: 'a1', name: 'Caleb', role: 'admin', lastSeenAt: null, email: 'c@x.test', avatarColor: 'blue' },
   ]);
@@ -45,7 +51,6 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
       currentUserId="a1"
       initialSection={props.initialSection}
       showUptimeDisplay
-      statusDegradedMs={1000}
       onSaveSettings={vi.fn().mockResolvedValue(undefined)}
       showHealthBar
       onSetHealthBar={vi.fn()}

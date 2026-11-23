@@ -9,13 +9,20 @@ import SettingsPanel from './SettingsPanel';
 import { changePassword } from '../passwordApi';
 
 vi.mock('../passwordApi', () => ({ changePassword: vi.fn() }));
+vi.mock('./serverSettingsApi', () => ({
+  adminServerSettings: vi.fn(() => Promise.resolve({ envOnly: false, settings: [] })),
+  saveServerSettings: vi.fn(),
+  resetServerSetting: vi.fn(),
+  startOidcTest: vi.fn(),
+  oidcTestStatus: vi.fn(),
+}));
+
 vi.mock('../api', () => ({
   listLibrary: vi.fn(() => Promise.resolve([])),
   createLibraryApp: vi.fn(),
   updateLibraryApp: vi.fn(),
   deleteLibraryApp: vi.fn(),
   setLibraryOrder: vi.fn(),
-  adminEnvConfig: vi.fn(() => Promise.resolve([])),
   listAccounts: vi.fn(() => Promise.resolve([])),
   listInvites: vi.fn(() => Promise.resolve([])),
   authConfig: vi.fn(() => Promise.resolve({ oidcEnabled: false, registration: 'invite_only', setupNeeded: false })),
@@ -33,7 +40,6 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
       isAdmin={false}
       scope="personal"
       showUptimeDisplay
-      statusDegradedMs={1000}
       onSaveSettings={vi.fn().mockResolvedValue(undefined)}
       showHealthBar
       showUptimeDisplayPref

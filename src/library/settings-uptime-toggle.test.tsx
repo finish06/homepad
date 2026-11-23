@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SettingsPanel from './SettingsPanel';
-import { adminEnvConfig, listLibrary } from '../api';
+import { listLibrary } from '../api';
 
 // SPEC cap6-uptime-display-toggle §8/§9 — the writable admin System row.
 // As of cap6 v2 this row sets the DEFAULT FOR NEW ACCOUNTS; the per-user
@@ -13,13 +13,20 @@ import { adminEnvConfig, listLibrary } from '../api';
 // the flipped value on click (AC-005), and renders only for admins (AC-007). The
 // section note no longer claims the whole section is read-only (D6).
 
+vi.mock('./serverSettingsApi', () => ({
+  adminServerSettings: vi.fn(() => Promise.resolve({ envOnly: false, settings: [] })),
+  saveServerSettings: vi.fn(),
+  resetServerSetting: vi.fn(),
+  startOidcTest: vi.fn(),
+  oidcTestStatus: vi.fn(),
+}));
+
 vi.mock('../api', () => ({
   listLibrary: vi.fn(),
   createLibraryApp: vi.fn(),
   updateLibraryApp: vi.fn(),
   deleteLibraryApp: vi.fn(),
   setLibraryOrder: vi.fn(),
-  adminEnvConfig: vi.fn(),
   // SPEC-kid-accounts — the admin scope now opens with the Accounts section,
   // which lists accounts on mount. An empty list keeps these suites about what
   // they test.
@@ -33,7 +40,6 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
     <SettingsPanel
       isAdmin={props.isAdmin ?? true}
       showUptimeDisplay={props.showUptimeDisplay ?? true}
-      statusDegradedMs={1000}
       onSaveSettings={props.onSaveSettings ?? vi.fn().mockResolvedValue(undefined)}
       showHealthBar={true}
       showUptimeDisplayPref={true}
@@ -48,7 +54,6 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
 
 beforeEach(() => {
   vi.mocked(listLibrary).mockResolvedValue([]);
-  vi.mocked(adminEnvConfig).mockResolvedValue([]);
 });
 
 afterEach(() => vi.clearAllMocks());
@@ -86,13 +91,13 @@ describe('System settings — uptime display toggle (cap6)', () => {
     expect(screen.queryByTestId('settings-switch-uptime')).toBeNull();
   });
 
-  it('drops the whole-section read-only claim from the note (D6)', async () => {
+  it('drops the whole-section read-only claim from the note (D6, AC-032)', async () => {
     renderPanel({ isAdmin: true });
     await screen.findByTestId('settings-switch-uptime');
     const note = screen.getByTestId('settings-system').querySelector('.settings-section-note');
-    // The old copy opened by declaring the WHOLE section read-only; D6 drops that.
-    expect(note?.textContent ?? '').not.toMatch(/^Read-only — set via environment/);
-    // The read-only signal now rides on the per-row [env] badge, referenced in the note.
-    expect(note?.querySelector('.settings-env-badge')).not.toBeNull();
+    expect(note?.textContent ?? '').not.toMatch(/read-only/i);
+    // SPEC-admin-server-settings §2.3 — the uptime row has no source badge.
+    const row = screen.getByTestId('setting-row-showUptimeDisplay');
+    expect(row.querySelector('.settings-src-badge')).toBeNull();
   });
 });

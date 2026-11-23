@@ -6,14 +6,15 @@ import ChangePassword from './ChangePassword';
 import BackupSection from './backup/BackupSection';
 import WidgetsSettings from '../widgets/WidgetsSettings';
 import type { TileDensity } from '../grid/tileDensity';
+import SystemSettings from './SystemSettings';
+import SettingsDialog from './SettingsDialog';
+import type { ServerSettings } from './serverSettingsApi';
 import {
-  adminEnvConfig,
   createLibraryApp,
   deleteLibraryApp,
   listLibrary,
   setLibraryOrder,
   updateLibraryApp,
-  type EnvConfigEntry,
   type LibraryAppInput,
   type LibraryOffer,
   type SystemConfig,
@@ -26,11 +27,11 @@ import {
 // `authConfig` "since there is no GET /api/admin/settings yet", and that the
 // System panel was READ-ONLY. Both stopped being true and the comment outlived
 // them by two releases:
-//   - SPEC-v26 (v15.3.0) added `GET /api/admin/env-config`, and SystemSettings
-//     now fetches the allowlisted env vars from it directly (see adminEnvConfig).
+//   - SPEC-admin-server-settings (18.1.0) made System editable: SystemSettings
+//     reads GET /api/admin/server-settings and no longer calls the deprecated
+//     /api/admin/env-config (Q3 A).
 //   - cap6 made the "Show uptime display" row WRITABLE via
-//     PATCH /api/admin/settings, so the section is no longer read-only; the
-//     per-row [env] badge carries that signal instead.
+//     PATCH /api/admin/settings; it is still saved there.
 
 // SPEC-health-bar-visibility-toggle OQ-1 (a) — the panel now has two scopes.
 // `admin` is the v9.3 surface, unchanged, reached from Administration →
@@ -48,7 +49,6 @@ export default function SettingsPanel({
   isAdmin,
   scope = 'admin',
   showUptimeDisplay,
-  statusDegradedMs,
   showHealthBar,
   onSetHealthBar,
   showUptimeDisplayPref,
@@ -57,6 +57,7 @@ export default function SettingsPanel({
   onSetDensity,
   onSaveSettings,
   onClose,
+  onServerSettingsChanged,
   currentUserId,
   initialSection,
   onCatalogChanged,
@@ -76,7 +77,9 @@ export default function SettingsPanel({
   // dashboard behind the panel should refetch.
   onCatalogChanged?: () => void;
   showUptimeDisplay: boolean;
-  statusDegradedMs: number;
+  // SPEC-admin-server-settings §8 — a server setting was saved or reset. App
+  // re-reads what it shows from it (the "Slow" threshold on tiles).
+  onServerSettingsChanged?: (next: ServerSettings) => void;
   showHealthBar: boolean;
   onSetHealthBar: (show: boolean) => void;
   showUptimeDisplayPref: boolean;
@@ -102,6 +105,23 @@ export default function SettingsPanel({
   // SPEC-backup-import — bumped after a restore or an import, so the App Library
   // and Accounts sections below remount and reload what the apply changed.
   const [catalogVersion, setCatalogVersion] = useState(0);
+  // SPEC-admin-server-settings UX §7 — unsaved Sign-in changes make leaving ask.
+  const [signinDirty, setSigninDirty] = useState(0);
+  const [askDiscard, setAskDiscard] = useState(false);
+  // §8 — bumped when Sign-up or Single sign-on changed, so Accounts re-reads
+  // the auth config (its open sign-up warning, the PocketID line) in place.
+  const [authVersion, setAuthVersion] = useState(0);
+  const requestClose = () => {
+    if (signinDirty > 0) setAskDiscard(true);
+    else onClose();
+  };
+  const onServerChanged = (next: ServerSettings, prev: ServerSettings | null) => {
+    const pick = (b: ServerSettings | null, k: string) => b?.settings.find((x) => x.key === k)?.value;
+    if (['HOMEPAD_REGISTRATION', 'OIDC_ENABLED'].some((k) => pick(next, k) !== pick(prev, k))) {
+      setAuthVersion((v) => v + 1);
+    }
+    onServerSettingsChanged?.(next);
+  };
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -121,7 +141,7 @@ export default function SettingsPanel({
   // focused one Escape press closes only the inner layer (the stop prevents
   // this Modal's document listener from seeing the event).
   return (
-    <Modal onDismiss={onClose} overlayClassName="launcher-overlay" overlayTestId="settings-overlay">
+    <Modal onDismiss={askDiscard ? () => {} : requestClose} overlayClassName="launcher-overlay" overlayTestId="settings-overlay">
       <div
         ref={panelRef}
         data-testid="settings-panel"
@@ -146,7 +166,7 @@ export default function SettingsPanel({
             type="button"
             data-testid="settings-close"
             aria-label="Close admin panel"
-            onClick={onClose}
+            onClick={requestClose}
             className="launcher-clear library-close"
           >
             ✕
@@ -181,12 +201,14 @@ export default function SettingsPanel({
               <AccountsSection
                 key={`accounts-${catalogVersion}`}
                 currentUserId={currentUserId}
+                configVersion={authVersion}
                 scrollIntoView={catalogVersion === 0 && initialSection === 'accounts'}
               />
               <SystemSettings
                 showUptimeDisplay={showUptimeDisplay}
-                statusDegradedMs={statusDegradedMs}
                 onSaveSettings={onSaveSettings}
+                onChanged={onServerChanged}
+                onSigninDirty={setSigninDirty}
               />
               {/* SPEC-status-widgets W-3 — Widgets sits right after System. */}
               <WidgetsSettings onChanged={onWidgetsChanged} />
@@ -204,336 +226,22 @@ export default function SettingsPanel({
           )}
         </div>
       </div>
-    </Modal>
-  );
-}
-
-// SPEC-v26 §8.1 — friendly labels for the allowlisted env vars. The raw var name
-// is always shown too (mono sub-label); this is just the human-readable primary.
-// A key with no entry falls back to rendering the raw key as its own label.
-const ENV_LABELS: Record<string, string> = {
-  GATUS_BASE_URL: 'Gatus base URL',
-  COOKIE_SECURE: 'Secure cookies',
-  HOMEPAD_REGISTRATION: 'Registration mode',
-  HOMEPAD_MAX_ACCOUNTS: 'Account limit',
-  HOMEPAD_TRUSTED_PROXIES: 'Trusted proxies',
-  PORT: 'Server port',
-  OIDC_ENABLED: 'OIDC sign-in',
-  OIDC_ISSUER: 'OIDC issuer',
-  OIDC_DISCOVERY_URL: 'OIDC discovery URL',
-  OIDC_REDIRECT_URL: 'OIDC redirect URL',
-  OIDC_CLIENT_ID: 'OIDC client ID',
-  OIDC_ADMIN_GROUP: 'OIDC admin group',
-  OIDC_MEMBER_GROUP: 'OIDC member group',
-};
-
-const SERVER_KEYS = new Set([
-  'GATUS_BASE_URL',
-  'COOKIE_SECURE',
-  'HOMEPAD_REGISTRATION',
-  'HOMEPAD_MAX_ACCOUNTS',
-  'HOMEPAD_TRUSTED_PROXIES',
-  'PORT',
-]);
-
-// SPEC-v26 §8.5 — presentation-only grouping derived by walking the ordered API
-// array; a caption is emitted whenever the group changes. Any future allowlisted
-// key with no home falls into "Other" rather than crashing or being dropped.
-function groupFor(key: string): string {
-  if (SERVER_KEYS.has(key)) return 'Server';
-  if (key.startsWith('OIDC_')) return 'Identity (OIDC)';
-  return 'Other';
-}
-
-type EnvLoad = 'loading' | 'ready' | 'error';
-
-// System settings. The first row is the WRITABLE "Show uptime display" toggle
-// (cap6); below it, SPEC-v26 replaces the two old hardcoded OIDC/registration
-// rows with a live read-only table of the allowlisted runtime env vars fetched
-// from GET /api/admin/env-config, grouped into Server / Identity (OIDC) (§8).
-function SystemSettings({
-  showUptimeDisplay,
-  statusDegradedMs,
-  onSaveSettings,
-}: {
-  showUptimeDisplay: boolean;
-  statusDegradedMs: number;
-  onSaveSettings: (patch: Partial<SystemConfig>) => Promise<void>;
-}) {
-  const [entries, setEntries] = useState<EnvConfigEntry[]>([]);
-  const [state, setState] = useState<EnvLoad>('loading');
-
-  // AC-010/AC-017 — fetch once on mount (i.e. when the admin opens the panel);
-  // no polling, no refetch. A page reload is the refresh path (§8.4).
-  useEffect(() => {
-    let live = true;
-    adminEnvConfig()
-      .then((rows) => { if (live) { setEntries(rows); setState('ready'); } })
-      .catch(() => { if (live) setState('error'); });
-    return () => { live = false; };
-  }, []);
-
-  return (
-    <section data-testid="settings-system" aria-labelledby="settings-system-h" className="settings-section">
-      <h3 id="settings-system-h" className="settings-section-title">
-        System
-      </h3>
-      {/* The note no longer claims the whole section is read-only; the [env]
-          badges carry that signal per-row, leaving the toggle correctly writable. */}
-      <p className="settings-section-note">
-        These settings apply globally to all accounts. Rows marked{' '}
-        <span className="settings-env-badge" aria-hidden="true">env</span> are
-        read-only — set via environment variables and redeploy.
-      </p>
-      <dl className="settings-kv" data-testid="settings-env-list" aria-busy={state === 'loading'}>
-        <UptimeToggleRow value={showUptimeDisplay} onSave={onSaveSettings} />
-        <DegradedThresholdRow value={statusDegradedMs} onSave={onSaveSettings} />
-        {state === 'loading' && <EnvConfigSkeleton />}
-        {state === 'error' && <EnvConfigError />}
-        {state === 'ready' && <EnvConfigRows entries={entries} />}
-      </dl>
-    </section>
-  );
-}
-
-// §8.3 — skeleton rows keep the layout height stable while the fetch is in
-// flight; the shimmer is CSS-gated on prefers-reduced-motion. A visually-hidden
-// role="status" gives AT the cue the aria-hidden skeletons can't.
-function EnvConfigSkeleton() {
-  return (
-    <>
-      <span className="sr-only" role="status">Loading server configuration…</span>
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="settings-kv-row settings-kv-row--env settings-kv-skeleton" aria-hidden="true">
-          <dt><span className="settings-skeleton-bar settings-skeleton-bar--dt" /></dt>
-          <dd><span className="settings-skeleton-bar settings-skeleton-bar--dd" /></dd>
-        </div>
-      ))}
-    </>
-  );
-}
-
-// §8.4 — in-place error where the rows would render; the uptime toggle above
-// stays live. Reload-guided copy (no retry button, per AC-017). A bare div child
-// of the <dl> (no dt/dd) keeps the list semantics clean.
-function EnvConfigError() {
-  return (
-    <div className="settings-env-error-cell" data-testid="settings-env-error">
-      <span className="settings-error" role="alert">Couldn't load server configuration.</span>
-      <span className="settings-env-error-hint">Reload the page to try again.</span>
-    </div>
-  );
-}
-
-// §8.1/§8.2/§8.5/§8.8 — the grouped read-only rows. Walks the ordered array,
-// emitting a full-width group caption whenever the group changes. Captions and
-// rows are flattened as direct children of the parent <dl> to keep the list
-// structure valid (div-wrapped dt/dd groups).
-function EnvConfigRows({ entries }: { entries: EnvConfigEntry[] }) {
-  let lastGroup = '';
-  const nodes: React.ReactNode[] = [];
-  for (const e of entries) {
-    const group = groupFor(e.key);
-    if (group !== lastGroup) {
-      // A div-wrapped dt/dd group keeps the <dl> structure valid; the caption is
-      // the term, the empty dd is a decorative definition (§8.5: captions are
-      // presentation-only, the dt/dd rows below carry the real semantics).
-      nodes.push(
-        <div key={`cap-${group}`} className="settings-kv-group-row">
-          <dt className="settings-kv-group-label">{group}</dt>
-          <dd className="settings-kv-group-dd" aria-hidden="true" />
-        </div>,
-      );
-      lastGroup = group;
-    }
-    nodes.push(
-      <div key={e.key} className="settings-kv-row settings-kv-row--env" data-testid={`env-row-${e.key}`}>
-        <dt>
-          <span className="settings-kv-label">{ENV_LABELS[e.key] ?? e.key}</span>
-          <code className="settings-kv-var">{e.key}</code>
-          {/* SPEC-signin-hardening UX §4 (S-3) — the one default whose cost
-              isn't visible: say it where the admin looks. */}
-          {e.key === 'HOMEPAD_TRUSTED_PROXIES' && e.value === '' && (
-            <span className="settings-kv-help">When this is empty, everyone shares one sign-in limit.</span>
-          )}
-        </dt>
-        <dd>
-          {e.value === '' ? (
-            <>
-              <span className="settings-kv-value settings-kv-value--empty" aria-hidden="true">—</span>
-              <span className="sr-only">not set</span>
-            </>
-          ) : (
-            <span className="settings-kv-value">{e.value}</span>
-          )}
-          <span className="settings-env-badge" aria-hidden="true">env</span>
-        </dd>
-      </div>,
-    );
-  }
-  return <>{nodes}</>;
-}
-
-type SaveState = 'idle' | 'saving' | 'saved' | 'error';
-
-// DegradedThresholdRow — the writable "Slow" threshold (v16 tile status line /
-// health panel amber). A number input + explicit Save: unlike the toggle, a
-// half-typed number must not PATCH on every keystroke. 0 turns the derivation
-// off. Same save-flag + revert-on-error contract as the toggle (§9.2).
-function DegradedThresholdRow({
-  value,
-  onSave,
-}: {
-  value: number;
-  onSave: (patch: Partial<SystemConfig>) => Promise<void>;
-}) {
-  const [draft, setDraft] = useState(String(value));
-  const [saveState, setSaveState] = useState<SaveState>('idle');
-  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => setDraft(String(value)), [value]);
-  useEffect(() => () => { if (savedTimer.current) clearTimeout(savedTimer.current); }, []);
-
-  const parsed = Number(draft);
-  const valid = draft.trim() !== '' && Number.isInteger(parsed) && parsed >= 0 && parsed <= 600000;
-  const dirty = valid && parsed !== value;
-
-  async function save() {
-    if (!dirty || saveState === 'saving') return;
-    setSaveState('saving');
-    try {
-      await onSave({ statusDegradedMs: parsed });
-      setSaveState('saved');
-      if (savedTimer.current) clearTimeout(savedTimer.current);
-      savedTimer.current = setTimeout(() => setSaveState('idle'), 1600);
-    } catch {
-      setDraft(String(value)); // revert to the last persisted value
-      setSaveState('error');
-    }
-  }
-
-  const flag =
-    saveState === 'saving' ? 'Saving…' :
-    saveState === 'saved' ? 'Saved ✓' :
-    saveState === 'error' ? "Couldn't save — try again." : '';
-
-  return (
-    <div className="settings-kv-row settings-kv-row--control">
-      <dt id="degraded-threshold-label">
-        Mark a service Slow after
-        <span className="settings-kv-hint"> — a check that succeeds but takes longer than this reads Slow on the tile and turns the health panel amber. 0 turns this off.</span>
-      </dt>
-      <dd>
-        <span className="settings-save-flag" role="status" aria-live="polite" data-state={saveState}>
-          {flag}
-        </span>
-        <form
-          className="settings-inline-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save();
+      {askDiscard && (
+        <SettingsDialog
+          testId="signin-discard"
+          title={`Discard ${signinDirty} ${signinDirty === 1 ? 'change' : 'changes'} to sign-in settings?`}
+          paragraphs={['They are not saved yet.']}
+          primary="Discard"
+          cancelLabel="Keep editing"
+          danger
+          onCancel={() => setAskDiscard(false)}
+          onConfirm={() => {
+            setAskDiscard(false);
+            onClose();
           }}
-        >
-          <input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            max={600000}
-            step={50}
-            className="settings-number"
-            data-testid="degraded-threshold-input"
-            aria-labelledby="degraded-threshold-label"
-            aria-invalid={!valid || undefined}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            disabled={saveState === 'saving'}
-          />
-          <span className="settings-unit" aria-hidden="true">ms</span>
-          <button
-            type="submit"
-            className="settings-inline-save"
-            data-testid="degraded-threshold-save"
-            disabled={!dirty || saveState === 'saving'}
-          >
-            Save
-          </button>
-        </form>
-      </dd>
-    </div>
-  );
-}
-
-// UptimeToggleRow — the writable pill switch (§9.1). It moves the thumb
-// optimistically on click, PATCHes via onSave, then shows a transient "Saved ✓"
-// (~1.6s) or reverts to the persisted value on error (§9.2). role="switch" +
-// aria-checked keep the state truthful to what is actually persisted.
-function UptimeToggleRow({
-  value,
-  onSave,
-}: {
-  value: boolean;
-  onSave: (patch: Partial<SystemConfig>) => Promise<void>;
-}) {
-  const [optimistic, setOptimistic] = useState(value);
-  const [saveState, setSaveState] = useState<SaveState>('idle');
-  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Keep the control in sync with the persisted prop when it changes elsewhere.
-  useEffect(() => setOptimistic(value), [value]);
-  useEffect(() => () => { if (savedTimer.current) clearTimeout(savedTimer.current); }, []);
-
-  async function toggle() {
-    if (saveState === 'saving') return;
-    const next = !optimistic;
-    setOptimistic(next); // optimistic thumb move (§9.6)
-    setSaveState('saving');
-    try {
-      await onSave({ showUptimeDisplay: next });
-      setSaveState('saved');
-      if (savedTimer.current) clearTimeout(savedTimer.current);
-      savedTimer.current = setTimeout(() => setSaveState('idle'), 1600);
-    } catch {
-      setOptimistic(value); // revert to the last persisted value
-      setSaveState('error');
-    }
-  }
-
-  const flag =
-    saveState === 'saving' ? 'Saving…' :
-    saveState === 'saved' ? 'Saved ✓' :
-    saveState === 'error' ? "Couldn't save — try again." : '';
-
-  return (
-    <div className="settings-kv-row settings-kv-row--control">
-      {/* AC-028 / AC-028a — cap6 v2 made this a DEFAULT FOR NEW ACCOUNTS, not a
-          live override. Toggling it changes nothing on any existing dashboard,
-          including the admin's own, so the row has to explain its own lack of
-          visible effect or it reads as broken. Copy accepted 2026-09-20. */}
-      <dt id="uptime-toggle-label">
-        Uptime display for new accounts
-        <span className="settings-kv-help">
-          Applies to accounts created after this change. Everyone controls their own in
-          My settings.
-        </span>
-      </dt>
-      <dd>
-        <span className="settings-save-flag" role="status" aria-live="polite" data-state={saveState}>
-          {flag}
-        </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={optimistic}
-          aria-labelledby="uptime-toggle-label"
-          aria-busy={saveState === 'saving'}
-          disabled={saveState === 'saving'}
-          className="settings-switch"
-          data-testid="settings-switch-uptime"
-          onClick={toggle}
-        >
-          <span className="settings-switch-thumb" aria-hidden="true" />
-        </button>
-      </dd>
-    </div>
+        />
+      )}
+    </Modal>
   );
 }
 

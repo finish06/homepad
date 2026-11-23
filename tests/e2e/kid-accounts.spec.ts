@@ -12,7 +12,8 @@ test('TC-001 — an admin creates a kid, picks four apps, and hands this device 
   // Administration → Accounts opens the Admin Panel on the Accounts section.
   await page.getByTestId('user-menu-trigger').click();
   await page.getByTestId('menu-accounts').click();
-  await expect(page.getByRole('heading', { name: 'Accounts' })).toBeVisible();
+  // level 3: System has an "Accounts" group caption (h4) too (SPEC-admin-server-settings).
+  await expect(page.getByRole('heading', { name: 'Accounts', level: 3 })).toBeVisible();
 
   await page.getByRole('button', { name: '+ Add a kid' }).click();
   const add = page.getByRole('dialog', { name: 'Add a kid' });

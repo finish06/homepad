@@ -2014,14 +2014,6 @@
     gap: 8px;
   }
 
-  /* Slow-threshold row (System panel): number + unit + explicit Save, inline. */
-  .settings-kv-hint {
-    display: block;
-    font-weight: 400;
-    font-size: 12px;
-    color: var(--v-muted, #64748b);
-    margin-top: 2px;
-  }
   .settings-inline-form {
     display: inline-flex;
     align-items: center;
@@ -2062,15 +2054,6 @@
     cursor: default;
   }
 
-  /* SPEC-v26 §8 — the read-only Environment Configuration list. Each env row
-     stacks a friendly label over the raw var name in the dt; the dd carries the
-     value + [env] badge, right-aligned like the control row. */
-  .settings-kv-row--env dt {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    min-width: 0;
-  }
   .settings-kv-label {
     color: #475069;
     font-weight: 600;
@@ -2087,12 +2070,6 @@
   .dark .settings-kv-var {
     color: #aab2c5;
   }
-  .settings-kv-row--env dd {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 6px;
-    min-width: 0;
-  }
   .settings-kv-value {
     color: #0f172a;
   }
@@ -2105,20 +2082,6 @@
   }
   .dark .settings-kv-value--empty {
     color: #aab2c5;
-  }
-  /* §8.5 — full-width group caption; orients without competing with "System".
-     The caption row is a div-wrapped dt/dd group (valid <dl> structure); the
-     empty decorative dd is hidden and the dt spans the row. */
-  .settings-kv-group-row {
-    margin-top: 8px;
-  }
-  /* #377 — a `.settings-kv-group-row:first-child { margin-top: 0 }` rule lived here
-     and never matched: the <dl> always renders the uptime toggle and Slow-threshold
-     rows first, so no group caption is ever its first child. Removed rather than
-     "fixed" — the 8px it would have cancelled is what separates the env section
-     from those two controls. */
-  .settings-kv-group-dd {
-    display: none;
   }
   .settings-kv-group-label {
     font-size: 11px;
@@ -2188,24 +2151,6 @@
     .settings-skeleton-bar {
       animation: none;
       background-image: none;
-    }
-  }
-  /* §8.7 — below 480px stack the row and hard-wrap long OIDC URLs; the [env]
-     badge stays glued to the end of the value. */
-  @media (max-width: 480px) {
-    .settings-kv-row--env {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 2px;
-    }
-    .settings-kv-row--env dd {
-      text-align: left;
-      flex-wrap: wrap;
-    }
-    .settings-kv-value {
-      overflow-wrap: anywhere;
-      word-break: break-word;
-      min-width: 0;
     }
   }
   /* Pill switch — 44×44 hit area, 44×24 visible track centered inside (≥44 touch

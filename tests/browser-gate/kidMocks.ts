@@ -1,4 +1,5 @@
 import { type Page, type Route } from '@playwright/test';
+import { settingsBody } from '../../src/test/serverSettingsFixture';
 
 // SPEC-kid-accounts (TASK-401) — mocked API for the kid board and the admin
 // Accounts section, shared by tests/browser-gate and tests/e2e. It mirrors
@@ -345,7 +346,7 @@ export async function mockAdminAccounts(
     if (path === '/api/system/config') return json(route, { showUptimeDisplay: true, statusDegradedMs: 1000 });
     if (path === '/api/services') return json(route, { services });
     if (path === '/api/categories') return json(route, { categories });
-    if (path === '/api/admin/env-config') return json(route, [{ key: 'HOMEPAD_REGISTRATION', value: 'invite_only' }]);
+    if (path === '/api/admin/server-settings') return json(route, settingsBody());
     if (path === '/api/library') return json(route, { library: [] });
     const adultMatch = path.match(/^\/api\/admin\/accounts\/([^/]+)$/);
     if (adultMatch && (method === 'PATCH' || method === 'DELETE')) {

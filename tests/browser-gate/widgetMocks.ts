@@ -1,4 +1,5 @@
 import { type Page, type Route } from '@playwright/test';
+import { settingsBody } from '../../src/test/serverSettingsFixture';
 
 // SPEC-status-widgets — a mocked homepad-api for the widget surfaces, shared by
 // tests/browser-gate and tests/e2e. It mirrors the contract the API PR ships:
@@ -302,7 +303,7 @@ export async function mockWidgets(
         },
       });
     }
-    if (path === '/api/admin/env-config') return reply(route, path, []);
+    if (path === '/api/admin/server-settings') return reply(route, path, settingsBody());
     if (path === '/api/admin/accounts') return reply(route, path, []);
     if (path === '/api/library') return reply(route, path, { library: [] });
     if (path.startsWith('/api/services/') && method === 'PATCH') {

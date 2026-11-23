@@ -270,6 +270,27 @@ describe('bundle budget — the built artifact stays within its byte budget', ()
     }
   });
 
+  // SPEC-admin-server-settings AC-037 — the editable System settings ride in
+  // the lazy SettingsPanel chunk: their client, copy and styles never reach the
+  // entry. Measured against the spec commit (gzip -9 of dist/assets): entry JS
+  // 89,924 -> 89,947 B (+23: the env-config client left api.ts, and main.tsx
+  // gained the lazy /#oidc-test= landing), entry CSS 19,753 -> 19,678 B (-75;
+  // the old env-list rules left index.css, the new rules are in
+  // src/library/server-settings.css). Budgets unchanged.
+  it('the server settings code and styles are not in the entry chunk', () => {
+    const files = readdirSync(assets);
+    const entryJs = readFileSync(resolve(assets, files.find((f) => /^index-[A-Za-z0-9_-]+\.js$/.test(f))!), 'utf8');
+    for (const probe of ['/api/admin/server-settings', 'HOMEPAD_SETTINGS_FROM_ENV_ONLY', 'Review and save']) {
+      expect(entryJs, `the entry chunk carries "${probe}"`).not.toContain(probe);
+    }
+    const panel = files.find((f) => /^SettingsPanel-[A-Za-z0-9_-]+\.js$/.test(f))!;
+    expect(readFileSync(resolve(assets, panel), 'utf8')).toContain('/api/admin/server-settings');
+    const entryCss = files.find((f) => /^index-[A-Za-z0-9_-]+\.css$/.test(f))!;
+    expect(readFileSync(resolve(assets, entryCss), 'utf8')).not.toContain('.settings-setting');
+    const lazy = files.filter((f) => f.endsWith('.css') && f !== entryCss).map((f) => readFileSync(resolve(assets, f), 'utf8'));
+    expect(lazy.some((css) => css.includes('.settings-setting-head')), 'no lazy stylesheet carries the row rules').toBe(true);
+  });
+
   it('a lazy CSS chunk carries the admin widget styles', () => {
     const lazyCss = readdirSync(assets).filter((f) => f.endsWith('.css') && !/^index-/.test(f));
     const holders = lazyCss.filter((f) => readFileSync(resolve(assets, f), 'utf8').includes('.widget-config'));

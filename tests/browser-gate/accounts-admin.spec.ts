@@ -108,7 +108,7 @@ test('the accounts error state offers Retry and the rest of the panel still work
   await page.getByTestId('menu-accounts').click();
   await expect(page.getByText("Couldn't load accounts.")).toBeVisible();
   await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
-  await expect(page.getByTestId('degraded-threshold-input')).toBeVisible();
+  await expect(page.getByTestId('setting-row-GATUS_DEGRADED_MS')).toBeVisible();
 });
 
 test('TC-001: add Sam, tick four apps, sign this device in as Sam, land on Sam’s board', async ({ page }) => {

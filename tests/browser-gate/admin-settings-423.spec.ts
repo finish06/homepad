@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures';
 import type { Page, Locator } from '@playwright/test';
 import { mockApi, makeStatusTiles } from './mockApi';
+import { mockServerSettings, type ServerSettingsMock } from './serverSettingsMocks';
 
 // #423: the Admin Panel (SettingsPanel, scope="admin") had no real-browser gate.
 // QA couldn't reach it on staging either: a fresh staging DB has no admin user, so
@@ -8,11 +9,14 @@ import { mockApi, makeStatusTiles } from './mockApi';
 // jsdom. What only a real browser can show is pinned here:
 //   - the panel fits the viewport at the iPad and phone widths;
 //   - its controls are hit-testable (nothing sticky or translucent on top);
-//   - a real number <input> round-trips a typed value into the PATCH body;
-//   - the error path reverts what the admin typed;
+//   - a typed value round-trips into the PATCH body (SPEC-admin-server-settings:
+//     the "Slow" threshold is a server-settings row now);
+//   - a refused save keeps what the admin typed and shows the server's words;
 //   - Escape dismisses it.
 
 const SAVED_MS = 1500;
+
+let mock: ServerSettingsMock;
 
 async function openAdminPanel(page: Page, width: number, height: number) {
   const { services, categories } = makeStatusTiles(['UP']);
@@ -21,16 +25,14 @@ async function openAdminPanel(page: Page, width: number, height: number) {
   await page.route('**/api/system/config', (r) =>
     r.fulfill({ json: { showUptimeDisplay: true, statusDegradedMs: SAVED_MS } }),
   );
-  await page.route('**/api/admin/env-config', (r) =>
-    r.fulfill({ json: [{ key: 'GATUS_URL', value: 'http://gatus.test' }, { key: 'LOG_LEVEL', value: 'info' }] }),
-  );
+  mock = await mockServerSettings(page, { over: { GATUS_DEGRADED_MS: { value: SAVED_MS, envValue: SAVED_MS, source: 'env' } } });
   await page.goto('/');
   await page.getByTestId('user-menu-trigger').click();
   await page.getByTestId('menu-admin-settings').click();
   const panel = page.getByRole('dialog', { name: 'Admin Panel' });
   await expect(panel).toBeVisible();
-  // The env list loads async. Wait for it, so the layout being measured is final.
-  await expect(page.getByTestId('settings-env-list')).toContainText('GATUS_URL');
+  // The settings load async. Wait for them, so the layout being measured is final.
+  await expect(page.getByTestId('setting-row-GATUS_BASE_URL')).toBeVisible();
   return panel;
 }
 
@@ -60,38 +62,38 @@ for (const [label, w, h] of [['iPad 768', 768, 1024], ['phone 375', 375, 812]] a
       expect(overflow, 'page scrolls horizontally with the panel open').toBeLessThanOrEqual(0);
 
       await expectHitTestable(page.getByRole('button', { name: 'Close admin panel' }), 'Close');
-      await expectHitTestable(page.getByTestId('degraded-threshold-input'), 'Slow threshold input');
+      await expectHitTestable(page.getByRole('button', { name: 'Edit "Slow" threshold' }), 'Slow threshold Edit');
       await expectHitTestable(page.getByTestId('settings-switch-uptime'), 'Uptime switch');
     });
 
     test('a typed threshold is PATCHed and confirmed', async ({ page }) => {
       await openAdminPanel(page, w, h);
-      const bodies: unknown[] = [];
-      await page.route('**/api/admin/settings', async (r) => {
-        if (r.request().method() !== 'PATCH') return r.fallback();
-        const body = r.request().postDataJSON();
-        bodies.push(body);
-        await r.fulfill({ json: { showUptimeDisplay: true, ...body } });
-      });
-      const input = page.getByTestId('degraded-threshold-input');
+      const row = page.getByTestId('setting-row-GATUS_DEGRADED_MS');
+      await row.getByRole('button', { name: 'Edit "Slow" threshold' }).click();
+      const input = row.getByRole('textbox', { name: '"Slow" threshold' });
       await expect(input).toHaveValue(String(SAVED_MS));
       await input.fill('2500');
-      await expectHitTestable(page.getByTestId('degraded-threshold-save'), 'Save');
-      await page.getByTestId('degraded-threshold-save').click();
-      await expect(page.getByText('Saved ✓')).toBeVisible();
-      expect(bodies).toEqual([{ statusDegradedMs: 2500 }]);
+      await expectHitTestable(row.getByRole('button', { name: 'Save' }), 'Save');
+      await row.getByRole('button', { name: 'Save' }).click();
+      await expect(row.getByText('Saved ✓')).toBeVisible();
+      await expect(row.getByText('2500 ms')).toBeVisible();
+      expect(mock.patches).toEqual([{ set: { GATUS_DEGRADED_MS: 2500 } }]);
     });
 
-    test('a failed save reverts the input and says so', async ({ page }) => {
+    test('a refused save keeps the draft and says why', async ({ page }) => {
       await openAdminPanel(page, w, h);
-      await page.route('**/api/admin/settings', (r) =>
-        r.request().method() === 'PATCH' ? r.fulfill({ status: 500, body: 'boom' }) : r.fallback(),
+      await page.route('**/api/admin/server-settings', (r) =>
+        r.request().method() === 'PATCH'
+          ? r.fulfill({ status: 400, json: { error: 'invalid', key: 'GATUS_DEGRADED_MS', message: 'Too slow to be useful.' } })
+          : r.fallback(),
       );
-      const input = page.getByTestId('degraded-threshold-input');
+      const row = page.getByTestId('setting-row-GATUS_DEGRADED_MS');
+      await row.getByRole('button', { name: 'Edit "Slow" threshold' }).click();
+      const input = row.getByRole('textbox');
       await input.fill('3000');
-      await page.getByTestId('degraded-threshold-save').click();
-      await expect(page.getByText("Couldn't save — try again.")).toBeVisible();
-      await expect(input).toHaveValue(String(SAVED_MS));
+      await input.press('Enter');
+      await expect(row.getByRole('alert')).toHaveText('Too slow to be useful.');
+      await expect(input).toHaveValue('3000');
     });
 
     test('Escape closes it', async ({ page }) => {

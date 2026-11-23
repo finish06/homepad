@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import SettingsPanel from './SettingsPanel';
-import { adminEnvConfig, listAccounts, listLibrary } from '../api';
+import { listAccounts, listLibrary } from '../api';
 
 // SPEC-backup-import UX §1 / B-1 (TASK-303, TASK-306) — Backup and import is the
 // LAST section of the Admin Panel, admin only (AC-032). After an apply, the
@@ -17,13 +17,20 @@ vi.mock('./backup/RestoreModal', () => ({
   ),
 }));
 vi.mock('./backup/transferApi', () => ({ downloadBackup: vi.fn() }));
+vi.mock('./serverSettingsApi', () => ({
+  adminServerSettings: vi.fn(() => Promise.resolve({ envOnly: false, settings: [] })),
+  saveServerSettings: vi.fn(),
+  resetServerSetting: vi.fn(),
+  startOidcTest: vi.fn(),
+  oidcTestStatus: vi.fn(),
+}));
+
 vi.mock('../api', () => ({
   listLibrary: vi.fn(),
   createLibraryApp: vi.fn(),
   updateLibraryApp: vi.fn(),
   deleteLibraryApp: vi.fn(),
   setLibraryOrder: vi.fn(),
-  adminEnvConfig: vi.fn(),
   listAccounts: vi.fn(),
   // SPEC-household-basics — the Accounts section also loads invites and the
   // auth config (as settings-accounts.test.tsx mocks them).
@@ -33,7 +40,6 @@ vi.mock('../api', () => ({
 
 beforeEach(() => {
   vi.mocked(listLibrary).mockResolvedValue([]);
-  vi.mocked(adminEnvConfig).mockResolvedValue([]);
   vi.mocked(listAccounts).mockResolvedValue([]);
 });
 afterEach(() => vi.clearAllMocks());
@@ -45,7 +51,6 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
       scope={props.scope}
       currentUserId="a1"
       showUptimeDisplay
-      statusDegradedMs={1000}
       onSaveSettings={vi.fn().mockResolvedValue(undefined)}
       showHealthBar
       onSetHealthBar={vi.fn()}

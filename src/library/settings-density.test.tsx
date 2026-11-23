@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SettingsPanel from './SettingsPanel';
-import { adminEnvConfig, listLibrary } from '../api';
+import { listLibrary } from '../api';
 
 // SPEC-density-to-my-settings — the density control's new home.
 //
@@ -12,13 +12,20 @@ import { adminEnvConfig, listLibrary } from '../api';
 // Caleb reversed that placement on 2026-09-23; OQ-1 records it as a product call
 // overriding a design one.
 
+vi.mock('./serverSettingsApi', () => ({
+  adminServerSettings: vi.fn(() => Promise.resolve({ envOnly: false, settings: [] })),
+  saveServerSettings: vi.fn(),
+  resetServerSetting: vi.fn(),
+  startOidcTest: vi.fn(),
+  oidcTestStatus: vi.fn(),
+}));
+
 vi.mock('../api', () => ({
   listLibrary: vi.fn(),
   createLibraryApp: vi.fn(),
   updateLibraryApp: vi.fn(),
   deleteLibraryApp: vi.fn(),
   setLibraryOrder: vi.fn(),
-  adminEnvConfig: vi.fn(),
   // SPEC-kid-accounts — the admin scope now opens with the Accounts section,
   // which lists accounts on mount. An empty list keeps these suites about what
   // they test.
@@ -33,7 +40,6 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
       isAdmin={props.isAdmin ?? false}
       scope={props.scope ?? 'personal'}
       showUptimeDisplay={true}
-      statusDegradedMs={1000}
       onSaveSettings={vi.fn().mockResolvedValue(undefined)}
       showHealthBar={true}
       onSetHealthBar={vi.fn()}
@@ -48,7 +54,6 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
 
 beforeEach(() => {
   vi.mocked(listLibrary).mockResolvedValue([]);
-  vi.mocked(adminEnvConfig).mockResolvedValue([]);
 });
 
 afterEach(() => vi.clearAllMocks());

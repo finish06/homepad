@@ -47,9 +47,13 @@ function kidSummary(a: Account): string {
 
 export default function AccountsSection({
   currentUserId,
+  configVersion = 0,
   scrollIntoView = false,
 }: {
   currentUserId?: string;
+  // SPEC-admin-server-settings §8 — bumped when Sign-up or Single sign-on
+  // changed in System, so the auth config is read again without a reload.
+  configVersion?: number;
   // UX §1 — the "Accounts" menu item opens the Admin Panel scrolled here.
   scrollIntoView?: boolean;
 }) {
@@ -78,7 +82,7 @@ export default function AccountsSection({
     return () => {
       live = false;
     };
-  }, []);
+  }, [configVersion]);
 
   const loadInvites = useCallback(() => {
     let live = true;

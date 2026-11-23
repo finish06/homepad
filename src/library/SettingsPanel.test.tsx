@@ -3,16 +3,23 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import SettingsPanel from './SettingsPanel';
+import { adminServerSettings } from './serverSettingsApi';
 import {
-  adminEnvConfig,
   createLibraryApp,
   deleteLibraryApp,
   listLibrary,
   setLibraryOrder,
   updateLibraryApp,
-  type EnvConfigEntry,
   type LibraryOffer,
 } from '../api';
+
+vi.mock('./serverSettingsApi', () => ({
+  adminServerSettings: vi.fn(() => Promise.resolve({ envOnly: false, settings: [] })),
+  saveServerSettings: vi.fn(),
+  resetServerSetting: vi.fn(),
+  startOidcTest: vi.fn(),
+  oidcTestStatus: vi.fn(),
+}));
 
 vi.mock('../api', () => ({
   listLibrary: vi.fn(),
@@ -20,7 +27,6 @@ vi.mock('../api', () => ({
   updateLibraryApp: vi.fn(),
   deleteLibraryApp: vi.fn(),
   setLibraryOrder: vi.fn(),
-  adminEnvConfig: vi.fn(),
   // SPEC-kid-accounts — the admin scope now opens with the Accounts section,
   // which lists accounts on mount. An empty list keeps these suites about what
   // they test.
@@ -42,27 +48,11 @@ const OFFERS: LibraryOffer[] = [
   },
 ];
 
-// SPEC-v26 — the full allowlisted env-config the endpoint returns. PORT and
-// OIDC_DISCOVERY_URL are intentionally empty to exercise the em-dash empty state.
-const ENV_CONFIG: EnvConfigEntry[] = [
-  { key: 'GATUS_BASE_URL', value: 'http://gatus.kube.local' },
-  { key: 'COOKIE_SECURE', value: 'true' },
-  { key: 'HOMEPAD_REGISTRATION', value: 'open' },
-  { key: 'PORT', value: '' },
-  { key: 'OIDC_ENABLED', value: 'true' },
-  { key: 'OIDC_ISSUER', value: 'https://id.example.com' },
-  { key: 'OIDC_DISCOVERY_URL', value: '' },
-  { key: 'OIDC_REDIRECT_URL', value: 'https://homepad.example.com/api/auth/oidc/callback' },
-  { key: 'OIDC_CLIENT_ID', value: 'homepad-web' },
-  { key: 'OIDC_ADMIN_GROUP', value: 'admins' },
-];
-
 function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> = {}) {
   return render(
     <SettingsPanel
       isAdmin={props.isAdmin ?? true}
       showUptimeDisplay={props.showUptimeDisplay ?? true}
-      statusDegradedMs={props.statusDegradedMs ?? 1000}
       onSaveSettings={props.onSaveSettings ?? vi.fn().mockResolvedValue(undefined)}
       scope={props.scope ?? 'admin'}
       showHealthBar={props.showHealthBar ?? true}
@@ -77,7 +67,6 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
 }
 
 beforeEach(() => {
-  vi.mocked(adminEnvConfig).mockResolvedValue(ENV_CONFIG);
   vi.mocked(listLibrary).mockResolvedValue(OFFERS);
   vi.mocked(createLibraryApp).mockResolvedValue({
     ok: true, status: 201,
@@ -103,91 +92,8 @@ describe('A17 — admin-only visibility', () => {
     await waitFor(() => expect(listLibrary).not.toHaveBeenCalled());
     expect(screen.queryByTestId('settings-library')).not.toBeInTheDocument();
     expect(screen.queryByTestId('settings-system')).not.toBeInTheDocument();
-    // AC-002/gating — the env-config is never even fetched for a non-admin.
-    expect(adminEnvConfig).not.toHaveBeenCalled();
-  });
-});
-
-// SPEC-v26 §6.2 — the hardcoded OIDC / self-registration rows are replaced by a
-// live table fetched from GET /api/admin/env-config, rendered per Kare §8.
-describe('SPEC-v26 — env-config table', () => {
-  it('AC-010 — fetches env-config on mount and renders the allowlisted rows', async () => {
-    renderPanel({ isAdmin: true });
-    const sys = await screen.findByTestId('settings-system');
-    await within(sys).findByTestId('env-row-GATUS_BASE_URL');
-    expect(adminEnvConfig).toHaveBeenCalledTimes(1);
-    // dual label: friendly primary + raw var name (§8.1)
-    const row = within(sys).getByTestId('env-row-GATUS_BASE_URL');
-    expect(within(row).getByText('Gatus base URL')).toBeInTheDocument();
-    expect(within(row).getByText('GATUS_BASE_URL')).toBeInTheDocument();
-    expect(within(row).getByText('http://gatus.kube.local')).toBeInTheDocument();
-  });
-
-  it('AC-012 — every allowlisted key renders a row with its value', async () => {
-    renderPanel({ isAdmin: true });
-    const sys = await screen.findByTestId('settings-system');
-    await within(sys).findByTestId('env-row-GATUS_BASE_URL');
-    for (const { key } of ENV_CONFIG) {
-      expect(within(sys).getByTestId(`env-row-${key}`)).toBeInTheDocument();
-    }
-    // literal os.Getenv values, not "Enabled/Disabled" prose (§8.1 note)
-    const oidc = within(sys).getByTestId('env-row-OIDC_ENABLED');
-    expect(within(oidc).getByText('true')).toBeInTheDocument();
-  });
-
-  it('§8.5 — rows are grouped under Server and Identity (OIDC) captions', async () => {
-    renderPanel({ isAdmin: true });
-    const sys = await screen.findByTestId('settings-system');
-    await within(sys).findByTestId('env-row-GATUS_BASE_URL');
-    expect(within(sys).getByText('Server')).toBeInTheDocument();
-    expect(within(sys).getByText('Identity (OIDC)')).toBeInTheDocument();
-  });
-
-  it('§8.2 — an empty value renders as an em-dash with an sr-only "not set"', async () => {
-    renderPanel({ isAdmin: true });
-    const sys = await screen.findByTestId('settings-system');
-    const portRow = await within(sys).findByTestId('env-row-PORT');
-    expect(within(portRow).getByText('—')).toBeInTheDocument();
-    expect(within(portRow).getByText('not set')).toBeInTheDocument();
-    // a set value is NOT shown as an em-dash
-    const gatus = within(sys).getByTestId('env-row-GATUS_BASE_URL');
-    expect(within(gatus).queryByText('—')).not.toBeInTheDocument();
-  });
-
-  it('§8.8 — each row carries an aria-hidden [env] badge', async () => {
-    renderPanel({ isAdmin: true });
-    const sys = await screen.findByTestId('settings-system');
-    const row = await within(sys).findByTestId('env-row-GATUS_BASE_URL');
-    const badge = within(row).getByText('env');
-    expect(badge).toHaveClass('settings-env-badge');
-    expect(badge).toHaveAttribute('aria-hidden', 'true');
-  });
-
-  it('§8.3/AC-013 — shows a busy loading status before the fetch resolves', async () => {
-    let resolve!: (v: EnvConfigEntry[]) => void;
-    vi.mocked(adminEnvConfig).mockReturnValue(new Promise<EnvConfigEntry[]>((r) => { resolve = r; }));
-    renderPanel({ isAdmin: true });
-    const sys = await screen.findByTestId('settings-system');
-    // the list is marked busy and an sr-only status announces the load
-    expect(within(sys).getByTestId('settings-env-list')).toHaveAttribute('aria-busy', 'true');
-    const status = within(sys).getByText(/loading server configuration/i);
-    expect(status).toHaveAttribute('role', 'status');
-    // the rows are not there yet
-    expect(within(sys).queryByTestId('env-row-GATUS_BASE_URL')).not.toBeInTheDocument();
-    resolve(ENV_CONFIG);
-    await within(sys).findByTestId('env-row-GATUS_BASE_URL');
-  });
-
-  it('§8.4/AC-014 — a fetch error shows an in-place alert and leaves the toggle live', async () => {
-    vi.mocked(adminEnvConfig).mockRejectedValue(new Error('boom'));
-    renderPanel({ isAdmin: true });
-    const sys = await screen.findByTestId('settings-system');
-    const alert = await within(sys).findByRole('alert');
-    expect(alert).toHaveTextContent(/couldn't load server configuration/i);
-    // the uptime toggle above is unaffected (AC-014)
-    expect(within(sys).getByTestId('settings-switch-uptime')).toBeInTheDocument();
-    // no env rows rendered on error
-    expect(within(sys).queryByTestId('env-row-GATUS_BASE_URL')).not.toBeInTheDocument();
+    // The server settings are never even fetched for a non-admin.
+    expect(adminServerSettings).not.toHaveBeenCalled();
   });
 });
 
@@ -329,10 +235,14 @@ describe('v11 A5/A6 — section scope notes', () => {
     expect(within(lib).getByText(/personal dashboards/i)).toBeInTheDocument();
   });
 
-  it('A6 — the System note says it applies "globally to all accounts"', async () => {
+  // SPEC-admin-server-settings AC-032 replaced the A6 note: it still says the
+  // section applies to everyone, and no longer says "set via environment".
+  it('A6 / AC-032 — the System note says it applies to everyone', async () => {
     renderPanel({ isAdmin: true });
     const sys = await screen.findByTestId('settings-system');
-    expect(within(sys).getByText(/globally to all accounts/i)).toBeInTheDocument();
+    const note = sys.querySelector('.settings-section-note')!;
+    expect(note.textContent).toMatch(/apply to everyone/i);
+    expect(note.textContent).not.toMatch(/environment variables and redeploy/i);
   });
 });
 
@@ -348,61 +258,8 @@ describe('A17/A19 — a11y + dismissal', () => {
   it('has no axe violations (admin, populated)', async () => {
     const { container } = renderPanel({ isAdmin: true });
     await screen.findByTestId('settings-library');
-    await screen.findByTestId('env-row-GATUS_BASE_URL');
+    await screen.findByTestId('settings-switch-uptime');
     expect(await axe(container)).toHaveNoViolations();
-  });
-});
-
-// v16 — the "Slow" threshold is a System setting, editable here (Caleb,
-// 2026-09-13: v16 UI settings must be manageable in the UI). Number + explicit
-// Save: never PATCH on a keystroke; 0 turns the derivation off.
-describe('v16 — Slow threshold (statusDegradedMs)', () => {
-  it('shows the current threshold with Save disabled until it changes', async () => {
-    await renderPanel({ statusDegradedMs: 1500 });
-    const input = screen.getByTestId('degraded-threshold-input') as HTMLInputElement;
-    expect(input.value).toBe('1500');
-    expect(screen.getByTestId('degraded-threshold-save')).toBeDisabled();
-  });
-
-  it('saves a new threshold via onSaveSettings and shows Saved ✓', async () => {
-    const onSaveSettings = vi.fn().mockResolvedValue(undefined);
-    await renderPanel({ statusDegradedMs: 1000, onSaveSettings });
-    const user = userEvent.setup();
-    const input = screen.getByTestId('degraded-threshold-input');
-    await user.clear(input);
-    await user.type(input, '250');
-    expect(onSaveSettings).not.toHaveBeenCalled(); // no PATCH per keystroke
-    await user.click(screen.getByTestId('degraded-threshold-save'));
-    expect(onSaveSettings).toHaveBeenCalledWith({ statusDegradedMs: 250 });
-    expect(await screen.findByText('Saved ✓')).toBeInTheDocument();
-  });
-
-  it('accepts 0 (off) and rejects a negative or non-integer value without saving', async () => {
-    const onSaveSettings = vi.fn().mockResolvedValue(undefined);
-    await renderPanel({ statusDegradedMs: 1000, onSaveSettings });
-    const user = userEvent.setup();
-    const input = screen.getByTestId('degraded-threshold-input');
-    await user.clear(input);
-    await user.type(input, '-5');
-    expect(input).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByTestId('degraded-threshold-save')).toBeDisabled();
-    await user.clear(input);
-    await user.type(input, '0');
-    expect(screen.getByTestId('degraded-threshold-save')).not.toBeDisabled();
-    await user.click(screen.getByTestId('degraded-threshold-save'));
-    expect(onSaveSettings).toHaveBeenCalledWith({ statusDegradedMs: 0 });
-  });
-
-  it('reverts to the persisted value and says so when the save fails', async () => {
-    const onSaveSettings = vi.fn().mockRejectedValue(new Error('500'));
-    await renderPanel({ statusDegradedMs: 1000, onSaveSettings });
-    const user = userEvent.setup();
-    const input = screen.getByTestId('degraded-threshold-input') as HTMLInputElement;
-    await user.clear(input);
-    await user.type(input, '300');
-    await user.click(screen.getByTestId('degraded-threshold-save'));
-    expect(await screen.findByText("Couldn't save — try again.")).toBeInTheDocument();
-    expect(input.value).toBe('1000');
   });
 });
 

@@ -4,7 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SettingsPanel from './SettingsPanel';
-import { adminEnvConfig, listLibrary } from '../api';
+import { listLibrary } from '../api';
+
+vi.mock('./serverSettingsApi', () => ({
+  adminServerSettings: vi.fn(() => Promise.resolve({ envOnly: false, settings: [] })),
+  saveServerSettings: vi.fn(),
+  resetServerSetting: vi.fn(),
+  startOidcTest: vi.fn(),
+  oidcTestStatus: vi.fn(),
+}));
 
 vi.mock('../api', () => ({
   listLibrary: vi.fn(),
@@ -12,7 +20,6 @@ vi.mock('../api', () => ({
   updateLibraryApp: vi.fn(),
   deleteLibraryApp: vi.fn(),
   setLibraryOrder: vi.fn(),
-  adminEnvConfig: vi.fn(),
   listAccounts: vi.fn(() => Promise.resolve([])),
   // SPEC-household-basics — the Accounts section also loads invites and the
   // auth config (as settings-accounts.test.tsx mocks them).
@@ -30,7 +37,6 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
       isAdmin={props.isAdmin ?? true}
       scope={props.scope ?? 'personal'}
       showUptimeDisplay
-      statusDegradedMs={1000}
       onSaveSettings={vi.fn().mockResolvedValue(undefined)}
       showHealthBar
       showUptimeDisplayPref
@@ -46,7 +52,6 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
 
 beforeEach(() => {
   vi.mocked(listLibrary).mockResolvedValue([]);
-  vi.mocked(adminEnvConfig).mockResolvedValue([]);
 });
 afterEach(() => vi.clearAllMocks());
 

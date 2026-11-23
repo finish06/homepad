@@ -244,7 +244,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [customFormOpen, setCustomFormOpen] = useState(false);
   // v9.3 §7.3 — the admin Settings modal (App Library management + read-only
   // System settings). Opened from the avatar menu (admin only). SPEC-v26: the
-  // System panel now reads its own env-config from GET /api/admin/env-config,
+  // System panel reads its own server settings (SPEC-admin-server-settings),
   // so App no longer needs to feed it the client auth config.
   const [settingsOpen, setSettingsOpen] = useState(false);
   // OQ-1 (a) — one panel, two scopes. The entry point decides which: personal
@@ -541,8 +541,8 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               onSetUptimeDisplay={setShowUptimeDisplay}
               density={density}
               onSetDensity={setDensity}
-              statusDegradedMs={sysConfig.statusDegradedMs}
               onSaveSettings={onSaveSettings}
+              onServerSettingsChanged={() => void systemConfig().then(setSysConfig)}
               onCatalogChanged={onCatalogChanged}
               showWidgets={showWidgetsPref}
               onSetShowWidgets={isKid ? undefined : setShowWidgetsPref}

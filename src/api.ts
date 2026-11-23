@@ -191,11 +191,6 @@ export type AuthConfig = { oidcEnabled: boolean; registration: RegistrationMode;
 export type SystemConfig = { showUptimeDisplay: boolean; statusDegradedMs: number };
 export const DEFAULT_STATUS_DEGRADED_MS = 1000;
 
-// SPEC-v26 — one allowlisted runtime env var surfaced by the admin env-config
-// viewer. The server returns an ordered array of these (Server vars then OIDC
-// vars); an unset var carries an empty-string value.
-export type EnvConfigEntry = { key: string; value: string };
-
 // v9.2/v9.3: a library offer — admin-curated catalog metadata any user can browse
 // (`GET /api/library`) and copy onto their own dashboard. `added` is the per-user
 // hint (do I already hold a copy — D6, non-blocking). `suggestedCategory` is a
@@ -361,17 +356,6 @@ function parseSystemConfig(data: { showUptimeDisplay?: boolean; statusDegradedMs
     showUptimeDisplay: data.showUptimeDisplay !== false,
     statusDegradedMs: typeof ms === 'number' && Number.isFinite(ms) && ms >= 0 ? ms : DEFAULT_STATUS_DEGRADED_MS,
   };
-}
-
-// SPEC-v26 §6.2 AC-015 — reads the allowlisted runtime env config for the admin
-// System panel. Unlike the tolerant reads above, this REJECTS on any non-200 (or
-// network error) so the caller can render its in-place error state (§8.4) rather
-// than silently showing an empty/misleading table.
-export async function adminEnvConfig(): Promise<EnvConfigEntry[]> {
-  const { status, res } = await request('/api/admin/env-config');
-  if (!res) throw new Error('network error');
-  if (status !== 200) throw new Error(await errorText(res));
-  return (await res.json()) as EnvConfigEntry[];
 }
 
 // me answers "who is signed in?". null on 401/any failure — a network blip at
@@ -744,7 +728,7 @@ export type KidDevice = {
 
 const kidPath = (id: string) => `/api/admin/kids/${encodeURIComponent(id)}`;
 
-// jsonOrThrow — the rejecting-read convention adminEnvConfig uses: any non-200
+// jsonOrThrow — the rejecting-read convention: any non-200
 // (or a network failure) throws, so the caller renders its error state instead
 // of an empty list that would read as "no accounts".
 async function jsonOrThrow<T>(path: string): Promise<T> {
