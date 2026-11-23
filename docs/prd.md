@@ -9,7 +9,7 @@
 > This PRD was generated during `/add:init` adoption of an existing, shipped
 > project. It documents what homepad *is*, now at 18.0.0, rather than proposing
 > something new. The authoritative feature-level source of truth remains
-> `specs/` (50 specs, indexed in `specs/README.md`).
+> `specs/` (51 specs, indexed in `specs/README.md`).
 
 ## 1. Problem Statement
 

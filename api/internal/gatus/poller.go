@@ -68,6 +68,9 @@ type Snapshot struct {
 const DefaultDegradedAfter = time.Second
 
 type Client struct {
+	// BaseURL is GATUS_BASE_URL, or the address saved in Admin Panel → System
+	// (SPEC-admin-server-settings). Set it with SetBaseURL once polling has
+	// started; read it with baseURL.
 	BaseURL string
 	// DegradedAfter — a succeeded check slower than this is DEGRADED. Strictly
 	// greater than; 0 disables. See DefaultDegradedAfter. Guarded by mu because
@@ -78,8 +81,31 @@ type Client struct {
 	http          *http.Client
 }
 
+// NewClient returns a client with a plain 10 s-timeout HTTP client. main
+// uses NewClientWith and the guarded outbound client instead.
 func NewClient(baseURL string) *Client {
-	return &Client{BaseURL: baseURL, DegradedAfter: DefaultDegradedAfter, http: &http.Client{}}
+	return NewClientWith(baseURL, &http.Client{Timeout: 10 * time.Second})
+}
+
+// NewClientWith returns a client that fetches through hc — in the server,
+// the guarded outbound client, because the address is admin-typed
+// (SPEC-admin-server-settings §1a).
+func NewClientWith(baseURL string, hc *http.Client) *Client {
+	return &Client{BaseURL: strings.TrimRight(baseURL, "/"), DegradedAfter: DefaultDegradedAfter, http: hc}
+}
+
+// SetBaseURL points every poll from now on at baseURL ("" turns status off:
+// every poll fails and keyed services read UNKNOWN).
+func (c *Client) SetBaseURL(baseURL string) {
+	c.mu.Lock()
+	c.BaseURL = strings.TrimRight(baseURL, "/")
+	c.mu.Unlock()
+}
+
+func (c *Client) baseURL() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.BaseURL
 }
 
 // SetDegradedAfter changes the "Slow" threshold for every poll from now on
@@ -100,7 +126,7 @@ func (c *Client) degradedAfter() time.Duration {
 // each endpoint's most recent result: success -> UP, failure -> DOWN, and no
 // results -> UNKNOWN.
 func (c *Client) FetchAll(ctx context.Context) ([]EndpointStatus, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/api/v1/endpoints/statuses", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL()+"/api/v1/endpoints/statuses", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +190,7 @@ func (c *Client) FetchAll(ctx context.Context) ([]EndpointStatus, error) {
 // from raw history. A non-200 (404 unknown key, 400 bad window) is an error so the
 // caller can omit the window rather than record 0.
 func (c *Client) FetchUptime(ctx context.Context, key, window string) (float64, error) {
-	url := c.BaseURL + "/api/v1/endpoints/" + key + "/uptimes/" + window
+	url := c.baseURL() + "/api/v1/endpoints/" + key + "/uptimes/" + window
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return 0, err
@@ -235,6 +261,20 @@ func NewPoller(client *Client, interval time.Duration) *Poller {
 }
 
 func (p *Poller) Interval() time.Duration { return p.interval }
+
+// SetBaseURL forwards a new Gatus address to the client; the next poll uses
+// it. The statuses from the old address are dropped at once, so a tile never
+// shows another Gatus's answer (SPEC-admin-server-settings).
+func (p *Poller) SetBaseURL(u string) {
+	if p.client.baseURL() == strings.TrimRight(u, "/") {
+		return
+	}
+	p.client.SetBaseURL(u)
+	p.publish(Snapshot{AsOf: time.Now(), Statuses: map[string]EndpointStatus{}})
+}
+
+// BaseURL reports the Gatus address currently in force.
+func (p *Poller) BaseURL() string { return p.client.baseURL() }
 
 // SetDegradedAfter forwards the runtime "Slow" threshold to the client.
 func (p *Poller) SetDegradedAfter(d time.Duration) { p.client.SetDegradedAfter(d) }

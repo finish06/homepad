@@ -73,6 +73,14 @@ Use whatever address the API container can reach Gatus on — a Compose service
 name, a Kubernetes service, or a plain host and port. Restart the API after
 changing it. The value is never sent to the browser.
 
+Admins can also set it in **Admin Panel → System → Status → Gatus address**,
+with no restart. Homepad tries the address once when you save; if Gatus
+doesn't answer, it saves anyway and says so. An empty value there turns status
+off. The **"Slow" threshold** (`GATUS_DEGRADED_MS`) is in the same group. A
+value saved in the panel wins over `.env`; **Reset** goes back to `.env`. To
+ignore every saved value, set `HOMEPAD_SETTINGS_FROM_ENV_ONLY=true` on the API
+and restart it.
+
 In the Compose stack this is already set in `.env.example`.
 
 ## 3. Give each tile its Gatus key

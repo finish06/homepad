@@ -3,8 +3,8 @@ package api
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
-	"time"
 
 	"github.com/finish06/homepad/api/internal/storage"
 )
@@ -19,11 +19,9 @@ type systemConfigView struct {
 }
 
 func (s *server) toSystemConfigView(cfg storage.SystemSettings) systemConfigView {
-	ms := int(s.poller.DegradedAfter() / time.Millisecond)
-	if cfg.StatusDegradedMs != nil {
-		ms = *cfg.StatusDegradedMs
-	}
-	return systemConfigView{ShowUptimeDisplay: cfg.ShowUptimeDisplay, StatusDegradedMs: ms}
+	// The live config resolves UI, env and default, and honours
+	// HOMEPAD_SETTINGS_FROM_ENV_ONLY (SPEC-admin-server-settings §2.1).
+	return systemConfigView{ShowUptimeDisplay: cfg.ShowUptimeDisplay, StatusDegradedMs: s.cfg().degradedMs}
 }
 
 // maxStatusDegradedMs bounds the admin input (10 minutes); mirrors the DB CHECK.
@@ -64,6 +62,14 @@ func (s *server) handlePatchSystemSettings(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "invalid JSON body", http.StatusBadRequest)
 		return
 	}
+	// statusDegradedMs: null resets the threshold to env or the default
+	// (SPEC-admin-server-settings AC-005; SPEC-status-degraded-threshold OQ-1).
+	var present map[string]json.RawMessage
+	_ = json.Unmarshal(raw, &present)
+	resetDegraded := false
+	if v, ok := present["statusDegradedMs"]; ok && string(v) == "null" {
+		resetDegraded = true
+	}
 	if in.StatusDegradedMs != nil && (*in.StatusDegradedMs < 0 || *in.StatusDegradedMs > maxStatusDegradedMs) {
 		http.Error(w, "statusDegradedMs must be between 0 and 600000", http.StatusBadRequest)
 		return
@@ -94,6 +100,9 @@ func (s *server) handlePatchSystemSettings(w http.ResponseWriter, r *http.Reques
 		v := *in.StatusDegradedMs
 		cur.StatusDegradedMs = &v
 	}
+	if resetDegraded {
+		cur.StatusDegradedMs = nil
+	}
 	saved, err := s.store.UpsertSystemSettings(r.Context(), cur)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -101,8 +110,8 @@ func (s *server) handlePatchSystemSettings(w http.ResponseWriter, r *http.Reques
 	}
 	// Apply to the running poller at once — the next poll (scheduled or
 	// "Retry now") uses it. No restart, which is the point of a UI setting.
-	if saved.StatusDegradedMs != nil {
-		s.poller.SetDegradedAfter(time.Duration(*saved.StatusDegradedMs) * time.Millisecond)
+	if err := s.reload(r.Context(), true); err != nil {
+		log.Printf("settings: apply status_degraded_ms: %v", err)
 	}
 	writeJSON(w, http.StatusOK, struct {
 		systemConfigView

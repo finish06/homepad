@@ -107,6 +107,14 @@ var expectedRouteClasses = map[string]string{
 	"PATCH /api/admin/settings": "admin-only",
 	"GET /api/admin/env-config": "admin-only",
 
+	// SPEC-admin-server-settings AC-010 — server settings and the test
+	// sign-in: no session 401, member 403, kid 403.
+	"GET /api/admin/server-settings":                "admin-only",
+	"PATCH /api/admin/server-settings":              "admin-only",
+	"DELETE /api/admin/server-settings/{key}":       "admin-only",
+	"POST /api/admin/server-settings/oidc/test":     "admin-only",
+	"GET /api/admin/server-settings/oidc/test/{id}": "admin-only",
+
 	// The admin Accounts API (SPEC-kid-accounts §7, plan TASK-305).
 	"GET /api/admin/accounts":                    "admin-only",
 	"POST /api/admin/kids":                       "admin-only",
@@ -184,8 +192,9 @@ func TestRoutes_EveryRegisteredRouteIsClassified(t *testing.T) {
 	}
 }
 
-// The store-backed server registers the same routes (minus OIDC when it is
-// off): one table drives both modes, so there is no second list to drift.
+// The store-backed server registers the same routes, OIDC ones included even
+// when it is off (SPEC-admin-server-settings AC-017): one table drives both
+// modes, so there is no second list to drift.
 func TestRoutes_StoreBackedRegistrationMatches(t *testing.T) {
 	w := newKidWorld(t)
 	live := api.RegisteredRoutes(api.Deps{Store: w.env.Store, Sessions: w.env.Sessions})
@@ -194,9 +203,7 @@ func TestRoutes_StoreBackedRegistrationMatches(t *testing.T) {
 		got = append(got, r.Pattern)
 	}
 	for _, r := range allRoutes(t) {
-		if !strings.Contains(r.Pattern, "/api/auth/oidc/") {
-			want = append(want, r.Pattern)
-		}
+		want = append(want, r.Pattern)
 	}
 	sort.Strings(got)
 	sort.Strings(want)

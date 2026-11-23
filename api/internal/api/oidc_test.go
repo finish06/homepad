@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -58,6 +59,13 @@ type mockIdP struct {
 	uiEmail string
 
 	codes map[string]codeData
+
+	// SPEC-admin-server-settings: the client the IdP accepts (default
+	// testClientID / testClientSecret), an issuer to claim in discovery in
+	// place of its own URL, and how many times discovery was fetched.
+	clientID, clientSecret string
+	issuerClaim            string
+	discoveries            atomic.Int32
 }
 
 func newMockIdP(t *testing.T, email string, groups []string) *mockIdP {
@@ -66,7 +74,7 @@ func newMockIdP(t *testing.T, email string, groups []string) *mockIdP {
 	require.NoError(t, err)
 
 	m := &mockIdP{key: key, email: email, groups: groups, verified: true, uiVerified: true, idTokenEmail: true,
-		codes: map[string]codeData{}}
+		codes: map[string]codeData{}, clientID: testClientID, clientSecret: testClientSecret}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /.well-known/openid-configuration", m.handleDiscovery)
@@ -94,8 +102,13 @@ func (m *mockIdP) config(adminGroup string) oidc.Config {
 }
 
 func (m *mockIdP) handleDiscovery(w http.ResponseWriter, r *http.Request) {
+	m.discoveries.Add(1)
+	iss := m.srv.URL
+	if m.issuerClaim != "" {
+		iss = m.issuerClaim
+	}
 	writeJSON(w, map[string]string{
-		"issuer":                 m.srv.URL,
+		"issuer":                 iss,
 		"authorization_endpoint": m.srv.URL + "/authorize",
 		"token_endpoint":         m.srv.URL + "/token",
 		"userinfo_endpoint":      m.srv.URL + "/userinfo",
@@ -122,7 +135,7 @@ func (m *mockIdP) handleJWKS(w http.ResponseWriter, r *http.Request) {
 // the user consents.
 func (m *mockIdP) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	if q.Get("response_type") != "code" || q.Get("client_id") != testClientID {
+	if q.Get("response_type") != "code" || q.Get("client_id") != m.clientID {
 		http.Error(w, "bad authorize request", http.StatusBadRequest)
 		return
 	}
@@ -144,8 +157,8 @@ func (m *mockIdP) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 func (m *mockIdP) handleToken(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	if r.Form.Get("grant_type") != "authorization_code" ||
-		r.Form.Get("client_id") != testClientID ||
-		r.Form.Get("client_secret") != testClientSecret {
+		r.Form.Get("client_id") != m.clientID ||
+		r.Form.Get("client_secret") != m.clientSecret {
 		http.Error(w, "bad token request", http.StatusBadRequest)
 		return
 	}
@@ -190,7 +203,7 @@ func (m *mockIdP) signIDToken(nonce string) string {
 	claims := map[string]any{
 		"iss":    m.issuer(),
 		"sub":    "mock-subject",
-		"aud":    testClientID,
+		"aud":    m.clientID,
 		"exp":    now.Add(time.Hour).Unix(),
 		"iat":    now.Unix(),
 		"nonce":  nonce,

@@ -151,6 +151,22 @@ func (e *Env) Restart(t *testing.T, o WidgetOptions) *Env {
 	return &n
 }
 
+// Twin builds a second API process over the same database and sessions, as
+// another replica would (SPEC-admin-server-settings AC-030). mod edits its
+// Deps; nothing is truncated or re-seeded.
+func (e *Env) Twin(t *testing.T, mod func(*api.Deps)) *Env {
+	t.Helper()
+	n := *e
+	n.deps = e.deps
+	if mod != nil {
+		mod(&n.deps)
+	}
+	srv := httptest.NewServer(api.New(n.deps))
+	t.Cleanup(srv.Close)
+	n.Server = srv
+	return &n
+}
+
 // withWidgets returns deps with a fresh widget manager, weather fetcher,
 // sealer and guarded client, per o.
 func withWidgets(t *testing.T, deps api.Deps, store *storage.Store, o WidgetOptions) api.Deps {
@@ -297,6 +313,11 @@ type Options struct {
 	Empty bool
 	// Widgets configures the status-widget wiring (SPEC-status-widgets).
 	Widgets WidgetOptions
+	// OIDC is the env layer's single sign-on config (off when zero).
+	OIDC oidc.Config
+	// Deps, when set, edits the server's Deps last (SPEC-admin-server-settings:
+	// Getenv, Context, SettingsReloadEvery, ResolveHost …).
+	Deps func(*api.Deps)
 }
 
 // NewEnvWith is NewEnv with the given options.
@@ -342,9 +363,13 @@ func newServerWith(t *testing.T, gatusURL string, opts Options) *Env {
 		InviteLimit:    opts.InviteLimit,
 		Limits:         opts.Limits,
 		TrustedProxies: opts.TrustedProxies,
+		OIDC:           opts.OIDC,
 	}
 	if opts.Empty {
 		deps = withWidgets(t, deps, store, opts.Widgets)
+		if opts.Deps != nil {
+			opts.Deps(&deps)
+		}
 		srv := httptest.NewServer(api.New(deps))
 		t.Cleanup(srv.Close)
 		return &Env{Server: srv, Store: store, Sessions: sessions, DSN: dsn,
@@ -380,6 +405,9 @@ func newServerWith(t *testing.T, gatusURL string, opts Options) *Env {
 	_ = seedService(t, ctx, store, "grafana", "Grafana", "core_grafana")
 
 	deps = withWidgets(t, deps, store, opts.Widgets)
+	if opts.Deps != nil {
+		opts.Deps(&deps)
+	}
 	srv := httptest.NewServer(api.New(deps))
 	t.Cleanup(srv.Close)
 	return &Env{Server: srv, Store: store, Sessions: sessions, DSN: dsn, AdminID: admin, UserID: user,
@@ -409,7 +437,7 @@ func truncate(t *testing.T, ctx context.Context, dsn string) {
 	}
 	defer conn.Close(ctx)
 	if _, err := conn.Exec(ctx,
-		`TRUNCATE kid_allowed_services, sessions, system_settings, user_collapsed_categories, user_layout, favorites, service_icons, library_apps, services, categories, users RESTART IDENTITY CASCADE`); err != nil {
+		`TRUNCATE server_settings, kid_allowed_services, sessions, system_settings, user_collapsed_categories, user_layout, favorites, service_icons, library_apps, services, categories, users RESTART IDENTITY CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 }

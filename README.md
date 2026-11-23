@@ -120,9 +120,9 @@ Sign-up is closed by default (`HOMEPAD_REGISTRATION=invite_only`). The first acc
 - **Kids** are added in the same place. See [docs/kid-accounts.md](./docs/kid-accounts.md).
 - **Single sign-on** makes accounts for people in your admin or member group (`OIDC_ADMIN_GROUP`, `OIDC_MEMBER_GROUP`). Anyone else needs an invite. Their provider must mark their email as verified. See [Single sign-on](#single-sign-on).
 
-`HOMEPAD_REGISTRATION=open` lets anyone who can open Homepad make an account. Accounts shows a warning while it's on, because a kid who signs out could make an adult account. To close it, set `HOMEPAD_REGISTRATION=invite_only` in `.env` and run `docker compose up -d`. Check the current mode in **Admin Panel → System → Registration mode**.
+`HOMEPAD_REGISTRATION=open` lets anyone who can open Homepad make an account. Accounts shows a warning while it's on, because a kid who signs out could make an adult account. To change it, use **Admin Panel → System → Accounts → Sign-up**. It applies at once, with no restart. You can also set it in `.env` and run `docker compose up -d`.
 
-`HOMEPAD_MAX_ACCOUNTS` caps the number of accounts plus pending invites. Unset or `0` means no limit.
+`HOMEPAD_MAX_ACCOUNTS` caps the number of accounts plus pending invites. Unset or `0` means no limit. Admins can change it in **Admin Panel → System → Accounts → Account limit**.
 
 ## Single sign-on
 
@@ -138,7 +138,9 @@ OIDC_ADMIN_GROUP=homepad-admins   # people in this group become admins
 OIDC_MEMBER_GROUP=homepad         # people in this group become members
 ```
 
-Register the redirect URL with your provider, then run `docker compose up -d`. With `OIDC_ENABLED=false`, the SSO endpoints aren't registered and the login screen shows local sign-in only.
+Register the redirect URL with your provider, then run `docker compose up -d`. With `OIDC_ENABLED=false`, the SSO endpoints answer 404 and the login screen shows local sign-in only.
+
+You can also set all of this in **Admin Panel → System → Sign-in**, with no restart. Homepad checks the provider before it saves. If no admin has a password, it asks for a test sign-in first, so a typo can't lock everyone out. See [docs/single-sign-on.md](./docs/single-sign-on.md#set-it-in-the-admin-panel).
 
 **Single sign-on needs verified emails.** Homepad signs you in with single sign-on only when your identity provider says your email is verified. Without that, anyone who could change their email at the provider could sign in as someone else here.
 
@@ -169,6 +171,8 @@ The full guide, with how to make the groups in PocketID, is [docs/single-sign-on
 - **Behind a proxy.** Set `HOMEPAD_TRUSTED_PROXIES` so the sign-in speed limit can tell people apart. In the quickstart, that's `web`, plus your proxy if you have one. See [Single sign-on](#single-sign-on).
 - **Locked out.** If you are the only admin and forget your password, run `docker compose exec api /homepad-api reset-link you@example.com` on the server. See [docs/accounts.md](./docs/accounts.md#forgotten-passwords).
 - **Framing.** Homepad can't be shown inside another page or dashboard.
+- **Server settings in the Admin Panel.** Admins can change most settings in **Admin Panel → System**: secure cookies, trusted proxies, the Gatus address and "Slow" threshold, sign-up, the account limit and single sign-on. They apply at once. A value saved there wins over `.env`. Each row says where its value comes from (`UI`, `env` or `default`), and **Reset** goes back to `.env`. `PORT`, `DATABASE_URL` and `HOMEPAD_SECRET_KEY` stay in `.env` only.
+- **Recovery.** If a saved setting locks you out, set `HOMEPAD_SETTINGS_FROM_ENV_ONLY=true` on the API and restart it. Homepad then ignores every saved value and uses `.env`. Sign in, reset the bad value in **Admin Panel → System**, then remove the flag and restart.
 - **All settings** are documented in [`.env.example`](./.env.example).
 
 ## Project

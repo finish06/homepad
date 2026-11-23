@@ -92,8 +92,8 @@ stubs remain. `go test ./...` runs 26 tests green; `go vet ./...` clean.
 ```
 POST   /api/register            GET  /api/me
 POST   /api/login               POST /api/logout
-GET    /api/auth/config         GET  /api/auth/oidc/login        (when OIDC on)
-                                GET  /api/auth/oidc/callback      (when OIDC on)
+GET    /api/auth/config         GET  /api/auth/oidc/login        (404 while OIDC off)
+                                GET  /api/auth/oidc/callback      (404 while OIDC off, except a test sign-in)
 GET    /api/services            POST   /api/services             (admin)
 PUT    /api/layout              PATCH  /api/services/{id}         (admin)
                                 DELETE /api/services/{id}         (admin)
@@ -217,6 +217,34 @@ POST   /api/invites/accept                      {token, email, password, name?} 
   `/#signin-error=<code>`: `email_unverified`, `not_invited`,
   `account_limit`, `sso_failed` or `too_many`. None renders a text page.
 
+Server settings (SPEC-admin-server-settings, migration `0024`), admin only:
+
+```
+GET    /api/admin/server-settings                 → {envOnly, settings:[Setting]}
+PATCH  /api/admin/server-settings                 {set:{KEY:value}, confirm?:[code], oidcTest?:token} → GET body (+ warnings)
+DELETE /api/admin/server-settings/{key}           ?confirm=a,b&oidcTest=… → GET body
+POST   /api/admin/server-settings/oidc/test       {set:{OIDC_*:value}} → {id, authorizeUrl}
+GET    /api/admin/server-settings/oidc/test/{id}  → {state: pending|passed|failed, token?, message?}
+GET    /api/admin/env-config                      deprecated (until 19.0.0); unchanged
+```
+
+- For each key the server uses a value saved in the UI (`server_settings`,
+  or `system_settings.status_degraded_ms` for `GATUS_DEGRADED_MS`), else the
+  env var, else the default. Handlers read one live snapshot (an
+  `atomic.Pointer`), so a save applies on the next request. Each process
+  re-reads the table every 25 seconds, so other replicas follow.
+- `HOMEPAD_SETTINGS_FROM_ENV_ONLY=true` (also `1`, `yes`, `on`) ignores every
+  saved value; PATCH is 409 `env_only`, DELETE still works.
+- The OIDC client secret is sealed with `HOMEPAD_SECRET_KEY` (AAD
+  `server_settings:OIDC_CLIENT_SECRET`) and is never returned or logged.
+- Save-time checks (OIDC discovery, the Gatus address) and the OIDC provider
+  and Gatus poller use the guarded outbound client.
+- A junk `HOMEPAD_MAX_ACCOUNTS` or `HOMEPAD_TRUSTED_PROXIES` in env still stops
+  the API, unless a good value is saved in the UI. A saved account limit that
+  fails validation stops it too; other bad saved values are ignored with a
+  warning.
+- The full contract is §7 of `specs/SPEC-admin-server-settings.md`.
+
 Sign-in limits (SPEC-signin-hardening), in memory and per process (a restart
 clears them; two replicas each keep their own):
 
@@ -242,7 +270,9 @@ clears them; two replicas each keep their own):
   comma-separated; hostnames resolve at startup and every 5 minutes); then
   the client is the right-most entry that isn't a trusted proxy. `X-Real-IP`
   is never read. Unset, every request through one proxy shares one limit. A
-  value that doesn't parse stops the API.
+  value that doesn't parse stops the API. A list saved in Admin Panel →
+  System replaces it live: the new hostnames resolve before the swap, and the
+  refresh loop restarts for the new list.
 - A hostname that doesn't resolve at startup is tried again every 10 seconds
   until it resolves once. Then it follows the 5-minute refresh. Until then,
   every client behind that proxy shares one limit. The log says so at most

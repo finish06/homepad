@@ -186,7 +186,7 @@ func (s *server) handleCreateKid(w http.ResponseWriter, r *http.Request) {
 		}
 		color = *in.AvatarColor
 	}
-	kid, err := s.store.CreateKidWithLimit(r.Context(), name, color, s.maxAccounts)
+	kid, err := s.store.CreateKidWithLimit(r.Context(), name, color, s.cfg().maxAccounts)
 	if errors.Is(err, storage.ErrAccountLimit) {
 		s.refuseAtLimit(w, r)
 		return

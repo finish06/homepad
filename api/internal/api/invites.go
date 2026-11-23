@@ -117,7 +117,7 @@ func (s *server) handleCreateInvite(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	inv, err := s.store.CreateInvite(r.Context(), hash, name, *in.Role, admin.ID, inviteTTL, s.maxAccounts)
+	inv, err := s.store.CreateInvite(r.Context(), hash, name, *in.Role, admin.ID, inviteTTL, s.cfg().maxAccounts)
 	if errors.Is(err, storage.ErrAccountLimit) {
 		s.refuseAtLimit(w, r)
 		return
@@ -290,6 +290,7 @@ func (s *server) handleAcceptInvite(w http.ResponseWriter, r *http.Request) {
 
 // refuseAtLimit answers 409 at HOMEPAD_MAX_ACCOUNTS and logs it (§3.5).
 func (s *server) refuseAtLimit(w http.ResponseWriter, r *http.Request) {
-	log.Printf("accounts: limit %d reached, refused %s %s", s.maxAccounts, r.Method, r.URL.Path)
-	http.Error(w, accountLimitMessage(s.maxAccounts), http.StatusConflict)
+	limit := s.cfg().maxAccounts
+	log.Printf("accounts: limit %d reached, refused %s %s", limit, r.Method, r.URL.Path)
+	http.Error(w, accountLimitMessage(limit), http.StatusConflict)
 }

@@ -39,6 +39,9 @@ const trustedLookupTimeout = 5 * time.Second
 // ranges, plus hostnames resolved at startup and every trustedRefreshEvery.
 // The zero value, and nil, trust nothing.
 type TrustedProxies struct {
+	// raw is the list as parsed, entries trimmed and comma-joined: how the
+	// live config tells one list from another (SPEC-admin-server-settings).
+	raw      string
 	prefixes []netip.Prefix
 	hosts    []string
 	lookup   func(ctx context.Context, host string) ([]netip.Addr, error)
@@ -63,11 +66,14 @@ func ParseTrustedProxies(raw string) (*TrustedProxies, error) {
 
 func parseTrustedProxies(raw string, lookup func(context.Context, string) ([]netip.Addr, error)) (*TrustedProxies, error) {
 	tp := &TrustedProxies{lookup: lookup, resolved: map[string][]netip.Addr{}, failLogged: map[string]time.Time{}}
+	var kept []string
+	defer func() { tp.raw = strings.Join(kept, ",") }()
 	for _, entry := range strings.Split(raw, ",") {
 		e := strings.TrimSpace(entry)
 		if e == "" {
 			continue
 		}
+		kept = append(kept, e)
 		if p, err := netip.ParsePrefix(e); err == nil {
 			tp.prefixes = append(tp.prefixes, unmapPrefix(p).Masked())
 			continue
@@ -170,6 +176,22 @@ func (tp *TrustedProxies) logFailure(h string) bool {
 	return true
 }
 
+// unresolved lists the hostnames that have never resolved.
+func (tp *TrustedProxies) unresolved() []string {
+	if tp == nil {
+		return nil
+	}
+	tp.mu.RLock()
+	defer tp.mu.RUnlock()
+	var out []string
+	for _, h := range tp.hosts {
+		if _, ok := tp.resolved[h]; !ok {
+			out = append(out, h)
+		}
+	}
+	return out
+}
+
 // allResolved reports whether every hostname has resolved at least once.
 func (tp *TrustedProxies) allResolved() bool {
 	tp.mu.RLock()
@@ -234,17 +256,41 @@ func (tp *TrustedProxies) contains(a netip.Addr) bool {
 // parse stops the walk at the last trusted hop, so junk can't pick a key.
 // X-Real-IP is never read. The key is clientKey of that address.
 func clientAddr(r *http.Request, tp *TrustedProxies) string {
-	host := r.RemoteAddr
-	if h, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		host = h
+	a, ok := clientIP(r, tp)
+	if !ok {
+		return peerHost(r)
 	}
-	peer, err := netip.ParseAddr(host)
+	return clientKey(a)
+}
+
+// clientAddress is the client's own address, as clientAddr finds it but
+// without the IPv6 /64 bucketing: what the trusted-proxies warning shows the
+// admin (SPEC-admin-server-settings AC-026).
+func clientAddress(r *http.Request, tp *TrustedProxies) string {
+	a, ok := clientIP(r, tp)
+	if !ok {
+		return peerHost(r)
+	}
+	return a.String()
+}
+
+func peerHost(r *http.Request) string {
+	if h, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return h
+	}
+	return r.RemoteAddr
+}
+
+// clientIP walks the peer and X-Forwarded-For as described on clientAddr.
+// ok is false when the peer isn't an address.
+func clientIP(r *http.Request, tp *TrustedProxies) (netip.Addr, bool) {
+	peer, err := netip.ParseAddr(peerHost(r))
 	if err != nil {
-		return host
+		return netip.Addr{}, false
 	}
 	peer = peer.Unmap().WithZone("")
 	if !tp.contains(peer) {
-		return clientKey(peer)
+		return peer, true
 	}
 	var hops []string
 	for _, v := range r.Header.Values("X-Forwarded-For") {
@@ -257,11 +303,11 @@ func clientAddr(r *http.Request, tp *TrustedProxies) string {
 			break
 		}
 		if !tp.contains(a) {
-			return clientKey(a)
+			return a, true
 		}
 		last = a
 	}
-	return clientKey(last)
+	return last, true
 }
 
 // clientKey is the limit key for a client address. An IPv4 address is its

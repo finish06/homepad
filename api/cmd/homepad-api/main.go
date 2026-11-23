@@ -65,7 +65,12 @@ func main() {
 		log.Printf("seeded App Library with %d catalog offers (was empty)", seeded)
 	}
 
-	gatusClient := gatus.NewClient(os.Getenv("GATUS_BASE_URL"))
+	// The guarded client for every server-side fetch of an admin-typed
+	// address: widgets, favicons, Gatus and the OIDC provider
+	// (SPEC-admin-server-settings §1a).
+	outbound := widgets.NewClient()
+
+	gatusClient := gatus.NewClientWith(os.Getenv("GATUS_BASE_URL"), outbound.HTTPClient())
 	// GATUS_DEGRADED_MS — a succeeded check slower than this reads DEGRADED
 	// ("Slow" on the tile). Unset → 1000; 0 disables; junk is logged and ignored.
 	if v := os.Getenv("GATUS_DEGRADED_MS"); v != "" {
@@ -75,10 +80,8 @@ func main() {
 			log.Printf("GATUS_DEGRADED_MS=%q is not a non-negative integer; using %s", v, gatus.DefaultDegradedAfter)
 		}
 	}
-	// A threshold saved from the admin System panel wins over the env default.
-	if cfg, err := store.SystemSettings(ctx); err == nil && cfg.StatusDegradedMs != nil {
-		gatusClient.SetDegradedAfter(time.Duration(*cfg.StatusDegradedMs) * time.Millisecond)
-	}
+	// A threshold saved from the admin System panel wins over the env
+	// default: the API applies it with every other saved server setting.
 	poller := gatus.NewPoller(gatusClient, 30*time.Second)
 	go func() {
 		if err := poller.Run(ctx); err != nil && err != context.Canceled {
@@ -100,9 +103,15 @@ func main() {
 	// HOMEPAD_MAX_ACCOUNTS caps accounts plus pending invites (#88). Junk
 	// stops the API: a cap that silently switched off would leave the public
 	// demo open.
+	// A good value saved in Admin Panel → System replaces a junk one here, and
+	// the API starts (SPEC-admin-server-settings §3.3).
 	maxAccounts, err := api.ParseMaxAccounts(os.Getenv("HOMEPAD_MAX_ACCOUNTS"))
 	if err != nil {
-		log.Fatalf("config: %v", err)
+		if !api.SavedSettingReplacesEnv(ctx, store, "HOMEPAD_MAX_ACCOUNTS", os.Getenv) {
+			log.Fatalf("config: %v", err)
+		}
+		log.Printf("config: %v; using the value saved in Admin Panel → System", err)
+		maxAccounts = 0
 	}
 	if maxAccounts > 0 {
 		log.Printf("accounts: limit %d (HOMEPAD_MAX_ACCOUNTS)", maxAccounts)
@@ -113,15 +122,20 @@ func main() {
 	// behind a proxy every client shares one limit. Junk stops the API, like
 	// HOMEPAD_MAX_ACCOUNTS. Hostnames resolve now and every 5 minutes; one
 	// that hasn't resolved yet is retried every 10 seconds until it does.
+	// The API runs the refresh loop for whichever list is live, env or saved
+	// in the UI, and restarts it when an admin saves a new one.
 	trusted, err := api.ParseTrustedProxies(os.Getenv("HOMEPAD_TRUSTED_PROXIES"))
 	if err != nil {
-		log.Fatalf("config: %v", err)
+		if !api.SavedSettingReplacesEnv(ctx, store, "HOMEPAD_TRUSTED_PROXIES", os.Getenv) {
+			log.Fatalf("config: %v", err)
+		}
+		log.Printf("config: %v; using the value saved in Admin Panel → System", err)
+		trusted = nil
 	}
 	if trusted.Size() == 0 {
-		log.Printf("sign-in limits: HOMEPAD_TRUSTED_PROXIES is unset, so X-Forwarded-For is ignored; behind a proxy, every client shares one limit")
+		log.Printf("sign-in limits: HOMEPAD_TRUSTED_PROXIES is unset, so X-Forwarded-For is ignored unless a list is saved in Admin Panel → System")
 	} else {
 		trusted.Refresh(ctx)
-		go trusted.Run(ctx, api.TrustedRefreshEvery, api.TrustedRetryEvery)
 		log.Printf("sign-in limits: trusting X-Forwarded-For from %d HOMEPAD_TRUSTED_PROXIES entries", trusted.Size())
 	}
 
@@ -152,7 +166,6 @@ func main() {
 	} else if sealer == nil {
 		log.Printf("%s is unset: widget keys can't be saved (clock, weather and search still work)", widgets.SecretKeyEnv)
 	}
-	outbound := widgets.NewClient()
 	widgetKinds := providers.Default()
 	widgetManager := widgets.NewManager(widgets.ManagerOptions{
 		Source: api.NewWidgetSource(store), Registry: widgetKinds, Client: outbound, Sealer: sealer, Logf: log.Printf,
@@ -172,7 +185,7 @@ func main() {
 		}
 	}()
 
-	h := api.New(api.Deps{
+	h, err := api.NewChecked(api.Deps{
 		Store:          store,
 		Poller:         poller,
 		Sessions:       sessions,
@@ -185,7 +198,15 @@ func main() {
 		Sealer:         sealer,
 		WidgetKinds:    widgetKinds,
 		Outbound:       outbound,
+		Getenv:         os.Getenv,
+		// SPEC-admin-server-settings AC-030: other replicas pick up a
+		// change within 30 seconds.
+		Context:             ctx,
+		SettingsReloadEvery: api.SettingsReloadEvery,
 	})
+	if err != nil {
+		log.Fatalf("config: %v", err)
+	}
 
 	srv := &http.Server{Addr: ":" + envOr("PORT", "8080"), Handler: h}
 	go func() {

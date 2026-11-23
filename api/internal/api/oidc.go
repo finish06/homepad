@@ -3,8 +3,10 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/finish06/homepad/api/internal/oidc"
@@ -46,8 +48,9 @@ func signinError(w http.ResponseWriter, r *http.Request, code string) {
 // into "Set up Homepad" (SPEC-household-basics AC-004). Always registered,
 // never requires a session.
 func (s *server) handleOIDCConfig(w http.ResponseWriter, r *http.Request) {
+	cfg := s.cfg()
 	registration := "invite_only"
-	if s.registration == RegistrationOpen {
+	if cfg.registration == RegistrationOpen {
 		registration = "open"
 	}
 	adults, err := s.store.CountUsers(r.Context())
@@ -60,25 +63,45 @@ func (s *server) handleOIDCConfig(w http.ResponseWriter, r *http.Request) {
 		OIDCEnabled  bool   `json:"oidcEnabled"`
 		Registration string `json:"registration"`
 		SetupNeeded  bool   `json:"setupNeeded"`
-	}{s.oidc.Enabled, registration, adults == 0})
+	}{cfg.oidc.Enabled, registration, adults == 0})
+}
+
+// oidcOff is the 404 the login and callback routes answer while single
+// sign-on is off.
+func oidcOff(w http.ResponseWriter) {
+	http.Error(w, "single sign-on is off", http.StatusNotFound)
+}
+
+// oidcOn answers 404 while single sign-on is off, as an unregistered route
+// did before it could be turned on live (SPEC-admin-server-settings AC-017).
+func (s *server) oidcOn(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if c := s.cfg(); !c.oidc.Enabled || c.provider == nil {
+			oidcOff(w)
+			return
+		}
+		h(w, r)
+	}
 }
 
 // handleOIDCLogin begins the Authorization Code + PKCE flow: it mints state,
 // nonce, and a PKCE verifier, stashes them server-side keyed by state, and
-// redirects the browser to the PocketID authorize endpoint.
+// redirects the browser to the PocketID authorize endpoint. The stash
+// records which provider the login began with (AC-018).
 func (s *server) handleOIDCLogin(w http.ResponseWriter, r *http.Request) {
+	cfg := s.cfg()
 	state := oidc.RandToken()
 	nonce := oidc.RandToken()
 	verifier := oidc.NewVerifier()
 
-	authURL, err := s.provider.AuthCodeURL(r.Context(), state, nonce, oidc.Challenge(verifier))
+	authURL, err := cfg.provider.AuthCodeURL(r.Context(), state, nonce, oidc.Challenge(verifier))
 	if err != nil {
 		log.Printf("oidc login: build authorize url: %v", err)
 		signinError(w, r, signinFailed)
 		return
 	}
 
-	s.pending.Put(state, verifier, nonce)
+	s.pending.PutTag(state, verifier, nonce, strconv.FormatUint(cfg.gen, 10))
 	http.Redirect(w, r, authURL, http.StatusFound)
 }
 
@@ -87,53 +110,46 @@ func (s *server) handleOIDCLogin(w http.ResponseWriter, r *http.Request) {
 // an existing local account or creating a new one with the right role), then set
 // the same homepad_session cookie the local login uses and land on the catalog.
 // Every failure lands on the sign-in screen with a §2.4 code (AC-002).
+//
+// A state that belongs to an admin's test sign-in is finished by
+// finishOIDCTest instead, even while single sign-on is off
+// (SPEC-admin-server-settings §2.5); otherwise the route is 404 while off.
 func (s *server) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
 	code := r.URL.Query().Get("code")
+	if run := s.oidcTests.takeState(state); run != nil {
+		s.finishOIDCTest(w, r, run, code)
+		return
+	}
+	cfg := s.cfg()
+	if !cfg.oidc.Enabled || cfg.provider == nil {
+		oidcOff(w)
+		return
+	}
 	if state == "" || code == "" {
 		log.Printf("oidc callback: missing state or code")
 		signinError(w, r, signinFailed)
 		return
 	}
 
-	verifier, nonce, ok := s.pending.Take(state)
+	verifier, nonce, gen, ok := s.pending.TakeTag(state)
 	if !ok {
 		log.Printf("oidc callback: invalid or expired login state")
 		signinError(w, r, signinFailed)
 		return
 	}
+	if gen != strconv.FormatUint(cfg.gen, 10) {
+		log.Printf("oidc callback: the login began before a single sign-on settings change; try again")
+		signinError(w, r, signinFailed)
+		return
+	}
 
 	ctx := r.Context()
-	idToken, accessToken, err := s.provider.Exchange(ctx, code, verifier)
+	claims, err := identify(ctx, cfg.provider, code, verifier, nonce)
 	if err != nil {
-		log.Printf("oidc callback: token exchange: %v", err)
+		log.Printf("oidc callback: %v", err)
 		signinError(w, r, signinFailed)
 		return
-	}
-
-	claims, err := s.provider.VerifyIDToken(ctx, idToken, nonce)
-	if err != nil {
-		log.Printf("oidc callback: verify id_token: %v", err)
-		signinError(w, r, signinFailed)
-		return
-	}
-
-	// The ID token is the primary identity source; fall back to userinfo only
-	// when it omits the email, its email_verified claim, or the groups.
-	if claims.Email == "" || claims.EmailVerified == nil || len(claims.Groups) == 0 {
-		if ui, err := s.provider.Userinfo(ctx, accessToken); err == nil {
-			switch {
-			case claims.Email == "":
-				// The email comes from userinfo, so its verification must too.
-				claims.Email, claims.EmailVerified = ui.Email, ui.EmailVerified
-			case claims.EmailVerified == nil && strings.EqualFold(ui.Email, claims.Email):
-				// A userinfo claim counts only for the address it describes.
-				claims.EmailVerified = ui.EmailVerified
-			}
-			if len(claims.Groups) == 0 {
-				claims.Groups = ui.Groups
-			}
-		}
 	}
 	if claims.Email == "" {
 		log.Printf("oidc callback: refused sign-in: the identity has no email")
@@ -149,10 +165,10 @@ func (s *server) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := s.resolveOIDCUser(ctx, claims)
+	u, err := s.resolveOIDCUser(ctx, cfg, claims)
 	switch {
 	case errors.Is(err, storage.ErrAccountLimit):
-		log.Printf("accounts: limit %d reached, refused %s %s", s.maxAccounts, r.Method, r.URL.Path)
+		log.Printf("accounts: limit %d reached, refused %s %s", cfg.maxAccounts, r.Method, r.URL.Path)
 		signinError(w, r, signinAccountLimit)
 		return
 	case errors.Is(err, errNotInvited):
@@ -173,6 +189,37 @@ func (s *server) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
+// identify exchanges code, verifies the ID token and fills the email, its
+// verification and the groups from userinfo where the token left them out.
+func identify(ctx context.Context, p *oidc.Provider, code, verifier, nonce string) (oidc.Claims, error) {
+	idToken, accessToken, err := p.Exchange(ctx, code, verifier)
+	if err != nil {
+		return oidc.Claims{}, fmt.Errorf("token exchange: %w", err)
+	}
+	claims, err := p.VerifyIDToken(ctx, idToken, nonce)
+	if err != nil {
+		return oidc.Claims{}, fmt.Errorf("verify id_token: %w", err)
+	}
+	// The ID token is the primary identity source; fall back to userinfo only
+	// when it omits the email, its email_verified claim, or the groups.
+	if claims.Email == "" || claims.EmailVerified == nil || len(claims.Groups) == 0 {
+		if ui, err := p.Userinfo(ctx, accessToken); err == nil {
+			switch {
+			case claims.Email == "":
+				// The email comes from userinfo, so its verification must too.
+				claims.Email, claims.EmailVerified = ui.Email, ui.EmailVerified
+			case claims.EmailVerified == nil && strings.EqualFold(ui.Email, claims.Email):
+				// A userinfo claim counts only for the address it describes.
+				claims.EmailVerified = ui.EmailVerified
+			}
+			if len(claims.Groups) == 0 {
+				claims.Groups = ui.Groups
+			}
+		}
+	}
+	return claims, nil
+}
+
 // resolveOIDCUser links the OIDC identity to a homepad user by email: an
 // existing adult is reused as-is, whatever its groups (AC-011). Otherwise a
 // new account is created within HOMEPAD_MAX_ACCOUNTS (storage.ErrAccountLimit)
@@ -188,7 +235,7 @@ func (s *server) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 // Any mode but open counts as invite_only, so a mistyped
 // HOMEPAD_REGISTRATION fails closed here too. The caller has checked that
 // the email is verified.
-func (s *server) resolveOIDCUser(ctx context.Context, claims oidc.Claims) (storage.User, error) {
+func (s *server) resolveOIDCUser(ctx context.Context, cfg *liveConfig, claims oidc.Claims) (storage.User, error) {
 	u, err := s.store.UserByEmail(ctx, claims.Email)
 	if err == nil {
 		// UserByEmail never returns a kid; refuse one anyway rather than sign
@@ -203,12 +250,12 @@ func (s *server) resolveOIDCUser(ctx context.Context, claims oidc.Claims) (stora
 	}
 
 	switch {
-	case s.oidc.AdminGroup != "" && containsString(claims.Groups, s.oidc.AdminGroup):
-		return s.store.CreateOIDCUser(ctx, claims.Email, oidcNoPassword, "admin", s.maxAccounts)
-	case s.registration == RegistrationOpen:
-		return s.store.CreateOIDCUser(ctx, claims.Email, oidcNoPassword, "user", s.maxAccounts)
-	case s.oidc.MemberGroup != "" && containsString(claims.Groups, s.oidc.MemberGroup):
-		u, err := s.store.CreateOIDCMember(ctx, claims.Email, oidcNoPassword, s.maxAccounts)
+	case cfg.oidc.AdminGroup != "" && containsString(claims.Groups, cfg.oidc.AdminGroup):
+		return s.store.CreateOIDCUser(ctx, claims.Email, oidcNoPassword, "admin", cfg.maxAccounts)
+	case cfg.registration == RegistrationOpen:
+		return s.store.CreateOIDCUser(ctx, claims.Email, oidcNoPassword, "user", cfg.maxAccounts)
+	case cfg.oidc.MemberGroup != "" && containsString(claims.Groups, cfg.oidc.MemberGroup):
+		u, err := s.store.CreateOIDCMember(ctx, claims.Email, oidcNoPassword, cfg.maxAccounts)
 		if errors.Is(err, storage.ErrRegistrationClosed) {
 			return storage.User{}, errNotInvited
 		}

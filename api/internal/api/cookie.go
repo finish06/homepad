@@ -45,7 +45,7 @@ func (s *server) baseSessionCookie(value string, maxAge int) *http.Cookie {
 		Value:    value,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   s.cookieSecure,
+		Secure:   s.cfg().cookieSecure,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   maxAge,
 	}

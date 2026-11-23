@@ -18,6 +18,28 @@ OIDC_MEMBER_GROUP=homepad         # people in this group become members
 
 Register the redirect URL with your provider. On plain `http://`, single sign-on also needs `COOKIE_SECURE=false`, the same as password sign-in.
 
+## Set it in the Admin Panel
+
+Every value above can also be set in **Admin Panel → System → Sign-in**. It applies at once, with no restart, and people who are signed in stay signed in.
+
+- A value saved in the panel wins over `.env`. Each row shows where its value comes from: `UI`, `env` or `default`. **Reset** removes the saved value, so `.env` applies again.
+- The Sign-in rows save together, with **Review and save**. The values only work as a set.
+- Before it saves, Homepad reads your provider's discovery document (`<issuer>/.well-known/openid-configuration`, or the Discovery URL). If it can't, or the issuer in it doesn't match, nothing is saved.
+- **The client secret** is never shown again after you save it. Homepad seals it with `HOMEPAD_SECRET_KEY`, the same key widget keys use. Without that key, the panel can't save the secret; set it in `.env` instead. If the key changes, the row says the saved secret can't be read. Homepad then uses the `.env` secret, and you can replace it.
+- **Member group.** You can set `OIDC_MEMBER_GROUP` here too. With invite-only sign-up, new people in that group get a member account on their first sign-in.
+
+### The test sign-in
+
+A wrong issuer, client ID or secret breaks single sign-on. If every admin signs in only with single sign-on, nobody could get back in. So:
+
+- If **an admin has a password**, you can save any change.
+- If **no admin has a password**, you must pass a **test sign-in** first. Tap **Test sign-in**. Homepad opens your provider in a new tab with the new values. Sign in there. The test passes if you sign in as yourself, or as someone in the admin group. It doesn't sign anyone in to Homepad. After a pass, you have 10 minutes to save exactly those values.
+- Turning single sign-on **off** needs an admin with a password. Otherwise nobody could sign in afterwards.
+
+The test uses the new redirect URL, so register it with your provider first.
+
+If a saved value still locks you out, set `HOMEPAD_SETTINGS_FROM_ENV_ONLY=true` on the API and restart it. Homepad ignores every saved setting and uses `.env`. Sign in, reset the bad value in the panel, then remove the flag and restart.
+
 ## Single sign-on needs verified emails
 
 Homepad signs you in with single sign-on only when your identity provider says your email is verified. Without that, anyone who could change their email at the provider could sign in as someone else here.
@@ -61,7 +83,7 @@ This is the usual way to let your household in with PocketID.
    OIDC_MEMBER_GROUP=homepad
    ```
 
-Use the group's **Name**, not its Friendly Name. Names must match exactly, including case. You can check both values in Homepad under **Admin Panel → System**.
+Use the group's **Name**, not its Friendly Name. Names must match exactly, including case. You can check and change both values in Homepad under **Admin Panel → System → Sign-in**, with no restart.
 
 To add someone later, add them to the member group in PocketID. Their next sign-in makes their account. Removing someone from a group doesn't remove their Homepad account; do that in **Administration → Accounts**.
 
@@ -76,7 +98,7 @@ HOMEPAD_TRUSTED_PROXIES=web                  # the quickstart alone
 HOMEPAD_TRUSTED_PROXIES=web,192.0.2.10       # with a reverse proxy in front
 ```
 
-The value is a comma-separated list of addresses, ranges like `10.0.0.0/8`, or hostnames. Hostnames are looked up at start and every 5 minutes. A value Homepad can't read stops the API at start, with a message that names the setting. **Admin Panel → System → Trusted proxies** shows the current value.
+The value is a comma-separated list of addresses, ranges like `10.0.0.0/8`, or hostnames. Hostnames are looked up at start and every 5 minutes. A value Homepad can't read stops the API at start, with a message that names the setting, unless a good list is saved in the Admin Panel. **Admin Panel → System → Server → Trusted proxies** shows the list and changes it with no restart. Saving asks you to confirm, and shows the address Homepad sees for you now and with the new list.
 
 What the limits are:
 

@@ -94,15 +94,82 @@ type Provider struct {
 	keys map[string]*rsaKey // by kid
 }
 
-// NewProvider returns a Provider for cfg. It does not perform any I/O.
+// NewProvider returns a Provider for cfg with a plain 10 s-timeout client. It
+// does not perform any I/O. The server uses NewProviderWithClient and the
+// guarded outbound client.
 func NewProvider(cfg Config) *Provider {
+	return NewProviderWithClient(cfg, &http.Client{Timeout: 10 * time.Second})
+}
+
+// NewProviderWithClient is NewProvider over hc — in the server, the guarded
+// outbound client, because the issuer is admin-typed
+// (SPEC-admin-server-settings §1a). It does not perform any I/O.
+func NewProviderWithClient(cfg Config, hc *http.Client) *Provider {
 	if len(cfg.Scopes) == 0 {
 		cfg.Scopes = []string{"openid", "profile", "email", "groups"}
 	}
-	return &Provider{
-		cfg: cfg,
-		hc:  &http.Client{Timeout: 10 * time.Second},
+	return &Provider{cfg: cfg, hc: hc}
+}
+
+// Config returns the configuration the provider was built with.
+func (p *Provider) Config() Config { return p.cfg }
+
+// DiscoveryURL is the discovery document's address for c.
+func (c Config) DiscoveryDocumentURL() string { return c.discoveryURL() }
+
+// Hash identifies every value a sign-in depends on (Enabled and Scopes
+// aside), so a test sign-in can be bound to exactly the values it tested
+// (SPEC-admin-server-settings §2.5). It includes the client secret; it is
+// never logged or returned.
+func (c Config) Hash() string {
+	h := sha256.New()
+	for _, v := range []string{c.DiscoveryURL, strings.TrimRight(c.Issuer, "/"), c.ClientID, c.ClientSecret, c.RedirectURL, c.AdminGroup, c.MemberGroup} {
+		fmt.Fprintf(h, "%d:%s|", len(v), v)
 	}
+	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+}
+
+// Equal reports whether a and b would sign in the same way.
+func (c Config) Equal(o Config) bool { return c.Enabled == o.Enabled && c.Hash() == o.Hash() }
+
+// maxDocBytes caps a discovery, JWKS, token or userinfo body.
+const maxDocBytes = 1 << 20
+
+// CheckDiscovery fetches the discovery document now, without the cache, and
+// checks it as a save does (SPEC-admin-server-settings §2.5): status 200,
+// the authorization, token and JWKS endpoints, and an issuer equal to the
+// configured one (a trailing "/" ignored). The error is plain words for the
+// admin and never holds the client secret.
+func (p *Provider) CheckDiscovery(ctx context.Context) error {
+	u := p.cfg.discoveryURL()
+	fail := fmt.Errorf("Couldn't read the sign-in settings at %s.", u)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return fail
+	}
+	req.Header.Set("Accept", "application/json")
+	resp, err := p.hc.Do(req)
+	if err != nil {
+		return fail
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Couldn't read the sign-in settings at %s (it answered %d).", u, resp.StatusCode)
+	}
+	var m metadata
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxDocBytes)).Decode(&m); err != nil {
+		return fmt.Errorf("Couldn't read the sign-in settings at %s (not a discovery document).", u)
+	}
+	if m.AuthEndpoint == "" || m.TokenEndpoint == "" || m.JWKSURI == "" {
+		return fmt.Errorf("The sign-in settings at %s are missing the authorization, token or keys address.", u)
+	}
+	if strings.TrimRight(m.Issuer, "/") != strings.TrimRight(p.cfg.Issuer, "/") {
+		return fmt.Errorf("The provider at %s says its issuer is %q, not %q.", u, m.Issuer, p.cfg.Issuer)
+	}
+	p.mu.Lock()
+	p.meta = &m
+	p.mu.Unlock()
+	return nil
 }
 
 // discover loads and caches the discovery document.
@@ -125,7 +192,7 @@ func (p *Provider) discover(ctx context.Context) (*metadata, error) {
 		return nil, fmt.Errorf("oidc: discovery: status %d", resp.StatusCode)
 	}
 	var m metadata
-	if err := json.NewDecoder(resp.Body).Decode(&m); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxDocBytes)).Decode(&m); err != nil {
 		return nil, fmt.Errorf("oidc: discovery decode: %w", err)
 	}
 	if m.AuthEndpoint == "" || m.TokenEndpoint == "" || m.JWKSURI == "" {
@@ -195,7 +262,7 @@ func (p *Provider) Exchange(ctx context.Context, code, verifier string) (idToken
 		return "", "", fmt.Errorf("oidc: token exchange: status %d: %s", resp.StatusCode, body)
 	}
 	var tr tokenResponse
-	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxDocBytes)).Decode(&tr); err != nil {
 		return "", "", fmt.Errorf("oidc: token decode: %w", err)
 	}
 	if tr.IDToken == "" {
@@ -274,7 +341,7 @@ func (p *Provider) Userinfo(ctx context.Context, accessToken string) (Claims, er
 		Groups        []string     `json:"groups"`
 		EmailVerified optionalBool `json:"email_verified"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&c); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxDocBytes)).Decode(&c); err != nil {
 		return Claims{}, fmt.Errorf("oidc: userinfo decode: %w", err)
 	}
 	return Claims{Email: c.Email, Groups: c.Groups, EmailVerified: c.EmailVerified.ptr()}, nil
@@ -303,6 +370,7 @@ func Challenge(verifier string) string {
 type pendingEntry struct {
 	verifier string
 	nonce    string
+	tag      string
 	expires  time.Time
 }
 
@@ -322,10 +390,36 @@ func NewPending(ttl time.Duration) *Pending {
 }
 
 // Put records the verifier and nonce for state.
-func (p *Pending) Put(state, verifier, nonce string) {
+func (p *Pending) Put(state, verifier, nonce string) { p.PutTag(state, verifier, nonce, "") }
+
+// PutTag is Put with a tag the caller gets back from TakeTag — the server
+// records which provider a login started with, so a login begun before a
+// settings change fails cleanly (SPEC-admin-server-settings AC-018).
+func (p *Pending) PutTag(state, verifier, nonce, tag string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.m[state] = pendingEntry{verifier: verifier, nonce: nonce, expires: time.Now().Add(p.ttl)}
+	now := time.Now()
+	for k, e := range p.m { // drop abandoned logins so the map can't grow forever
+		if now.After(e.expires) {
+			delete(p.m, k)
+		}
+	}
+	p.m[state] = pendingEntry{verifier: verifier, nonce: nonce, tag: tag, expires: now.Add(p.ttl)}
+}
+
+// TakeTag is Take, returning the tag PutTag stored.
+func (p *Pending) TakeTag(state string) (verifier, nonce, tag string, ok bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	e, found := p.m[state]
+	if !found {
+		return "", "", "", false
+	}
+	delete(p.m, state)
+	if time.Now().After(e.expires) {
+		return "", "", "", false
+	}
+	return e.verifier, e.nonce, e.tag, true
 }
 
 // Take consumes the entry for state, returning false if it is missing or

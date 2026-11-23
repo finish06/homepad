@@ -463,7 +463,7 @@ func withCeiling(route, what string, b *tokenBucket, h http.HandlerFunc) http.Ha
 // perClient wraps a public route with its per-client bucket only.
 func (s *server) perClient(route string, kl *keyedLimiter, h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		client := clientAddr(r, s.trusted)
+		client := clientAddr(r, s.cfg().trusted)
 		if ok, wait, logIt := kl.takeLog(client); !ok {
 			if logIt {
 				log.Printf("ratelimit: %s limited client=%s", route, client)
@@ -481,7 +481,7 @@ func (s *server) perClient(route string, kl *keyedLimiter, h http.HandlerFunc) h
 // (AC-019, UX S-5).
 func (s *server) oidcStartLimited(kl *keyedLimiter, h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		client := clientAddr(r, s.trusted)
+		client := clientAddr(r, s.cfg().trusted)
 		if ok, _, logIt := kl.takeLog(client); !ok {
 			if logIt {
 				log.Printf("ratelimit: GET /api/auth/oidc/login limited client=%s", client)

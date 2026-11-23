@@ -98,7 +98,8 @@ func (s *server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	open := s.registration == RegistrationOpen
+	cfg := s.cfg()
+	open := cfg.registration == RegistrationOpen
 	// Fast refusal on a closed install that is already set up, before bcrypt.
 	// The store re-checks under the account lock, so this is only a shortcut.
 	if !open {
@@ -123,7 +124,7 @@ func (s *server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	// after that, self-registration needs RegistrationOpen, and any other mode
 	// fails closed (#10). RegisterUser decides both under one lock, so racing
 	// registrations on an empty install make exactly one admin (AC-003).
-	u, first, err := s.store.RegisterUser(ctx, c.Email, string(hash), open, s.maxAccounts)
+	u, first, err := s.store.RegisterUser(ctx, c.Email, string(hash), open, cfg.maxAccounts)
 	switch {
 	case errors.Is(err, storage.ErrRegistrationClosed):
 		http.Error(w, "registration is invite-only", http.StatusForbidden)

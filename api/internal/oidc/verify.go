@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
 	"strings"
@@ -147,7 +148,7 @@ func (p *Provider) refreshKeys(ctx context.Context) error {
 		return fmt.Errorf("oidc: jwks: status %d", resp.StatusCode)
 	}
 	var set jwks
-	if err := json.NewDecoder(resp.Body).Decode(&set); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxDocBytes)).Decode(&set); err != nil {
 		return fmt.Errorf("oidc: jwks decode: %w", err)
 	}
 

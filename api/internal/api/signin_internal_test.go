@@ -143,7 +143,8 @@ func TestPasswordTooLong_CountsBytes(t *testing.T) {
 // the cleared one logout sets.
 func TestSessionCookies_FollowCookieSecure(t *testing.T) {
 	for _, secure := range []bool{true, false} {
-		s := &server{sessions: session.NewMemoryStore(), cookieSecure: secure}
+		s := &server{sessions: session.NewMemoryStore()}
+		s.live.Store(&liveConfig{cookieSecure: secure})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/", nil)

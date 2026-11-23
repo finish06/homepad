@@ -72,7 +72,7 @@ UX artifacts are in [`ux/`](./ux/).
 | [`SPEC-ultrawide-fluid-frame.md`](./SPEC-ultrawide-fluid-frame.md) | Ultra-wide Fluid Content Frame (Phase 1b of pane-fill) | SHIPPED — merged to `main` as #284 (`cb15eec`, 2026-07); `src/lib/layout.ts` carries `max-w-[max(1536px,92vw)]`, `frameContentPx` lives in `src/grid/appGridLayout.ts`, the R3 centring rule is in `index.css` (`@media (min-width:… |
 | [`SPEC-v24-health-meter-banding.md`](./SPEC-v24-health-meter-banding.md) | Homepad v24 — Health-Panel Meter: Status-Banded Tick Strip | SHIPPED — v15.1.0 (impl PR #361, merged 2026-07-14). Walt + Kare co-signed 2026-07-14. |
 | [`SPEC-v25-gatus-key-tile-health.md`](./SPEC-v25-gatus-key-tile-health.md) | homepad v25 — Gatus Endpoint Key on Tiles | SHIPPED — v15.2.0 (`5e82db3`). `Service.gatusKey` on the tile editor. Status line read "Approved … cleared for Stitch" until 2026-09-22. AC-002 amended 2026-10-12 (#367, code wins): `gatus_key` is optional on the client. |
-| [`SPEC-v26-admin-env-config.md`](./SPEC-v26-admin-env-config.md) | homepad v26 — Admin Env-Config Viewer | SHIPPED — v15.3.0 (`28411d3`, PR #374). Live at `src/library/SettingsPanel.tsx` + `GET /api/admin/env-config`. Status line read "Ready for Stitch" until 2026-09-22. |
+| [`SPEC-v26-admin-env-config.md`](./SPEC-v26-admin-env-config.md) | homepad v26 — Admin Env-Config Viewer | SHIPPED — v15.3.0 (`28411d3`, PR #374). Live at `src/library/SettingsPanel.tsx` + `GET /api/admin/env-config`. Status line read "Ready for Stitch" until 2026-09-22. To be superseded by SPEC-admin-server-settings (Draft). |
 | [`cap3-recently-opened.md`](./cap3-recently-opened.md) | "Recently Opened" Row — Capability #3 | SHIPPED — 16.5.0 (2026-09-22). See §8 for the two deviations from this spec's original guidance. |
 | [`cap4-sparkline-dot-tooltip.md`](./cap4-sparkline-dot-tooltip.md) | Sparkline Dot Hover Tooltip — Capability #4 | SHIPPED — 16.5.0 (2026-09-22, restored) — see §8. Originally shipped 2026-06-23 (PR #145), lost 2026-07-02 with its host component. |
 | [`cap5-status-change-toasts.md`](./cap5-status-change-toasts.md) | Status-Change Toast Alerts — Capability #5 | SHIPPED — prod. The AC-015 ghost-toast defect (#147) was fixed in v12.0.3 (`a0b5fd5`); no outstanding work. |
@@ -98,9 +98,13 @@ UX artifacts are in [`ux/`](./ux/).
 | [`v28-tile-drag-reorder.md`](./v28-tile-drag-reorder.md) | homepad v28 — Tile Drag-and-Drop Reorder in Edit Mode | SHIPPED — v15.6.0 (`03fa922`, PR #402). dnd-kit sortable tiles in edit mode. Status line read "Ready for Build" until 2026-09-22. |
 | [`SPEC-density-to-my-settings.md`](./SPEC-density-to-my-settings.md) | Tile density moves to My settings · gear "Edit dashboard" becomes "Arrange apps" | SHIPPED — 16.6.0 (2026-09-25). AC-008 and TC-006 partly superseded by v29. *(Listed here as "Ready for build" until 2026-11-22.)* |
 
-## Open — not shipped (0)
+## Open — not shipped (1)
 
-No whole spec is open. One part of a shipped spec is: Phase 2 of
+| File | Feature | Status |
+|------|---------|------|
+| [`SPEC-admin-server-settings.md`](./SPEC-admin-server-settings.md) | Admins edit server settings in Admin Panel → System, stored in Postgres; UI value wins over env. Replaces the read-only SPEC-v26 list. UX: [`ux/admin-server-settings-ux.md`](./ux/admin-server-settings-ux.md) | Approved — Caleb 2026-11-23, target 18.1.0. In build. |
+
+One part of a shipped spec is also open: Phase 2 of
 [`SPEC-status-widgets.md`](./SPEC-status-widgets.md) (Pi-hole, qBittorrent,
 Proxmox VE widgets) is not built.
 

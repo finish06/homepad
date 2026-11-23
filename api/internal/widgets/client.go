@@ -130,6 +130,13 @@ func (c *Client) httpClient(insecure bool) *http.Client {
 	}
 }
 
+// HTTPClient is the guarded client as a plain *http.Client, for code that
+// speaks HTTP itself (the OIDC provider, the Gatus poller —
+// SPEC-admin-server-settings §1a): the same address guard, no redirects, no
+// proxy from the environment, and the per-request timeout. It verifies TLS.
+// The body cap is the caller's job.
+func (c *Client) HTTPClient() *http.Client { return c.verified }
+
 // guardedDial resolves addr's host, refuses the answer if any address is
 // blocked, and dials the first checked IP that answers.
 func (c *Client) guardedDial(ctx context.Context, network, addr string) (net.Conn, error) {

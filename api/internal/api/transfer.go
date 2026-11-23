@@ -225,7 +225,7 @@ func (errPlanChanged) Error() string { return "transfer: plan changed" }
 // moved, writes everything or nothing, and logs one line (AC-030).
 func (s *server) previewOrApply(w http.ResponseWriter, r *http.Request, u storage.User, what, mode string,
 	load storage.TransferLoad, plan func(*storage.TransferState) *transfer.Plan, apply bool, want string) {
-	load.CallerID, load.AccountLimit = u.ID, s.maxAccounts
+	load.CallerID, load.AccountLimit = u.ID, s.cfg().maxAccounts
 	if !apply {
 		st, err := s.store.LoadTransferState(r.Context(), load)
 		if err != nil {
@@ -238,7 +238,7 @@ func (s *server) previewOrApply(w http.ResponseWriter, r *http.Request, u storag
 	}
 
 	var applied *transfer.Plan
-	err := s.store.InTransferTx(r.Context(), s.maxAccounts, func(tx *storage.TransferTx) error {
+	err := s.store.InTransferTx(r.Context(), s.cfg().maxAccounts, func(tx *storage.TransferTx) error {
 		st, err := tx.LoadState(r.Context(), load)
 		if err != nil {
 			return err
@@ -270,7 +270,7 @@ func (s *server) previewOrApply(w http.ResponseWriter, r *http.Request, u storag
 		// The plan leaves out kids past the cap, so only a cap lowered under
 		// a running apply lands here.
 		writeTransferError(w, &transfer.Error{Status: http.StatusConflict, Code: transfer.ReasonAccountLimit,
-			Message: accountLimitMessage(s.maxAccounts)})
+			Message: accountLimitMessage(s.cfg().maxAccounts)})
 		return
 	}
 	if err != nil {
@@ -286,9 +286,11 @@ func (s *server) previewOrApply(w http.ResponseWriter, r *http.Request, u storag
 		sum.Delete.Sections, sum.Delete.Apps, sum.Delete.Offers, sum.Unchanged, sum.Skipped)
 	// A restored "Slow" threshold applies to the next poll, as a System
 	// panel change does.
+	// The live config re-reads it (SPEC-admin-server-settings); a restore
+	// never writes server_settings (§2.8).
 	if what == "restore" {
-		if cfg, err := s.store.SystemSettings(r.Context()); err == nil && cfg.StatusDegradedMs != nil {
-			s.poller.SetDegradedAfter(time.Duration(*cfg.StatusDegradedMs) * time.Millisecond)
+		if err := s.reload(r.Context(), true); err != nil {
+			log.Printf("transfer: restore: reload settings: %v", err)
 		}
 	}
 	writeJSON(w, http.StatusOK, applied.Result())

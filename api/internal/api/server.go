@@ -1,9 +1,14 @@
 package api
 
 import (
+	"context"
 	"log"
+	"net"
 	"net/http"
+	"net/netip"
 	"os"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/finish06/homepad/api/internal/gatus"
@@ -46,26 +51,56 @@ type Deps struct {
 	Sealer      *widgets.Sealer // nil = HOMEPAD_SECRET_KEY unset: keys can't be saved
 	WidgetKinds *widgets.Registry
 	// Outbound is the guarded client for every server-side fetch of an
-	// admin-supplied address: widgets and favicons (#90).
+	// admin-supplied address: widgets, favicons (#90), and the OIDC and
+	// Gatus checks of SPEC-admin-server-settings.
 	Outbound *widgets.Client
+
+	// SPEC-admin-server-settings. Registration, MaxAccounts, TrustedProxies
+	// and OIDC above are the env layer: what applies when no value is saved
+	// in the UI. Getenv reads the raw env for the source badge,
+	// COOKIE_SECURE, PORT and HOMEPAD_SETTINGS_FROM_ENV_ONLY; nil is
+	// os.Getenv.
+	Getenv func(string) string
+	// Context is the server's lifetime. With it, the server runs the
+	// trusted-proxy hostname refresh loop for whichever list is live, and
+	// (with SettingsReloadEvery > 0) re-reads server_settings that often.
+	// Nil: neither loop runs (most tests).
+	Context             context.Context
+	SettingsReloadEvery time.Duration
+	// ResolveHost resolves a trusted-proxy hostname saved in the UI; nil is
+	// the system resolver. ProxyRefreshEvery / ProxyRetryEvery override the
+	// refresh loop's timing (tests); zero is the default.
+	ResolveHost       func(ctx context.Context, host string) ([]netip.Addr, error)
+	ProxyRefreshEvery time.Duration
+	ProxyRetryEvery   time.Duration
 }
 
 type server struct {
-	store        *storage.Store
-	poller       *gatus.Poller
-	sessions     session.Store
-	registration RegistrationMode
-	cookieSecure bool
-	oidc         oidc.Config
-	provider     *oidc.Provider
-	pending      *oidc.Pending
-	// maxAccounts is HOMEPAD_MAX_ACCOUNTS (0 = no limit).
-	maxAccounts int
+	store    *storage.Store
+	poller   *gatus.Poller
+	sessions session.Store
+	pending  *oidc.Pending
+
+	// SPEC-admin-server-settings — the live config (cfg()), the env layer
+	// under it, and what keeps it current. settingsMu serializes saves,
+	// resets and reloads.
+	live              atomic.Pointer[liveConfig]
+	env               envLayer
+	envOnly           bool
+	settingsMu        sync.Mutex
+	providerGen       uint64
+	proxyLoop         *loopHandle
+	baseCtx           context.Context
+	lookupHost        func(ctx context.Context, host string) ([]netip.Addr, error)
+	proxyRefreshEvery time.Duration
+	proxyRetryEvery   time.Duration
+	oidcTests         *oidcTestFlow
+	bootErr           error
+
 	// The sign-in limits (SPEC-signin-hardening §2.1), all per process: a
 	// bucket per client for each public sign-in route, the process ceiling
 	// the bcrypt routes share, the one the two lookups share, and the
 	// per-email login lock.
-	trusted       *TrustedProxies
 	loginLimit    *keyedLimiter
 	registerLimit *keyedLimiter
 	inviteLimit   *keyedLimiter
@@ -94,26 +129,39 @@ type server struct {
 	comparePassword func(hash, password []byte) error
 }
 
+// New builds the API handler. A saved server setting that should stop the
+// API (§3.3) is logged and the env value is used; main calls NewChecked to
+// stop instead.
 func New(d Deps) http.Handler {
-	h, _ := newServer(d).routes(d)
+	h, err := NewChecked(d)
+	if err != nil {
+		log.Printf("%v", err)
+	}
 	return h
+}
+
+// NewChecked is New, returning the error a saved setting raises at boot
+// (SPEC-admin-server-settings AC-006): main stops the API on it.
+func NewChecked(d Deps) (http.Handler, error) {
+	s := newServer(d)
+	h, _ := s.routes(d)
+	return h, s.bootErr
 }
 
 func newServer(d Deps) *server {
 	s := &server{
-		store:        d.Store,
-		poller:       d.Poller,
-		sessions:     d.Sessions,
-		registration: d.Registration,
-		cookieSecure: ParseCookieSecure(os.Getenv("COOKIE_SECURE")),
-		oidc:         d.OIDC,
-		maxAccounts:  d.MaxAccounts,
-		trusted:      d.TrustedProxies,
-		widgets:      d.Widgets,
-		weather:      d.Weather,
-		sealer:       d.Sealer,
-		widgetKinds:  d.WidgetKinds,
-		outbound:     d.Outbound,
+		store:       d.Store,
+		poller:      d.Poller,
+		sessions:    d.Sessions,
+		widgets:     d.Widgets,
+		weather:     d.Weather,
+		sealer:      d.Sealer,
+		widgetKinds: d.WidgetKinds,
+		outbound:    d.Outbound,
+		pending:     oidc.NewPending(oidcPendingTTL),
+		oidcTests:   newOIDCTestFlow(),
+		baseCtx:     d.Context,
+		lookupHost:  d.ResolveHost,
 	}
 	s.passwordFails = newFailureLimiter(time.Now, passwordFailPolicy)
 	limits := d.Limits
@@ -148,7 +196,49 @@ func newServer(d Deps) *server {
 			Source: NewWidgetSource(d.Store), Registry: s.widgetKinds, Client: s.outbound, Sealer: s.sealer, Logf: log.Printf,
 		})
 	}
+	s.initSettings(d)
 	return s
+}
+
+// initSettings builds the env layer and the first live snapshot
+// (SPEC-admin-server-settings §3.3), and starts the loops that keep it
+// current when the server has a lifetime context.
+func (s *server) initSettings(d Deps) {
+	getenv := d.Getenv
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	if s.lookupHost == nil {
+		s.lookupHost = func(ctx context.Context, host string) ([]netip.Addr, error) {
+			return net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+		}
+	}
+	s.proxyRefreshEvery, s.proxyRetryEvery = d.ProxyRefreshEvery, d.ProxyRetryEvery
+	if s.proxyRefreshEvery <= 0 {
+		s.proxyRefreshEvery = trustedRefreshEvery
+	}
+	if s.proxyRetryEvery <= 0 {
+		s.proxyRetryEvery = trustedRetryEvery
+	}
+	on, recognized := truthyFlag(getenv(SettingsFromEnvOnlyEnv))
+	if !recognized {
+		log.Printf("warning: %s=%q is not true/1/yes/on; saved server settings apply", SettingsFromEnvOnlyEnv, getenv(SettingsFromEnvOnlyEnv))
+	}
+	s.envOnly = on
+	if s.poller == nil {
+		s.poller = gatus.NewPoller(gatus.NewClient(""), time.Hour)
+	}
+	s.env = newEnvLayer(d, getenv, s.poller.BaseURL(), s.poller.DegradedAfter())
+	ctx := d.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	s.settingsMu.Lock()
+	s.bootErr = s.bootSettings(ctx)
+	s.settingsMu.Unlock()
+	if d.Context != nil && d.SettingsReloadEvery > 0 {
+		go s.runReload(d.Context, d.SettingsReloadEvery)
+	}
 }
 
 // routeClass is what a route means for a kid session (SPEC-kid-accounts §7).
@@ -318,17 +408,22 @@ func (s *server) routes(d Deps) (http.Handler, []registeredRoute) {
 	rt.handle("POST /api/services/{id}/widget/test", classAdminOnly, s.handleTestWidget)
 	rt.handle("GET /api/admin/geocode", classAdminOnly, s.handleGeocode)
 
+	// SPEC-admin-server-settings §7 — server settings saved in the UI.
+	rt.handle("GET /api/admin/server-settings", classAdminOnly, s.handleGetServerSettings)
+	rt.handle("PATCH /api/admin/server-settings", classAdminOnly, s.handlePatchServerSettings)
+	rt.handle("DELETE /api/admin/server-settings/{key}", classAdminOnly, s.handleResetServerSetting)
+	rt.handle("POST /api/admin/server-settings/oidc/test", classAdminOnly, s.handleStartOIDCTest)
+	rt.handle("GET /api/admin/server-settings/oidc/test/{id}", classAdminOnly, s.handleOIDCTestStatus)
+
 	// OIDC config is always advertised so the web client can gate its
-	// "Log in with PocketID" button. The login/callback endpoints exist
-	// only when OIDC is enabled — otherwise they stay unregistered (404)
-	// and homepad behaves as a local-accounts-only app.
+	// "Log in with PocketID" button. The login and callback routes are
+	// always registered and answer 404 while single sign-on is off, so it
+	// can be turned on live (SPEC-admin-server-settings AC-017). The
+	// callback also finishes an admin's test sign-in, which works while
+	// single sign-on is off.
 	rt.handle("GET /api/auth/config", classPublic, s.handleOIDCConfig)
-	if d.OIDC.Enabled {
-		s.provider = oidc.NewProvider(d.OIDC)
-		s.pending = oidc.NewPending(oidcPendingTTL)
-		rt.handle("GET /api/auth/oidc/login", classPublic, s.oidcStartLimited(s.oidcLimit, s.handleOIDCLogin))
-		rt.handle("GET /api/auth/oidc/callback", classPublic, s.handleOIDCCallback)
-	}
+	rt.handle("GET /api/auth/oidc/login", classPublic, s.oidcOn(s.oidcStartLimited(s.oidcLimit, s.handleOIDCLogin)))
+	rt.handle("GET /api/auth/oidc/callback", classPublic, s.handleOIDCCallback)
 
 	rt.handle(livePattern, classPublic, handleLive)
 

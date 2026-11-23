@@ -45,6 +45,23 @@ it, remove them in your identity provider too. While single sign-on is on,
 the Remove confirm says so for every adult, because Homepad can't tell who
 uses it.
 
+## Sign-up and the account limit
+
+Admins can change **Sign-up** (`HOMEPAD_REGISTRATION`) and the **Account
+limit** (`HOMEPAD_MAX_ACCOUNTS`) in **Admin Panel → System → Accounts**. Both
+apply at once, with no restart. A value saved there wins over `.env`, and
+**Reset** goes back to `.env`.
+
+- Opening sign-up asks you to confirm first.
+- A limit lower than today's accounts plus pending invites removes nobody.
+  Homepad shows the numbers and asks you to confirm. New accounts and
+  invites are refused until there are fewer than the limit.
+- Invites still work with invite-only sign-up, and the first account on a new
+  install is still the admin.
+
+To ignore every saved value, set `HOMEPAD_SETTINGS_FROM_ENV_ONLY=true` on the
+API and restart it.
+
 ## Forgotten passwords
 
 Homepad doesn't send email. To reset a forgotten password, an admin makes a

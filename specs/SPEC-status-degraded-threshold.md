@@ -49,3 +49,7 @@ set, otherwise whatever the poller is running with (`internal/api/system.go`, `t
 — including the one that matches the env var — the env var stops applying permanently, and the only way
 back is a direct database write. Either add a "Reset to server default" action that PATCHes `null`, or
 document that the admin value is one-way. Not decided here.
+
+**Closed by [`SPEC-admin-server-settings.md`](./SPEC-admin-server-settings.md) (18.1.0):** `PATCH /api/admin/settings`
+with `statusDegradedMs: null`, or `DELETE /api/admin/server-settings/GATUS_DEGRADED_MS`, sets the column back
+to NULL, so `GATUS_DEGRADED_MS` or the default applies again.
