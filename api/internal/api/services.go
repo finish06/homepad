@@ -1,0 +1,539 @@
+package api
+
+import (
+	"encoding/json"
+	"errors"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/finish06/homepad/api/internal/gatus"
+	"github.com/finish06/homepad/api/internal/storage"
+)
+
+type serviceView struct {
+	ID           string  `json:"id"`
+	Slug         string  `json:"slug"`
+	Name         string  `json:"name"`
+	Description  string  `json:"description"`
+	URL          string  `json:"url"`
+	Icon         string  `json:"icon"`
+	Status       string  `json:"status"`
+	Favorite     bool    `json:"favorite"`
+	IconLight    bool    `json:"iconLight"`
+	IconDark     bool    `json:"iconDark"`
+	CategoryID   *string `json:"categoryId"`   // null when Uncategorized (v4)
+	CategoryName *string `json:"categoryName"` // null when Uncategorized; denormalized
+	// SourceLibraryID is provenance only (v9, C1): the library offer a copy was
+	// added from, null for a custom app. Additive — never changes behavior.
+	SourceLibraryID *string `json:"sourceLibraryId"`
+	// ClickAction (v23) is the tile's click behavior — 'new_tab' | 'same_tab' |
+	// 'iframe'. Always present on the wire (DB default 'new_tab'); a pre-migration
+	// client that omits it is treated as new_tab by the frontend.
+	ClickAction string `json:"clickAction"`
+	// IframeSameOrigin (SPEC-iframe-sandbox-optin) is "Let this app keep its
+	// sign-in". The overlay adds allow-same-origin to its sandbox only when it
+	// is on and the app is on another origin. Always present; kids get it too,
+	// so their overlay behaves like everyone else's.
+	IframeSameOrigin bool `json:"iframeSameOrigin"`
+	// GatusKey (v25) is the Gatus endpoint slug backing the tile's health meter,
+	// "" when the tile is unmonitored. Always present on the wire so the
+	// TileEditModal can prefill the current key. Additive — clients ignoring it
+	// are unaffected; it never changes behavior (Status carries the resolved badge).
+	GatusKey string `json:"gatus_key"`
+	// UptimeChecks is the recent Gatus history (≤20, oldest-first) backing the
+	// tile sparkline. Always present; [] when the service has no gatus_key or no
+	// cached results. Additive — clients ignoring it are unaffected.
+	UptimeChecks []checkResultView `json:"uptimeChecks"`
+	// UptimeWindows is Gatus's own computed availability per long window
+	// ("24h"/"7d"/"30d"), fraction 0..1. Always present; {} when unmonitored or
+	// no data. A window Gatus couldn't answer is omitted. Additive.
+	UptimeWindows map[string]float64 `json:"uptimeWindows"`
+	// ResponseTimeMs (SPEC-tile-density OQ-6) is the most recent check's
+	// response time in whole ms, backing the compact tile's status line
+	// ("Online · 41 ms"). OMITTED — not 0 — when the service is unmonitored,
+	// has no cached result, or the latest result carried no duration, so the
+	// frontend's "state word alone" degradation holds and no number is invented.
+	ResponseTimeMs *int64 `json:"responseTimeMs,omitempty"`
+	// Widget (SPEC-status-widgets §7.2) is the tile's widget: kind, state,
+	// asOf and the chosen fields as typed values. ABSENT when the service has
+	// no enabled widget, and always absent for a kid (AC-014). It never holds
+	// the address, the username, anything about the key, or an error code.
+	Widget *tileWidgetView `json:"widget,omitempty"`
+}
+
+// validClickAction reports whether v is one of the three v23 click-action enum
+// values. Empty is a valid input on create (the storage layer applies the DB
+// default 'new_tab'); callers that must reject empty check that separately.
+func validClickAction(v string) bool {
+	switch v {
+	case "", "new_tab", "same_tab", "iframe":
+		return true
+	default:
+		return false
+	}
+}
+
+// checkResultView is the wire form of one historical Gatus check.
+type checkResultView struct {
+	Success   bool      `json:"success"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// handleListServices serves the shared catalog with a live status badge per
+// tile, merged from the in-memory Gatus snapshot. It never proxies to Gatus, so
+// it cannot 5xx on Gatus being down (A9) — those tiles just resolve to UNKNOWN.
+func (s *server) handleListServices(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.currentUser(w, r)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// The household's catalog decorated with the caller's own layout order,
+	// filtered to what the caller may see (everything for an adult; the
+	// allow-list for a kid — AC-003). It needs no admin to exist
+	// (SPEC-household-catalog-owner AC-003).
+	svcs, ok := s.visibleCatalog(w, r, u)
+	if !ok {
+		return
+	}
+	favs, err := s.store.FavoriteIDs(r.Context(), u.ID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	icons, err := s.store.AllIconFlags(r.Context())
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	snap := s.poller.Snapshot()
+	// Kids see no widget data in v1 (Q3 a): nothing to leak, by construction.
+	withWidgets := storage.IsAdultRole(u.Role)
+	out := make([]serviceView, 0, len(svcs))
+	for _, sv := range svcs {
+		var widget *tileWidgetView
+		if withWidgets {
+			if v, ok := s.widgets.View(sv.ID); ok {
+				widget = tileWidget(v)
+			}
+		}
+		out = append(out, serviceView{
+			ID:               sv.ID,
+			Slug:             sv.Slug,
+			Name:             sv.Name,
+			Description:      sv.Description,
+			URL:              sv.URL,
+			Icon:             sv.Icon,
+			Status:           statusFor(snap, sv.GatusKey),
+			Favorite:         favs[sv.ID],
+			IconLight:        icons[sv.ID].Light,
+			IconDark:         icons[sv.ID].Dark,
+			CategoryID:       sv.CategoryID,
+			CategoryName:     sv.CategoryName,
+			SourceLibraryID:  sv.SourceLibraryID,
+			ClickAction:      sv.ClickAction,
+			IframeSameOrigin: sv.IframeSameOrigin,
+			GatusKey:         sv.GatusKey,
+			UptimeChecks:     uptimeChecksFor(snap, sv.GatusKey),
+			UptimeWindows:    uptimeWindowsFor(snap, sv.GatusKey),
+			ResponseTimeMs:   responseTimeMsFor(snap, sv.GatusKey),
+			Widget:           widget,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"services": out})
+}
+
+// handleCreateService adds a service to the catalog. Admin-only
+// (classCatalogWrite): a non-admin session gets 403.
+func (s *server) handleCreateService(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	var in struct {
+		Slug        string `json:"slug"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		URL         string `json:"url"`
+		Icon        string `json:"icon"`
+		GatusKey    string `json:"gatus_key"`
+		ClickAction string `json:"clickAction"`
+		// SPEC-iframe-sandbox-optin AC-009 — optional, default false.
+		IframeSameOrigin strictBool `json:"iframeSameOrigin"`
+	}
+	if !decodeServiceBody(w, r, &in) {
+		return
+	}
+	in.Slug = strings.TrimSpace(in.Slug)
+	in.Name = strings.TrimSpace(in.Name)
+	in.URL = strings.TrimSpace(in.URL)
+	if in.Slug == "" || in.Name == "" || in.URL == "" {
+		http.Error(w, "slug, name and url are required", http.StatusBadRequest)
+		return
+	}
+	// v23 — an omitted clickAction defaults to new_tab in storage; a present but
+	// unknown value is a 400. (§3.2)
+	if !validClickAction(in.ClickAction) {
+		http.Error(w, "clickAction must be one of new_tab, same_tab, iframe", http.StatusBadRequest)
+		return
+	}
+
+	sv, err := s.store.CreateService(r.Context(), storage.Service{
+		Slug:        in.Slug,
+		Name:        in.Name,
+		Description: in.Description,
+		URL:         in.URL,
+		Icon:        in.Icon,
+		GatusKey:    strings.TrimSpace(in.GatusKey),
+		ClickAction: in.ClickAction,
+		// An omitted field is the zero value: off (AC-008, new apps start strict).
+		IframeSameOrigin: in.IframeSameOrigin.Value,
+	})
+	if errors.Is(err, storage.ErrSlugTaken) {
+		http.Error(w, "a service with that slug already exists", http.StatusConflict)
+		return
+	}
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, serviceView{
+		ID:          sv.ID,
+		Slug:        sv.Slug,
+		Name:        sv.Name,
+		Description: sv.Description,
+		URL:         sv.URL,
+		Icon:        sv.Icon,
+		Status:      statusFor(s.poller.Snapshot(), sv.GatusKey),
+		ClickAction: sv.ClickAction,
+		// The create response carries it like the list does.
+		IframeSameOrigin: sv.IframeSameOrigin,
+	})
+}
+
+// handleUpdateService edits a catalog service. Admin-only
+// (classCatalogWrite): a non-admin session gets 403. Body fields are optional —
+// only those present are changed.
+func (s *server) handleUpdateService(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	var in struct {
+		Slug        *string        `json:"slug"`
+		Name        *string        `json:"name"`
+		Description *string        `json:"description"`
+		URL         *string        `json:"url"`
+		Icon        *string        `json:"icon"`
+		GatusKey    *string        `json:"gatus_key"`
+		CategoryID  optionalString `json:"categoryId"`
+		ClickAction *string        `json:"clickAction"`
+		// SPEC-iframe-sandbox-optin AC-009 — absent leaves it unchanged.
+		IframeSameOrigin strictBool `json:"iframeSameOrigin"`
+	}
+	if !decodeServiceBody(w, r, &in) {
+		return
+	}
+	// v23 — when clickAction is present it must be a valid enum value (an explicit
+	// empty string is not a valid change; omit the key to leave it unchanged). §3.2
+	if in.ClickAction != nil && (*in.ClickAction == "" || !validClickAction(*in.ClickAction)) {
+		http.Error(w, "clickAction must be one of new_tab, same_tab, iframe", http.StatusBadRequest)
+		return
+	}
+
+	sv, err := s.store.UpdateService(r.Context(), r.PathValue("id"), storage.ServiceUpdate{
+		Slug:             in.Slug,
+		Name:             in.Name,
+		Description:      in.Description,
+		URL:              in.URL,
+		Icon:             in.Icon,
+		GatusKey:         in.GatusKey,
+		SetCategory:      in.CategoryID.Set,
+		CategoryID:       in.CategoryID.Value,
+		ClickAction:      in.ClickAction,
+		IframeSameOrigin: in.IframeSameOrigin.ptr(),
+	})
+	if errors.Is(err, storage.ErrCategoryNotFound) {
+		http.Error(w, "no such category", http.StatusBadRequest)
+		return
+	}
+	if errors.Is(err, storage.ErrNotFound) {
+		http.Error(w, "no such service", http.StatusNotFound)
+		return
+	}
+	if errors.Is(err, storage.ErrSlugTaken) {
+		http.Error(w, "a service with that slug already exists", http.StatusConflict)
+		return
+	}
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, serviceView{
+		ID:               sv.ID,
+		Slug:             sv.Slug,
+		Name:             sv.Name,
+		Description:      sv.Description,
+		URL:              sv.URL,
+		Icon:             sv.Icon,
+		Status:           statusFor(s.poller.Snapshot(), sv.GatusKey),
+		CategoryID:       sv.CategoryID,
+		CategoryName:     sv.CategoryName,
+		SourceLibraryID:  sv.SourceLibraryID,
+		ClickAction:      sv.ClickAction,
+		IframeSameOrigin: sv.IframeSameOrigin,
+		GatusKey:         sv.GatusKey,
+	})
+}
+
+// errNotABool is strictBool's refusal of any JSON value but true or false.
+var errNotABool = errors.New("iframeSameOrigin must be true or false")
+
+// strictBool is an optional JSON boolean that refuses every other type,
+// null included (SPEC-iframe-sandbox-optin AC-009). Set is false when the key
+// is absent: UnmarshalJSON only runs for a key that is present.
+type strictBool struct {
+	Set   bool
+	Value bool
+}
+
+func (b *strictBool) UnmarshalJSON(data []byte) error {
+	switch string(data) {
+	case "true":
+		b.Set, b.Value = true, true
+	case "false":
+		b.Set, b.Value = true, false
+	default:
+		return errNotABool
+	}
+	return nil
+}
+
+// ptr is nil when the key was absent, so storage leaves the value alone.
+func (b strictBool) ptr() *bool {
+	if !b.Set {
+		return nil
+	}
+	v := b.Value
+	return &v
+}
+
+// decodeServiceBody decodes a service create or update body. On a bad body it
+// writes the 400 and returns false.
+func decodeServiceBody(w http.ResponseWriter, r *http.Request, dst any) bool {
+	err := json.NewDecoder(r.Body).Decode(dst)
+	switch {
+	case errors.Is(err, errNotABool):
+		http.Error(w, errNotABool.Error(), http.StatusBadRequest)
+		return false
+	case err != nil:
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return false
+	}
+	return true
+}
+
+// optionalString distinguishes JSON's three states for a nullable field: the
+// key absent (Set false → leave unchanged), present as null (Set true, Value
+// nil → clear), or present with a string (Set true, Value set). UnmarshalJSON
+// only fires when the key is present, so absence is captured for free.
+type optionalString struct {
+	Set   bool
+	Value *string
+}
+
+func (o *optionalString) UnmarshalJSON(b []byte) error {
+	o.Set = true
+	if string(b) == "null" {
+		o.Value = nil
+		return nil
+	}
+	var v string
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	o.Value = &v
+	return nil
+}
+
+// handleDeleteService removes a catalog service. Admin-only
+// (classCatalogWrite): a non-admin session gets 403.
+func (s *server) handleDeleteService(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAdmin(w, r); !ok {
+		return
+	}
+
+	err := s.store.DeleteService(r.Context(), r.PathValue("id"))
+	if errors.Is(err, storage.ErrNotFound) {
+		http.Error(w, "no such service", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleStatus exposes the raw cached Gatus snapshot for the frontend's
+// staleness display (A4). Keys are Gatus endpoint keys, never the Gatus URL (A11).
+//
+// For a kid it carries only the Gatus keys of the kid's allowed services
+// (AC-004), so the key list cannot reveal what else is monitored.
+func (s *server) handleStatus(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.currentUser(w, r)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	vis, ok := s.visibleServices(w, r, u)
+	if !ok {
+		return
+	}
+	var allowedKeys map[string]bool // nil = every key (adults)
+	if vis != nil {
+		allowedKeys = map[string]bool{}
+		svcs, err := s.store.ListServices(r.Context(), u.ID)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		for _, sv := range svcs {
+			if sv.GatusKey != "" && vis.Allows(sv.ID) {
+				allowedKeys[sv.GatusKey] = true
+			}
+		}
+	}
+	snap := s.poller.Snapshot()
+	statuses := make(map[string]string, len(snap.Statuses))
+	for key, st := range snap.Statuses {
+		if allowedKeys == nil || allowedKeys[key] {
+			statuses[key] = st.Status
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"as_of": snap.AsOf, "statuses": statuses})
+}
+
+// visibleCatalog lists the catalog (in u's layout order) filtered through
+// VisibleServiceIDs — the one way a handler reads the catalog for a
+// possibly-kid caller. On error it has written a 500.
+func (s *server) visibleCatalog(w http.ResponseWriter, r *http.Request, u storage.User) ([]storage.Service, bool) {
+	vis, ok := s.visibleServices(w, r, u)
+	if !ok {
+		return nil, false
+	}
+	svcs, err := s.store.ListServices(r.Context(), u.ID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return nil, false
+	}
+	if vis == nil {
+		return svcs, true
+	}
+	out := make([]storage.Service, 0, len(svcs))
+	for _, sv := range svcs {
+		if vis.Allows(sv.ID) {
+			out = append(out, sv)
+		}
+	}
+	return out, true
+}
+
+// handleStatusRefresh re-polls Gatus on demand (SPEC-v24 §12.3, OQ-5) so a
+// STALE health panel can ask for fresh evidence. The two outcomes the panel
+// must tell apart:
+//   - 200 {as_of}: Gatus answered and the snapshot was replaced. as_of is new;
+//     whether the DATA changed is for the client to judge from its next fetch.
+//   - 503 {error, as_of}: Gatus could not be reached. The last good snapshot —
+//     and its as_of — still stand, so the client can say "could not reach the
+//     status source" rather than pretending the retry did anything.
+//
+// Session-gated like GET /api/status; not admin-only, because any viewer can
+// see the stale panel and the action is read-only against Gatus.
+func (s *server) handleStatusRefresh(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.currentUser(w, r); !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	snap, err := s.poller.PollNow(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"error": "status source unreachable",
+			"as_of": snap.AsOf,
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"as_of": snap.AsOf})
+}
+
+// statusFor resolves a service's badge from the snapshot. An empty gatus_key
+// means monitoring was never wired → NOT_MONITORED. A key that IS set but has no
+// cached result (e.g. Gatus unreachable) is a monitoring failure → UNKNOWN.
+func statusFor(snap gatus.Snapshot, gatusKey string) string {
+	if gatusKey == "" {
+		return gatus.StatusNotMonitored
+	}
+	if st, ok := snap.Statuses[gatusKey]; ok {
+		return st.Status
+	}
+	return gatus.StatusUnknown
+}
+
+// uptimeChecksFor maps a service's cached Gatus history to the wire view. It
+// always returns a non-nil slice so the JSON field is [] (never null): no
+// gatus_key, or no cached results for it (e.g. Gatus unreachable), yields [].
+func uptimeChecksFor(snap gatus.Snapshot, gatusKey string) []checkResultView {
+	out := []checkResultView{}
+	if gatusKey == "" {
+		return out
+	}
+	st, ok := snap.Statuses[gatusKey]
+	if !ok {
+		return out
+	}
+	for _, r := range st.Results {
+		out = append(out, checkResultView{Success: r.Success, Timestamp: r.Timestamp})
+	}
+	return out
+}
+
+// responseTimeMsFor returns the latest cached check's duration in ms, or nil
+// when there is nothing honest to report (see serviceView.ResponseTimeMs).
+func responseTimeMsFor(snap gatus.Snapshot, gatusKey string) *int64 {
+	if gatusKey == "" {
+		return nil
+	}
+	st, ok := snap.Statuses[gatusKey]
+	if !ok || len(st.Results) == 0 {
+		return nil
+	}
+	last := st.Results[len(st.Results)-1]
+	if last.Duration <= 0 {
+		return nil
+	}
+	ms := last.Duration.Milliseconds()
+	return &ms
+}
+
+// uptimeWindowsFor surfaces Gatus's computed long-window uptime for a service's
+// gatus_key. Always returns a non-nil map so the JSON is {} (never null): empty
+// for an unmonitored service or one with no snapshot/uptime data.
+func uptimeWindowsFor(snap gatus.Snapshot, gatusKey string) map[string]float64 {
+	out := map[string]float64{}
+	if gatusKey == "" {
+		return out
+	}
+	st, ok := snap.Statuses[gatusKey]
+	if !ok {
+		return out
+	}
+	for win, v := range st.Uptime {
+		out[win] = v
+	}
+	return out
+}

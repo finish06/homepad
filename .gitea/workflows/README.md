@@ -52,7 +52,7 @@ whose teardown never ran.
 
 | Workflow | Runs when | Deploys to | Blocks merge? |
 |---|---|---|---|
-| `ci.yml` (CI) | A PR is opened or updated | Nothing | **Yes**: required check |
+| `ci.yml` (CI) | A PR is opened or updated | Nothing | **Yes**: two required checks, Web and API |
 | `browser-gate.yml` (Browser gate) | A PR is opened or updated | Nothing | **Yes**: required check |
 | `e2e.yml` (E2E) | A PR is opened or updated | Nothing | No: reports only, not required yet |
 | `mr-staging.yml` (PR -> staging gate) | A PR into `main` is opened or updated | `homepad-preview`: this PR's own preview | Not by itself. The merge needs an approval, and that approval normally comes from the QA this workflow is meant to start |
@@ -60,7 +60,7 @@ whose teardown never ran.
 | `staging-release.yml` (main -> staging build) | Every push to `main` (every merge) | `homepad-staging` | No: runs after the merge |
 | `prod-release.yml` (Prod release) | A tag starting with `v` is pushed, or someone starts it by hand | **Nothing.** Prod is deployed by Joe | No: runs after the release |
 
-To merge a PR into `main`, Gitea requires: the CI check green, the Browser gate
+To merge a PR into `main`, Gitea requires: both CI checks (Web, API) green, the Browser gate
 check green, and one approval from an allowed approver (the QA bot or the
 docs-only approver bot). Approvals are dropped when new commits are pushed.
 
@@ -71,12 +71,19 @@ docs-only approver bot). Approvals are dropped when new commits are pushed.
 **When it runs:** every time a PR is opened or gets new commits. It does not run
 on pushes to `main` or to branches without a PR.
 
-**What it does:**
+**What it does:** two jobs, and both always report (SPEC-monorepo-api AC-004).
+Each first asks `scripts/ci/changed-sides.sh` which side the PR changed: `api/`
+is the API; `.gitea/`, `.github/`, `scripts/ci/` and `compose.yaml` are both;
+everything else is the web. A job whose side didn't change passes straight away
+with "skipped: no web changes" or "skipped: no API changes".
 
-- Installs the app's packages from the lockfile (`npm ci`).
-- Runs the linter (`npm run lint`). Errors fail the check; warnings don't.
-- Builds the app (`npm run build`), which also type-checks it.
-- Runs the unit tests (`vitest`).
+- **Web (build, unit tests):** the preview and CI script tests
+  (`scripts/preview/*.test.sh`, `scripts/ci/*.test.sh`), then installs the app's
+  packages from the lockfile (`npm ci`), runs the linter (`npm run lint`; errors
+  fail the check, warnings don't), builds the app (`npm run build`, which also
+  type-checks it) and runs the unit tests (`vitest`).
+- **API (vet, build, tests):** `go vet`, `go build` and
+  `go test ./... -count=1 -p 1` from `api/`, against a Postgres 17 service.
 
 **What it changes outside the repo:** nothing. It only posts its green/red
 check on the PR.
@@ -85,8 +92,8 @@ check on the PR.
 not re-run after the merge. `main` is protected, so the commit that merges is
 the commit that was tested.
 
-**If it fails:** a lint error, a type error, a build error, or a failing unit
-test. Open the run's log and find the first red step. Fix it on the PR branch.
+**If it fails:** a lint error, a type error, a build error, a failing unit
+test, or a failing Go test. Open the run's log and find the first red step. Fix it on the PR branch.
 
 ---
 
@@ -130,6 +137,8 @@ Update the image tag to match.
   profile). The tests fake the API, so no backend or database is needed.
 - If it fails, it uploads the browser traces as a run artifact (kept 7 days).
 
+A PR that changes only the API skips it, green ("skipped: no web changes").
+
 **What it changes outside the repo:** nothing besides the check and, on
 failure, the trace artifact.
 
@@ -169,9 +178,14 @@ deployed.
   - Downloads the four preview templates from Code/homelab
     `apps/homepad/preview/template/` (database, API, web + nginx settings, and the
     web address).
-  - Fills in the PR number, commit, image, the time of this deploy, this run's
-    id (`homepad.preview/run`, run id and attempt), and the API image that
-    staging runs (`scripts/preview/render.sh`).
+  - Picks the API image (`scripts/preview/api-image.sh`): if the PR changed
+    `api/`, it builds and pushes `homepad-api:<short-sha>-test` (and
+    `:<short-sha>`) from `api/`; otherwise it uses the API image that staging
+    runs. The web image is built on every PR, because QA checks the preview's
+    `/version.json` against the PR's commit.
+  - Fills in the PR number, commit, images, the time of this deploy and this
+    run's id (`homepad.preview/run`, run id and attempt)
+    (`scripts/preview/render.sh`).
   - Applies them, then waits up to 2 minutes each for the database, the API and
     the web app to come up.
   - Runs the QA seed (`scripts/seed-qa.sh`, #623) against the preview. It creates
@@ -225,6 +239,7 @@ that failed:
   already have previews. Merge or close one of them, then re-run this job. Nothing
   is evicted automatically.
 - `fetch`: a template couldn't be downloaded from Code/homelab.
+- `api-image`: the PR's API image didn't build, or main's couldn't be read.
 - `rollout`: the database, API or web app didn't become ready within 2 minutes.
 - `seed`: the QA seed failed, so QA would have run against an empty install.
 
@@ -256,17 +271,23 @@ latest 48 hours after its last deploy. Re-run the job to free the slot sooner.
 
 **When it runs:** every push to `main`, which in practice means every merged PR.
 
-**What it does** (from ci-shared's `staging-release`):
+**What it does** (from ci-shared's `staging-release`), in two jobs, API first.
+Every merge builds both images, whichever side changed, so every `main` commit
+has a matching pair:
 
-- Builds the image from `main` and pushes it with two tags:
-  `<short-sha>-beta` and `<short-sha>`.
-- Deploys it to staging: applies the nginx config from Code/homelab, points
-  `homepad-web` at the new image, restarts it, and waits up to 2 minutes.
+- **API:** builds `homepad-api` from `api/`, applies the API Deployment from
+  Code/homelab `apps/homepad/staging/02-api.yaml` with the new image, and waits
+  up to 2 minutes (`scripts/ci/staging-api-rollout.sh`). It fails the run if the
+  API isn't ready or its boot log has no `migrations applied` line.
+- **Web** (`needs: api`, so it never rolls onto a broken API): builds the web
+  image, applies the nginx config from Code/homelab, points `homepad-web` at the
+  new image, restarts it, and waits up to 2 minutes.
+- Each image is pushed with two tags: `<short-sha>-beta` and `<short-sha>`.
 - No tests and no QA. The PR was already tested and approved before it merged.
 
 **What it changes outside the repo:**
 
-- **Registry:** pushes `homepad:<short-sha>-beta` and `homepad:<short-sha>`.
+- **Registry:** pushes `homepad:` and `homepad-api:` `<short-sha>-beta` and `<short-sha>`.
 - **Staging:** `homepad-staging` now runs `main`. PR previews in
   `homepad-preview` are not touched, so a merge never interrupts another PR's QA.
 - **ConfigMap:** re-applies the `homepad-web` nginx config from Code/homelab
@@ -274,8 +295,9 @@ latest 48 hours after its last deploy. Re-run the job to free the slot sooner.
 
 **What it does NOT do:** it doesn't touch prod.
 
-**If it fails:** the image build broke on `main`, or the staging deploy failed (manifest
-fetch from Code/homelab, or the pod not becoming ready). `main` is fine, but
+**If it fails:** an image build broke on `main`, or a staging deploy failed (manifest
+fetch from Code/homelab, a pod not becoming ready, or no `migrations applied` in
+the API's boot log). If the API job fails, the web job doesn't run. `main` is fine, but
 staging may still be running the previous build.
 
 ---

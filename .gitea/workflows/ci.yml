@@ -15,6 +15,12 @@
 # The old `push: [main, feat/**]` trigger ran this same suite on the branch
 # push AND the PR event AND again on the merge commit — three runs of one
 # suite. pull_request alone covers the only moment a result gates anything.
+#
+# Both jobs run on EVERY PR and both are required checks (SPEC-monorepo-api
+# AC-004, AC-017): no on.paths, because a check that never reports deadlocks the
+# PR. Each job asks scripts/ci/changed-sides.sh which side the PR changed and,
+# when its own side didn't, skips its steps and passes ("skipped: no web
+# changes" / "skipped: no API changes"). Skips are per step, never per job.
 name: CI
 
 on:
@@ -26,19 +32,93 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect changes
+        id: changes
+        run: bash scripts/ci/changed-sides.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+      - name: Skip
+        if: steps.changes.outputs.web != 'true'
+        run: |
+          echo "skipped: no web changes"
       # The per-PR preview templates must render safely (mr-staging deploy-cmd,
-      # SPEC-preview-environments). The runner image ships no envsubst.
-      - name: Preview render + teardown checks
+      # SPEC-preview-environments). The runner image ships no envsubst. The
+      # scripts/ci tests pin change detection, the staging order and the
+      # docs-only rule (SPEC-monorepo-api); a scripts/ci or workflow change
+      # counts as both sides, so they run whenever they could have broken.
+      - name: Preview render + teardown checks, CI script checks
+        if: steps.changes.outputs.web == 'true'
         run: |
           bash scripts/preview/install-envsubst.sh
           bash scripts/preview/render.test.sh
           bash scripts/preview/teardown-if-owner.test.sh
+          bash scripts/preview/api-image.test.sh
+          bash scripts/ci/changed-sides.test.sh
+          bash scripts/ci/staging-api-rollout.test.sh
+          bash scripts/ci/workflows.test.sh
+          bash scripts/ci/docs-only.test.sh
       - uses: actions/setup-node@v4
+        if: steps.changes.outputs.web == 'true'
         with:
           node-version: "22"
           cache: "npm"
-      - run: npm ci
+      - if: steps.changes.outputs.web == 'true'
+        run: npm ci
       # Errors gate; react-hooks/exhaustive-deps warnings don't (see eslint.config.js).
-      - run: npm run lint
-      - run: npm run build
-      - run: npx vitest run
+      - if: steps.changes.outputs.web == 'true'
+        run: npm run lint
+      - if: steps.changes.outputs.web == 'true'
+        run: npm run build
+      - if: steps.changes.outputs.web == 'true'
+        run: npx vitest run
+
+  # The API's gate, moved from Code/homepad-api's own ci.yml (ce26f8a) when the
+  # API moved into api/ (SPEC-monorepo-api AC-015).
+  api:
+    name: API (vet, build, tests)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: homepad
+          POSTGRES_PASSWORD: homepad
+          # Throwaway test DB; name must end in _test to satisfy the testsupport
+          # guard, which truncates every table and refuses non-test databases.
+          POSTGRES_DB: homepad_test
+        options: >-
+          --health-cmd "pg_isready -U homepad -d homepad_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://homepad:homepad@postgres:5432/homepad_test?sslmode=disable
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect changes
+        id: changes
+        working-directory: .
+        run: bash scripts/ci/changed-sides.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+      - name: Skip
+        if: steps.changes.outputs.api != 'true'
+        working-directory: .
+        run: |
+          echo "skipped: no API changes"
+      - uses: actions/setup-go@v5
+        if: steps.changes.outputs.api == 'true'
+        with:
+          go-version: "1.25"
+          cache-dependency-path: api/go.sum
+      - if: steps.changes.outputs.api == 'true'
+        run: go vet ./...
+      - if: steps.changes.outputs.api == 'true'
+        run: go build ./...
+      # -p 1 serializes the integration package binaries (api + storage) so they
+      # don't race on the shared Postgres (each package truncates the catalog).
+      - if: steps.changes.outputs.api == 'true'
+        run: go test ./... -count=1 -p 1

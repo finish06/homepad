@@ -1,0 +1,443 @@
+package testsupport
+
+import (
+	"context"
+	"encoding/json"
+	"log"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"golang.org/x/crypto/bcrypt"
+
+	"github.com/finish06/homepad/api/internal/api"
+	"github.com/finish06/homepad/api/internal/dbguard"
+	"github.com/finish06/homepad/api/internal/gatus"
+	"github.com/finish06/homepad/api/internal/oidc"
+	"github.com/finish06/homepad/api/internal/session"
+	"github.com/finish06/homepad/api/internal/storage"
+	"github.com/finish06/homepad/api/internal/widgets"
+	"github.com/finish06/homepad/api/internal/widgets/providers"
+)
+
+// NewOIDCServer returns a homepad-api server wired with the given OIDC config,
+// backed by a freshly-truncated test Postgres, plus the Store so tests can seed
+// and inspect users directly. It is the OIDC-flow counterpart to NewServer:
+// no fixtures are seeded, leaving the user table for the test to control.
+// Skipped when DATABASE_URL is unset. Cleanup is registered on t.
+func NewOIDCServer(t *testing.T, cfg oidc.Config) (*httptest.Server, *storage.Store) {
+	t.Helper()
+	return NewOIDCServerWith(t, cfg, Options{})
+}
+
+// NewOIDCServerWith is NewOIDCServer with options (registration mode and
+// account cap; Empty is implied).
+func NewOIDCServerWith(t *testing.T, cfg oidc.Config, opts Options) (*httptest.Server, *storage.Store) {
+	t.Helper()
+
+	// AC1 — guard BEFORE anything destructive (Migrate + TRUNCATE below).
+	dsn := dbguard.RequireTestDatabase(t)
+
+	ctx := context.Background()
+	store, err := storage.Open(ctx, dsn)
+	if err != nil {
+		t.Fatalf("storage.Open: %v", err)
+	}
+	t.Cleanup(func() { store.Close() })
+
+	if err := store.Migrate(ctx); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	truncate(t, ctx, dsn)
+
+	poller := gatus.NewPoller(gatus.NewClient("http://127.0.0.1:1"), time.Hour)
+	registration := api.RegistrationOpen
+	if opts.Registration != nil {
+		registration = *opts.Registration
+	}
+	h := api.New(api.Deps{
+		Store:          store,
+		Poller:         poller,
+		Sessions:       session.NewPgStore(store.Pool()),
+		Registration:   registration,
+		OIDC:           cfg,
+		MaxAccounts:    opts.MaxAccounts,
+		InviteLimit:    opts.InviteLimit,
+		Limits:         opts.Limits,
+		TrustedProxies: opts.TrustedProxies,
+	})
+	srv := httptest.NewServer(h)
+	t.Cleanup(srv.Close)
+	return srv, store
+}
+
+// NewServer returns an httptest.Server running the real homepad-api handler
+// backed by a live Postgres (DATABASE_URL). Each call starts from a truncated
+// schema and seeds deterministic fixtures (users, sessions, catalog) that the
+// integration tests reference by fixed token. The test is skipped when
+// DATABASE_URL is unset, mirroring the storage package's integration tests.
+// Callers must defer Close().
+func NewServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	// Gatus points at a black hole, so every keyed service resolves UNKNOWN (A9).
+	return newServer(t, "http://127.0.0.1:1").Server
+}
+
+// Env is the NewServer fixture with its store and session store exposed, for
+// tests that seed state no HTTP route can create directly (kid accounts and
+// their allow-lists before the admin API exists, raw DB assertions). The
+// fixture users and fixed-token sessions are exactly those of NewServer.
+type Env struct {
+	*httptest.Server
+	Store    *storage.Store
+	Sessions *session.PgStore
+	DSN      string
+	// AdminID is the admin behind "admin-session". UserID is the plain user
+	// behind "non-admin-session". Neither owns the catalog: it belongs to the
+	// household (SPEC-household-catalog-owner).
+	AdminID string
+	UserID  string
+	// Widgets and Weather are the server's widget manager and weather
+	// fetcher (SPEC-status-widgets). Their background loops are NOT running:
+	// a test drives them with RefreshNow / RefreshDue, so results are
+	// deterministic.
+	Widgets *widgets.Manager
+	Weather *widgets.Weather
+	deps    api.Deps // as built, for Restart
+}
+
+// TestSecretKey is the HOMEPAD_SECRET_KEY every test server gets unless a
+// test asks for another (or none).
+const TestSecretKey = "5e1f0a4c2b7d9e8f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7"
+
+// WidgetOptions configures a test server's widget wiring.
+type WidgetOptions struct {
+	// SecretKey is the server key (64 hex chars); "" = TestSecretKey.
+	SecretKey string
+	// NoSecretKey runs the server with HOMEPAD_SECRET_KEY unset.
+	NoSecretKey bool
+	// ForecastURL / GeocodeURL point the weather at a fake Open-Meteo. Unset
+	// = a black hole, so nothing can reach the real service from a test.
+	ForecastURL string
+	GeocodeURL  string
+	// Outbound replaces the guarded client (e.g. one with a recording dialer).
+	Outbound *widgets.Client
+}
+
+// NewEnvWidgets is NewEnvWithGatus (no Gatus stub when endpoints is nil)
+// with explicit widget options.
+func NewEnvWidgets(t *testing.T, endpoints map[string][]GatusResult, o WidgetOptions) *Env {
+	t.Helper()
+	url := "http://127.0.0.1:1"
+	if endpoints != nil {
+		url = gatusStub(t, endpoints)
+	}
+	return newServerWith(t, url, Options{Widgets: o})
+}
+
+// Restart builds a new API server over the same database, sessions and
+// fixtures, as a restarted process would — e.g. with a different
+// HOMEPAD_SECRET_KEY (AC-005). Nothing is truncated or re-seeded.
+func (e *Env) Restart(t *testing.T, o WidgetOptions) *Env {
+	t.Helper()
+	n := *e
+	n.deps = withWidgets(t, e.deps, e.Store, o)
+	n.Widgets, n.Weather = n.deps.Widgets, n.deps.Weather
+	srv := httptest.NewServer(api.New(n.deps))
+	t.Cleanup(srv.Close)
+	n.Server = srv
+	return &n
+}
+
+// withWidgets returns deps with a fresh widget manager, weather fetcher,
+// sealer and guarded client, per o.
+func withWidgets(t *testing.T, deps api.Deps, store *storage.Store, o WidgetOptions) api.Deps {
+	t.Helper()
+	key := o.SecretKey
+	if key == "" {
+		key = TestSecretKey
+	}
+	var sealer *widgets.Sealer
+	if !o.NoSecretKey {
+		var err error
+		sealer, err = widgets.ParseSecretKey(key)
+		if err != nil || sealer == nil {
+			t.Fatalf("test secret key: %v", err)
+		}
+	}
+	outbound := o.Outbound
+	if outbound == nil {
+		outbound = widgets.NewClient()
+	}
+	blackHole := "http://127.0.0.1:1"
+	forecast, geocode := o.ForecastURL, o.GeocodeURL
+	if forecast == "" {
+		forecast = blackHole + "/v1/forecast"
+	}
+	if geocode == "" {
+		geocode = blackHole + "/v1/search"
+	}
+	kinds := providers.Default()
+	mgr := widgets.NewManager(widgets.ManagerOptions{
+		Source: api.NewWidgetSource(store), Registry: kinds, Client: outbound, Sealer: sealer, Logf: log.Printf,
+	})
+	if err := mgr.LoadAll(context.Background()); err != nil {
+		t.Fatalf("widgets load: %v", err)
+	}
+	weather := widgets.NewWeather(widgets.WeatherOptions{
+		Client: outbound, ForecastURL: forecast, GeocodeURL: geocode, Logf: log.Printf,
+	})
+	if ws, err := api.LoadWeatherSettings(context.Background(), store); err == nil {
+		weather.Configure(ws)
+	}
+	deps.Widgets, deps.Weather, deps.Sealer, deps.WidgetKinds, deps.Outbound = mgr, weather, sealer, kinds, outbound
+	return deps
+}
+
+// NewEnv is NewServer, returning the whole fixture.
+func NewEnv(t *testing.T) *Env {
+	t.Helper()
+	return newServer(t, "http://127.0.0.1:1")
+}
+
+// NewEnvWithGatus is NewServerWithGatus, returning the whole fixture.
+func NewEnvWithGatus(t *testing.T, endpoints map[string][]GatusResult) *Env {
+	t.Helper()
+	return newServer(t, gatusStub(t, endpoints))
+}
+
+// SeedService adds a service to the catalog and returns its id.
+func (e *Env) SeedService(t *testing.T, slug, name, gatusKey string) string {
+	t.Helper()
+	return seedService(t, context.Background(), e.Store, slug, name, gatusKey)
+}
+
+// SeedKid creates a kid account named name whose allow-list is allowed, and
+// signs it in with a fixed-token kid session. It returns the kid's id and the
+// session token.
+func (e *Env) SeedKid(t *testing.T, name string, allowed ...string) (id, token string) {
+	t.Helper()
+	ctx := context.Background()
+	kid, err := e.Store.CreateKid(ctx, name, "blue")
+	if err != nil {
+		t.Fatalf("seed kid %s: %v", name, err)
+	}
+	if err := e.Store.SetKidServices(ctx, kid.ID, allowed); err != nil {
+		t.Fatalf("seed kid %s allow-list: %v", name, err)
+	}
+	token = "kid-session-" + kid.ID
+	if err := e.Sessions.Bind(ctx, token, kid.ID, session.KidLifetime); err != nil {
+		t.Fatalf("seed kid %s session: %v", name, err)
+	}
+	return kid.ID, token
+}
+
+// GatusResult is one check in a stubbed Gatus history, oldest-first. A zero
+// DurationMs is emitted as no `duration` at all, matching an older Gatus.
+type GatusResult struct {
+	Success    bool
+	DurationMs int64
+}
+
+// NewServerWithGatus is NewServer with a LIVE Gatus stub serving the given
+// results per endpoint key, for tests that need real statuses / durations
+// (responseTimeMs, status refresh). Returns the stub's URL for reference.
+func NewServerWithGatus(t *testing.T, endpoints map[string][]GatusResult) (*httptest.Server, string) {
+	t.Helper()
+	url := gatusStub(t, endpoints)
+	return newServer(t, url).Server, url
+}
+
+// gatusStub serves the given results per endpoint key as a Gatus statuses API.
+func gatusStub(t *testing.T, endpoints map[string][]GatusResult) string {
+	t.Helper()
+	base := time.Date(2026, 9, 13, 1, 0, 0, 0, time.UTC)
+	stub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/endpoints/statuses" {
+			// Uptime windows are best-effort in the poller; a 404 here is omitted.
+			http.NotFound(w, r)
+			return
+		}
+		var payload []map[string]any
+		for key, results := range endpoints {
+			var rs []map[string]any
+			for i, res := range results {
+				m := map[string]any{"success": res.Success, "timestamp": base.Add(time.Duration(i) * 30 * time.Second)}
+				if res.DurationMs > 0 {
+					m["duration"] = res.DurationMs * int64(time.Millisecond)
+				}
+				rs = append(rs, m)
+			}
+			payload = append(payload, map[string]any{"key": key, "results": rs})
+		}
+		_ = json.NewEncoder(w).Encode(payload)
+	}))
+	t.Cleanup(stub.Close)
+	return stub.URL
+}
+
+// Options configures NewEnvWith (SPEC-household-basics). The zero value is
+// the NewEnv fixture: open registration, no account cap, the default invite
+// rate limit and the seeded users, sessions and services.
+type Options struct {
+	// Registration overrides the fixture's RegistrationOpen.
+	Registration *api.RegistrationMode
+	// MaxAccounts is HOMEPAD_MAX_ACCOUNTS; 0 is no limit.
+	MaxAccounts int
+	// InviteLimit overrides the public invite routes' rate limit.
+	InviteLimit api.RateLimit
+	// Limits overrides the sign-in limits (SPEC-signin-hardening §2.1); a
+	// zero field is that route's default.
+	Limits api.Limits
+	// TrustedProxies is HOMEPAD_TRUSTED_PROXIES, parsed; nil trusts none.
+	TrustedProxies *api.TrustedProxies
+	// Empty skips every seed: a fresh install with no accounts at all.
+	Empty bool
+	// Widgets configures the status-widget wiring (SPEC-status-widgets).
+	Widgets WidgetOptions
+}
+
+// NewEnvWith is NewEnv with the given options.
+func NewEnvWith(t *testing.T, opts Options) *Env {
+	t.Helper()
+	return newServerWith(t, "http://127.0.0.1:1", opts)
+}
+
+func newServer(t *testing.T, gatusURL string) *Env {
+	t.Helper()
+	return newServerWith(t, gatusURL, Options{})
+}
+
+func newServerWith(t *testing.T, gatusURL string, opts Options) *Env {
+	t.Helper()
+
+	// AC1 — guard BEFORE anything destructive (Migrate + TRUNCATE below).
+	dsn := dbguard.RequireTestDatabase(t)
+
+	ctx := context.Background()
+	store, err := storage.Open(ctx, dsn)
+	if err != nil {
+		t.Fatalf("storage.Open: %v", err)
+	}
+	t.Cleanup(func() { store.Close() })
+
+	if err := store.Migrate(ctx); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	truncate(t, ctx, dsn)
+
+	sessions := session.NewPgStore(store.Pool())
+	registration := api.RegistrationOpen
+	if opts.Registration != nil {
+		registration = *opts.Registration
+	}
+	deps := api.Deps{
+		Store:          store,
+		Poller:         gatus.NewPoller(gatus.NewClient(gatusURL), time.Hour),
+		Sessions:       sessions,
+		Registration:   registration,
+		MaxAccounts:    opts.MaxAccounts,
+		InviteLimit:    opts.InviteLimit,
+		Limits:         opts.Limits,
+		TrustedProxies: opts.TrustedProxies,
+	}
+	if opts.Empty {
+		deps = withWidgets(t, deps, store, opts.Widgets)
+		srv := httptest.NewServer(api.New(deps))
+		t.Cleanup(srv.Close)
+		return &Env{Server: srv, Store: store, Sessions: sessions, DSN: dsn,
+			Widgets: deps.Widgets, Weather: deps.Weather, deps: deps}
+	}
+
+	admin := seedUser(t, ctx, store, "admin@homepad.test", "stitch-admin-pw", "admin")
+	user := seedUser(t, ctx, store, "user@homepad.test", "stitch-user-pw", "user")
+	// AC A1's login test signs in as alice without registering first, so seed her.
+	seedUser(t, ctx, store, "alice@example.com", "correct horse battery staple", "user")
+
+	// Fixture sessions live in Postgres, exactly like production sign-ins, so
+	// every integration test exercises the persistent store (AC-010). Only
+	// sha256 of each fixed token is stored.
+	for token, owner := range map[string]string{
+		"admin-session":         admin,
+		"non-admin-session":     user,
+		"any-user":              user,
+		"real-once-impl-exists": user,
+		// A5 favorites test signs the same user in twice to prove persistence.
+		"session-one": user,
+		"session-two": user,
+	} {
+		if err := sessions.Bind(ctx, token, owner, session.AdultLifetime); err != nil {
+			t.Fatalf("seed session %s: %v", token, err)
+		}
+	}
+
+	// The household's catalog: two monitored entries every session reads.
+	// Gatus is gatusURL, a black hole unless a test stubs it, so all resolve
+	// UNKNOWN (A9).
+	_ = seedService(t, ctx, store, "gitea", "Gitea", "core_gitea")
+	_ = seedService(t, ctx, store, "grafana", "Grafana", "core_grafana")
+
+	deps = withWidgets(t, deps, store, opts.Widgets)
+	srv := httptest.NewServer(api.New(deps))
+	t.Cleanup(srv.Close)
+	return &Env{Server: srv, Store: store, Sessions: sessions, DSN: dsn, AdminID: admin, UserID: user,
+		Widgets: deps.Widgets, Weather: deps.Weather, deps: deps}
+}
+
+// guardDestructive fails the test immediately unless dsn points at a throwaway
+// test database. It uses t.Fatalf, never t.Skip (AC2): a silent skip would let a
+// broken QA run look green, which is exactly how the prod truncation went
+// unnoticed until the data was already gone. The guard logic itself lives in
+// internal/dbguard so testsupport, storage and api share one copy (#72).
+func guardDestructive(t *testing.T, dsn string) {
+	t.Helper()
+	if err := dbguard.CheckTestDatabase(dsn); err != nil {
+		t.Fatalf("%v", err)
+	}
+}
+
+func truncate(t *testing.T, ctx context.Context, dsn string) {
+	t.Helper()
+	// AC6 — the single choke point for the TRUNCATE; guarded even if a future
+	// caller reaches truncate without going through the constructors above.
+	guardDestructive(t, dsn)
+	conn, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatalf("truncate connect: %v", err)
+	}
+	defer conn.Close(ctx)
+	if _, err := conn.Exec(ctx,
+		`TRUNCATE kid_allowed_services, sessions, system_settings, user_collapsed_categories, user_layout, favorites, service_icons, library_apps, services, categories, users RESTART IDENTITY CASCADE`); err != nil {
+		t.Fatalf("truncate: %v", err)
+	}
+}
+
+func seedUser(t *testing.T, ctx context.Context, store *storage.Store, email, password, role string) string {
+	t.Helper()
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	u, err := store.CreateUser(ctx, email, string(hash), role)
+	if err != nil {
+		t.Fatalf("seed user %s: %v", email, err)
+	}
+	return u.ID
+}
+
+func seedService(t *testing.T, ctx context.Context, store *storage.Store, slug, name, gatusKey string) string {
+	t.Helper()
+	sv, err := store.CreateService(ctx, storage.Service{
+		Slug:     slug,
+		Name:     name,
+		URL:      "https://" + slug + ".example.com",
+		Icon:     slug,
+		GatusKey: gatusKey,
+	})
+	if err != nil {
+		t.Fatalf("seed service %s: %v", slug, err)
+	}
+	return sv.ID
+}

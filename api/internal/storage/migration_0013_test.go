@@ -1,0 +1,87 @@
+package storage_test
+
+import (
+	"context"
+	"testing"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/finish06/homepad/api/internal/storage"
+)
+
+// Migration 0013 — the 1–8 tile-count grid_width becomes a 12-column span, with
+// the old value preserved and the whole thing safe to re-run (migrations run on
+// every boot). Exercised against a real Postgres: seed rows under the OLD
+// constraint, run Migrate, check the remap table, run Migrate AGAIN, check the
+// spans were not remapped a second time.
+func TestMigration0013_RemapsAndIsIdempotent(t *testing.T) {
+	dsn := requireDatabaseURL(t)
+	ctx := context.Background()
+	store, err := storage.Open(ctx, dsn)
+	require.NoError(t, err)
+	defer store.Close()
+	require.NoError(t, store.Migrate(ctx))
+
+	conn, err := pgx.Connect(ctx, dsn)
+	require.NoError(t, err)
+	defer conn.Close(ctx)
+
+	// Put the table back into its PRE-0013 shape so the guarded block runs.
+	_, err = conn.Exec(ctx, `TRUNCATE categories, users CASCADE`)
+	require.NoError(t, err)
+	_, err = conn.Exec(ctx, `
+		ALTER TABLE categories DROP CONSTRAINT IF EXISTS categories_grid_width_span_check;
+		ALTER TABLE categories DROP COLUMN IF EXISTS grid_width_legacy;
+		ALTER TABLE categories ALTER COLUMN grid_width SET DEFAULT 3;
+		ALTER TABLE categories ADD CONSTRAINT categories_grid_width_check CHECK (grid_width BETWEEN 1 AND 8);`)
+	require.NoError(t, err)
+
+	var userID string
+	require.NoError(t, conn.QueryRow(ctx,
+		// 0016 dropped the column default, so a valid users row must now supply
+		// show_uptime_display explicitly. Value is irrelevant to this test.
+		`INSERT INTO users (email, password_hash, role, show_uptime_display) VALUES ('m13@example.com','x','admin',TRUE) RETURNING id`).Scan(&userID))
+	want := map[int]int{1: 3, 2: 4, 3: 6, 4: 6, 5: 12, 6: 12, 7: 12, 8: 12}
+	for old := range want {
+		_, err := conn.Exec(ctx,
+			`INSERT INTO categories (name, sort_index, grid_width) VALUES ($1, $2, $2)`,
+			"w"+string(rune('0'+old)), old)
+		require.NoError(t, err)
+	}
+
+	// First run: remap.
+	rerunMigration(t, ctx, store, "0013_grid_width_12col.up.sql")
+	got := map[int]int{}
+	rows, err := conn.Query(ctx, `SELECT grid_width_legacy, grid_width FROM categories`)
+	require.NoError(t, err)
+	for rows.Next() {
+		var legacy, span int
+		require.NoError(t, rows.Scan(&legacy, &span))
+		got[legacy] = span
+	}
+	rows.Close()
+	assert.Equal(t, want, got, "remap table from SPEC-app-grid §10.4 (width 4 → 6, Caleb 2026-09-13)")
+
+	// Second run: nothing moves — spans are not remapped as if they were tile counts.
+	rerunMigration(t, ctx, store, "0013_grid_width_12col.up.sql")
+	again := map[int]int{}
+	rows, err = conn.Query(ctx, `SELECT grid_width_legacy, grid_width FROM categories`)
+	require.NoError(t, err)
+	for rows.Next() {
+		var legacy, span int
+		require.NoError(t, rows.Scan(&legacy, &span))
+		again[legacy] = span
+	}
+	rows.Close()
+	assert.Equal(t, want, again, "re-running the migration must be a no-op")
+
+	// New rows default to the half span and the CHECK rejects a tile count.
+	var def int
+	require.NoError(t, conn.QueryRow(ctx,
+		`INSERT INTO categories (name, sort_index) VALUES ('fresh', 99) RETURNING grid_width`).Scan(&def))
+	assert.Equal(t, 6, def)
+	_, err = conn.Exec(ctx, `INSERT INTO categories (name, sort_index, grid_width) VALUES ('bad', 100, 5)`)
+	assert.Error(t, err, "the span CHECK must reject 5")
+}

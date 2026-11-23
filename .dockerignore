@@ -9,3 +9,6 @@ playwright/.cache
 README.md
 specs
 tests
+# The Go API lives in api/ and builds its own image from api/ as the context
+# (api/Dockerfile, api/.dockerignore). The web image never needs it.
+api
