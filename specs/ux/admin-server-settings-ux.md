@@ -2,7 +2,7 @@
 
 **Spec:** [`SPEC-admin-server-settings.md`](../SPEC-admin-server-settings.md) §9 (v0.1.0, Draft)
 **Author:** Claude for Kare (design), drafted 2026-11-23
-**Status:** Draft — decisions A-1…A-6 pending.
+**Status:** APPROVED — Caleb 2026-11-23; A-1…A-6 as recommended.
 
 This doc designs one thing: the shared row every server setting uses in Admin Panel → System. It also covers the few places that differ from it (spec §2.3): the secret row, the `PORT` row, the env-only banner, the Sign-in group's one Save, and the confirm dialogs.
 
@@ -310,4 +310,4 @@ Say "single sign-on", not "OIDC", in labels and dialogs. The env name stays as t
 | Role | Name | Status |
 |---|---|---|
 | Design | Kare | Drafted 2026-11-23 (Claude for Kare) — pending |
-| Product | Caleb | Pending (A-1…A-6) |
+| Product | Caleb | Approved 2026-11-23 (A-1…A-6 as recommended) |

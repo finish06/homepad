@@ -102,7 +102,7 @@ UX artifacts are in [`ux/`](./ux/).
 
 | File | Feature | Status |
 |------|---------|------|
-| [`SPEC-admin-server-settings.md`](./SPEC-admin-server-settings.md) | Admins edit server settings in Admin Panel → System, stored in Postgres; UI value wins over env. Replaces the read-only SPEC-v26 list. UX: [`ux/admin-server-settings-ux.md`](./ux/admin-server-settings-ux.md) | Draft — 2026-11-23, target 18.1.0. Three questions for Caleb (§0); Walt and Kare sign-offs pending. |
+| [`SPEC-admin-server-settings.md`](./SPEC-admin-server-settings.md) | Admins edit server settings in Admin Panel → System, stored in Postgres; UI value wins over env. Replaces the read-only SPEC-v26 list. UX: [`ux/admin-server-settings-ux.md`](./ux/admin-server-settings-ux.md) | Approved — Caleb 2026-11-23, target 18.1.0. In build. |
 
 One part of a shipped spec is also open: Phase 2 of
 [`SPEC-status-widgets.md`](./SPEC-status-widgets.md) (Pi-hole, qBittorrent,

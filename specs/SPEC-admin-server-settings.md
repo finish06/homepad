@@ -1,10 +1,10 @@
 # Spec: Admins edit server settings in the UI
 
 **Spec ID:** SPEC-admin-server-settings
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Created:** 2026-11-23
 **Author:** Claude (spec step for Caleb's request of 2026-11-23)
-**Status:** Draft — sign-offs pending. Three questions for Caleb in §0.
+**Status:** Approved — Caleb 2026-11-23 ("looks great. kick it off"): Q1 A, Q2 A, Q3 A; UX A-1…A-6 as recommended. Ready for build.
 **Repo:** `Code/homepad` — `api/` (migration, settings store, live config, routes, OIDC test sign-in) and the web app (Admin Panel → System, docs)
 **Estimate:** ~3.5 days (table and store, live config holder, guards, OIDC test sign-in, recovery flag, the shared row in the web app, docs, tests)
 **Depends on:** SPEC-v26-admin-env-config (the allowlist this spec keeps), SPEC-status-degraded-threshold (the precedence model this spec copies), SPEC-signin-hardening (trusted proxies, `OIDC_MEMBER_GROUP`), SPEC-status-widgets (the server key and the guarded outbound client), SPEC-backup-import (what a backup may hold)
@@ -15,7 +15,9 @@
 
 ---
 
-## 0. Open questions — decisions for Caleb
+## 0. Decisions
+
+**Q1–Q3 decided (Caleb, 2026-11-23): A, A, A** — the recommended option each time.
 
 **Decided (Caleb, 2026-11-23):**
 - "All of these settings need to be able to be set in the UI by admins." The list is the 14 rows of Admin Panel → System → Environment Configuration.
@@ -462,12 +464,13 @@ UX artifact: [`specs/ux/admin-server-settings-ux.md`](./ux/admin-server-settings
 
 | Role | Name | Status |
 |---|---|---|
-| Owner | Caleb | Pending — §0 Q1…Q3 |
-| Product | Walt | Pending |
-| Design | Kare | Pending (`specs/ux/admin-server-settings-ux.md`, A-1…A-6) |
+| Owner | Caleb | Approved 2026-11-23 — Q1 A, Q2 A, Q3 A |
+| Product | Walt | Waived — Caleb approved directly |
+| Design | Kare | Waived — Caleb approved the UX draft and A-1…A-6 as recommended |
 
 ## 13. Revision History
 
 | Date | Version | Change |
 |---|---|---|
 | 2026-11-23 | 0.1.0 | Draft from Caleb's request of 2026-11-23, checked against `homepad` `gitea/main` `ec170e3`. |
+| 2026-11-23 | 0.2.0 | Approved by Caleb: Q1–Q3 = A; UX A-1…A-6 as recommended. |
