@@ -187,7 +187,6 @@ later Homepad can restore a version 1 file. A file from a newer Homepad than
 yours is refused with "This backup is from a newer Homepad. Update Homepad,
 then try again." Homepad 17.x says this about a version 2 file.
 
-The JSON Schemas are in
-[homepad-api](https://github.com/finish06/homepad-api):
-`docs/schema/homepad-backup-v2.json` for version 2 files (18.0.0 and later)
-and `docs/schema/homepad-backup-v1.json` for version 1 files (17.x).
+The JSON Schemas are in [`api/docs/schema/`](../api/docs/schema/):
+`homepad-backup-v2.json` for version 2 files (18.0.0 and later)
+and `homepad-backup-v1.json` for version 1 files (17.x).

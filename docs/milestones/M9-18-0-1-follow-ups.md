@@ -28,7 +28,7 @@ Fix what QA found while 17.1.0 and 18.0.0 were going out, and bring the specs an
 - [ ] The first-sign-in switch saves in a scripted run (#602), or the issue is closed with a repro showing it was the test
 - [ ] Staging reports `registration: open` (#615): decide whether that is the right staging setting, and fix the setting or close the issue
 
-### API follow-ups (homepad-api)
+### API follow-ups (`api/`)
 
 - [ ] The invite and reset-link lookups get a process-wide bound (dropped from the per-IP ceiling in #110)
 - [ ] The #110 review nits: `failLogged` is reset, and the lock-waiter test query is narrowed
@@ -52,7 +52,7 @@ One cycle. It's a patch release: anything that turns out to need a spec moves ou
 
 ## Dependencies
 
-- The API items ship in homepad-api, which deploys before web.
+- The API items ship in `api/` (the `homepad-api` image), which deploys before web.
 - Staging-only checks (#607, #606) depend on M2's staging work.
 
 ## Cycles

@@ -2,8 +2,9 @@
 
 Self-hosted launcher/homepage for a homelab: one page listing every service in a
 shared catalog with live Gatus-backed status badges, per-user favorites and tile
-order. This repo is the React + Vite web frontend; the Go backend lives in
-`homepad-api`.
+order. One repo holds both halves: the React + Vite web app at the root, and the
+Go API in `api/` (module `github.com/finish06/homepad/api`). The API moved in
+from `homepad-api` (now archived) in 85e1a67, with its history.
 
 ## Methodology
 
@@ -11,7 +12,7 @@ This project follows **Agent Driven Development (ADD)** — specs drive agents,
 humans architect and decide, trust-but-verify ensures quality.
 
 - **PRD:** docs/prd.md
-- **Specs:** specs/ (49 specs — `specs/README.md` is the authoritative index)
+- **Specs:** specs/ (50 specs — `specs/README.md` is the authoritative index)
 - **Plans:** docs/plans/
 - **Config:** .add/config.json
 
@@ -34,7 +35,7 @@ Document hierarchy: PRD → Spec → Plan → User Test Cases → Automated Test
 | Drag & drop | dnd-kit | 6.3 |
 | Unit tests | Vitest + Testing Library + jest-axe | 2.1 |
 | Browser tests | Playwright | 1.60 |
-| Backend | Go / PostgreSQL (`homepad-api`) | 1.25 / pgx v5 |
+| Backend | Go / PostgreSQL (`api/`) | 1.25 / pgx v5 |
 
 **Node:** `>=20 <23` (`.nvmrc` pins 22). Node 16 will not build this repo.
 
@@ -57,6 +58,37 @@ npm run build                    # typecheck + vite build
 budget or a security guard that opts out when its subject is absent passes
 vacuously (#498).
 
+### API (run from `api/`)
+```
+go build ./...                   # build
+go vet ./...                     # lint
+go test ./... -count=1 -p 1      # full suite; needs Postgres (see below)
+make db-up                       # local Postgres on :5432 (database homepad_test)
+make test-db                     # full suite on a throwaway Postgres, then removes it
+```
+
+The integration tests read `DATABASE_URL`. Without it they skip, so a bare
+`go test` prints `ok` without testing much. The database name must end in
+`_test` (for example `homepad_test`); `internal/dbguard` refuses any other name
+and the production host, and has no override.
+
+### Run the API and the web together
+```
+cd api && make db-up
+DATABASE_URL='postgres://homepad:homepad@localhost:5432/homepad_test?sslmode=disable' \
+  COOKIE_SECURE=false make run   # API on :8080 (shell env only; it reads no .env)
+npm run dev                      # in another shell, from the root: web on :5173
+```
+
+Open http://localhost:5173. Vite proxies `/api` to `:8080`, so the browser sees
+one origin. `docker compose -f compose.build.yaml up --build` runs the whole
+stack from source instead, with the API built from `api/`.
+
+### Releases
+
+One tag `vX.Y.Z` on this repo releases both images: `homepad` (web) and
+`homepad-api` (API). The image names did not change.
+
 ### ADD Workflow
 ```
 /add:spec {feature}                  # Create feature specification
@@ -70,6 +102,8 @@ vacuously (#498).
 
 ### Key Directories
 ```
+api/            Go API: cmd/, internal/, migrations/ (its own go.mod, Dockerfile, Makefile)
+api/migrations/ Numbered SQL migrations, run on API boot
 src/app/        App shell, header, StatusBar (health panel), user menu
 src/grid/       AppGrid, tile density, tile edit, drag reorder
 src/launcher/   ⌘K command launcher
@@ -86,9 +120,8 @@ qa-kit/         CDP smoke tooling
 ### Environments
 
 - **Local:** Vite on :5173, API proxied to :8080
-- **Staging:** http://homepad-staging.10.17.2.213.nip.io
-- **Production:** k3s behind Pangolin ingress. The URL is in
-  `docs/environments.local.md` — gitignored (`*.local.md`), because the GitHub
+- **Staging** and **Production:** k3s. Prod sits behind Pangolin ingress. Both
+  URLs are in `docs/environments.local.md` — gitignored (`*.local.md`), because the GitHub
   mirror of this repo is public. Tagging `vX.Y.Z` triggers `prod-release.yml`,
   which builds and validates but deliberately does **not** deploy; promotion is
   manual and digest-pinned from `Code/homelab`.
@@ -104,10 +137,10 @@ All gates defined in `.add/config.json`. Run `/add:verify` to check.
 
 ## Source Control
 
-- **Git host:** Gitea (`gitea.kube.calebdunn.tech/Code/homepad`), GitHub mirror
+- **Git host:** `Code/homepad` on Gitea, GitHub mirror (`finish06/homepad`)
 - **Branching:** Feature branches off `main` (protected)
 - **Commits:** Conventional commits
-- **CI/CD:** Gitea Actions (`.gitea/workflows/`)
+- **CI/CD:** Gitea Actions (`.gitea/workflows/`), one set of workflows for web and API
 
 ## Collaboration
 

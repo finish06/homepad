@@ -4,7 +4,7 @@
 
 Self-hosted launcher/homepage for a homelab: one page listing every service in a shared
 catalog with live Gatus-backed status badges, per-user favorites and tile order. React +
-Vite frontend; Go backend in `homepad-api`.
+Vite frontend at the root; Go backend in `api/` (same repo).
 
 ## Engagement Protocol
 

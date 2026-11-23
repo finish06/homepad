@@ -1,6 +1,6 @@
 # homepad — Spec Index
 
-**Current as of:** 2026-11-22 (after 18.0.0)  **Maintainer:** Walt (product lead)
+**Current as of:** 2026-11-23 (after 18.0.1 and the one-repo move)  **Maintainer:** Walt (product lead)
 
 This directory holds the **current, authoritative** product specs and decisions for
 homepad. Historical specs for shipped versions v2–v10 are in
@@ -25,6 +25,13 @@ homepad. Historical specs for shipped versions v2–v10 are in
 > against `CHANGELOG.md` and the code on `main`.
 
 ---
+
+## Shipped — after 18.0.1, one repo and per-PR previews (2)
+
+| File | Feature | Status (verified 2026-11-23) |
+|------|---------|------|
+| [`SPEC-monorepo-api.md`](./SPEC-monorepo-api.md) | Move homepad-api into this repo under `api/`, keep both images | SHIPPED — 2026-11-23 (`85e1a67`, PR #642). homepad-api archived on Gitea and GitHub; releases are tagged only here. |
+| [`SPEC-preview-environments.md`](./SPEC-preview-environments.md) | Per-PR Preview Environments — isolated QA envs, one per open PR | SHIPPED — workflows #626 and #634, seed #627 and #637. Live on PRs. |
 
 ## Shipped — 17.0.0 to 18.0.0, household accounts (9)
 
@@ -91,13 +98,9 @@ UX artifacts are in [`ux/`](./ux/).
 | [`v28-tile-drag-reorder.md`](./v28-tile-drag-reorder.md) | homepad v28 — Tile Drag-and-Drop Reorder in Edit Mode | SHIPPED — v15.6.0 (`03fa922`, PR #402). dnd-kit sortable tiles in edit mode. Status line read "Ready for Build" until 2026-09-22. |
 | [`SPEC-density-to-my-settings.md`](./SPEC-density-to-my-settings.md) | Tile density moves to My settings · gear "Edit dashboard" becomes "Arrange apps" | SHIPPED — 16.6.0 (2026-09-25). AC-008 and TC-006 partly superseded by v29. *(Listed here as "Ready for build" until 2026-11-22.)* |
 
-## Open — not shipped (1)
+## Open — not shipped (0)
 
-| File | Feature | Status |
-|------|---------|------|
-| [`SPEC-preview-environments.md`](./SPEC-preview-environments.md) | Per-PR Preview Environments — isolated QA envs, one per open PR | Ready for build — Caleb approved 2026-11-22. Joe dispatches Stitch. Depends on homepad-api PR #623 (seed). |
-
-One part of a shipped spec is also open: Phase 2 of
+No whole spec is open. One part of a shipped spec is: Phase 2 of
 [`SPEC-status-widgets.md`](./SPEC-status-widgets.md) (Pi-hole, qBittorrent,
 Proxmox VE widgets) is not built.
 

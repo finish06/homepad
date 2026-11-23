@@ -3,8 +3,9 @@
 Everything a contributor needs. To just **run** Homepad, see the
 [quickstart in the README](../README.md#quickstart).
 
-Homepad is two repos: this one (the React + Vite web app) and
-[`homepad-api`](https://github.com/finish06/homepad-api) (the Go backend).
+Homepad is one repo with two halves. The React + Vite web app is at the
+root. The Go API is in [`api/`](../api/). The API used to be its own repo,
+`homepad-api`. It moved here with its history, and that repo is archived.
 Specs live in [`specs/`](../specs/), starting with
 [`specs/v1-launcher.md`](../specs/v1-launcher.md); the index is
 [`specs/README.md`](../specs/README.md).
@@ -17,7 +18,7 @@ flowchart LR
 
   subgraph cluster["Kubernetes"]
     web["web<br/>nginx · serves the SPA"]
-    api["homepad-api<br/>Go HTTP API"]
+    api["api (homepad-api image)<br/>Go HTTP API"]
     poller["status poller"]
     pg[("Postgres<br/>users · sessions · catalog · favorites · layout")]
   end
@@ -104,25 +105,49 @@ button (only when registration is `open`), and the **Set up Homepad** screen
 (only when no adult account exists yet). When OIDC is disabled the two `/oidc/*`
 endpoints are unregistered (404) and homepad is local-only.
 
-## Layout
+## Repo layout
 
 ```
-src/                React app (App, Catalog, api client) + Vitest specs
-tests/e2e/          Playwright specs, one per acceptance criterion
-specs/              Source-of-truth spec + test plan (lives in this repo)
+src/                Web app (React) + Vitest specs
+tests/              Web tests: infra/ (source checks), browser-gate/, e2e/
+api/                Go API: its own go.mod, Dockerfile and Makefile
+api/cmd/            API entry point
+api/internal/       API handlers, storage, auth, status poller, widgets
+api/migrations/     SQL migrations, run when the API starts
+specs/              Specs for both halves, and the test plan
 docs/               Docs and README assets (banner, screenshots)
+.gitea/workflows/   CI for both halves
 lighthouserc.cjs    Lighthouse CI thresholds (AC A8)
 ```
 
-## Run locally
+The web and the API each build their own image: `homepad` and `homepad-api`.
+One `vX.Y.Z` tag on this repo releases both.
+
+## Develop
+
+You need Node 22 (`.nvmrc`), Go 1.25 and Docker.
+
+Start Postgres and the API, from `api/`:
+
+```bash
+cd api
+make db-up           # Postgres on :5432, database homepad_test
+DATABASE_URL='postgres://homepad:homepad@localhost:5432/homepad_test?sslmode=disable' \
+  COOKIE_SECURE=false make run   # API on :8080
+```
+
+The API reads its settings from the shell only. `api/.env.example` lists them
+all.
+
+Then start the web app, from the root, in another shell:
 
 ```bash
 npm install
 npm run dev          # vite dev server on :5173, proxies /api → :8080
 ```
 
-For the full app to do anything useful, also run `Code/homepad-api` locally
-(`make run`).
+Open http://localhost:5173. Vite sends `/api` to the API, so the browser sees
+one site.
 
 ## Building the whole stack from source
 
@@ -156,7 +181,7 @@ What each service does:
 | Service    | Image / build                    | Purpose                                            |
 | ---------- | -------------------------------- | -------------------------------------------------- |
 | `web`      | built from this repo's Dockerfile | nginx serving the built SPA; proxies `/api` → api |
-| `api`      | built from `homepad-api`          | Go backend; runs DB migrations on boot            |
+| `api`      | built from `api/`                 | Go backend; runs DB migrations on boot            |
 | `postgres` | `postgres:16-alpine`              | all persistent data (accounts, dashboards, icons) |
 | `gatus`    | `ghcr.io/twin/gatus`              | uptime source the dashboard status tiles read from |
 
@@ -166,11 +191,9 @@ defaults). Notes:
 - **Persistence.** Everything is stored in Postgres, kept in the named volume
   `homepad_pg`. That's the only stateful volume — the web and api containers are
   disposable. Back up (or `docker compose down -v` to wipe) that volume.
-- **The API build source.** The Go backend is a separate repo.
-  `compose.build.yaml` builds it from `HOMEPAD_API_CONTEXT` (default: the public
-  GitHub repo); the quickstart `compose.yaml` pulls the published image instead. To build from a
-  local checkout, clone both repos side by side and set
-  `HOMEPAD_API_CONTEXT=../homepad-api`.
+- **The API build source.** `compose.build.yaml` builds the API from `api/`
+  (`HOMEPAD_API_CONTEXT`, default `./api`). The quickstart `compose.yaml`
+  pulls the published image instead.
 - **HTTPS.** Over plain-HTTP localhost, `COOKIE_SECURE=false` (the default in
   `.env.example`) is required or the login cookie is dropped. Set it `true` only
   when you serve Homepad behind a TLS-terminating proxy.
@@ -181,6 +204,8 @@ defaults). Notes:
 
 ## Test
 
+Web, from the root:
+
 ```bash
 npm test                       # Vitest component/unit suite
 npm run test:e2e:install       # one-time Playwright browsers
@@ -188,17 +213,33 @@ npm run test:e2e               # full E2E suite (desktop + mobile)
 npm run build && npm run lhci   # Lighthouse perf budgets (AC A8)
 ```
 
+API, from `api/`:
+
+```bash
+go build ./...
+go vet ./...
+make test-db                   # full suite on a throwaway Postgres
+```
+
+`make test-db` starts Postgres, runs `go test ./... -count=1 -p 1` with
+`DATABASE_URL` set, then removes the database. To use your own Postgres, set
+`DATABASE_URL` and run `go test ./... -count=1 -p 1`. The database name must
+end in `_test`. The tests empty every table, so they refuse any other name.
+Without `DATABASE_URL`, the database tests skip.
+
 ## Deploy
 
 The production Kubernetes manifests live in a separate platform repo, not here.
 This repo ships:
 
 - `Dockerfile`: multi-stage Vite build, served by nginx.
+- `api/Dockerfile`: the Go API, on a distroless image.
 - `nginx.conf`: SPA fallback and caching headers. Routing `/api/*` to
   `homepad-api` is the ingress's job (or, in Docker Compose, the web
   container's: see `compose.yaml`).
 - Public images: every merge to `main` publishes
-  `ghcr.io/finish06/homepad:<sha>` and `:latest`, and every `vX.Y.Z` tag
-  publishes `:X.Y.Z`, `:X.Y` and `:X`, for linux/amd64 and linux/arm64
+  `ghcr.io/finish06/homepad` and `ghcr.io/finish06/homepad-api` at `:<sha>`
+  and `:latest`, and every `vX.Y.Z` tag publishes both at `:X.Y.Z`, `:X.Y`
+  and `:X`, for linux/amd64 and linux/arm64
   (`.github/workflows/ghcr-release.yml`; see `docs/cicd.md`).
 - The deployment contract: see [`specs/v1-launcher.md`](../specs/v1-launcher.md).

@@ -9,7 +9,7 @@
 > This PRD was generated during `/add:init` adoption of an existing, shipped
 > project. It documents what homepad *is*, now at 18.0.0, rather than proposing
 > something new. The authoritative feature-level source of truth remains
-> `specs/` (49 specs, indexed in `specs/README.md`).
+> `specs/` (50 specs, indexed in `specs/README.md`).
 
 ## 1. Problem Statement
 
@@ -104,20 +104,21 @@ On a fresh install, the first account becomes the admin.
 | Layer | Technology | Version | Notes |
 |-------|-----------|---------|-------|
 | Language (frontend) | TypeScript | 5.6 | strict |
-| Language (backend) | Go | 1.25.0 | separate repo, `homepad-api` |
+| Language (backend) | Go | 1.25.0 | `api/` in this repo |
 | Frontend Framework | React | 18.3 | Vite 5 bundler |
 | Styling | Tailwind CSS | 3.4 | plus `src/index.css` v15 design tokens |
 | Drag & drop | dnd-kit | 6.3 | v28 tile reorder |
-| Database | PostgreSQL | via `jackc/pgx` v5.10.0 | migrations in `homepad-api/migrations/` |
+| Database | PostgreSQL | via `jackc/pgx` v5.10.0 | migrations in `api/migrations/` |
 | Auth | bcrypt passwords, Postgres sessions, OIDC | — | OIDC optional, hidden when off |
 | Monitoring source | Gatus | — | server-side only |
 
 ### How it works
 
 - **Two images.** `web` (nginx serving the built app) and `homepad-api` (Go),
-  with Postgres. Deploy them as a pair, API first. The quickstart
+  with Postgres, built from one repo (`api/` holds the API). One tag releases
+  both. Deploy them as a pair, API first. The quickstart
   `compose.yaml` pins both to the same version.
-- **Migrations.** Numbered SQL files in `homepad-api/migrations/` run when the
+- **Migrations.** Numbered SQL files in `api/migrations/` run when the
   API starts, in one transaction. Since 18.0.0 each one is recorded in a
   `schema_migrations` table and runs once. `0021` (the household catalog) is
   one-way: going back means restoring a database backup.
@@ -150,8 +151,8 @@ On a fresh install, the first account becomes the admin.
   client makes every fetch: no redirects, no link-local or metadata
   addresses, size and time caps.
 - **Backups.** One JSON file (`schemaVersion` 2 since 18.0.0), with no ids,
-  password hashes or sessions. Its JSON Schemas live in `homepad-api`
-  `docs/schema/`.
+  password hashes or sessions. Its JSON Schemas live in
+  `api/docs/schema/`.
 
 ### Infrastructure
 

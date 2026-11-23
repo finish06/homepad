@@ -46,7 +46,7 @@
   },
   "infrastructure": {
     "git_host": "gitea",
-    "git_remote": "https://github.com/finish06/homepad.git (mirror: gitea.kube.calebdunn.tech/Code/homepad)",
+    "git_remote": "https://github.com/finish06/homepad.git (mirror of Code/homepad on Gitea)",
     "cloud_provider": "self-hosted",
     "cloud_services": [
       "k3s",

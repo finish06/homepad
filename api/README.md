@@ -5,10 +5,10 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
 </p>
 
-# homepad-api
+# Homepad API (`api/`)
 
 > **Looking for Homepad itself?** This is its backend. To run Homepad, use the
-> [quickstart](https://github.com/finish06/homepad#quickstart): one compose file
+> [quickstart](../README.md#quickstart): one compose file
 > with published images for amd64 and arm64, and no build. Website:
 > [gethomepad.dev](https://gethomepad.dev) · live demo:
 > [demo.gethomepad.dev](https://demo.gethomepad.dev).
@@ -21,12 +21,14 @@ badges. Serves the shared service catalog, per-user favorites & ordering, admin
 catalog CRUD, and both auth paths; polls [Gatus](https://github.com/TwiN/gatus)
 server-side so the browser never sees the Gatus URL.
 
-Web frontend (React + Vite) lives at [`homepad`](https://github.com/finish06/homepad)
-— see its README for the banner, screenshots, and rendered architecture / auth
-diagrams.
+This folder is the API half of the `homepad` repo. The web app (React + Vite)
+is at the [repo root](../README.md). The API used to be its own repo,
+`homepad-api`, which is now archived. Go module:
+`github.com/finish06/homepad/api`. How to run both halves together is in
+[`docs/development.md`](../docs/development.md#develop).
 
-> **Spec:** [`homepad/specs/v1-launcher.md`](https://github.com/finish06/homepad/blob/main/specs/v1-launcher.md)
-> **Test plan:** [`homepad/specs/test-plan-v1.md`](https://github.com/finish06/homepad/blob/main/specs/test-plan-v1.md)
+> **Spec:** [`specs/v1-launcher.md`](../specs/v1-launcher.md)
+> **Test plan:** [`specs/test-plan-v1.md`](../specs/test-plan-v1.md)
 
 ## Status
 
@@ -335,25 +337,42 @@ migrations/             SQL migrations
 
 ## Run locally
 
+From `api/`:
+
 ```bash
-cp .env.example .env
-make db-up         # docker compose Postgres on :5432
-make run           # boots on :8080
+make db-up         # docker compose Postgres on :5432, database homepad_test
+DATABASE_URL='postgres://homepad:homepad@localhost:5432/homepad_test?sslmode=disable' \
+  COOKIE_SECURE=false make run   # boots on :8080
 ```
+
+The API reads settings from the shell only; `.env.example` lists them. For the
+web app on top, run `npm run dev` from the repo root (see
+[`docs/development.md`](../docs/development.md#develop)).
 
 ## Test
 
+From `api/`:
+
 ```bash
-make test          # full suite (Postgres tests skipped if DATABASE_URL unset)
-make test-unit     # fast subset
-make test-integration  # spins Postgres + runs everything
+go build ./...
+go vet ./...
+make test-db       # full suite on a throwaway Postgres, then removes it
+make test          # full suite against your DATABASE_URL; refuses to run without it
+make test-unit     # fast subset, no database
 ```
+
+`make test` runs `go test ./... -count=1 -p 1`. The database name in
+`DATABASE_URL` must end in `_test`; `internal/dbguard` refuses any other.
+
+CI runs these from the root workflows in `.gitea/workflows/` (see its
+`README.md`). This folder has no workflows of its own.
 
 ## Deploy
 
-K8s manifests are owned by Joe (homie / SRE bot), not in this repo. This repo ships:
+K8s manifests are owned by Joe (homie / SRE bot), not in this repo. This folder ships:
 
-- `Dockerfile` (multi-stage, distroless final image, nonroot)
+- `Dockerfile` (multi-stage, distroless final image, nonroot), built as the
+  `homepad-api` image. One `vX.Y.Z` tag on the repo releases it with the web image.
 - `.env.example` (the full env contract, incl. the `OIDC_*` values)
-- `specs/v1-launcher.md` § *Deployment contract* (canonical: image, ports, env,
-  secrets, probes)
+- [`specs/v1-launcher.md`](../specs/v1-launcher.md) § *Deployment contract*
+  (canonical: image, ports, env, secrets, probes)

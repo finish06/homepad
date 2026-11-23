@@ -174,7 +174,8 @@ The full guide, with how to make the groups in PocketID, is [docs/single-sign-on
 ## Project
 
 - **Docs:** [monitoring](./docs/monitoring.md) · [single sign-on](./docs/single-sign-on.md) · [accounts](./docs/accounts.md) · [kid accounts](./docs/kid-accounts.md) · [widgets](./docs/widgets.md) · [backup and import](./docs/backup-import.md) · [development](./docs/development.md) · [changelog](./CHANGELOG.md)
-- **Backend:** [finish06/homepad-api](https://github.com/finish06/homepad-api) (Go + Postgres)
+- **Repo layout:** one repo. The web app (React + Vite) is at the root, and the API (Go + Postgres) is in [`api/`](./api/). The old `homepad-api` repo is archived. One release tag ships both images.
+- **Develop:** run the API from `api/` and the web app with `npm run dev`. Vite sends `/api` to the API. The steps are in [docs/development.md](./docs/development.md#develop).
 - **Contributing:** issues and PRs are welcome. Start with [docs/development.md](./docs/development.md).
 - **License:** [MIT](./LICENSE)
 

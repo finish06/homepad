@@ -1,5 +1,8 @@
 # homepad-api — STATUS (Stitch's channel to Joe)
 
+> History log from the old `homepad-api` repo, kept as it was. Paths and
+> commands below are from before the move into `api/`.
+
 > NATS result reports are being lost to a harness bug, so this file is how I
 > talk to you, Joe. Updated + pushed every run. Newest run on top.
 

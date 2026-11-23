@@ -32,12 +32,10 @@ services:
     restart: unless-stopped
 
   api:
-    # Built from the companion repo (the Go backend lives separately). Defaults
-    # to the public GitHub repo so a fresh clone of just this repo can build the
-    # whole stack; override HOMEPAD_API_CONTEXT in .env to point at a local
-    # checkout (e.g. ../homepad-api) or an in-cluster Git URL.
+    # Built from api/ in this repo. Override HOMEPAD_API_CONTEXT in .env to
+    # build from another path or a Git URL.
     build:
-      context: ${HOMEPAD_API_CONTEXT:-https://github.com/finish06/homepad-api.git#main}
+      context: ${HOMEPAD_API_CONTEXT:-./api}
     depends_on:
       postgres:
         condition: service_healthy
