@@ -5,6 +5,13 @@
 # homepad:<sha>-beta (+ immutable :<sha>) with Kaniko, push it, and roll it to
 # staging (homepad-staging ns). No test gate / no re-QA — the PR was already gated
 # by mr-staging + the QA pool, and main is branch-protected.
+#
+# Two images, API first (SPEC-monorepo-api AC-005, AC-014, AC-016). Every merge
+# builds BOTH, even when only one side changed, so every main sha has a matching
+# pair. The `api` job builds homepad-api from api/ and rolls it; it fails the run
+# if the API isn't ready or its boot log lacks "migrations applied"
+# (scripts/ci/staging-api-rollout.sh). The `web` job `needs: api`, so the web
+# never rolls onto a broken API. Neither job has a job-level `if:`.
 name: main -> staging build
 
 on:
@@ -12,7 +19,70 @@ on:
     branches: [main]
 
 jobs:
-  staging-release:
+  api:
+    name: API (build, roll homepad-api)
+    runs-on: ubuntu-latest
+    steps:
+      # homepad#613 — the image's homepadVersion. ci-shared's build-push.sh
+      # passes APP_VERSION as a build arg when it is in the job env (set here
+      # through $GITHUB_ENV), and always passes GIT_SHA. The action's own
+      # checkout is shallow with no tags, so describe from a full one first.
+      # A failure here leaves APP_VERSION unset, and the Dockerfile falls back
+      # to dev-<sha>: it never fails the release. (Moved from Code/homepad-api's
+      # staging-release.yml.)
+      - name: Full checkout, for git describe
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: APP_VERSION from git describe (e.g. 18.0.0-3-gabc1234)
+        shell: bash
+        run: |
+          v="$(git describe --tags --match 'v[0-9]*' 2>/dev/null || true)"
+          v="${v#v}"
+          if [ -n "$v" ]; then
+            echo "APP_VERSION=$v" >> "$GITHUB_ENV"
+            echo "homepadVersion: $v"
+          else
+            echo "::warning::git describe found no v* tag; the image reports dev-<sha>"
+          fi
+      - uses: http://gitea-http.gitea.svc.cluster.local:3000/Code/ci-shared/staging-release@v3
+        with:
+          image-name: homepad-api
+          # Relative to the context: kaniko reads api/Dockerfile.
+          dockerfile: Dockerfile
+          context: api
+          deploy-cmd: |
+            # Same kubeconfig, kubectl and fetch handling as the web job below.
+            WORK="$(mktemp -d)"
+            trap 'rc=$?; set +e; rm -rf "$WORK"; rm -f /tmp/kc; exit $rc' EXIT
+            install -m 600 /dev/null /tmp/kc
+            printf '%s' "$KUBECONFIG_STAGING" > /tmp/kc && export KUBECONFIG=/tmp/kc
+            if ! command -v kubectl >/dev/null 2>&1; then
+              curl -sSLf -o /usr/local/bin/kubectl https://dl.k8s.io/release/v1.30.2/bin/linux/amd64/kubectl
+              echo "c6e9c45ce3f82c90663e3c30db3b27c167e8b19d83ed4048b61c1013f6a7c66e  /usr/local/bin/kubectl" | sha256sum -c -
+              chmod +x /usr/local/bin/kubectl
+            fi
+            HOMELAB_RAW=http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main
+            for path in apps/homepad/staging/02-api.yaml homepad-staging/02-api.yaml; do
+              code=$(curl -sS -H "Authorization: token $GITEA_READ_TOKEN" \
+                -o "$WORK/manifest.yaml" -w '%{http_code}' "$HOMELAB_RAW/$path")
+              [ "$code" = 404 ] || break
+            done
+            if [ "$code" != 200 ]; then
+              echo "homelab manifest fetch failed: HTTP $code for $path" >&2
+              exit 1
+            fi
+            echo "homelab manifest: $path"
+            bash scripts/ci/staging-api-rollout.sh "$WORK/manifest.yaml"
+        env:
+          REGISTRY_USERNAME:  ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD:  ${{ secrets.REGISTRY_PASSWORD }}
+          KUBECONFIG_STAGING: ${{ secrets.KUBECONFIG_STAGING }}
+          GITEA_READ_TOKEN:   ${{ secrets.HOMELAB_READ_TOKEN }}
+
+  web:
+    name: Web (build, roll homepad-web)
+    needs: api
     runs-on: ubuntu-latest
     steps:
       - uses: http://gitea-http.gitea.svc.cluster.local:3000/Code/ci-shared/staging-release@v3
