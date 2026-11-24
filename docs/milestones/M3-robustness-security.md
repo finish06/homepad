@@ -17,7 +17,7 @@ Close the remaining robustness and security gaps in the client: the missing erro
 - [ ] #341: every lazy overlay sits inside an ErrorBoundary; a failed chunk fetch shows a recoverable error instead of crashing the app — tested by simulating the failure. There is no ErrorBoundary anywhere in `src/` today
 - [ ] #335: blocked-embed detection (X-Frame-Options / CSP) — improve it, or document the limitation in the UI copy
 - [ ] #451: `retryNote` resets when the health panel re-enters STALE
-- [ ] #529: a Content-Security-Policy on staging and prod, from a spec and an audit of inline code and origins. It lives in the homelab ConfigMap, so the rollout goes through Joe
+- [ ] #529: a Content-Security-Policy on staging and prod, from a spec and an audit of inline code and origins. It lives in the homelab ConfigMap, so the rollout goes through Joe. 18.6.0 ships the policy in the image and both compose configs ([SPEC-cleanup-18.6.0](../../specs/SPEC-cleanup-18.6.0.md)); its §7 has the ConfigMap lines
 
 ## Appetite
 
@@ -30,7 +30,7 @@ One cycle.
 | Feature | Spec | Position | Status | Cycle |
 |---------|------|----------|--------|-------|
 | Iframe sandbox | 18.0.0 | DONE | #334 — strict sandbox + per-app opt-in | — |
-| Content-Security-Policy | — | SHAPED | #529 — needs a spec | — |
+| Content-Security-Policy | [SPEC-cleanup-18.6.0](../../specs/SPEC-cleanup-18.6.0.md) | BUILT | #529 — image and compose in 18.6.0; staging and prod wait on the ConfigMap (§7) | — |
 | ErrorBoundary for lazy overlays | — | SHAPED | #341 | — |
 | Blocked-embed fallback | — | SHAPED | #335 | — |
 | Stale retry note | — | SHAPED | #451 | — |

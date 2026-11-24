@@ -148,6 +148,10 @@ On a fresh install, the first account becomes the admin.
   Homepad's own address never gets it. Both nginx configs send
   `X-Frame-Options: DENY` and `frame-ancestors 'none'`, so nothing can frame
   Homepad.
+- **Content-Security-Policy.** Since 18.6.0 every nginx config sends a full
+  policy: scripts and styles from Homepad only (the one inline script by its
+  hash), icons from any http/https address or `data:`, overlay frames of any
+  http/https app, everything else same-origin (SPEC-cleanup-18.6.0).
 - **Widgets.** The API fetches every number. App keys are stored encrypted
   with `HOMEPAD_SECRET_KEY`, and never sent to the browser. One guarded
   client makes every fetch: no redirects, no link-local or metadata
@@ -246,8 +250,8 @@ User docs: `docs/accounts.md`, `docs/kid-accounts.md`,
 - **Performance:** Lighthouse budgets enforced via `lighthouserc.cjs`; code
   splitting verified by `tests/infra/code-splitting.test.ts`.
 - **Security:** Gatus never reachable from the browser; nginx security headers
-  in `nginx-security-headers.conf`, including `X-Frame-Options: DENY` and
-  `frame-ancestors 'none'`; no secrets in the bundle. Session tokens, invite
+  in `nginx-security-headers.conf`, including `X-Frame-Options: DENY` and a
+  Content-Security-Policy with `frame-ancestors 'none'`; no secrets in the bundle. Session tokens, invite
   tokens and reset tokens are stored only as hashes. Widget keys are stored
   encrypted and never leave the server. Kids are filtered on the server, on
   every route that returns apps.

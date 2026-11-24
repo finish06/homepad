@@ -62,6 +62,8 @@ COPY nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 #   - `server_tokens off` and the version.json `no-store` are in the conf.
 #   - the snippet refuses framing: X-Frame-Options DENY and CSP
 #     frame-ancestors 'none' (SPEC-iframe-sandbox-optin AC-006).
+#   - the snippet's CSP is the full policy, not just frame-ancestors
+#     (SPEC-cleanup-18.6.0 AC-006, #529): it must carry default-src 'self'.
 # The pre-hardening conf lacks all three, so a stale/wrong conf now fails the
 # build loudly instead of silently reshipping. Verified with a real nginx 1.27.5
 # (matching this base image) that the shipped conf serves all four headers and
@@ -76,6 +78,7 @@ RUN grep -q 'types { }' /etc/nginx/conf.d/default.conf \
     && grep -q nosniff /etc/nginx/snippets/security-headers.conf \
     && grep -q 'X-Frame-Options "DENY"' /etc/nginx/snippets/security-headers.conf \
     && grep -q "frame-ancestors 'none'" /etc/nginx/snippets/security-headers.conf \
+    && grep -q "default-src 'self'" /etc/nginx/snippets/security-headers.conf \
     && test -s /usr/share/nginx/html/version.json \
     && nginx -t
 EXPOSE 80
