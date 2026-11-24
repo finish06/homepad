@@ -2,6 +2,24 @@
   "pending": [],
   "versions": [
     {
+      "version": "18.4.0",
+      "date": "2026-11-24",
+      "changes": [
+        {
+          "type": "enhancement",
+          "text": "My settings explains Show uptime display: recent checks show at every density, and 24h, 7d and 30d uptime only at Large."
+        },
+        {
+          "type": "enhancement",
+          "text": "The API now calls the member role member, matching the app. The old name still works for now."
+        },
+        {
+          "type": "bug-fix",
+          "text": "The System note says Reset goes back to the environment value, or the default when there is none."
+        }
+      ]
+    },
+    {
       "version": "18.3.0",
       "date": "2026-11-24",
       "changes": [

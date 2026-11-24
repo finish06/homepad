@@ -41,7 +41,7 @@ services:
     restart: unless-stopped
 
   api:
-    image: ghcr.io/finish06/homepad-api:${HOMEPAD_VERSION:-18.3.0}
+    image: ghcr.io/finish06/homepad-api:${HOMEPAD_VERSION:-18.4.0}
     depends_on:
       postgres:
         condition: service_healthy
@@ -84,7 +84,7 @@ services:
     restart: unless-stopped
 
   web:
-    image: ghcr.io/finish06/homepad:${HOMEPAD_VERSION:-18.3.0}
+    image: ghcr.io/finish06/homepad:${HOMEPAD_VERSION:-18.4.0}
     depends_on:
       - api
     ports:

@@ -7,7 +7,9 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
-## [Unreleased] — 18.4.0
+## [18.4.0] — 2026-11-24 — Member role name, uptime hint, docs fixes
+
+**Upgrading.** Deploy the API first, then the web image. There are no database changes.
 
 - **API clients: the member role is now `member`, not `user`.** `/api/me`, the accounts list and the invite routes send `"role": "member"` (#599). Sending `"role": "user"` still works until 19.0.0; the answer has a `Warning` header saying it is deprecated. A script that checks for `"user"` in a response must check for `"member"` instead. The database is unchanged, and old backups restore as before.
 - **Operators:** log lines for invites and role changes say `role=member` instead of `role=user`.
