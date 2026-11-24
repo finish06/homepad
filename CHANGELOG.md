@@ -7,7 +7,9 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
-## [Unreleased] — 18.5.0
+## [18.5.0] — 2026-11-24 — QA and test reliability
+
+**Upgrading.** Nothing to do. There are no app or database changes; deploy order doesn't matter.
 
 - **Operators:** the staging and preview deploys now stop with "HOMELAB_READ_TOKEN secret not set" when that secret is missing or empty. Before, it failed with a 404 that looked like a moved file (#578).
 - **For developers:** removing an adult (Accounts → Manage ▾ → Remove, since 18.0.0) has more tests. Reset links made for them stop working, and a member can be removed in the browser. Another test lists every database column that points at an account and what removing it does; a new one fails the test until someone decides (#591).
