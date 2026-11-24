@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/finish06/homepad/api/internal/dbguard"
 	"github.com/finish06/homepad/api/migrations"
 )
 
@@ -39,6 +40,12 @@ func withDBName(t *testing.T, dsn, name string) string {
 // DATABASE_URL is unset (mirrors the other integration tests).
 func freshDB(t *testing.T, name string) (context.Context, *pgx.Conn) {
 	t.Helper()
+	// The scratch name first, before DATABASE_URL is even read (#256): this
+	// function DROPs a database by that name on the base server, so it must be
+	// a "_test" name no real database could have.
+	if err := dbguard.CheckTestDatabaseName(name); err != nil {
+		t.Fatalf("%v", err)
+	}
 	// Guard the BASE DSN before we DROP/CREATE a scratch database off it (#72):
 	// a prod-host base must be refused here, not after we start issuing DDL.
 	base := requireDatabaseURL(t)
@@ -99,7 +106,7 @@ const mig0007 = "0007_per_user_dashboards.up.sql"
 // A2 + A3-storage: a populated v5 catalog becomes the first admin's personal
 // dashboard and seeds the library.
 func TestMigration0007_PopulatedCutover(t *testing.T) {
-	ctx, conn := freshDB(t, "homepad_mig0007_pop")
+	ctx, conn := freshDB(t, "homepad_mig0007_pop_test")
 	applyMigrations(t, ctx, conn, "0007")
 
 	// Two users; the admin is created FIRST so it is the "first admin"
@@ -169,7 +176,7 @@ func TestMigration0007_PopulatedCutover(t *testing.T) {
 // A1: 0007 is safe on an EMPTY catalog — library empty, NOT NULL added
 // vacuously, indexes present, global uniques gone, no error.
 func TestMigration0007_EmptyCatalog(t *testing.T) {
-	ctx, conn := freshDB(t, "homepad_mig0007_empty")
+	ctx, conn := freshDB(t, "homepad_mig0007_empty_test")
 	applyMigrations(t, ctx, conn, "0021") // every migration up to 17.1.0, on an empty DB
 
 	var libN int
