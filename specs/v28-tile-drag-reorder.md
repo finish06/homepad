@@ -523,6 +523,10 @@ per §8.7). If the build uses dnd-kit's in-place shift instead of a rendered pla
 node, the sibling gap must still be legible — but the explicit placeholder is the
 recommended, on-brand treatment.
 
+**Decision, 2026-11-24 (#403):** the build keeps dnd-kit's in-place shift. The explicit
+placeholder needs a `DragOverlay`, so it is revisited only if a real-device test shows the
+drop spot is unclear. See `specs/DECISIONS.md`.
+
 ### 8.5 Reduced-motion variant (AC-014)
 
 Under `prefers-reduced-motion: reduce`, **motion is removed but every state cue stays** —

@@ -15,6 +15,10 @@ import (
 // tables is used only if it carries the throwaway marker.
 func scratchDB(t *testing.T, name string) string {
 	t.Helper()
+	// It DROPs `name` on the base server, so `name` must be a _test name (#256).
+	if err := CheckTestDatabaseName(name); err != nil {
+		t.Fatalf("%v", err)
+	}
 	base := os.Getenv("DATABASE_URL")
 	if base == "" {
 		t.Skip("DATABASE_URL not set — skipping Postgres-backed guard test")

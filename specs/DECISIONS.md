@@ -2,6 +2,34 @@
 
 Decisions made under authority delegated by Caleb → Joe (2026-06-11). Newest on top.
 
+## 2026-11-24 — Sparkline dots get no keyboard focus; cap4 AC-006 withdrawn (#477): Caleb's call
+
+cap4 AC-006 (a tooltip when a sparkline dot gets keyboard focus) is
+**withdrawn**, not deferred. The dots are inside the tile `<a>`, and a link may
+not hold focusable content. Every way to move them out changes tile height at
+some density (measured on #477), which is not worth it for a Should.
+
+Keyboard and screen-reader users get the same data another way. The tile link
+keeps the service name as its name and gets a short description from the dots:
+"Last 20 checks: 19 up, 1 down" (`aria-describedby`, only while the uptime
+display is on). Each dot keeps its own `role="img"` label (AC-011). See cap4
+§8.3 and SPEC-cleanup-18.6.0.
+
+## 2026-11-24 — Tile drag keeps dnd-kit's in-place shift (#403): Caleb's call
+
+Dragging a tile keeps dnd-kit's in-place shift: the other tiles slide to open
+the gap. v28 §8.4 allows this. The dashed placeholder from §8.4 needs a dnd-kit
+`DragOverlay`, which changes how dragging works, so it is built only if a test
+on a real device (an iPad) shows the drop spot is unclear. Until then there is
+nothing to build.
+
+## 2026-11-24 — Bento grid is parked, not planned (#346): Caleb's call
+
+The bento-grid layout (tiles of four sizes, packed with `grid-auto-flow:
+dense`) is **parked**. It is a concept, not a spec, and nothing is scheduled.
+Kare's brief and the mockups at three widths in both themes are on #346. If it
+comes back, it starts as a product spec from that brief.
+
 ## 2026-11-24 — Tile icon colour is per service (#352): Caleb's call
 
 Keep it as built. A tile's icon badge takes its hue from the service name

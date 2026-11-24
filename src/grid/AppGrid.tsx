@@ -1081,6 +1081,15 @@ function fmtCheckTime(ts: string): string {
 // the header of uptime-sparkline.test.tsx for how it went missing. It is ported,
 // not rewritten: the June behaviour is preserved except where a deviation is
 // recorded in cap4 §8.
+// #477 — the sparkline in words, for the tile link's description: "Last 20
+// checks: 19 up, 1 down". Null when there is no strip to describe.
+function recentChecksSummary(checks?: UptimeCheck[]): string | null {
+  if (!checks || checks.length === 0) return null;
+  const up = checks.reduce((n, c) => (c.success ? n + 1 : n), 0);
+  if (checks.length === 1) return `Last check: ${up ? 'up' : 'down'}`;
+  return `Last ${checks.length} checks: ${up} up, ${checks.length - up} down`;
+}
+
 function UptimeSparkline({ checks }: { checks?: UptimeCheck[] }) {
   // Index of the hovered dot, or null. Cleared on leave (AC-007, no delay).
   const [hovered, setHovered] = useState<number | null>(null);
@@ -1267,6 +1276,11 @@ function ToolLink({
   // line in every state; `wl` is the values to show, or null when the tile falls
   // back to today's line: an outage wins, and loading/error show nothing.
   const lineId = useId();
+  // #477 — cap4 AC-006 (a focus tooltip on each dot) is withdrawn: the dots sit
+  // inside the tile link and can't be focusable. Keyboard and screen-reader
+  // users get the same data as the link's description instead.
+  const checksId = useId();
+  const checksText = showUptimeDisplay ? recentChecksSummary(service.uptimeChecks) : null;
   const hasWidget = useContext(ShowWidgetsContext) && !!service.widget;
   const wl = hasWidget && service.status !== 'DOWN' ? widgetLine(service.widget, density, Date.now()) : null;
   const editRef = useRef<HTMLButtonElement>(null);
@@ -1323,7 +1337,7 @@ function ToolLink({
         data-status={service.status}
         href={safeHref(service.url)}
         aria-label={service.name}
-        aria-describedby={wl ? lineId : undefined}
+        aria-describedby={[wl ? lineId : '', checksText ? checksId : ''].filter(Boolean).join(' ') || undefined}
         title={service.name}
         {...linkProps}
       >
@@ -1381,6 +1395,11 @@ function ToolLink({
       {wl && (
         <span id={lineId} className="sr-only">
           {wl.description}
+        </span>
+      )}
+      {checksText && (
+        <span id={checksId} className="sr-only" data-testid="tile-checks-summary">
+          {checksText}
         </span>
       )}
       {/* v29 §3.2 — the ★ does two jobs and only ONE is withdrawn here. In

@@ -80,3 +80,52 @@ func TestRequireDatabaseURL_RefusesNonTestDatabaseName(t *testing.T) {
 		t.Fatalf("child failed but not with the guard's refusal message; got:\n%s", out)
 	}
 }
+
+// #256 — freshDB (and freshStore and adultsStore on top of it) runs
+// `DROP DATABASE IF EXISTS <name> WITH (FORCE)` on the base server, so the
+// scratch name is checked too. Before 18.6.0 two migration tests used names
+// without "_test" (homepad_mig0007_pop, homepad_mig0007_empty); a base server
+// that also held a real database of that name would have lost it.
+//
+// The child's DATABASE_URL is a valid test DSN on a port nothing listens on.
+// If freshDB read or connected to it before checking the name, the child would
+// fail with "cannot connect" instead; the test requires the name refusal.
+func TestFreshDB_RefusesNonTestScratchName(t *testing.T) {
+	const dsn = "postgres://homepad:homepad@127.0.0.1:1/homepad_test?sslmode=disable&connect_timeout=1"
+	if os.Getenv(guardChildEnv) == "1" {
+		freshDB(t, "homepad_scratch")
+		return
+	}
+	out, err := runGuardChild(t, dsn)
+	if err == nil {
+		t.Fatalf("freshDB accepted the scratch name %q; it must FATAL. Child output:\n%s", "homepad_scratch", out)
+	}
+	if !strings.Contains(out, `database "homepad_scratch" is not a test database`) {
+		t.Fatalf("child failed but not with the scratch-name refusal; got:\n%s", out)
+	}
+	if strings.Contains(out, "cannot connect") {
+		t.Fatalf("freshDB connected before checking the scratch name; got:\n%s", out)
+	}
+}
+
+// The same check lets a "_test" scratch name through to the base DSN guard.
+// With the unreachable base DSN above, the child must get past the name check
+// and stop at the server check, which proves the name check is not simply
+// refusing everything.
+func TestFreshDB_AcceptsTestScratchNameThenGuardsTheBase(t *testing.T) {
+	const dsn = "postgres://homepad:homepad@127.0.0.1:1/homepad_test?sslmode=disable&connect_timeout=1"
+	if os.Getenv(guardChildEnv) == "1" {
+		freshDB(t, "homepad_scratch_test")
+		return
+	}
+	out, err := runGuardChild(t, dsn)
+	if err == nil {
+		t.Fatalf("freshDB succeeded against an unreachable server; child output:\n%s", out)
+	}
+	if strings.Contains(out, "is not a test database") {
+		t.Fatalf("freshDB refused a _test scratch name; got:\n%s", out)
+	}
+	if !strings.Contains(out, "cannot connect to check the database") {
+		t.Fatalf("expected the base DSN's server check to stop it; got:\n%s", out)
+	}
+}

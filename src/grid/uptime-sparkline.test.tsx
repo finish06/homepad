@@ -278,3 +278,48 @@ describe('cap4 AC-010 — the tooltip surface carries its own colors', () => {
     expect(block).toMatch(/pointer-events:\s*none/);
   });
 });
+
+// #477 — cap4 AC-006 (a tooltip when a dot gets keyboard focus) is withdrawn:
+// the dots are inside the tile link, and a link may not hold focusable
+// content. Keyboard and screen-reader users get the same data from the link
+// itself, as its accessible description (specs/DECISIONS.md 2026-11-24).
+describe('#477 — the tile link describes the recent checks', () => {
+  const link = (name: string) => screen.getByRole('link', { name });
+
+  it('says how many of the recent checks were up and down', async () => {
+    await renderGrid();
+    expect(link('Monitored App')).toHaveAccessibleDescription('Last 4 checks: 3 up, 1 down');
+  });
+
+  it('a 20-check strip reads "Last 20 checks: 19 up, 1 down"', async () => {
+    const twenty = Array.from({ length: 20 }, (_, i) => ({ success: i !== 5, timestamp: '2026-06-23T04:10:00Z' }));
+    vi.mocked(api.services).mockResolvedValue([svc('mon', 'Monitored App', twenty)]);
+    await renderGrid();
+    expect(link('Monitored App')).toHaveAccessibleDescription('Last 20 checks: 19 up, 1 down');
+  });
+
+  it('singular for a lone check', async () => {
+    vi.mocked(api.services).mockResolvedValue([
+      svc('mon', 'Monitored App', [{ success: false, timestamp: '2026-06-23T04:10:00Z' }]),
+    ]);
+    await renderGrid();
+    expect(link('Monitored App')).toHaveAccessibleDescription('Last check: down');
+  });
+
+  it('the link name stays the service name', async () => {
+    await renderGrid();
+    expect(link('Monitored App')).toHaveAccessibleName('Monitored App');
+  });
+
+  it('no description for an unmonitored tile', async () => {
+    await renderGrid();
+    expect(link('Unmonitored App')).not.toHaveAttribute('aria-describedby');
+    expect(within(tileFor('Unmonitored App')).queryByTestId('tile-checks-summary')).toBeNull();
+  });
+
+  it('no description when the uptime display preference is off (cap6)', async () => {
+    await renderGrid(false);
+    expect(link('Monitored App')).not.toHaveAttribute('aria-describedby');
+    expect(screen.queryByTestId('tile-checks-summary')).toBeNull();
+  });
+});

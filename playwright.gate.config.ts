@@ -14,6 +14,8 @@ const GATE_CDP = (process.env[GATE_CDP_ENV] = decideGateCdp(process.env));
 // single, separately-requireable status check.
 const PORT = 4173;
 const BASE_URL = `http://localhost:${PORT}`;
+// Keep in step with CSP_GATE_PORT's default in tests/browser-gate/csp-server.js.
+const CSP_BASE_URL = 'http://localhost:4175';
 
 export default defineConfig({
   testDir: './tests/browser-gate',
@@ -40,10 +42,22 @@ export default defineConfig({
   ],
   // Serve the built artifact (dist/) — CI runs `npm run build` first. This tests
   // what actually ships, not the dev server.
-  webServer: {
-    command: 'npm run preview',
-    url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-  },
+  //
+  // The second server serves the same dist/ WITH the image's security headers
+  // (nginx-security-headers.conf), for csp.spec.ts only (SPEC-cleanup-18.6.0
+  // AC-003). vite preview sends no CSP, so it can't show a policy violation.
+  webServer: [
+    {
+      command: 'npm run preview',
+      url: BASE_URL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+    },
+    {
+      command: 'node tests/browser-gate/csp-server.js',
+      url: CSP_BASE_URL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+    },
+  ],
 });

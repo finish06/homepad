@@ -42,7 +42,16 @@ func CheckTestDatabase(dsn string) error {
 		}
 	}
 	// Only a throwaway test database may be migrated/truncated/dropped.
-	name := strings.TrimPrefix(u.Path, "/")
+	return CheckTestDatabaseName(strings.TrimPrefix(u.Path, "/"))
+}
+
+// CheckTestDatabaseName is the name half of CheckTestDatabase. Tests that
+// CREATE and DROP a scratch database of their own off the base server
+// (storage's freshDB, this package's scratchDB) call it on the scratch name
+// BEFORE they connect, so a DROP DATABASE can only ever hit a "_test" name
+// (#256). The base DSN they start from still goes through RequireTestDatabase
+// or CheckTestDatabase.
+func CheckTestDatabaseName(name string) error {
 	if name == "homepad_test" || strings.HasSuffix(name, "_test") {
 		return nil
 	}
