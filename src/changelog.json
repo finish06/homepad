@@ -2,6 +2,16 @@
   "pending": [],
   "versions": [
     {
+      "version": "18.5.0",
+      "date": "2026-11-24",
+      "changes": [
+        {
+          "type": "enhancement",
+          "text": "Behind the scenes: more tests for removing an adult, single sign-on accounts, Copy link and sign-in waits. Nothing changes in the app."
+        }
+      ]
+    },
+    {
       "version": "18.4.0",
       "date": "2026-11-24",
       "changes": [
