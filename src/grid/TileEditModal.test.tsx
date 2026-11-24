@@ -258,7 +258,9 @@ describe('#428 TileEditModal — click action is a three-segment control (Kare �
   it.each([
     ['New tab', 'Opens in a new browser tab. (default)'],
     ['Same tab', 'Navigates this tab to the service.'],
-    ['Inline overlay', 'Embeds the service in an overlay panel. Some sites block embedding — a fallback link appears if that happens.'],
+    // SPEC-ui-cleanup-18.3.0 AC-003 (#335) — a blocked site shows its error page in
+    // the frame (onLoad still fires); the new-tab link only appears when nothing loads.
+    ['Inline overlay', "Embeds the service in an overlay panel. Some sites block embedding and show an error instead. If nothing loads, you get a link to open it in a new tab."],
   ])('§8.1.2 — selecting "%s" shows its exact description line', async (label, copy) => {
     const u = userEvent.setup();
     renderModal({ service: svc({ clickAction: label === 'New tab' ? 'same_tab' : 'new_tab' }) });

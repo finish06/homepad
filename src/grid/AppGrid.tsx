@@ -40,6 +40,7 @@ import { boxesFromData, boxWidthPx, contentMaxPx, frameContentPx, DEFAULT_WIDTH,
 import { iconSrc, initialBadge } from '../lib/icons';
 import { useServicesContext } from '../services';
 import { clearRecentlyOpened, recordOpened, useRecentlyOpened } from '../lib/recentlyOpened';
+import ChunkErrorBoundary from '../ui/ChunkErrorBoundary';
 import { CONTENT_WIDTH } from '../lib/layout';
 import { useResolvedTheme } from '../theme/theme';
 import { type TileDensity } from './tileDensity';
@@ -464,6 +465,7 @@ export default function AppGrid({
       </div>
       {addOpen && <AddBoxModal onCreate={onCreate} onClose={() => setAddOpen(false)} />}
       {editTarget && (
+        <ChunkErrorBoundary onClose={closeEdit}>
         <Suspense fallback={null}>
           <TileEditModal
             service={editTarget.service}
@@ -474,14 +476,17 @@ export default function AppGrid({
             onToast={(msg, kind) => setToast({ msg, kind })}
           />
         </Suspense>
+        </ChunkErrorBoundary>
       )}
       {/* v23 — the in-app embed overlay for a clickAction='iframe' tile. Rendered
           at the grid root (like the edit modal) so its fixed backdrop escapes any
           box stacking context. */}
       {iframeTarget && (
-        <Suspense fallback={null}>
-          <IframeOverlay service={iframeTarget} onClose={() => setIframeTarget(null)} />
-        </Suspense>
+        <ChunkErrorBoundary onClose={() => setIframeTarget(null)}>
+          <Suspense fallback={null}>
+            <IframeOverlay service={iframeTarget} onClose={() => setIframeTarget(null)} />
+          </Suspense>
+        </ChunkErrorBoundary>
       )}
       {/* v21 — Save success / error toast (AC-014/015). Bottom-right, auto-dismiss;
           same visual family as the cap5 status toasts. */}

@@ -1,4 +1,5 @@
 import { lazy, Suspense, useId, useState } from 'react';
+import ChunkErrorBoundary from '../../ui/ChunkErrorBoundary';
 import { downloadBackup } from './transferApi';
 import { saveBlob } from './planParts';
 import './backup-import.css';
@@ -82,6 +83,7 @@ export default function BackupSection({ onApplied }: { onApplied?: () => void })
       </div>
 
       {flow && (
+        <ChunkErrorBoundary onClose={() => setFlow(null)}>
         <Suspense fallback={null}>
           {flow === 'restore' ? (
             <RestoreModal onClose={() => setFlow(null)} onApplied={onApplied} />
@@ -89,6 +91,7 @@ export default function BackupSection({ onApplied }: { onApplied?: () => void })
             <HomepageImportModal onClose={() => setFlow(null)} onApplied={onApplied} />
           )}
         </Suspense>
+        </ChunkErrorBoundary>
       )}
     </section>
   );

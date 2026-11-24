@@ -188,6 +188,16 @@ export default function StatusBar({
   // to stand down, and "not being checked" is the more specific truth.
   const stale = !loading && !empty && !fleetUnmonitored && ageMs != null && staleness(ageMs) === 'red';
 
+  // SPEC-ui-cleanup-18.3.0 AC-006 (#451) — a retry note belongs to the stale
+  // period it was earned in. Leaving STALE drops it, so a later stale period
+  // starts clean until the user retries again. (React's "adjust state during
+  // render" pattern: no effect, no extra paint of the old note.)
+  const [wasStale, setWasStale] = useState(stale);
+  if (stale !== wasStale) {
+    setWasStale(stale);
+    if (!stale) setRetryNote(null);
+  }
+
   async function retryNow() {
     if (!ctx || retrying) return;
     setRetrying(true);

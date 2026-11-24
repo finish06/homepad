@@ -1,6 +1,7 @@
 import React, { lazy, Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './app/App';
+import ChunkErrorBoundary from './ui/ChunkErrorBoundary';
 import { initAccent } from './theme/accent';
 import './index.css';
 
@@ -16,9 +17,11 @@ const OidcTestResult = lazy(() => import('./app/OidcTestResult'));
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     {testResult ? (
-      <Suspense fallback={null}>
-        <OidcTestResult result={testResult} />
-      </Suspense>
+      <ChunkErrorBoundary>
+        <Suspense fallback={null}>
+          <OidcTestResult result={testResult} />
+        </Suspense>
+      </ChunkErrorBoundary>
     ) : (
       <App />
     )}

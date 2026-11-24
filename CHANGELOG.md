@@ -9,6 +9,13 @@ codename maps to a release it is noted in the heading.
 
 ## [Unreleased] — 18.3.0
 
+- The status dots in ⌘K search and the alert history have a thin dark edge, so green, amber and grey dots are easy to see on white (#262).
+- Those dots glow in their own colour. An unknown status no longer glows red (#263).
+- If part of the app fails to load (for example during an update), you see a short message with **Reload** and **Close** instead of a blank page (#341).
+- In arrange mode, tapping the ★ no longer opens the tile editor by mistake at Compact and List density (#513).
+- An old "Retry now" message no longer comes back the next time status data goes stale (#451).
+- The Inline overlay hint in the tile editor now says what happens when a site blocks embedding (#335).
+- Screen readers can use the "Show uptime display" switch while server settings load (#376).
 - **For developers:** `npx vitest run` works on a clean checkout. The bundle-budget and app-icon tests build the app themselves, once per run, so there is no `npm run build` step first. They always check the current code.
 - **For developers:** `npm run test:all` runs every check CI runs, for the web app and the API. It says which checks could not run on your machine and why. It installs nothing.
 - **For developers:** `docs/testing.md` says which checks CI requires before a merge and what QA reviews. CI is the one that decides.

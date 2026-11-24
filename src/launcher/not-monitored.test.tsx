@@ -62,7 +62,7 @@ describe('AC-005 — Command Launcher: NOT_MONITORED row shows the dashed ring',
 // `.status-dot:not([data-status='UP'])`, so it painted the rose-red danger halo
 // on EVERY non-UP dot — including the NOT_MONITORED ring. "Not monitored" is an
 // ABSENCE of monitoring, not a failure, so it must read neutral (dashed ring,
-// NO glow). UNKNOWN is a real monitoring-failure signal and MUST keep its glow.
+// NO glow). Since 18.3.0 (#263) UNKNOWN has no rose glow either; see below.
 // jsdom can't compute the whole index.css (cssom bails on some modern rules), but
 // it DOES resolve a single extracted rule via getComputedStyle — so we pull just
 // the real `.status-dot` rules from index.css and assert the painted box-shadow.
@@ -91,8 +91,11 @@ describe('board finding — NOT_MONITORED carries no danger glow (neutral, not e
     expect(boxShadowFor('NOT_MONITORED')).not.toContain(ROSE);
   });
 
-  it('still paints the rose danger glow on UNKNOWN (real monitoring failure)', () => {
-    expect(boxShadowFor('UNKNOWN')).toContain(ROSE);
+  // SPEC-ui-cleanup-18.3.0 AC-002 (#263) reverses the old UNKNOWN case here:
+  // SPEC-242 §4/D-3 defines UNKNOWN as infra noise (Gatus down, key unresolved),
+  // not a service failure, so it carries the definition ring and no rose glow.
+  it('paints NO rose danger glow on UNKNOWN (infra noise, not a failure)', () => {
+    expect(boxShadowFor('UNKNOWN')).not.toContain(ROSE);
   });
 
   it('still paints the rose danger glow on DOWN', () => {

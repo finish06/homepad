@@ -295,24 +295,47 @@
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
   }
 
-  /* §4 Status dot — 9×9, green glow for UP, rose danger glow for a real
-     non-UP failure (DOWN/DEGRADED/UNKNOWN). NOT_MONITORED is excluded: it is
-     an absence of monitoring, not a failure, so its dashed neutral ring carries
-     NO glow. */
+  /* §4 Status dot — 9×9. Shared by the ⌘K launcher rows and the alert history
+     (the App Grid pip is .app-grid-tool-status, SPEC-242).
+     SPEC-ui-cleanup-18.3.0 AC-001 (#262): every filled state carries a 1px
+     definition ring, the same as SPEC-242 D-2. Emerald, amber and the grey
+     UNKNOWN fill fail 3:1 on a white surface; the ring composites to ≈#7b7f88,
+     ≈4.0:1, so the dot's edge clears WCAG 1.4.11 whatever the fill.
+     AC-002 (#263): the glow follows the state (SPEC-242 D-3). UNKNOWN is infra
+     noise, not a failure, so it gets the ring only. NOT_MONITORED is an absence
+     of monitoring: its dashed border is its shape, with no ring and no glow. */
   .status-dot {
     width: 9px;
     height: 9px;
     border-radius: 9999px;
+    --status-dot-ring: rgba(15, 23, 42, 0.55);
+  }
+  .dark .status-dot {
+    --status-dot-ring: rgba(255, 255, 255, 0.28);
   }
   .status-dot[data-status='UP'] {
     box-shadow:
+      0 0 0 1px var(--status-dot-ring),
       0 0 0 3px rgba(16, 185, 129, 0.16),
       0 0 9px rgba(16, 185, 129, 0.55);
   }
-  .status-dot:not([data-status='UP']):not([data-status='NOT_MONITORED']) {
+  .status-dot[data-status='DOWN'] {
     box-shadow:
+      0 0 0 1px var(--status-dot-ring),
       0 0 0 3px rgba(244, 63, 94, 0.16),
       0 0 9px rgba(244, 63, 94, 0.5);
+  }
+  .status-dot[data-status='DEGRADED'] {
+    box-shadow:
+      0 0 0 1px var(--status-dot-ring),
+      0 0 0 3px rgba(251, 191, 36, 0.16),
+      0 0 9px rgba(251, 191, 36, 0.5);
+  }
+  .status-dot[data-status='UNKNOWN'] {
+    box-shadow: 0 0 0 1px var(--status-dot-ring);
+  }
+  .status-dot[data-status='NOT_MONITORED'] {
+    box-shadow: none;
   }
   /* v13 — a single-shot pulse played when a tile's status changes on a live
      refresh (AC-006). Tailwind's animate-pulse loops; this fires once and
@@ -4408,6 +4431,44 @@
     width: 26px;
     height: 26px;
     font-size: 14px;
+  }
+
+  /* SPEC-ui-cleanup-18.3.0 AC-007 (#513) — the ★ and pencil share the right rail
+     in arrange mode, and at compact (68px tile) and list (44px row) their 44px
+     invisible hit areas overlapped: the pencil, later in the DOM, took taps aimed
+     at the ★. Trim only the INVISIBLE ::before areas so they meet at the middle of
+     the gap (or overlap) between the two painted buttons. Nothing painted moves.
+     Measured at 1440 (tile-relative): compact ★ box y 2–28, pencil y 30–64 →
+     split at y 29; list ★ box x −60…−30 from the right edge, pencil −38…−4 →
+     split at x −34. Each area stays ≥24px (WCAG 2.5.8). Large keeps 44×44. */
+  .app-grid[data-density='compact'] .app-grid-tool-wrap.is-editing .app-grid-tool-fav::before {
+    top: -9px; /* the 44px area's top, unchanged */
+    height: 36px; /* ends at tile y 29 */
+    transform: translateX(-50%);
+  }
+  .app-grid[data-density='compact'] .app-grid-tool-wrap.is-editing .app-grid-tool-edit::before {
+    top: -1px; /* starts at tile y 29 */
+    height: 40px; /* bottom unchanged (5px below the button) */
+    transform: translateX(-50%);
+  }
+  /* In the list row the painted buttons overlap by 8px too, so the buttons stop
+     taking pointer events and only their trimmed ::before areas do (a pseudo-
+     element's hit still targets its button). */
+  .app-grid[data-density='list'] .app-grid-tool-wrap.is-editing .app-grid-tool-fav,
+  .app-grid[data-density='list'] .app-grid-tool-wrap.is-editing .app-grid-tool-edit {
+    pointer-events: none;
+  }
+  .app-grid[data-density='list'] .app-grid-tool-wrap.is-editing .app-grid-tool-fav::before {
+    pointer-events: auto;
+    left: -7px; /* the 44px area's left, unchanged */
+    width: 33px; /* ends at x −34 */
+    transform: translateY(-50%);
+  }
+  .app-grid[data-density='list'] .app-grid-tool-wrap.is-editing .app-grid-tool-edit::before {
+    pointer-events: auto;
+    left: 4px; /* starts at x −34 */
+    width: 35px; /* right edge unchanged */
+    transform: translateY(-50%);
   }
 
   /* ── SPEC-tile-density — the dashboard header (label + density switch) ─────── */

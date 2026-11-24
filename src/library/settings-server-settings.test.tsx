@@ -196,16 +196,17 @@ describe('AC-033 — source badges and Reset', () => {
 
 // ── AC-034 ──────────────────────────────────────────────────────────────────
 describe('AC-034 — row states', () => {
-  it('loading: busy list, skeleton rows, an sr-only status; the uptime switch stays live', async () => {
+  it('loading: skeleton rows, an sr-only status; the uptime switch stays live and outside any busy region', async () => {
     let resolve!: (b: ServerSettings) => void;
     vi.mocked(adminServerSettings).mockReturnValue(new Promise((r) => (resolve = r)));
     render(<SystemSettings showUptimeDisplay onSaveSettings={vi.fn()} />);
-    expect(screen.getByTestId('server-settings-list')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByText('Loading server settings…')).toHaveClass('sr-only');
     expect(document.querySelectorAll('.settings-kv-skeleton').length).toBe(12);
     expect(screen.getByTestId('settings-switch-uptime')).toBeEnabled();
+    // SPEC-ui-cleanup-18.3.0 AC-005 (#376) — the switch must not sit inside a busy
+    // region, or a screen reader may hold it back until the load ends.
+    expect(screen.getByTestId('settings-switch-uptime').closest('[aria-busy="true"]')).toBeNull();
     await act(async () => resolve(settingsBody()));
-    expect(screen.getByTestId('server-settings-list')).toHaveAttribute('aria-busy', 'false');
     expect(document.querySelectorAll('.settings-kv-skeleton').length).toBe(0);
   });
 

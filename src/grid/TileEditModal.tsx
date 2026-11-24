@@ -26,7 +26,11 @@ const CLICK_ACTION_SEGMENTS: { value: ClickAction; label: string }[] = [
 const CLICK_ACTION_HINT: Record<ClickAction, string> = {
   new_tab: 'Opens in a new browser tab. (default)',
   same_tab: 'Navigates this tab to the service.',
-  iframe: 'Embeds the service in an overlay panel. Some sites block embedding — a fallback link appears if that happens.',
+  // SPEC-ui-cleanup-18.3.0 AC-003 (#335) — a blocked site shows its own error in
+  // the frame (onLoad still fires, so no fallback); the new-tab link only appears
+  // when nothing loads within the deadline (IframeOverlay §5.5).
+  iframe:
+    'Embeds the service in an overlay panel. Some sites block embedding and show an error instead. If nothing loads, you get a link to open it in a new tab.',
 };
 
 // SPEC-iframe-sandbox-optin UX §2.3 — copy is exact. The UI never says

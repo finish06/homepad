@@ -199,7 +199,11 @@ export default function SystemSettings({
           </p>
         </div>
       )}
-      <div className="server-settings" data-testid="server-settings-list" aria-busy={state === 'loading'}>
+      {/* SPEC-ui-cleanup-18.3.0 AC-005 (#376) — no aria-busy here: this list also
+          holds the "Show uptime display" switch, which works during the load, and
+          a busy region can make a screen reader hold it back. The skeletons are
+          aria-hidden and the sr-only status line announces the load. */}
+      <div className="server-settings" data-testid="server-settings-list">
         {state === 'loading' && (
           <span className="sr-only" role="status">
             Loading server settings…

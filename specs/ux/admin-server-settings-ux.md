@@ -133,7 +133,7 @@ Replace:
 
 | State | What shows |
 |---|---|
-| Loading | Today's skeleton rows (3 per group), `aria-busy` on the list, sr-only "Loading server settings…" |
+| Loading | Today's skeleton rows (3 per group), sr-only "Loading server settings…". No `aria-busy` on the list: it holds the uptime switch, which stays live (18.3.0, #376) |
 | Load failed | Today's in-place error: "Couldn't load server settings. Reload the page to try again." |
 | Editing | §2.2 |
 | Saving | Save reads "Saving…", field and buttons disabled |

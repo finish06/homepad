@@ -421,7 +421,7 @@ comfortably in segmented-control territory.
 |---|---|---|
 | `new_tab` | **New tab** | `Opens in a new browser tab.` *(default)* |
 | `same_tab` | **Same tab** | `Navigates this tab to the service.` |
-| `iframe` | **Inline overlay** | `Embeds the service in an overlay panel. Some sites block embedding — a fallback link appears if that happens.` |
+| `iframe` | **Inline overlay** | `Embeds the service in an overlay panel. Some sites block embedding and show an error instead. If nothing loads, you get a link to open it in a new tab.` (18.3.0, #335: the fallback fires on the load deadline, not on a block — SPEC-ui-cleanup-18.3.0 AC-003) |
 
 - **One live description line** sits directly under the control and shows the copy for
   the currently-selected segment (not three stacked sub-labels — that crowds the

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { Account } from '../api';
+import ChunkErrorBoundary from '../ui/ChunkErrorBoundary';
 
 // SPEC-household-manage-adults UX §2 — the "Manage ▾" menu on every other
 // adult's row (AC-010). It holds every adult action: the role change, Make a
@@ -213,6 +214,12 @@ export default function AdultRowMenu({
       )}
 
       {action && (
+        <ChunkErrorBoundary
+          onClose={() => {
+            setAction(null);
+            btnRef.current?.focus();
+          }}
+        >
         <Suspense fallback={null}>
           <AdultConfirm
             action={action}
@@ -238,9 +245,16 @@ export default function AdultRowMenu({
             }}
           />
         </Suspense>
+        </ChunkErrorBoundary>
       )}
 
       {resetOpen && (
+        <ChunkErrorBoundary
+          onClose={() => {
+            setResetOpen(false);
+            btnRef.current?.focus();
+          }}
+        >
         <Suspense fallback={null}>
           <ResetLinkDialog
             account={account}
@@ -252,6 +266,7 @@ export default function AdultRowMenu({
             onGone={onStale}
           />
         </Suspense>
+        </ChunkErrorBoundary>
       )}
     </div>
   );

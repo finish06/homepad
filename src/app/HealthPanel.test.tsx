@@ -569,6 +569,35 @@ describe('SPEC-v24 §12.3 — "Retry now"', () => {
     expect(screen.getByTestId('health-retry-note')).toHaveTextContent('Re-checked, but the status source has nothing newer');
   });
 
+  // SPEC-ui-cleanup-18.3.0 AC-006 (#451) — a note belongs to the stale period it
+  // was earned in. Stale → fresh → stale again must not replay the old note.
+  it('a retry note from an earlier stale period is gone when the panel goes stale again', async () => {
+    const refresh = vi.fn(async () => 'unreachable' as const);
+    setStaleCtx(refresh);
+    const { rerender } = render(<StatusBar />);
+    await userEvent.click(screen.getByTestId('health-retry'));
+    expect(screen.getByTestId('health-retry-note')).toBeInTheDocument();
+
+    // A background poll lands: fresh data, the panel leaves STALE.
+    mockedCtx.mockReturnValue({
+      items: [svc('UP', 'u1')],
+      setItems: vi.fn(),
+      lastUpdatedAt: Date.now(),
+      recentChanges: [],
+      clearRecentChanges: vi.fn(),
+      refresh,
+    });
+    rerender(<StatusBar />);
+    expect(screen.getByTestId('health-led')).not.toHaveAttribute('data-variant', 'stale');
+
+    // Later the data ages past the threshold again, with no new retry.
+    setStaleCtx(refresh);
+    rerender(<StatusBar />);
+    expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'stale');
+    expect(screen.getByTestId('health-retry')).toBeInTheDocument();
+    expect(screen.queryByTestId('health-retry-note')).toBeNull();
+  });
+
   it('AC-V24-ST5 — a successful re-poll shows no failure note (the context resets the age)', async () => {
     setStaleCtx(vi.fn(async () => 'refreshed' as const));
     render(<StatusBar />);

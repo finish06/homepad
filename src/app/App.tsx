@@ -31,6 +31,7 @@ import { ShowWidgetsContext, WidgetsInfoContext } from '../widgets/context';
 import { useShowWidgetsPref } from '../widgets/showWidgetsPref';
 import { useWidgetsInfo } from '../widgets/useWidgetsInfo';
 import { shouldOpenWhatsNew } from './whatsNew';
+import ChunkErrorBoundary from '../ui/ChunkErrorBoundary';
 
 // v14.0.1 optimize — these three surfaces only ever mount after a user action
 // (open the Library, open the custom-app form, open admin Settings), so they are
@@ -158,6 +159,7 @@ export default function App() {
           </span>
         </main>
       ) : link ? (
+        <ChunkErrorBoundary>
         <Suspense fallback={null}>
           {/* Keyed by the token, so a second link starts its screen afresh. */}
           {link.kind === 'reset' ? (
@@ -166,6 +168,7 @@ export default function App() {
             <JoinScreen key={link.token} {...linkProps} onJoined={linkDone} />
           )}
         </Suspense>
+        </ChunkErrorBoundary>
       ) : user ? (
         // v8/v17 — the home providers wrap Home so its body can read launcher,
         // services, and alert-history context directly. Order matters:
@@ -394,9 +397,11 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             already only that kid's apps, and offers no re-poll (kid-forbidden). */}
         {showStrip && (
           <div className={CONTENT_WIDTH}>
-            <Suspense fallback={null}>
-              <GlanceStrip info={widgetsInfo} />
-            </Suspense>
+            <ChunkErrorBoundary silent>
+              <Suspense fallback={null}>
+                <GlanceStrip info={widgetsInfo} />
+              </Suspense>
+            </ChunkErrorBoundary>
           </div>
         )}
 
@@ -487,6 +492,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             AppGrid (unlike Catalog) doesn't host them; their result lands in the
             shared services context AppGrid renders from. */}
         {browseOpen && (
+          <ChunkErrorBoundary onClose={() => setBrowseOpen(false)}>
           <Suspense fallback={null}>
             <LibraryBrowse
               isAdmin={isAdmin}
@@ -498,8 +504,10 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               }}
             />
           </Suspense>
+          </ChunkErrorBoundary>
         )}
         {customFormOpen && (
+          <ChunkErrorBoundary onClose={() => setCustomFormOpen(false)}>
           <Suspense fallback={null}>
             <ServiceForm
               categories={cats}
@@ -507,6 +515,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               onSaved={onSavedCustom}
             />
           </Suspense>
+          </ChunkErrorBoundary>
         )}
 
         {/* Feeds the launcher the shared catalog array; while still loading it
@@ -526,6 +535,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
         )}
 
         {settingsOpen && (
+          <ChunkErrorBoundary onClose={() => setSettingsOpen(false)}>
           <Suspense fallback={null}>
             <SettingsPanel
               isAdmin={isAdmin}
@@ -550,11 +560,14 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               onClose={() => setSettingsOpen(false)}
             />
           </Suspense>
+          </ChunkErrorBoundary>
         )}
         {importOpen && (
-          <Suspense fallback={null}>
-            <HomepageImportModal onClose={() => setImportOpen(false)} onApplied={onCatalogChanged} />
-          </Suspense>
+          <ChunkErrorBoundary onClose={() => setImportOpen(false)}>
+            <Suspense fallback={null}>
+              <HomepageImportModal onClose={() => setImportOpen(false)} onApplied={onCatalogChanged} />
+            </Suspense>
+          </ChunkErrorBoundary>
         )}
       </main>
 
@@ -578,9 +591,11 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
         </button>
       </footer>
       {changelogOpen && (
-        <Suspense fallback={null}>
-          <ChangelogOverlay open onClose={() => setChangelogOpen(false)} />
-        </Suspense>
+        <ChunkErrorBoundary onClose={() => setChangelogOpen(false)}>
+          <Suspense fallback={null}>
+            <ChangelogOverlay open onClose={() => setChangelogOpen(false)} />
+          </Suspense>
+        </ChunkErrorBoundary>
       )}
     </ShowWidgetsContext.Provider>
     </WidgetsInfoContext.Provider>

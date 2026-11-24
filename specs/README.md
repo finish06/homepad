@@ -105,6 +105,7 @@ UX artifacts are in [`ux/`](./ux/).
 | [`SPEC-admin-server-settings.md`](./SPEC-admin-server-settings.md) | Admins edit server settings in Admin Panel → System, stored in Postgres; UI value wins over env. Replaces the read-only SPEC-v26 list. UX: [`ux/admin-server-settings-ux.md`](./ux/admin-server-settings-ux.md) | Approved — Caleb 2026-11-23, target 18.1.0. In build. |
 | [`SPEC-test-infra-18.3.0.md`](./SPEC-test-infra-18.3.0.md) | 18.3.0 test setup cleanup: vitest runs on a clean checkout, envsubst without root, `npm run test:all`, CI named as the gate; closes the QA "couldn't run" duplicates | In review — target 18.3.0. |
 | [`SPEC-api-cleanup-18.2.0.md`](./SPEC-api-cleanup-18.2.0.md) | 18.2.0 API cleanup: sort the 28 issues moved from homepad-api (#651–#676, #688), fix the real ones with a test each, close the rest with evidence | In review — target 18.2.0. |
+| [`SPEC-ui-cleanup-18.3.0.md`](./SPEC-ui-cleanup-18.3.0.md) | 18.3.0 UI and accessibility cleanup: sort 19 open UI, design and a11y issues, fix the seven real ones with a test each, close or park the rest with evidence | In review — target 18.3.0. |
 
 One part of a shipped spec is also open: Phase 2 of
 [`SPEC-status-widgets.md`](./SPEC-status-widgets.md) (Pi-hole, qBittorrent,
