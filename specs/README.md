@@ -107,6 +107,7 @@ UX artifacts are in [`ux/`](./ux/).
 | [`SPEC-api-cleanup-18.2.0.md`](./SPEC-api-cleanup-18.2.0.md) | 18.2.0 API cleanup: sort the 28 issues moved from homepad-api (#651–#676, #688), fix the real ones with a test each, close the rest with evidence | In review — target 18.2.0. |
 | [`SPEC-ui-cleanup-18.3.0.md`](./SPEC-ui-cleanup-18.3.0.md) | 18.3.0 UI and accessibility cleanup: sort 19 open UI, design and a11y issues, fix the seven real ones with a test each, close or park the rest with evidence | In review — target 18.3.0. |
 | [`SPEC-decisions-18.4.0.md`](./SPEC-decisions-18.4.0.md) | 18.4.0 decisions: the API says `member` (`user` a deprecated alias until 19.0.0, #599), per-service tile hue (#352), the uptime hint (#488), docs match the code | In review — target 18.4.0. |
+| [`SPEC-qa-cleanup-18.5.0.md`](./SPEC-qa-cleanup-18.5.0.md) | 18.5.0 QA and test reliability: tests for removing an adult (#591), a clear error when the homelab read token is missing (#578), the kid-accounts phone test measured (#567), browser tests for what staging can't show (#606, #607, #610), sources in the M7 table (#540) | In review — target 18.5.0. |
 
 One part of a shipped spec is also open: Phase 2 of
 [`SPEC-status-widgets.md`](./SPEC-status-widgets.md) (Pi-hole, qBittorrent,

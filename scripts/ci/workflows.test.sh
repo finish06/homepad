@@ -118,5 +118,27 @@ check "TC-004 AC-011 no internal host or IP in the public GitHub workflows" \
 check "AC-011 no internal host or IP in scripts/ci or scripts/preview/api-image.sh" \
   bash -c '! grep -nE "svc\.cluster\.local|10\.17\.|nip\.io|calebdunn\.tech" "$0"/scripts/ci/*.sh "$0"/scripts/preview/api-image.sh' "$repo"
 
+# #578 (SPEC-qa-cleanup-18.5.0 AC-004/005): an empty or missing read token gets
+# the same 404 as a moved manifest. Every deploy-cmd that sends it must first
+# stop on `: "${GITEA_READ_TOKEN:?HOMELAB_READ_TOKEN secret not set}"`.
+# unguarded <file>: the line numbers of token curls with no guard earlier in
+# the same deploy-cmd block, or "none" when the file sends no token at all.
+unguarded() {
+  awk '
+    /deploy-cmd: *\|/ { guarded = 0 }
+    index($0, ": \"${GITEA_READ_TOKEN:?HOMELAB_READ_TOKEN secret not set}\"") { guarded = 1 }
+    index($0, "Authorization: token $GITEA_READ_TOKEN") { sends = 1; if (!guarded) print NR }
+    END { if (!sends) print "none" }
+  ' "$1"
+}
+token_files=0
+for f in "$wf"/*.yml; do
+  u=$(unguarded "$f")
+  [ "$u" = none ] && continue
+  token_files=$((token_files + 1))
+  check "#578 $(basename "$f"): every curl with the read token is guarded first (unguarded lines: ${u:-none})" test -z "$u"
+done
+check "#578 the guard check found the token curls (mr-staging, staging-release)" test "$token_files" -ge 2
+
 echo "# $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

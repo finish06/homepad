@@ -141,6 +141,9 @@ jobs:
             # AFTER a successful apply, failing the job intermittently (#499-#501).
             # Any HTTP status but 200 fails here and names the file.
             stage=fetch
+            # #578: an empty or missing read token gets the same 404 as a moved
+            # file. Say which secret is missing instead.
+            : "${GITEA_READ_TOKEN:?HOMELAB_READ_TOKEN secret not set}"
             HOMELAB_RAW=http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main
             mkdir "$WORK/templates" "$WORK/out"
             for f in 01-db 02-api 03-web 04-ingress; do

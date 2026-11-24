@@ -143,6 +143,24 @@ test('Remove at 390: the invites and single sign-on lines fit, and the row and i
   expect(mock.adultWrites).toEqual(['DELETE u-alex']);
 });
 
+// #591 (SPEC-qa-cleanup-18.5.0 AC-003) — a member, not only an admin, is
+// removed from Manage ▾. The confirm names them; your own row never gets a menu.
+test('Remove a member at 820: the confirm names Jo, Jo leaves, your row stays without a menu', async ({ page }) => {
+  const { mock } = await openAccounts(page, 820, 1180);
+  await page.getByRole('button', { name: 'Manage Jo' }).click();
+  await page.getByRole('menuitem', { name: 'Remove Jo…' }).click();
+  const dialog = page.getByRole('alertdialog', { name: 'Remove Jo?' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Remove Jo' }).click();
+  await expect(dialog).toHaveCount(0);
+  const rows = page.getByTestId('account-row');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.filter({ hasText: 'Jo' })).toHaveCount(0);
+  await expect(rows.nth(0)).toContainText('Caleb');
+  await expect(rows.nth(0).getByRole('button')).toHaveCount(0);
+  expect(mock.adultWrites).toEqual(['DELETE u-jo']);
+});
+
 test('Make admin at 1280: the amber line, then the pill reads admin', async ({ page }) => {
   const { mock } = await openAccounts(page, 1280, 800);
   await page.getByRole('button', { name: 'Manage Jo' }).click();

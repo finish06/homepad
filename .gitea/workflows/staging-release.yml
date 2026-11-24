@@ -62,6 +62,9 @@ jobs:
               echo "c6e9c45ce3f82c90663e3c30db3b27c167e8b19d83ed4048b61c1013f6a7c66e  /usr/local/bin/kubectl" | sha256sum -c -
               chmod +x /usr/local/bin/kubectl
             fi
+            # #578: an empty or missing read token gets the same 404 as a moved
+            # file. Say which secret is missing instead.
+            : "${GITEA_READ_TOKEN:?HOMELAB_READ_TOKEN secret not set}"
             HOMELAB_RAW=http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main
             for path in apps/homepad/staging/02-api.yaml homepad-staging/02-api.yaml; do
               code=$(curl -sS -H "Authorization: token $GITEA_READ_TOKEN" \
@@ -126,6 +129,9 @@ jobs:
             # Code/homelab is moving homepad-staging/ to apps/homepad/staging/.
             # Try the new path, fall back to the old one only on a 404, and log
             # which one was used; any other HTTP status fails here.
+            # #578: an empty or missing read token gets the same 404 as a moved
+            # file. Say which secret is missing instead.
+            : "${GITEA_READ_TOKEN:?HOMELAB_READ_TOKEN secret not set}"
             HOMELAB_RAW=http://gitea-http.gitea.svc.cluster.local:3000/Code/homelab/raw/branch/main
             for path in apps/homepad/staging/03-web.yaml homepad-staging/03-web.yaml; do
               code=$(curl -sS -H "Authorization: token $GITEA_READ_TOKEN" \

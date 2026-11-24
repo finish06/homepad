@@ -22,11 +22,20 @@ export type PasswordMock = {
 
 export async function mockPasswords(
   page: Page,
-  opts: { token?: string; signedIn?: boolean; current?: string } = {},
+  opts: {
+    token?: string;
+    signedIn?: boolean;
+    current?: string;
+    // SPEC-qa-cleanup-18.5.0 (#606) — false: the signed-in adult is SSO-only.
+    hasPassword?: boolean;
+    // #606, #610 — answer every Change password with this refusal instead:
+    // 409 (the account has no password any more) or 429 with Retry-After.
+    changeRefusal?: { status: 409 } | { status: 429; retryAfter: number };
+  } = {},
 ): Promise<PasswordMock> {
   const state: PasswordMock = { urls: [], accepts: [], changes: [] };
   let used = false;
-  let me: Record<string, unknown> | null = opts.signedIn ? { ...MEMBER_USER, hasPassword: true } : null;
+  let me: Record<string, unknown> | null = opts.signedIn ? { ...MEMBER_USER, hasPassword: opts.hasPassword ?? true } : null;
   const { services, categories } = catalog();
 
   await page.route('**/api/**', async (route) => {
@@ -55,6 +64,16 @@ export async function mockPasswords(
     if (path === '/api/me/password' && method === 'POST') {
       const body = req.postDataJSON() as { currentPassword: string };
       state.changes.push(body);
+      const refusal = opts.changeRefusal;
+      if (refusal?.status === 409) return json(route, { error: 'sso_account' }, 409);
+      if (refusal?.status === 429) {
+        return route.fulfill({
+          status: 429,
+          contentType: 'text/plain',
+          body: 'too many wrong passwords',
+          headers: { 'Retry-After': String(refusal.retryAfter) },
+        });
+      }
       if (body.currentPassword !== opts.current) return json(route, { error: 'wrong_password' }, 403);
       return route.fulfill({ status: 204, body: '' });
     }
