@@ -7,7 +7,7 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
-## [Unreleased] — 18.2.0 — API cleanup
+## [18.2.0] — 2026-11-23 — API cleanup
 
 **Upgrading.** Deploy the API image. There are no database changes.
 

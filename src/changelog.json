@@ -2,6 +2,28 @@
   "pending": [],
   "versions": [
     {
+      "version": "18.2.0",
+      "date": "2026-11-23",
+      "changes": [
+        {
+          "type": "bug-fix",
+          "text": "Accounts with a password shorter than 8 characters, made before that rule, can sign in again."
+        },
+        {
+          "type": "bug-fix",
+          "text": "Saving your display settings writes them all at once, so a failed save changes nothing."
+        },
+        {
+          "type": "enhancement",
+          "text": "Adding an app returns all its fields, including its status key."
+        },
+        {
+          "type": "security",
+          "text": "CI pins every outside action to a fixed version, and the tests check a database is a test database before emptying it."
+        }
+      ]
+    },
+    {
       "version": "18.1.0",
       "date": "2026-11-23",
       "changes": [
