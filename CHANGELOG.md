@@ -7,7 +7,9 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
-## [Unreleased] — 18.6.0
+## [18.6.0] — 2026-11-24 — Content-Security-Policy
+
+**Upgrading.** No database changes. If you put your own nginx config in front of Homepad, add the `Content-Security-Policy` line from `nginx-security-headers.conf` to it. Homepad works without it, but isn't protected. 18.6.0 includes 18.5.0.
 
 - **Security:** Homepad now sends a full Content-Security-Policy. Scripts and styles load only from Homepad itself; the one inline script (the theme check in `index.html`) is allowed by its hash. App icons can still come from any http or https address, and an Inline overlay tile can still show any http or https app. Everything else stays on Homepad's own address (#529).
 - **Operators:** the image, `compose.yaml` and `deploy/compose/nginx.conf` all send the new policy. If you run your own nginx config in front of Homepad, copy the `Content-Security-Policy` line from `nginx-security-headers.conf`. Staging and prod need the line in their ConfigMap and a `rollout restart` of `homepad-web`; `specs/SPEC-cleanup-18.6.0.md` §7 has it.

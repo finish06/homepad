@@ -2,6 +2,20 @@
   "pending": [],
   "versions": [
     {
+      "version": "18.6.0",
+      "date": "2026-11-24",
+      "changes": [
+        {
+          "type": "security",
+          "text": "Homepad now sends a Content-Security-Policy, so the browser only runs scripts and styles that come from Homepad."
+        },
+        {
+          "type": "enhancement",
+          "text": "Screen readers hear a tile's recent checks, for example Last 20 checks: 19 up, 1 down."
+        }
+      ]
+    },
+    {
       "version": "18.5.0",
       "date": "2026-11-24",
       "changes": [
