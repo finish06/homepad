@@ -1,6 +1,6 @@
 # Spec: Sparkline Dot Hover Tooltip — Capability #4
 
-**Version:** 1.0.1
+**Version:** 1.1.0
 **Created:** 2026-06-23
 **Author:** Walt (product lead)
 **Status:** SHIPPED — 16.5.0 (2026-09-22, restored) — see §8. Originally shipped 2026-06-23 (PR #145),
@@ -42,7 +42,7 @@ something I was doing at that time (a deploy, a restart, a network change).
 | AC-003 | The tooltip body shows the result as **"✓ Passed"** (green dot) or **"✗ Failed"** (red dot), consistent with the dot color. | Must |
 | AC-004 | The tooltip appears without a click — hover-on-desktop only. On a touch device (no hover capability), the tooltip is never shown; the dot remains as-is. Touch users are not harmed by a broken tooltip flicker. | Must |
 | AC-005 | The tooltip does not obscure other tiles or overflow the viewport. It appears above the dot by default; if the tile is near the top of the viewport, the tooltip flips below. | Should |
-| AC-006 | The tooltip is **keyboard-accessible**: when a dot receives `:focus-visible` (tab navigation), the tooltip appears. | Should |
+| AC-006 | ~~The tooltip is **keyboard-accessible**: when a dot receives `:focus-visible` (tab navigation), the tooltip appears.~~ **Withdrawn 2026-11-24 (#477)** — see §8.3. | Should |
 | AC-007 | Removing the mouse from the dot (mouseout / blur) dismisses the tooltip. No delay is required — it can dismiss immediately. | Must |
 | AC-008 | Each dot in a sparkline that has no timestamp (defensive: `timestamp` is absent or empty string) shows no tooltip rather than a malformed one. | Must |
 | AC-009 | Dots continue to render and the sparkline label continues to display correctly when tooltips are present — they are purely additive. | Must |
@@ -251,6 +251,14 @@ assumed:
 Recommend tracking as its own issue. AC-011's per-dot labels are what serve assistive
 tech today, and those are now genuinely exposed (D-4).
 
+**Decision, 2026-11-24 (#477): AC-006 is withdrawn.** Caleb's call, recorded in
+`specs/DECISIONS.md`. The dots stay inside the link and stay unfocusable. Keyboard and
+screen-reader users get the same data from the tile link itself: its accessible
+description is a summary of the strip, "Last 20 checks: 19 up, 1 down" ("Last check:
+up" for one), shown only while the uptime display is on. The link's name stays the
+service name. Built in 18.6.0 (SPEC-cleanup-18.6.0 AC-009), tested in
+`src/grid/uptime-sparkline.test.tsx` ("#477 — the tile link describes the recent checks").
+
 ### 8.4 Adjacent finding — cap6's toggle is a no-op at the default density
 
 Not caused by this work, found while placing the strip, and it affects a feature that
@@ -285,3 +293,4 @@ and anchoring, and D-5's density split.
 |------|---------|--------|---------|
 | 2026-09-22 | 1.0.0 | Claude (Opus 5) | Rebuilt on AppGrid after the strip was found missing from the product. Added §8 recording the loss, six deviations, the AC-006 gap that predates this build, and the cap6 density finding. |
 | 2026-11-22 | 1.0.1 | Claude (Opus 5.5) | Status: the restored tooltip shipped in 16.5.0 (CHANGELOG "The dots are back"). It read BUILT. |
+| 2026-11-24 | 1.1.0 | Claude (Opus 5.5) | AC-006 withdrawn (#477, Caleb's call). The tile link's description carries the recent-checks summary instead (§8.3). |
