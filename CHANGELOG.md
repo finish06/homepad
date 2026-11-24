@@ -7,6 +7,16 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [Unreleased] — 18.3.0
+
+- **For developers:** `npx vitest run` works on a clean checkout. The bundle-budget and app-icon tests build the app themselves, once per run, so there is no `npm run build` step first. They always check the current code.
+- **For developers:** `npm run test:all` runs every check CI runs, for the web app and the API. It says which checks could not run on your machine and why. It installs nothing.
+- **For developers:** `docs/testing.md` says which checks CI requires before a merge and what QA reviews. CI is the one that decides.
+- **For developers:** the preview render test no longer needs root. If `envsubst` is missing, it fetches the pinned one into `~/.local/bin`.
+- **For developers:** the coverage table prints even when a test fails.
+- **For developers:** new tests check that `compose.build.yaml` builds the API and web from the same folders the release builds use, and that browser tests never reuse the shared QA browser's cache.
+- **For developers:** the staging API rollout script and its test now also run on macOS.
+
 ## [18.2.0] — 2026-11-23 — API cleanup
 
 **Upgrading.** Deploy the API image. There are no database changes.

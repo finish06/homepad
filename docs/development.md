@@ -207,7 +207,8 @@ defaults). Notes:
 Web, from the root:
 
 ```bash
-npm test                       # Vitest component/unit suite
+npm test                       # Vitest suite (builds the app itself for the dist checks)
+npm run test:all               # every CI gate, web and API, and what couldn't run here
 npm run test:e2e:install       # one-time Playwright browsers
 npm run test:e2e               # full E2E suite (desktop + mobile)
 npm run build && npm run lhci   # Lighthouse perf budgets (AC A8)
@@ -230,6 +231,9 @@ database on first use. A database that already has homepad tables but no mark
 is refused, and the error gives the one `COMMENT ON DATABASE` line that marks
 it. That happens once for a `make db-up` database made before 18.2.0.
 Without `DATABASE_URL`, the database tests skip.
+
+CI is the gate that decides a merge. [testing.md](testing.md) lists which checks
+CI runs and what QA reviews.
 
 ## Deploy
 

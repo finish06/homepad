@@ -24,8 +24,8 @@ Vite frontend at the root; Go backend in `api/` (same repo).
 
 - RED → GREEN → REFACTOR → VERIFY, strictly, at GA.
 - Never delete a failing test to reach green.
-- `npm run build` before `npx vitest run` on a clean checkout (`tests/infra/pwa-icons.test.ts`
-  reads `dist/`).
+- `npx vitest run` builds the app itself for the dist suites; no `npm run build` first.
+  `npm run test:all` runs every CI gate and lists what it could not run (`docs/testing.md`).
 - Unit: Vitest. Interaction: `npm run test:gate` (Playwright, mocked API, serves `dist/`).
   End-to-end: `npm run test:e2e` (needs a live API).
 

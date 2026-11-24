@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, inject, it } from 'vitest';
 
 // #498 — the DETERMINISTIC half of load-performance regression cover.
 //
@@ -180,7 +180,9 @@ const LAZY_CHUNKS = [
   'ssoMessage',
 ] as const;
 
-const dist = resolve(process.cwd(), 'dist');
+// A fresh build of the current source, made once per run by
+// tests/infra/built-dist.global-setup.ts (SPEC-test-infra-18.3.0).
+const dist = inject('builtDistDir');
 const assets = resolve(dist, 'assets');
 const gz = (p: string) => gzipSync(readFileSync(p)).length;
 const kb = (n: number) => `${(n / 1000).toFixed(1)} kB`;
@@ -189,7 +191,7 @@ describe('bundle budget — the built artifact stays within its byte budget', ()
   // House convention (cf. pwa-icons.test.ts): assert dist/ exists rather than
   // skipping without it. A budget that opts out when the build is missing is a
   // budget that passes vacuously, which is the failure mode #498 was about.
-  it('built dist/ exists (run `npm run build` first)', () => {
+  it('the per-run build exists', () => {
     expect(existsSync(dist)).toBe(true);
     expect(existsSync(assets)).toBe(true);
   });

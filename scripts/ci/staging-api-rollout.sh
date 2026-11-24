@@ -24,7 +24,10 @@ if ! grep -q '^kind: Deployment$' "$work/deploy.yaml" || ! grep -qE '^  name: ho
   echo "::error::the first document of $manifest is not the homepad-api Deployment" >&2
   exit 1
 fi
-sed -i -E "s#^( +image: ).*homepad-api.*#\1$IMAGE_REF#" "$work/deploy.yaml"
+# No `sed -i`: GNU and BSD sed disagree on its argument, and BSD sed (macOS)
+# took the script as a backup suffix, so the test failed off Linux.
+sed -E "s#^( +image: ).*homepad-api.*#\1$IMAGE_REF#" "$work/deploy.yaml" > "$work/deploy.img.yaml"
+mv "$work/deploy.img.yaml" "$work/deploy.yaml"
 kubectl -n "$ns" apply -f "$work/deploy.yaml"
 
 # newest_pod_log: the boot log of the most recently created homepad-api pod.

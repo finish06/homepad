@@ -79,6 +79,9 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
+    // Builds the app once per run for bundle-budget and pwa-icons, so a clean
+    // checkout needs no `npm run build` first (SPEC-test-infra-18.3.0).
+    globalSetup: './tests/infra/built-dist.global-setup.ts',
     // src/ holds behavior tests colocated with their modules. tests/infra/
     // quarantines the SOURCE-CONTRACT suites — readFileSync greps over the
     // Dockerfile / index.css / configs (P1.4 in the 2026-08-30 review). They
@@ -94,6 +97,9 @@ export default defineConfig({
     // coverage to shipped source so the threshold measures what we write.
     coverage: {
       provider: 'v8',
+      // Print the coverage table even when a test fails. Without it a single
+      // red test hid the whole coverage gate (#635).
+      reportOnFailure: true,
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
         'src/**/*.test.{ts,tsx}',

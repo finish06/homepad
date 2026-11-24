@@ -1,17 +1,17 @@
 // PWA icon + favicon wiring. Asserts the *built* artifacts (dist/) the
 // browser actually receives — index.html links the full favicon set and the
 // web manifest, and manifest.webmanifest is emitted and lists the three PWA
-// icons (192 any / 512 any / 512 maskable). Run after `npm run build`, which
-// CI does before `vitest run`.
+// icons (192 any / 512 any / 512 maskable). The build is made fresh for each
+// run by tests/infra/built-dist.global-setup.ts (SPEC-test-infra-18.3.0).
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, inject } from 'vitest';
 
-const dist = resolve(process.cwd(), 'dist');
+const dist = inject('builtDistDir');
 const read = (p: string) => readFileSync(resolve(dist, p), 'utf8');
 
 describe('PWA icons + favicons (built output)', () => {
-  it('built dist/ exists (run `npm run build` first)', () => {
+  it('the per-run build exists', () => {
     expect(existsSync(dist)).toBe(true);
   });
 

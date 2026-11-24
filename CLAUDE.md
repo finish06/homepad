@@ -52,11 +52,14 @@ npm run typecheck                # tsc --noEmit
 npm run build                    # typecheck + vite build
 ```
 
-**`npm run build` must run before `npx vitest run`** on a clean checkout —
-`tests/infra/pwa-icons.test.ts` and `tests/infra/bundle-budget.test.ts` read from
-`dist/`. Both fail rather than skip when it is missing, deliberately: a byte
-budget or a security guard that opts out when its subject is absent passes
+`npx vitest run` needs no build first. `tests/infra/pwa-icons.test.ts` and
+`tests/infra/bundle-budget.test.ts` check the built app, and a vitest global
+setup builds it once per run (`tests/infra/built-dist.global-setup.ts`). They
+never skip: a byte budget that opts out when its subject is absent passes
 vacuously (#498).
+
+`npm run test:all` runs every CI gate and lists what could not run here and
+why. CI is the authoritative gate; see `docs/testing.md`.
 
 ### API (run from `api/`)
 ```

@@ -13,6 +13,18 @@
 set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
+
+# No envsubst on PATH (a QA runner, a non-root shell): fetch the pinned one into
+# a folder this user can write and use it (#639, #681). If that fails too, stop
+# with a FAIL. Never skip: a render check that didn't render proves nothing.
+if ! command -v envsubst >/dev/null 2>&1; then
+  if ! bindir="$(bash "$repo/scripts/preview/install-envsubst.sh")"; then
+    echo "FAIL - envsubst is not on PATH and could not be installed (see above); nothing was checked"
+    exit 1
+  fi
+  PATH="$bindir:$PATH"
+fi
+
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 cp -R "$repo/tests/fixtures/preview-templates" "$work/templates"
