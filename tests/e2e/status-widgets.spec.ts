@@ -67,7 +67,7 @@ test('TC-008 — the admin turns on the clock and the weather; the strip appears
 });
 
 test('TC-009 — ⌘K searches the web after the app matches', async ({ page, context }) => {
-  await mockWidgets(page, { role: 'user', density: 'compact', info: INFO_ON });
+  await mockWidgets(page, { role: 'member', density: 'compact', info: INFO_ON });
   await page.goto('/');
   await expect(page.getByTestId('launcher-trigger')).toBeVisible();
   await page.getByTestId('launcher-trigger').click();
@@ -92,7 +92,7 @@ test('TC-009 — ⌘K searches the web after the app matches', async ({ page, co
 });
 
 test('TC-011 — Show widgets off hides the tile lines and the strip, for this user only', async ({ page }) => {
-  const mock = await mockWidgets(page, { role: 'user', density: 'compact', info: INFO_ON });
+  const mock = await mockWidgets(page, { role: 'member', density: 'compact', info: INFO_ON });
   await page.goto('/');
   const line = page.locator('.app-grid-tool-wrap', { hasText: 'Sonarr' }).getByTestId('tile-statusline');
   await expect(line).toHaveText('3 this week · 1 in queue');

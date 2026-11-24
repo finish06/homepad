@@ -16,7 +16,7 @@ vi.mock('../passwordApi', () => ({ lookupReset: vi.fn(), acceptReset: vi.fn() })
 expect.extend(toHaveNoViolations);
 
 const LIVE: ResetInfo = { email: 'jo@example.com', name: 'Jo', expiresAt: '2026-11-21T21:40:00Z' };
-const JO: User = { id: 'u-jo', email: 'jo@example.com', role: 'user', themePref: 'system', name: 'Jo', hasPassword: true };
+const JO: User = { id: 'u-jo', email: 'jo@example.com', role: 'member', themePref: 'system', name: 'Jo', hasPassword: true };
 const CALEB: User = { id: 'u-caleb', email: 'caleb@home.lan', role: 'admin', themePref: 'system', name: 'Caleb' };
 const ENDS = (() => {
   const d = new Date(LIVE.expiresAt);

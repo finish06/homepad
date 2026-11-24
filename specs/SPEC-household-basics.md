@@ -121,7 +121,7 @@ Caleb's next-work item 2, "Household basics": the pieces a household needs befor
 - The admin sees pending invites in Accounts and can revoke one. Once used, an invite drops off the list, and the new adult shows in the account list.
 - Invites work in every registration mode. That's the point: sign-up can stay closed for good.
 - Invites make password accounts. People who use single sign-on keep signing in with it, as today (Q5).
-- `member` is UI copy for the existing `user` role. The API value stays `user`.
+- `member` is UI copy for the existing `user` role. The API value stays `user`. *(Changed in 18.4.0: the API says `member`; see SPEC-decisions-18.4.0.)*
 
 ### 2.3 Every admin edits the same catalog (scope 3, #87)
 

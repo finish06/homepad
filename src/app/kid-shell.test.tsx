@@ -55,7 +55,7 @@ const KID: User = {
   showUptimeDisplay: true,
 };
 
-const ADULT: User = { id: 'u1', email: 'nani@ohana.io', role: 'user', themePref: 'light' };
+const ADULT: User = { id: 'u1', email: 'nani@ohana.io', role: 'member', themePref: 'light' };
 
 function svc(id: string, name: string, categoryId: string): Service {
   return {

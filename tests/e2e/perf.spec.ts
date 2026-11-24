@@ -48,7 +48,7 @@ const DCL_SMOKE_MS = 800;
 
 const SAMPLES = 5;
 
-const USER = { id: 'u1', email: 'perf@homepad', role: 'user', themePref: 'light' };
+const USER = { id: 'u1', email: 'perf@homepad', role: 'member', themePref: 'light' };
 const SEED = [
   {
     id: 'svc-1',

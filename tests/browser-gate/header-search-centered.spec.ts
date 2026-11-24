@@ -32,7 +32,7 @@ test.describe('header — the search trigger sits on the header centre line', ()
     test(`centred at ${vp.name} (${vp.width}px)`, async ({ page }, testInfo) => {
       const { services, categories } = makeStatusTiles(['UP', 'UP', 'DOWN']);
       await page.setViewportSize({ width: vp.width, height: vp.height });
-      await mockApi(page, services, categories, 'user', null);
+      await mockApi(page, services, categories, 'member', null);
       await page.goto('/');
 
       const trigger = page.getByTestId('launcher-trigger');
@@ -70,7 +70,7 @@ test.describe('header — the search trigger sits on the header centre line', ()
     // narrowest width at which all three groups are still rendered.
     const { services, categories } = makeStatusTiles(['UP']);
     await page.setViewportSize({ width: 1024, height: 900 });
-    await mockApi(page, services, categories, 'user', null);
+    await mockApi(page, services, categories, 'member', null);
     await page.goto('/');
 
     const trigger = await page.getByTestId('launcher-trigger').boundingBox();
@@ -93,7 +93,7 @@ test.describe('header — the search trigger sits on the header centre line', ()
 // document must never scroll horizontally at phone widths, whoever the user is.
 test.describe('#405 — the header never forces a horizontal scrollbar', () => {
   for (const width of [320, 360, 390, 414]) {
-    for (const role of ['user', 'admin'] as const) {
+    for (const role of ['member', 'admin'] as const) {
       test(`no overflow at ${width}px as ${role}`, async ({ page }) => {
         const { services, categories } = makeStatusTiles(['UP', 'DOWN', 'NOT_MONITORED']);
         await page.setViewportSize({ width, height: 800 });

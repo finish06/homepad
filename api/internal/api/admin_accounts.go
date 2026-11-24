@@ -63,7 +63,7 @@ type deviceView struct {
 }
 
 func (s *server) newAccountView(r *http.Request, u storage.User, appCount int) (accountView, error) {
-	v := accountView{ID: u.ID, Name: u.DisplayName, Role: u.Role, AvatarColor: u.AvatarColor, HasPassword: u.HasLocalPassword()}
+	v := accountView{ID: u.ID, Name: u.DisplayName, Role: apiRole(u.Role), AvatarColor: u.AvatarColor, HasPassword: u.HasLocalPassword()}
 	if storage.IsAdultRole(u.Role) {
 		v.Email = u.Email
 		if v.Name == "" {

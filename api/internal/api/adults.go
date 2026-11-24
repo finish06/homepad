@@ -41,7 +41,8 @@ func (s *server) refuseAdultChange(w http.ResponseWriter, admin storage.User, ro
 }
 
 // handlePatchAdult — PATCH /api/admin/accounts/{id} {role} → 200 with the
-// account row (AC-006). role is "admin" or "user"; any other value, any other
+// account row (AC-006). role is "admin" or "member" ("user" is a deprecated
+// alias until 19.0.0, SPEC-decisions-18.4.0); any other value, any other
 // field or no body is 400. A real change ends every session of that account
 // (Q2, AC-008); setting the role it already has changes nothing.
 func (s *server) handlePatchAdult(w http.ResponseWriter, r *http.Request) {
@@ -55,18 +56,23 @@ func (s *server) handlePatchAdult(w http.ResponseWriter, r *http.Request) {
 	if !decodeStrict(w, r, &in) {
 		return
 	}
-	if in.Role == nil || (*in.Role != "admin" && *in.Role != "user") {
-		http.Error(w, `role must be "admin" or "user"`, http.StatusBadRequest)
+	if in.Role == nil {
+		http.Error(w, badRoleMsg, http.StatusBadRequest)
+		return
+	}
+	role, deprecated, ok := parseAdultRole(*in.Role)
+	if !ok {
+		http.Error(w, badRoleMsg, http.StatusBadRequest)
 		return
 	}
 	ctx := r.Context()
-	old, changed, revokedResets, err := s.store.SetAdultRole(ctx, admin.ID, r.PathValue("id"), *in.Role)
+	old, changed, revokedResets, err := s.store.SetAdultRole(ctx, admin.ID, r.PathValue("id"), role)
 	if err != nil {
 		s.refuseAdultChange(w, admin, patchAdultRoute, err)
 		return
 	}
 	if changed {
-		log.Printf("accounts: admin %s changed role of %s from %s to %s", admin.ID, old.ID, old.Role, *in.Role)
+		log.Printf("accounts: admin %s changed role of %s from %s to %s", admin.ID, old.ID, apiRole(old.Role), apiRole(role))
 		if revokedResets > 0 {
 			log.Printf("reset: revoked %d live reset links made by demoted admin %s", revokedResets, old.ID)
 		}
@@ -79,12 +85,13 @@ func (s *server) handlePatchAdult(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	u := old
-	u.Role = *in.Role
+	u.Role = role
 	v, err := s.newAccountView(r, u, 0)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	warnUserAlias(w, deprecated)
 	writeJSON(w, http.StatusOK, v)
 }
 
@@ -102,7 +109,7 @@ func (s *server) handleRemoveAdult(w http.ResponseWriter, r *http.Request) {
 		s.refuseAdultChange(w, admin, removeAdultRoute, err)
 		return
 	}
-	log.Printf("accounts: admin %s removed adult %s role=%s", admin.ID, removed.ID, removed.Role)
+	log.Printf("accounts: admin %s removed adult %s role=%s", admin.ID, removed.ID, apiRole(removed.Role))
 	if revoked > 0 {
 		log.Printf("invite: revoked %d pending invites made by removed adult %s", revoked, removed.ID)
 	}

@@ -5,7 +5,7 @@ import { type Page } from '@playwright/test';
 // (z-index hit-testing) lives entirely in the browser's layout/paint/event
 // pipeline, so a built app served by `vite preview` with the /api/* layer mocked
 // via route interception exercises it faithfully.
-const USER = { id: 'u1', email: 'kid@ohana.test', role: 'user', themePref: 'system' };
+const USER = { id: 'u1', email: 'kid@ohana.test', role: 'member', themePref: 'system' };
 
 const SERVICE = {
   id: 'svc-1',
@@ -100,7 +100,7 @@ export async function mockApi(
   categories: FixtureCategory[] = [],
   // The App Grid width selector is admin-only; pass 'admin' when a gate needs it
   // in the contested row.
-  role: 'user' | 'admin' = 'user',
+  role: 'member' | 'admin' = 'member',
   // SPEC-tile-density — pin the per-device tile density (localStorage, OQ-9) before
   // the app boots. Defaults to 'large' so the pre-density gates keep asserting the
   // legacy vertical tile after the product default flipped to 'compact'. Pass null

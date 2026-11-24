@@ -37,7 +37,7 @@ describe('setAccountRole', () => {
     ['last_admin', 'last_admin'],
   ] as const)('a 409 {"error":"%s"} reads as code %s', async (wire, code) => {
     mockFetch({ error: wire }, 409);
-    const r = await setAccountRole('u-jo', 'user');
+    const r = await setAccountRole('u-jo', 'member');
     expect(r.ok).toBe(false);
     expect(r.status).toBe(409);
     expect(r.code).toBe(code);
@@ -46,18 +46,18 @@ describe('setAccountRole', () => {
 
   it('a 409 that is not one of the codes has no code', async () => {
     mockFetch('conflict', 409);
-    expect((await setAccountRole('u-jo', 'user')).code).toBeUndefined();
+    expect((await setAccountRole('u-jo', 'member')).code).toBeUndefined();
     mockFetch({ error: 'something_else' }, 409);
-    expect((await setAccountRole('u-jo', 'user')).code).toBeUndefined();
+    expect((await setAccountRole('u-jo', 'member')).code).toBeUndefined();
   });
 
   it('a 404, a 401 and a network failure come back as their status', async () => {
     mockFetch('no such adult account', 404);
-    expect(await setAccountRole('u-jo', 'user')).toMatchObject({ ok: false, status: 404 });
+    expect(await setAccountRole('u-jo', 'member')).toMatchObject({ ok: false, status: 404 });
     mockFetch('unauthorized', 401);
-    expect(await setAccountRole('u-jo', 'user')).toMatchObject({ ok: false, status: 401 });
+    expect(await setAccountRole('u-jo', 'member')).toMatchObject({ ok: false, status: 401 });
     vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
-    expect(await setAccountRole('u-jo', 'user')).toMatchObject({ ok: false, status: 0 });
+    expect(await setAccountRole('u-jo', 'member')).toMatchObject({ ok: false, status: 0 });
   });
 });
 

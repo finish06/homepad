@@ -38,7 +38,8 @@ Homepad serves one household per install. There are three roles:
 - **Member** — an adult in the household. Joins by invite link or single
   sign-on. Opens apps and keeps their own favorites, tile order, folded
   sections, theme and settings. Never sees admin controls or gets a 403.
-  (The API still calls this role `user`; see §9.)
+  (The API called this role `user` until 18.4.0; it still takes `user` as
+  input until 19.0.0.)
 - **Kid** — a child, usually on a shared iPad. Has a name and a color, no email
   and no password. An admin signs the device in. A kid sees only the apps on
   their list, as large tiles, and can pick favorites and change the theme.
@@ -125,7 +126,8 @@ On a fresh install, the first account becomes the admin.
 - **Sessions.** Kept in Postgres since 17.0.0. Only a hash of each token is
   stored. Adults stay signed in for 30 days and kids for 180, both renewed as
   they're used. A restart or deploy signs nobody out.
-- **Roles.** `admin`, `user` (shown as "member") and `kid`. Every API route has
+- **Roles.** `admin`, `member` and `kid`. The database stores a member as
+  `user`; the API maps it. Every API route has
   a class: public, catalog-free, kid-filtered, kid-forbidden, admin-only or
   catalog-write.
   The server, not the screen, keeps kids to their apps.
@@ -280,9 +282,9 @@ User docs: `docs/accounts.md`, `docs/kid-accounts.md`,
 - ~~How does someone get back in after forgetting a password, with no email?~~
   **Resolved in 18.0.0:** an admin makes a one-time reset link; the only admin
   runs `reset-link` on the server.
-- **The member role's name.** The UI and docs say "member"; the API and
-  database still say `user` (`POST /api/admin/invites` takes `user`, #599).
-  Rename in the API, or document `user` for integrators?
+- ~~**The member role's name.**~~ **Resolved in 18.4.0 (#599):** the API says
+  `member` and takes `user` as a deprecated alias until 19.0.0. The database
+  keeps `user` (SPEC-decisions-18.4.0 §2.2).
 - **Status widgets Phase 2** (Pi-hole, qBittorrent, Proxmox VE) is specified
   but not scheduled.
 - **Kid passwords.** SPEC-kid-accounts §2.2 allowed an optional password for

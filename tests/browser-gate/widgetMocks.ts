@@ -17,7 +17,7 @@ export const WIDGET_ADDRESS = 'http://jellyfin-sentinel.home.arpa:8096';
 export const WIDGET_USERNAME = 'widget-user-sentinel';
 export const WIDGET_KEY = 'wk-sentinel-5d1f9c2a';
 
-type Role = 'admin' | 'user' | 'kid';
+type Role = 'admin' | 'member' | 'kid';
 
 const now = () => new Date().toISOString();
 const ago = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
@@ -151,7 +151,7 @@ export async function mockWidgets(
     savedWidget?: boolean;
   } = {},
 ): Promise<WidgetMock> {
-  const role = opts.role ?? 'user';
+  const role = opts.role ?? 'member';
   const { services, categories } = widgetCatalog();
   let saved = opts.savedWidget
     ? {

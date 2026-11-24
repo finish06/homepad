@@ -23,7 +23,7 @@ import { mockApi, makeCategorized, enterArrange } from './mockApi';
 
 test.beforeEach(async ({ page }) => {
   const { services, categories } = makeCategorized(1, 1); // one box, one tool
-  await mockApi(page, services, categories, 'user');
+  await mockApi(page, services, categories, 'member');
   await page.setViewportSize({ width: 768, height: 1024 }); // iPad, the primary device
 });
 

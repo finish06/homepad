@@ -78,7 +78,7 @@ export default function AdultConfirm({
   async function run() {
     setBusy(true);
     setFailure(null);
-    const role = action === 'admin' ? 'admin' : 'user';
+    const role = action === 'admin' ? 'admin' : 'member';
     const r: AdultChange & { account?: Account } = remove
       ? await removeAccount(account.id)
       : await setAccountRole(account.id, role);

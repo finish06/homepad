@@ -62,7 +62,7 @@ func TestOIDC_InviteOnly_NewIdentities(t *testing.T) {
 		wantRole string // "" = refused with not_invited
 	}{
 		{"admin group", []string{"everyone", adminGroup}, memberGroup, "admin"},
-		{"member group", []string{"everyone", memberGroup}, memberGroup, "user"},
+		{"member group", []string{"everyone", memberGroup}, memberGroup, "member"},
 		{"both groups", []string{memberGroup, adminGroup}, memberGroup, "admin"},
 		{"neither group", []string{"everyone"}, memberGroup, ""},
 		{"no groups at all", nil, memberGroup, ""},
@@ -107,7 +107,7 @@ func TestOIDC_InviteOnly_AddedToGroupThenSignsIn(t *testing.T) {
 	idp.groups = []string{"everyone", memberGroup}
 	cookie := runOIDCLogin(t, homepad, idp)
 	_, role := fetchMe(t, homepad, cookie)
-	assert.Equal(t, "user", role)
+	assert.Equal(t, "member", role)
 }
 
 // §2.5 — an empty install under invite_only gets its first account from
@@ -152,7 +152,7 @@ func TestOIDC_InviteOnly_ExistingAdultSignsIn(t *testing.T) {
 			cookie := runOIDCLogin(t, homepad, idp)
 			email, role := fetchMe(t, homepad, cookie)
 			assert.Equal(t, "jo@example.com", email)
-			assert.Equal(t, "user", role)
+			assert.Equal(t, "member", role)
 			n, err := store.CountUsers(ctx)
 			require.NoError(t, err)
 			assert.Equal(t, 2, n, "no account is created")
@@ -168,9 +168,9 @@ func TestOIDC_Open_CreationUnchanged(t *testing.T) {
 		wantRole string
 	}{
 		{[]string{adminGroup}, "admin"},
-		{[]string{memberGroup}, "user"},
-		{[]string{"everyone"}, "user"},
-		{nil, "user"},
+		{[]string{memberGroup}, "member"},
+		{[]string{"everyone"}, "member"},
+		{nil, "member"},
 	} {
 		t.Run(strings.Join(c.groups, ","), func(t *testing.T) {
 			idp := newMockIdP(t, "pat@example.com", c.groups)
@@ -188,7 +188,7 @@ func TestOIDC_Open_CreationUnchanged(t *testing.T) {
 	idp := newMockIdP(t, "first@example.com", []string{"everyone"})
 	homepad, _ := testsupport.NewOIDCServerWith(t, idp.config(adminGroup), testsupport.Options{Registration: openMode()})
 	_, role := fetchMe(t, homepad, runOIDCLogin(t, homepad, idp))
-	assert.Equal(t, "user", role)
+	assert.Equal(t, "member", role)
 }
 
 // AC-002 — every callback failure redirects to /#signin-error=<code>.

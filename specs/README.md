@@ -106,6 +106,7 @@ UX artifacts are in [`ux/`](./ux/).
 | [`SPEC-test-infra-18.3.0.md`](./SPEC-test-infra-18.3.0.md) | 18.3.0 test setup cleanup: vitest runs on a clean checkout, envsubst without root, `npm run test:all`, CI named as the gate; closes the QA "couldn't run" duplicates | In review — target 18.3.0. |
 | [`SPEC-api-cleanup-18.2.0.md`](./SPEC-api-cleanup-18.2.0.md) | 18.2.0 API cleanup: sort the 28 issues moved from homepad-api (#651–#676, #688), fix the real ones with a test each, close the rest with evidence | In review — target 18.2.0. |
 | [`SPEC-ui-cleanup-18.3.0.md`](./SPEC-ui-cleanup-18.3.0.md) | 18.3.0 UI and accessibility cleanup: sort 19 open UI, design and a11y issues, fix the seven real ones with a test each, close or park the rest with evidence | In review — target 18.3.0. |
+| [`SPEC-decisions-18.4.0.md`](./SPEC-decisions-18.4.0.md) | 18.4.0 decisions: the API says `member` (`user` a deprecated alias until 19.0.0, #599), per-service tile hue (#352), the uptime hint (#488), docs match the code | In review — target 18.4.0. |
 
 One part of a shipped spec is also open: Phase 2 of
 [`SPEC-status-widgets.md`](./SPEC-status-widgets.md) (Pi-hole, qBittorrent,

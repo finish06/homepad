@@ -18,7 +18,7 @@ vi.mock('../api', async (importOriginal) => {
   return out;
 });
 
-const ADULT: User = { id: 'u1', email: 'nani@example.com', role: 'user', themePref: 'light', densityPref: 'compact' };
+const ADULT: User = { id: 'u1', email: 'nani@example.com', role: 'member', themePref: 'light', densityPref: 'compact' };
 const KID: User = {
   id: 'k1',
   email: '',

@@ -46,7 +46,8 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-homepad}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-homepad}?sslmode=disable
       # Plain http://localhost needs a non-Secure session cookie, or the browser
       # drops it and sign-in silently fails, for passwords and single sign-on.
-      # Set true once you serve Homepad over HTTPS. The api defaults this to true.
+      # Set true once you serve Homepad over HTTPS. This file sets false on
+      # purpose for local http; the API itself defaults to true.
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       # invite_only (default): only the first account signs itself up; adults
       # join through an admin's invite link. `open` lets anyone sign up.
@@ -58,7 +59,8 @@ services:
       HOMEPAD_TRUSTED_PROXIES: ${HOMEPAD_TRUSTED_PROXIES:-}
       # Status tiles read from Gatus (compose service name `gatus`, port 8080).
       GATUS_BASE_URL: ${GATUS_BASE_URL:-http://gatus:8080}
-      # Widgets: encrypts the API keys widgets use (64 hex chars). Optional.
+      # Encrypts the API keys widgets use and the single sign-on client secret
+      # saved in Admin Panel → System (64 hex chars). Optional.
       HOMEPAD_SECRET_KEY: ${HOMEPAD_SECRET_KEY:-}
       # --- OIDC / SSO (OPTIONAL) — leave OIDC_ENABLED=false to run with local
       #     accounts only. Set it true and fill the rest to enable SSO. ---
@@ -100,7 +102,7 @@ services:
     restart: unless-stopped
 
   gatus:
-    image: ${GATUS_IMAGE:-ghcr.io/twin/gatus:latest}
+    image: ghcr.io/twin/gatus:${GATUS_VERSION:-v5.37.0}
     volumes:
       - ./deploy/compose/gatus.yaml:/config/config.yaml:ro
     restart: unless-stopped

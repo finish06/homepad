@@ -82,7 +82,7 @@ type userView struct {
 }
 
 func newUserView(u storage.User) userView {
-	return userView{ID: u.ID, Email: u.Email, Role: u.Role, ThemePref: u.ThemePref, DensityPref: u.DensityPref,
+	return userView{ID: u.ID, Email: u.Email, Role: apiRole(u.Role), ThemePref: u.ThemePref, DensityPref: u.DensityPref,
 		ShowHealthBar: u.ShowHealthBar, ShowUptimeDisplay: u.ShowUptimeDisplay, Name: u.DisplayName,
 		DisplayName: u.DisplayName, AvatarColor: u.AvatarColor, ShowWidgets: u.ShowWidgets,
 		HasPassword: u.HasLocalPassword()}

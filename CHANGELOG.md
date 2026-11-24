@@ -7,6 +7,15 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [Unreleased] — 18.4.0
+
+- **API clients: the member role is now `member`, not `user`.** `/api/me`, the accounts list and the invite routes send `"role": "member"` (#599). Sending `"role": "user"` still works until 19.0.0; the answer has a `Warning` header saying it is deprecated. A script that checks for `"user"` in a response must check for `"member"` instead. The database is unchanged, and old backups restore as before.
+- **Operators:** log lines for invites and role changes say `role=member` instead of `role=user`.
+- My settings explains "Show uptime display": recent checks show at every tile density, and the 24h, 7d and 30d figures only at Large (#488).
+- The System section note says Reset goes back to the environment value, or to the default when the environment doesn't set one.
+- **Operators:** `compose.build.yaml` runs the same pinned Gatus as `compose.yaml` (`GATUS_VERSION`, default `v5.37.0`) instead of `latest`. `.env.example` now lists `GATUS_VERSION`; the old `GATUS_IMAGE` line is gone, and compose no longer reads it.
+- Docs: Reset, `COOKIE_SECURE`, `HOMEPAD_SECRET_KEY` and the settings reload time now match what the code does. Tile icon colours stay per service; the decision is in `specs/DECISIONS.md` (#352).
+
 ## [18.3.0] — 2026-11-24 — UI fixes and test setup
 
 **Upgrading.** Deploy the web image. There are no database or API changes.

@@ -9,7 +9,7 @@ import { test, expect, type Page } from '@playwright/test';
 //   • /api/auth/config  → oidc off
 //   • /api/services     → one seeded tile
 
-const USER = { id: 'u1', email: 'lilo@ohana', role: 'user', themePref: 'light' };
+const USER = { id: 'u1', email: 'lilo@ohana', role: 'member', themePref: 'light' };
 
 const SEED = [
   {

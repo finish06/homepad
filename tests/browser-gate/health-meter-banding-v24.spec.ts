@@ -33,7 +33,7 @@ test.describe('SPEC-v24 health-meter status banding', () => {
   }) => {
     const { services, categories } = makeStatusTiles(STATES);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await mockApi(page, services, categories, 'user');
+    await mockApi(page, services, categories, 'member');
     await page.goto('/');
 
     const meter = page.getByTestId('health-meter');

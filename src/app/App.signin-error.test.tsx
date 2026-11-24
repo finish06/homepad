@@ -28,7 +28,7 @@ vi.mock('../api', () => ({
   acceptInvite: vi.fn(),
 }));
 
-const JO: User = { id: 'u-jo', email: 'jo@example.com', role: 'user', themePref: 'system', name: 'Jo' };
+const JO: User = { id: 'u-jo', email: 'jo@example.com', role: 'member', themePref: 'system', name: 'Jo' };
 
 beforeEach(() => {
   vi.mocked(me).mockResolvedValue(null);

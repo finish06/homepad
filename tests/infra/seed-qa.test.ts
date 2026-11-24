@@ -92,7 +92,7 @@ async function startFake(opts: Partial<Pick<Fake, 'registration'>> = {}): Promis
       const adults = fake.users.filter((u) => u.role !== 'kid');
       if (adults.length && fake.registration !== 'open') return send(res, 403, 'registration is invite-only');
       if (adults.some((u) => u.email === body.email)) return send(res, 409, 'email already registered');
-      const u = { id: id(), email: body.email, password: body.password, role: adults.length ? 'user' : 'admin', name: '', avatarColor: '' };
+      const u = { id: id(), email: body.email, password: body.password, role: adults.length ? 'member' : 'admin', name: '', avatarColor: '' };
       fake.users.push(u);
       return send(res, 201, { id: u.id, email: u.email, role: u.role });
     }
@@ -371,10 +371,10 @@ describe('seed-qa fails loudly (#623)', () => {
     const fake = await startFake();
     fake.override = (_req, res, path) => {
       if (path !== '/api/register') return false;
-      res.writeHead(201, { 'Content-Type': 'application/json' }).end(JSON.stringify({ role: 'user' }));
+      res.writeHead(201, { 'Content-Type': 'application/json' }).end(JSON.stringify({ role: 'member' }));
       return true;
     };
-    failed(await seed([fake.url]), /got role "user", not admin: another account was created first/);
+    failed(await seed([fake.url]), /got role "member", not admin: another account was created first/);
   });
 
   it('when the install is set up and QA_EMAIL cannot sign in', async () => {
@@ -388,8 +388,8 @@ describe('seed-qa fails loudly (#623)', () => {
   it('when the QA account exists but is not admin', async () => {
     const fake = await startFake();
     fake.users.push({ id: 'first', email: 'first@example.test', password: 'x', role: 'admin', name: '', avatarColor: '' });
-    fake.users.push({ id: 'qa', email: EMAIL, password: PASSWORD, role: 'user', name: '', avatarColor: '' });
-    failed(await seed([fake.url]), /signed in but is role "user", not admin/);
+    fake.users.push({ id: 'qa', email: EMAIL, password: PASSWORD, role: 'member', name: '', avatarColor: '' });
+    failed(await seed([fake.url]), /signed in but is role "member", not admin/);
   });
 
   it('when a write "succeeds" but the fixture does not read back', async () => {

@@ -114,7 +114,7 @@ describe('Empty dashboard — the Homepage import link (B-2)', () => {
   });
 
   it('a user sees no link (AC-032)', async () => {
-    vi.mocked(me).mockResolvedValue(user('user'));
+    vi.mocked(me).mockResolvedValue(user('member'));
     render(<App />);
     await screen.findByTestId('app-grid-stub');
     await waitFor(() => expect(servicesWithStatus).toHaveBeenCalled());

@@ -2,6 +2,15 @@
 
 Decisions made under authority delegated by Caleb → Joe (2026-06-11). Newest on top.
 
+## 2026-11-24 — Tile icon colour is per service (#352): Caleb's call
+
+Keep it as built. A tile's icon badge takes its hue from the service name
+(`initialBadge`, `src/icons.ts`), so two tiles in the same category can differ.
+This supersedes v15 design-system spec §3.7 ("Category hue tokens (tile
+identity)") for tile icons; that spec lives on the `design/v15-reference`
+branch and was never merged to main. Category hue still tints the library
+chips (#90). Status colour and text stay accent-proof either way.
+
 ## 2026-06-12 — v5 collapsible-categories (Q1–Q4): Joe's calls (delegated)
 
 Unblocks the v5 build. The four open NEEDS-JOE calls in

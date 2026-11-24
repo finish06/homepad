@@ -22,7 +22,7 @@ Register the redirect URL with your provider. On plain `http://`, single sign-on
 
 Every value above can also be set in **Admin Panel → System → Sign-in**. It applies at once, with no restart, and people who are signed in stay signed in.
 
-- A value saved in the panel wins over `.env`. Each row shows where its value comes from: `UI`, `env` or `default`. **Reset** removes the saved value, so `.env` applies again.
+- A value saved in the panel wins over `.env`. Each row shows where its value comes from: `UI`, `env` or `default`. **Reset** removes the saved value, so the `.env` value applies, or the default if `.env` doesn't set it.
 - The Sign-in rows save together, with **Review and save**. The values only work as a set.
 - Before it saves, Homepad reads your provider's discovery document (`<issuer>/.well-known/openid-configuration`, or the Discovery URL). If it can't, or the issuer in it doesn't match, nothing is saved.
 - **The client secret** is never shown again after you save it. Homepad seals it with `HOMEPAD_SECRET_KEY`, the same key widget keys use. Without that key, the panel can't save the secret; set it in `.env` instead. If the key changes, the row says the saved secret can't be read. Homepad then uses the `.env` secret, and you can replace it.

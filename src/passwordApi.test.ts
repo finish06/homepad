@@ -67,7 +67,7 @@ describe('lookupReset (AC-006)', () => {
 
 describe('acceptReset (AC-007)', () => {
   it('sends {token, password} and returns the signed-in user', async () => {
-    const user = { id: 'u1', email: 'jo@example.com', role: 'user', themePref: 'system', hasPassword: true };
+    const user = { id: 'u1', email: 'jo@example.com', role: 'member', themePref: 'system', hasPassword: true };
     const fetch = mockFetch(user, 200);
     await expect(acceptReset('tok-secret', 'new password')).resolves.toEqual({ ok: true, status: 200, user });
     const [path, init] = fetch.mock.calls[0];

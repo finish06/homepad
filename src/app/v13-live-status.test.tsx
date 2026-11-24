@@ -13,7 +13,7 @@ import { LauncherProvider } from '../launcher/launcher';
 import { ServicesProvider } from '../services';
 import type { Service, User } from '../api';
 
-const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'user', themePref: 'system' };
+const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'member', themePref: 'system' };
 
 function svc(id: string, status: Service['status']): Service {
   return {

@@ -37,7 +37,7 @@ test.describe('SPEC-health-bar-visibility-toggle — bar visibility', () => {
       await page.setViewportSize({ width: vp.width, height: vp.height });
 
       await setBarPref(page, true);
-      await mockApi(page, services, categories, 'user', null);
+      await mockApi(page, services, categories, 'member', null);
       await page.goto('/');
       const panel = page.locator('.health');
       await expect(panel).toBeVisible();
@@ -65,7 +65,7 @@ test.describe('SPEC-health-bar-visibility-toggle — bar visibility', () => {
     const { services, categories } = makeStatusTiles(['UP', 'DOWN', 'DOWN']);
     await page.setViewportSize({ width: 1440, height: 900 });
     await setBarPref(page, false);
-    await mockApi(page, services, categories, 'user', null);
+    await mockApi(page, services, categories, 'member', null);
     await page.goto('/');
 
     // A display preference may never conceal an outage.
@@ -83,7 +83,7 @@ test.describe('SPEC-health-bar-visibility-toggle — bar visibility', () => {
     const { services, categories } = makeStatusTiles(['UP', 'UP']);
     await page.setViewportSize({ width: 1440, height: 900 });
     await setBarPref(page, false);
-    await mockApi(page, services, categories, 'user', null);
+    await mockApi(page, services, categories, 'member', null);
     await page.goto('/');
     // It normally rides in the legend row, INSIDE the hidden block; it must
     // re-home onto the verdict rather than disappear with it.

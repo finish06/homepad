@@ -47,14 +47,14 @@ async function openMySettings(u: User) {
 
 describe('App — My settings gets hasPassword (AC-020)', () => {
   it('passes hasPassword and the email', async () => {
-    const panel = await openMySettings({ id: 'u1', email: 'jo@example.com', role: 'user', themePref: 'system', hasPassword: true });
+    const panel = await openMySettings({ id: 'u1', email: 'jo@example.com', role: 'member', themePref: 'system', hasPassword: true });
     expect(panel).toHaveAttribute('data-scope', 'personal');
     expect(panel).toHaveAttribute('data-has-password', 'true');
     expect(panel).toHaveAttribute('data-email', 'jo@example.com');
   });
 
   it('an older API without the field reads as no password', async () => {
-    const panel = await openMySettings({ id: 'u1', email: 'jo@example.com', role: 'user', themePref: 'system' });
+    const panel = await openMySettings({ id: 'u1', email: 'jo@example.com', role: 'member', themePref: 'system' });
     expect(panel).toHaveAttribute('data-has-password', 'false');
   });
 });

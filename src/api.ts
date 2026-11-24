@@ -15,7 +15,16 @@ export type ThemePref = 'system' | 'light' | 'dark';
 // SPEC-kid-accounts — the three roles. A `kid` is created by an admin, sees only
 // its allow-list (filtered server-side), and may change only its theme and its
 // favorites; the frontend gates the kid shell on this value (spec §8).
-export type Role = 'admin' | 'user' | 'kid';
+export type Role = 'admin' | 'member' | 'kid';
+
+// SPEC-decisions-18.4.0 §2.4 (#599) — the API said `user` for a member until
+// 18.4.0. Every response that carries a role is read through these, so an
+// older API during a rolling update still reads as `member`, and the rest of
+// the app only ever sees admin, member or kid.
+export function withRole<T extends { role: string }>(v: T): T {
+  if (!v || typeof v !== 'object' || (v.role as string) !== 'user') return v;
+  return { ...v, role: 'member' };
+}
 
 export type User = {
   id: string;
@@ -362,12 +371,12 @@ function parseSystemConfig(data: { showUptimeDisplay?: boolean; statusDegradedMs
 // boot shows the login screen rather than wedging the app on a rejected promise.
 export async function me(): Promise<User | null> {
   const { status, res } = await request('/api/me');
-  return res && status === 200 ? ((await res.json()) as User) : null;
+  return res && status === 200 ? withRole((await res.json()) as User) : null;
 }
 
 export async function login(email: string, password: string): Promise<Result & { user?: User }> {
   return resultRequest('/api/login', 200, { method: 'POST', json: { email, password } }, (d) => ({
-    user: d as User,
+    user: withRole(d as User),
   }));
 }
 
@@ -748,7 +757,7 @@ function arrayOrThrow<T>(data: unknown): T[] {
 
 // listAccounts — every account (UX §2). Adults are listed only (spec §10).
 export async function listAccounts(): Promise<Account[]> {
-  return arrayOrThrow<Account>(await jsonOrThrow<unknown>('/api/admin/accounts'));
+  return arrayOrThrow<Account>(await jsonOrThrow<unknown>('/api/admin/accounts')).map(withRole);
 }
 
 // createKid — a kid needs only a name (AC-001). 201 with the new account; a 409
@@ -812,10 +821,10 @@ export async function signInHere(id: string): Promise<boolean> {
 // adult (admin-only routes); the adult opens it and joins (public routes, rate
 // limited). The token is returned once, by createInvite, and travels only in
 // POST bodies and the link's URL fragment — never a path or a query string.
-// `user` is the API value of the role the UI calls "member".
+// The member role is `member` (18.4.0); an older API's `user` is read as it.
 // ---------------------------------------------------------------------------
 
-export type InviteRole = 'admin' | 'user';
+export type InviteRole = 'admin' | 'member';
 
 // One row of GET /api/admin/invites: pending only, newest first.
 export type Invite = {
@@ -837,14 +846,14 @@ export type InviteInfo = { name: string; role: InviteRole; inviterName: string; 
 // "account limit reached (limit N)" at HOMEPAD_MAX_ACCOUNTS.
 export async function createInvite(name: string, role: InviteRole): Promise<Result & { invite?: CreatedInvite }> {
   return resultRequest('/api/admin/invites', 201, { method: 'POST', json: { name, role } }, (d) => ({
-    invite: d as CreatedInvite,
+    invite: withRole(d as CreatedInvite),
   }));
 }
 
 // listInvites — rejects on any failure, like listAccounts, so Accounts shows its
 // error state instead of an empty list.
 export async function listInvites(): Promise<Invite[]> {
-  return arrayOrThrow<Invite>(await jsonOrThrow<unknown>('/api/admin/invites'));
+  return arrayOrThrow<Invite>(await jsonOrThrow<unknown>('/api/admin/invites')).map(withRole);
 }
 
 // revokeInvite — the link stops working. True on 204; 404 when it is no longer
@@ -857,7 +866,7 @@ export async function revokeInvite(id: string): Promise<boolean> {
 // expired) is the same 404; 429 when rate limited.
 export async function lookupInvite(token: string): Promise<Result & { invite?: InviteInfo }> {
   return resultRequest('/api/invites/lookup', 200, { method: 'POST', json: { token } }, (d) => ({
-    invite: d as InviteInfo,
+    invite: withRole(d as InviteInfo),
   }));
 }
 
@@ -870,14 +879,13 @@ export async function acceptInvite(body: {
   password: string;
   name: string;
 }): Promise<Result & { user?: User }> {
-  return resultRequest('/api/invites/accept', 201, { method: 'POST', json: body }, (d) => ({ user: d as User }));
+  return resultRequest('/api/invites/accept', 201, { method: 'POST', json: body }, (d) => ({ user: withRole(d as User) }));
 }
 
 // ---------------------------------------------------------------------------
 // SPEC-household-manage-adults §7 — Adults. An admin changes another adult's
 // role or removes them (admin-only routes). A 409 carries a JSON code: "self"
-// (your own account) or "last_admin" (Homepad keeps at least one admin). The
-// role values are the API's: `user` is what the UI calls "member".
+// (your own account) or "last_admin" (Homepad keeps at least one admin).
 // ---------------------------------------------------------------------------
 
 export type AdultConflict = 'self' | 'last_admin';
@@ -901,7 +909,7 @@ function withConflictCode<T extends Result>(r: T): T & { code?: AdultConflict } 
 // everywhere (Q2). 400 for a bad role, 404 when the id is not an adult.
 export async function setAccountRole(id: string, role: InviteRole): Promise<AdultChange & { account?: Account }> {
   return withConflictCode(
-    await resultRequest(adultPath(id), 200, { method: 'PATCH', json: { role } }, (d) => ({ account: d as Account })),
+    await resultRequest(adultPath(id), 200, { method: 'PATCH', json: { role } }, (d) => ({ account: withRole(d as Account) })),
   );
 }
 

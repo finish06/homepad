@@ -79,8 +79,8 @@ describe('authConfig', () => {
 
 describe('me', () => {
   it('returns the user on 200', async () => {
-    const fn = mockFetch(JSON.stringify({ id: 'u1', email: 'a@b.c', role: 'user' }), 200);
-    await expect(me()).resolves.toEqual({ id: 'u1', email: 'a@b.c', role: 'user' });
+    const fn = mockFetch(JSON.stringify({ id: 'u1', email: 'a@b.c', role: 'member' }), 200);
+    await expect(me()).resolves.toEqual({ id: 'u1', email: 'a@b.c', role: 'member' });
     expect(fn).toHaveBeenCalledWith('/api/me', { credentials: 'include' });
   });
 

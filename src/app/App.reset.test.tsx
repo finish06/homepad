@@ -30,7 +30,7 @@ vi.mock('../api', () => ({
 }));
 vi.mock('../passwordApi', () => ({ lookupReset: vi.fn(), acceptReset: vi.fn() }));
 
-const JO: User = { id: 'u-jo', email: 'jo@example.com', role: 'user', themePref: 'system', name: 'Jo', hasPassword: true };
+const JO: User = { id: 'u-jo', email: 'jo@example.com', role: 'member', themePref: 'system', name: 'Jo', hasPassword: true };
 
 beforeEach(() => {
   vi.mocked(me).mockResolvedValue(null);
@@ -43,7 +43,7 @@ beforeEach(() => {
   vi.mocked(lookupInvite).mockResolvedValue({
     ok: true,
     status: 200,
-    invite: { name: 'Alex', role: 'user', inviterName: 'Caleb', expiresAt: '2026-11-14T12:00:00Z' },
+    invite: { name: 'Alex', role: 'member', inviterName: 'Caleb', expiresAt: '2026-11-14T12:00:00Z' },
   });
   vi.mocked(logout).mockResolvedValue();
 });

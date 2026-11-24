@@ -13,10 +13,10 @@ import type { User } from '../api';
 // Dashboard section, grouped by the task rather than by permission — while
 // staying admin-only, which AC-008 and TC-006 both require.
 
-const user = (role: 'admin' | 'user'): User =>
+const user = (role: 'admin' | 'member'): User =>
   ({ id: 'u1', email: 'a@b.test', role, themePref: 'system' }) as User;
 
-function renderHeader(role: 'admin' | 'user' = 'admin') {
+function renderHeader(role: 'admin' | 'member' = 'admin') {
   return render(
     <LauncherProvider>
     <AppHeader
@@ -127,7 +127,7 @@ describe('gear menu — "Arrange apps" (AC-007..AC-011)', () => {
   // NEW rule rather than deleted, so the reversal is visible in this file's
   // history instead of looking like coverage that quietly disappeared.
   it('TC-006 (v29 AC-005) — a non-admin sees BOTH Add apps and Arrange apps', async () => {
-    renderHeader('user');
+    renderHeader('member');
     const menu = await openGear();
     expect(within(menu).getByTestId('gear-add-apps')).toBeTruthy();
     expect(within(menu).queryByTestId('gear-edit-dashboard')).not.toBeNull();
@@ -136,7 +136,7 @@ describe('gear menu — "Arrange apps" (AC-007..AC-011)', () => {
   it('v29 AC-006 — the non-admin arrange item exposes no admin-only siblings', async () => {
     // Opening the mode to everyone must not open the ADMIN section with it. This
     // is the half of the reversal that could go wrong silently.
-    renderHeader('user');
+    renderHeader('member');
     const menu = await openGear();
     expect(within(menu).queryByTestId('gear-menu-section-admin')).toBeNull();
     expect(within(menu).queryByTestId('gear-add-custom-app')).toBeNull();
