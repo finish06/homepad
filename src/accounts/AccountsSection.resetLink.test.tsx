@@ -45,9 +45,9 @@ const CALEB: Account = {
   hasPassword: true,
 };
 const ALEX: Account = { id: 'u-alex', name: 'Alex', role: 'admin', lastSeenAt: null, email: 'alex@example.com', avatarColor: '', hasPassword: true };
-const JO: Account = { id: 'u-jo', name: 'Jo', role: 'user', lastSeenAt: null, email: 'jo@example.com', avatarColor: '', hasPassword: true };
+const JO: Account = { id: 'u-jo', name: 'Jo', role: 'member', lastSeenAt: null, email: 'jo@example.com', avatarColor: '', hasPassword: true };
 // Signs in with single sign-on only (TC-005).
-const PAT: Account = { id: 'u-pat', name: 'Pat', role: 'user', lastSeenAt: null, email: 'pat@example.com', avatarColor: '', hasPassword: false };
+const PAT: Account = { id: 'u-pat', name: 'Pat', role: 'member', lastSeenAt: null, email: 'pat@example.com', avatarColor: '', hasPassword: false };
 const SAM: Account = { id: 'k-sam', name: 'Sam', role: 'kid', lastSeenAt: null, avatarColor: 'teal', appCount: 2, deviceCount: 0, hasPassword: false };
 
 const LINK: CreatedResetLink = { id: 'r1', expiresAt: '2026-11-21T21:40:00Z', token: 'tok-jo' };

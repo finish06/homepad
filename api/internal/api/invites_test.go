@@ -135,7 +135,7 @@ func countUsers(t *testing.T, env *testsupport.Env) int {
 func TestInvites_CreateValidatesNameAndRole(t *testing.T) {
 	env := inviteEnv(t)
 
-	for _, role := range []string{"user", "admin"} {
+	for _, role := range []string{"member", "admin"} {
 		code, v, b := createInvite(t, env, "admin-session", map[string]any{"name": "  Alex  ", "role": role})
 		require.Equal(t, http.StatusCreated, code, string(b))
 		assert.NotEmpty(t, v.ID)
@@ -406,7 +406,7 @@ func TestInvites_AcceptCreatesAdultAndSignsIn(t *testing.T) {
 		role, name, override, wantName string
 	}{
 		{"admin", "Jordan", "", "Jordan"},
-		{"user", "Alex", "  Alexandra ", "Alexandra"},
+		{"member", "Alex", "  Alexandra ", "Alexandra"},
 	} {
 		t.Run(tc.role, func(t *testing.T) {
 			inv := mustInvite(t, env, tc.name, tc.role)
@@ -467,7 +467,7 @@ func TestInvites_AcceptRefusesUnknownFields(t *testing.T) {
 	}
 	r, b := acceptInvite(t, env, acceptBody(inv.Token, "alex@example.com"))
 	require.Equal(t, http.StatusCreated, r.StatusCode, string(b))
-	assert.Contains(t, string(b), `"role":"user"`, "the invite's role, not the requested one")
+	assert.Contains(t, string(b), `"role":"member"`, "the invite's role, not the requested one")
 }
 
 // AC-014 — a failure on the invitee's input rolls back and leaves the invite
@@ -581,10 +581,10 @@ func TestInvites_LogLinesNeverCarryTokenOrHash(t *testing.T) {
 	require.NoError(t, json.Unmarshal(mustField(t, b, "id"), &newID))
 
 	out := logs.String()
-	assert.Equal(t, 1, strings.Count(out, fmt.Sprintf("invite: admin %s created invite %s role=user expires=", env.AdminID, kept.ID)), out)
+	assert.Equal(t, 1, strings.Count(out, fmt.Sprintf("invite: admin %s created invite %s role=member expires=", env.AdminID, kept.ID)), out)
 	assert.Equal(t, 1, strings.Count(out, fmt.Sprintf("invite: admin %s created invite %s role=admin expires=", env.AdminID, dropped.ID)), out)
 	assert.Equal(t, 1, strings.Count(out, fmt.Sprintf("invite: admin %s revoked invite %s", env.AdminID, dropped.ID)), out)
-	assert.Equal(t, 1, strings.Count(out, fmt.Sprintf("invite: invite %s accepted, created user %s role=user", kept.ID, newID)), out)
+	assert.Equal(t, 1, strings.Count(out, fmt.Sprintf("invite: invite %s accepted, created user %s role=member", kept.ID, newID)), out)
 
 	for _, tok := range []string{kept.Token, dropped.Token} {
 		sum := sha256.Sum256([]byte(tok))

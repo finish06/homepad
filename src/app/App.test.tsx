@@ -56,7 +56,7 @@ const mockedRegister = vi.mocked(register);
 const mockedLogout = vi.mocked(logout);
 const mockedSetThemePref = vi.mocked(setThemePref);
 
-const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'user', themePref: 'system' };
+const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'member', themePref: 'system' };
 const ADMIN: User = { id: 'a1', email: 'lilo@ohana.io', role: 'admin', themePref: 'system' };
 
 beforeEach(() => {
@@ -399,7 +399,7 @@ describe('v7 §6 — top bar declutter + user menu', () => {
     await dropLoading();
     await openMenu(user);
     expect(screen.getByTestId('user-menu-email')).toHaveTextContent('nani@ohana.io');
-    expect(screen.getByTestId('user-menu-role')).toHaveTextContent('user');
+    expect(screen.getByTestId('user-menu-role')).toHaveTextContent('member');
     expect(screen.getByTestId('theme-control')).toBeInTheDocument();
     expect(screen.getByTestId('menu-logout')).toBeInTheDocument();
   });

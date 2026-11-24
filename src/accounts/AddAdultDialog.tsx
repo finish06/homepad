@@ -116,7 +116,7 @@ function InviteForm({
   onCreated: (invite: CreatedInvite) => void;
 }) {
   const [name, setName] = useState('');
-  const [role, setRole] = useState<InviteRole>('user');
+  const [role, setRole] = useState<InviteRole>('member');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -192,7 +192,7 @@ function InviteForm({
         <span id={`${uid}-role-label`} className="add-offer-label">
           Role
         </span>
-        {radio('user', 'Member', 'Uses the dashboard. Keeps their own favorites and settings.')}
+        {radio('member', 'Member', 'Uses the dashboard. Keeps their own favorites and settings.')}
         {radio('admin', 'Admin', 'Also adds apps, and manages accounts and settings.')}
         {role === 'admin' && (
           <p className="add-adult-warn">Admins can do everything you can, including inviting other admins.</p>

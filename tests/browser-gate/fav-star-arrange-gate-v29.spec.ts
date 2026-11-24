@@ -24,7 +24,7 @@ async function boot(page: import('@playwright/test').Page, favorite: boolean) {
   const { services, categories } = makeStatusTiles(['UP']);
   const withFav = services.map((s: Record<string, unknown>) => ({ ...s, favorite }));
   await page.setViewportSize(DESKTOP);
-  await mockApi(page, withFav as never, categories, 'user', 'compact');
+  await mockApi(page, withFav as never, categories, 'member', 'compact');
   await page.goto('/');
   await expect(page.getByTestId('app-grid')).toBeVisible();
 }

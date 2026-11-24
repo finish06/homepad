@@ -101,10 +101,10 @@ describe('Kid user menu (K-2)', () => {
 
 describe('AC-018 — adults keep "Log out"', () => {
   it('an adult menu is unchanged: email, role pill, Log out', async () => {
-    renderMenu({ id: 'u1', email: 'nani@ohana.io', role: 'user', themePref: 'light' });
+    renderMenu({ id: 'u1', email: 'nani@ohana.io', role: 'member', themePref: 'light' });
     await userEvent.click(screen.getByTestId('user-menu-trigger'));
     expect(screen.getByTestId('user-menu-email')).toHaveTextContent('nani@ohana.io');
-    expect(screen.getByTestId('user-menu-role')).toHaveTextContent('user');
+    expect(screen.getByTestId('user-menu-role')).toHaveTextContent('member');
     expect(screen.getByTestId('menu-logout')).toHaveTextContent('Log out');
     expect(screen.queryByTestId('kid-dot')).toBeNull();
   });

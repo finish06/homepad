@@ -321,7 +321,7 @@ func TestAdults_PatchRole(t *testing.T) {
 	code, body = patchRole(t, env, "admin-session", env.UserID, map[string]any{"role": "user"})
 	require.Equal(t, http.StatusOK, code, string(body))
 	require.NoError(t, json.Unmarshal(body, &row))
-	assert.Equal(t, "user", row.Role)
+	assert.Equal(t, "member", row.Role)
 	assert.Equal(t, http.StatusOK, meStatus(t, env, "jo-live"), "a no-op ends no sessions")
 
 	for name, b := range map[string]any{
@@ -493,7 +493,7 @@ func TestAdults_AuditLines(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, code)
 
 	out := logs.String()
-	assert.Contains(t, out, fmt.Sprintf("accounts: admin %s changed role of %s from user to admin", env.AdminID, env.UserID))
+	assert.Contains(t, out, fmt.Sprintf("accounts: admin %s changed role of %s from member to admin", env.AdminID, env.UserID))
 	assert.Contains(t, out, fmt.Sprintf("accounts: admin %s removed adult %s role=admin", env.AdminID, alexID))
 	assert.Contains(t, out, fmt.Sprintf("invite: revoked 1 pending invites made by removed adult %s", alexID))
 	assert.Equal(t, 1, strings.Count(out, "changed role of"), "one line per role change")

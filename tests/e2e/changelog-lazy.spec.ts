@@ -7,7 +7,7 @@ import { test, expect, type Page } from '@playwright/test';
 // proves the built app does not fetch it on load and still opens it from the
 // footer badge. Every endpoint is route-mocked, as in theme-mode.spec.ts.
 
-const USER = { id: 'u1', email: 'lilo@ohana', role: 'user', themePref: 'light' };
+const USER = { id: 'u1', email: 'lilo@ohana', role: 'member', themePref: 'light' };
 
 async function seedUser(page: Page) {
   // Catch-all first, specifics after (later registration wins).

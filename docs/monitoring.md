@@ -77,7 +77,8 @@ Admins can also set it in **Admin Panel → System → Status → Gatus address*
 with no restart. Homepad tries the address once when you save; if Gatus
 doesn't answer, it saves anyway and says so. An empty value there turns status
 off. The **"Slow" threshold** (`GATUS_DEGRADED_MS`) is in the same group. A
-value saved in the panel wins over `.env`; **Reset** goes back to `.env`. To
+value saved in the panel wins over `.env`. **Reset** removes the saved value,
+so the `.env` value applies, or the built-in default if `.env` doesn't set it. To
 ignore every saved value, set `HOMEPAD_SETTINGS_FROM_ENV_ONLY=true` on the API
 and restart it.
 

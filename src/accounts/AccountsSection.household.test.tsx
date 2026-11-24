@@ -33,7 +33,7 @@ expect.extend(toHaveNoViolations);
 const ADMIN: Account = {
   id: 'u-admin', name: 'Caleb', role: 'admin', lastSeenAt: null, email: 'caleb@home.lan', avatarColor: 'blue',
 };
-const ALEX: Account = { id: 'u-alex', name: 'Alex', role: 'user', lastSeenAt: null, email: 'alex@example.com', avatarColor: '' };
+const ALEX: Account = { id: 'u-alex', name: 'Alex', role: 'member', lastSeenAt: null, email: 'alex@example.com', avatarColor: '' };
 const MAYA: Account = { id: 'k-maya', name: 'Maya', role: 'kid', lastSeenAt: null, avatarColor: 'teal', appCount: 3, deviceCount: 1 };
 const JORDAN: Invite = {
   id: 'i-jordan',
@@ -126,7 +126,7 @@ describe('Pending invites (AC-011, AC-019)', () => {
   });
 
   it('lists name, role, who made it and when it ends, with Revoke', async () => {
-    vi.mocked(listInvites).mockResolvedValue([JORDAN, { ...JORDAN, id: 'i-sky', name: 'Sky', role: 'user' }]);
+    vi.mocked(listInvites).mockResolvedValue([JORDAN, { ...JORDAN, id: 'i-sky', name: 'Sky', role: 'member' }]);
     render(<AccountsSection currentUserId="u-admin" />);
     const list = await screen.findByRole('list', { name: 'Pending invites' });
     const rows = within(list).getAllByTestId('invite-row');
@@ -236,7 +236,7 @@ describe('Pending invites (AC-011, AC-019)', () => {
     vi.mocked(createInvite).mockResolvedValue({
       ok: true,
       status: 201,
-      invite: { id: 'i-new', name: 'Alexis', role: 'user', createdAt: JORDAN.createdAt, expiresAt: JORDAN.expiresAt, token: 'tok' },
+      invite: { id: 'i-new', name: 'Alexis', role: 'member', createdAt: JORDAN.createdAt, expiresAt: JORDAN.expiresAt, token: 'tok' },
     });
     render(<AccountsSection currentUserId="u-admin" />);
     await ready();

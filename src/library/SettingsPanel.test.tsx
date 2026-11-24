@@ -370,6 +370,16 @@ describe('cap6 v2 — per-user uptime display', () => {
     expect(screen.getByTestId('setting-health-bar')).toBeInTheDocument();
   });
 
+  // SPEC-decisions-18.4.0 AC-009 (#488) — the row says what it shows at each
+  // tile density: the dots everywhere, the 24h/7d/30d line only at Large.
+  it('AC-009 (#488) — a hint ties the uptime display to tile density', async () => {
+    renderPanel({ scope: 'personal', isAdmin: false });
+    const toggle = await screen.findByTestId('setting-uptime-display');
+    expect(toggle).toHaveAccessibleDescription(
+      'Recent checks on monitored tiles. Large also shows 24h, 7d and 30d uptime.',
+    );
+  });
+
   it('AC-016 — reflects the account value and asks for the inverse', async () => {
     const onSetUptimeDisplay = vi.fn();
     renderPanel({

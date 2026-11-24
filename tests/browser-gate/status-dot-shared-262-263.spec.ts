@@ -38,7 +38,7 @@ for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
     const { services, categories } = makeStatusTiles(STATES);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await mockApi(page, services, categories, 'user');
+    await mockApi(page, services, categories, 'member');
     await page.goto('/');
     await page.getByTestId('launcher-trigger').click();
     await expect(page.getByTestId('launcher-result-status')).toHaveCount(STATES.length);

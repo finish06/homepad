@@ -19,7 +19,7 @@ expect.extend(toHaveNoViolations);
 const CREATED: CreatedInvite = {
   id: 'i-alex',
   name: 'Alex',
-  role: 'user',
+  role: 'member',
   createdAt: '2026-11-07T10:00:00Z',
   expiresAt: '2026-11-14T12:00:00Z',
   token: 'Qm9tok',
@@ -164,11 +164,11 @@ describe('the form (UX §3.2)', () => {
     expect(screen.getByText(/Anyone else needs this invite\./)).toBeInTheDocument();
   });
 
-  it('sends the trimmed name and the API role ("user" for Member, "admin" for Admin)', async () => {
+  it('sends the trimmed name and the API role ("member" for Member, "admin" for Admin)', async () => {
     vi.mocked(createInvite).mockResolvedValue({ ok: true, status: 201, invite: CREATED });
     const { unmount } = renderDialog();
     await createAs('  Alex ');
-    expect(createInvite).toHaveBeenCalledWith('Alex', 'user');
+    expect(createInvite).toHaveBeenCalledWith('Alex', 'member');
     unmount();
     vi.mocked(createInvite).mockClear();
     renderDialog();

@@ -42,14 +42,14 @@ expect.extend(toHaveNoViolations);
 
 const CALEB: Account = { id: 'u-caleb', name: 'Caleb', role: 'admin', lastSeenAt: null, email: 'caleb@home.lan', avatarColor: 'blue' };
 const ALEX: Account = { id: 'u-alex', name: 'Alex', role: 'admin', lastSeenAt: null, email: 'alex@example.com', avatarColor: '' };
-const JO: Account = { id: 'u-jo', name: 'Jo', role: 'user', lastSeenAt: null, email: 'jo@example.com', avatarColor: '' };
+const JO: Account = { id: 'u-jo', name: 'Jo', role: 'member', lastSeenAt: null, email: 'jo@example.com', avatarColor: '' };
 const SAM: Account = { id: 'k-sam', name: 'Sam', role: 'kid', lastSeenAt: null, avatarColor: 'teal', appCount: 12, deviceCount: 1 };
 
 function invite(id: string, name: string, by: Account): Invite {
   return {
     id,
     name,
-    role: 'user',
+    role: 'member',
     createdAt: '2026-11-19T10:00:00Z',
     expiresAt: '2026-11-26T10:00:00Z',
     createdBy: { id: by.id, name: by.name },
@@ -397,10 +397,10 @@ describe('Make member and Make admin (UX §3.2, §3.3)', () => {
     const primary = within(dialog).getByRole('button', { name: 'Make member' });
     expect(primary).not.toHaveClass('settings-danger-btn');
     await u.click(primary);
-    expect(setAccountRole).toHaveBeenCalledWith('u-alex', 'user');
+    expect(setAccountRole).toHaveBeenCalledWith('u-alex', 'member');
     expect(within(dialog).getByRole('button', { name: 'Saving…' })).toBeDisabled();
 
-    finish({ ok: true, status: 200, account: { ...ALEX, role: 'user' } });
+    finish({ ok: true, status: 200, account: { ...ALEX, role: 'member' } });
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     expect(within(row('Alex')).getByText('member')).toHaveClass('role-pill');
     expect(screen.getAllByTestId('account-row').map((r) => r.querySelector('.accounts-name')?.textContent)).toEqual([

@@ -31,7 +31,7 @@ export type MockCategory = { id: string; name: string; sortIndex: number; gridWi
 export type MockAccount = {
   id: string;
   name: string;
-  role: 'admin' | 'user' | 'kid';
+  role: 'admin' | 'member' | 'kid';
   lastSeenAt: string | null;
   email?: string;
   avatarColor: string;
@@ -218,7 +218,7 @@ export async function mockKidSession(
 export type MockInvite = {
   id: string;
   name: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'member';
   createdAt: string;
   expiresAt: string;
   createdBy: { id: string; name: string };
@@ -245,7 +245,7 @@ export function defaultAccounts(): Pick<AdminMock, 'accounts' | 'kidServices' | 
   return {
     accounts: [
       { id: 'u-admin', name: 'Caleb', role: 'admin', lastSeenAt: '2026-10-30T08:00:00Z', email: 'caleb@ohana.test', avatarColor: 'blue' },
-      { id: 'u-alex', name: 'Alex', role: 'user', lastSeenAt: null, email: 'alex@example.com', avatarColor: '' },
+      { id: 'u-alex', name: 'Alex', role: 'member', lastSeenAt: null, email: 'alex@example.com', avatarColor: '' },
       { id: 'k-maya', name: 'Maya', role: 'kid', lastSeenAt: '2026-10-30T06:00:00Z', avatarColor: 'teal', appCount: 5, deviceCount: 1 },
       { id: 'k-leo', name: 'Leo', role: 'kid', lastSeenAt: null, avatarColor: 'orange', appCount: 0, deviceCount: 0 },
     ],
@@ -321,7 +321,7 @@ export async function mockAdminAccounts(
     }
     if (path === '/api/admin/invites' && method === 'GET') return json(route, state.invites);
     if (path === '/api/admin/invites' && method === 'POST') {
-      const body = req.postDataJSON() as { name: string; role: 'admin' | 'user' };
+      const body = req.postDataJSON() as { name: string; role: 'admin' | 'member' };
       state.inviteCreates.push(body);
       if (atCap()) return capped();
       const inv: MockInvite = {
@@ -352,7 +352,7 @@ export async function mockAdminAccounts(
     if (adultMatch && (method === 'PATCH' || method === 'DELETE')) {
       const id = decodeURIComponent(adultMatch[1]);
       const adult = state.accounts.find((a) => a.id === id && a.role !== 'kid');
-      const role = method === 'PATCH' ? (req.postDataJSON() as { role: 'admin' | 'user' }).role : undefined;
+      const role = method === 'PATCH' ? (req.postDataJSON() as { role: 'admin' | 'member' }).role : undefined;
       state.adultWrites.push(role ? `${method} ${id} ${role}` : `${method} ${id}`);
       if (!adult) return text(route, 'no such adult account', 404);
       if (id === ADMIN_USER.id) return json(route, { error: 'self' }, 409);

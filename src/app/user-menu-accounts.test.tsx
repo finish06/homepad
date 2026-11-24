@@ -9,7 +9,7 @@ import type { User } from '../api';
 // "Accounts", that jumps straight to the Accounts section of the Admin Panel.
 
 const ADMIN: User = { id: 'a1', email: 'caleb@ohana.io', role: 'admin', themePref: 'system' };
-const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'user', themePref: 'system' };
+const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'member', themePref: 'system' };
 
 function renderMenu(user: User, onOpenAccounts = vi.fn()) {
   render(

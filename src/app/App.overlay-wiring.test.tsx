@@ -93,7 +93,7 @@ vi.mock('../api', () => ({
   servicesWithStatus: vi.fn(() => Promise.resolve({ status: 200, services: [] })),
 }));
 
-const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'user', themePref: 'system' };
+const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'member', themePref: 'system' };
 const ADMIN: User = { id: 'a1', email: 'lilo@ohana.io', role: 'admin', themePref: 'system' };
 
 beforeEach(() => {

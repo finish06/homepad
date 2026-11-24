@@ -49,8 +49,9 @@ uses it.
 
 Admins can change **Sign-up** (`HOMEPAD_REGISTRATION`) and the **Account
 limit** (`HOMEPAD_MAX_ACCOUNTS`) in **Admin Panel → System → Accounts**. Both
-apply at once, with no restart. A value saved there wins over `.env`, and
-**Reset** goes back to `.env`.
+apply at once, with no restart. A value saved there wins over `.env`.
+**Reset** removes the saved value, so the `.env` value applies, or the
+built-in default if `.env` doesn't set it.
 
 - Opening sign-up asks you to confirm first.
 - A limit lower than today's accounts plus pending invites removes nobody.

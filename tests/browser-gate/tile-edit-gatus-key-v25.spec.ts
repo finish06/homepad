@@ -130,7 +130,7 @@ test('the health meter paints GREEN=up, RED=down, GRAY=not-monitored, GRAY=unkno
   // set but not in the Gatus snapshot (mismatched/unknown key or Gatus unreachable).
   const { services, categories } = makeStatusTiles(['UP', 'DOWN', 'NOT_MONITORED', 'UNKNOWN']);
   await page.setViewportSize({ width: 1440, height: 900 });
-  await mockApi(page, services, categories, 'user');
+  await mockApi(page, services, categories, 'member');
   await page.goto('/');
 
   const dot = (state: string) =>

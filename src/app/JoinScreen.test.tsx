@@ -17,8 +17,8 @@ vi.mock('../api', () => ({
 
 expect.extend(toHaveNoViolations);
 
-const LIVE: InviteInfo = { name: 'Alex', role: 'user', inviterName: 'Caleb', expiresAt: '2026-11-14T12:00:00Z' };
-const ALEX: User = { id: 'u-alex', email: 'alex@example.com', role: 'user', themePref: 'system', name: 'Alex' };
+const LIVE: InviteInfo = { name: 'Alex', role: 'member', inviterName: 'Caleb', expiresAt: '2026-11-14T12:00:00Z' };
+const ALEX: User = { id: 'u-alex', email: 'alex@example.com', role: 'member', themePref: 'system', name: 'Alex' };
 const CALEB: User = { id: 'u-caleb', email: 'caleb@home.lan', role: 'admin', themePref: 'system', name: 'Caleb' };
 const DAY = new Date(LIVE.expiresAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 

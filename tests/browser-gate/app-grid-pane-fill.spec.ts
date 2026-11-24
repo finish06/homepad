@@ -36,7 +36,7 @@ test.describe('pane-fill box grow (R1/R3/R4)', () => {
         { width: 3, tools: ['Fr1', 'Fr2', 'Fr3', 'Fr4', 'Fr5', 'Fr6'] },
       ]);
       await page.setViewportSize({ width: vw, height: 1000 });
-      await mockApi(page, services, categories, 'user');
+      await mockApi(page, services, categories, 'member');
       await page.goto('/');
 
       const grid = page.getByTestId('app-grid');
@@ -79,7 +79,7 @@ test.describe('pane-fill box grow (R1/R3/R4)', () => {
   test('a half-span box never renders below its floor at 1440px', async ({ page }) => {
     const { services, categories } = makeBoxes([{ width: 6, tools: ['Wide1', 'Wide2'] }]);
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await mockApi(page, services, categories, 'user');
+    await mockApi(page, services, categories, 'member');
     await page.goto('/');
 
     const box = page.getByTestId('app-grid-box').first();
@@ -102,7 +102,7 @@ test.describe('pane-fill box grow (R1/R3/R4)', () => {
       { width: 6, tools: ['B1', 'B2', 'B3', 'B4', 'B5', 'B6'] },
     ]);
     await page.setViewportSize({ width: 2560, height: 1000 });
-    await mockApi(page, services, categories, 'user');
+    await mockApi(page, services, categories, 'member');
     await page.goto('/');
 
     const boxes = page.getByTestId('app-grid-box');
@@ -123,7 +123,7 @@ test.describe('pane-fill box grow (R1/R3/R4)', () => {
       { width: 3, tools: ['PairA', 'PairB'] },
     ]);
     await page.setViewportSize({ width: 3840, height: 1200 });
-    await mockApi(page, services, categories, 'user');
+    await mockApi(page, services, categories, 'member');
     await page.goto('/');
 
     const grid = await page.getByTestId('app-grid').boundingBox();
@@ -155,7 +155,7 @@ test.describe('pane-fill box grow (R1/R3/R4)', () => {
   test('a lone box fills 100% of the frame at 1920px', async ({ page }) => {
     const { services, categories } = makeBoxes([{ width: 3, tools: ['One', 'Two', 'Three'] }]);
     await page.setViewportSize({ width: 1920, height: 1000 });
-    await mockApi(page, services, categories, 'user');
+    await mockApi(page, services, categories, 'member');
     await page.goto('/');
 
     const grid = await page.getByTestId('app-grid').boundingBox();

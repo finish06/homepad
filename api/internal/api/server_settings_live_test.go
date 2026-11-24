@@ -152,7 +152,7 @@ func TestServerSettingsLive_EveryKey(t *testing.T) {
 		code, raw, _ := ssPatch(t, env, map[string]any{"OIDC_MEMBER_GROUP": "homepad"})
 		require.Equal(t, http.StatusOK, code, raw)
 		_, role := fetchMe(t, env.Server, runOIDCLogin(t, env.Server, idp))
-		assert.Equal(t, "user", role)
+		assert.Equal(t, "member", role)
 	})
 
 	t.Run("OIDC_ADMIN_GROUP", func(t *testing.T) {
@@ -225,7 +225,7 @@ func TestServerSettingsLive_OIDCRoutesFollowTheSwitch(t *testing.T) {
 	assert.True(t, authConfig(t, env).OIDCEnabled)
 	email, role := fetchMe(t, env.Server, runOIDCLogin(t, env.Server, idp))
 	assert.Equal(t, "sam@example.com", email)
-	assert.Equal(t, "user", role)
+	assert.Equal(t, "member", role)
 
 	code, raw, _ = ssPatch(t, env, map[string]any{"OIDC_ENABLED": false})
 	require.Equal(t, http.StatusOK, code, raw, "an admin has a password, so turning it off is allowed")

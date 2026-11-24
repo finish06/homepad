@@ -33,7 +33,7 @@ const ADMIN: Account = {
   email: 'caleb@ohana.test', avatarColor: 'blue',
 };
 const ADULT: Account = {
-  id: 'u-alex', name: 'Alex', role: 'user', lastSeenAt: null, email: 'alex@example.com', avatarColor: '',
+  id: 'u-alex', name: 'Alex', role: 'member', lastSeenAt: null, email: 'alex@example.com', avatarColor: '',
 };
 const MAYA: Account = {
   id: 'k-maya', name: 'Maya', role: 'kid', lastSeenAt: null, avatarColor: 'teal', appCount: 12, deviceCount: 1,

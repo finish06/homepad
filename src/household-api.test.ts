@@ -96,7 +96,7 @@ describe('admin invite calls (AC-008, AC-011)', () => {
 
   it('createInvite passes the cap 409 through', async () => {
     mockFetch('account limit reached (limit 12)', 409);
-    const r = await createInvite('Jordan', 'user');
+    const r = await createInvite('Jordan', 'member');
     expect(r).toMatchObject({ ok: false, status: 409, error: 'account limit reached (limit 12)' });
     expect(r.invite).toBeUndefined();
   });
@@ -123,7 +123,7 @@ describe('admin invite calls (AC-008, AC-011)', () => {
 
 describe('public invite calls (AC-012, AC-013)', () => {
   it('lookupInvite POSTs the token in the body, never the URL', async () => {
-    const info = { name: 'Alex', role: 'user', inviterName: 'Caleb', expiresAt: '2026-11-14T10:00:00Z' };
+    const info = { name: 'Alex', role: 'member', inviterName: 'Caleb', expiresAt: '2026-11-14T10:00:00Z' };
     const fn = mockFetch(info, 200);
     const r = await lookupInvite('tok-abc');
     expect(r).toMatchObject({ ok: true, status: 200, invite: info });
@@ -141,7 +141,7 @@ describe('public invite calls (AC-012, AC-013)', () => {
   });
 
   it('acceptInvite POSTs token, email, password and name, and returns the new account', async () => {
-    const user = { id: 'u-alex', email: 'alex@example.com', role: 'user', themePref: 'system' };
+    const user = { id: 'u-alex', email: 'alex@example.com', role: 'member', themePref: 'system' };
     const fn = mockFetch(user, 201);
     const r = await acceptInvite({ token: 'tok', email: 'alex@example.com', password: 'longenough', name: 'Alex' });
     expect(r).toMatchObject({ ok: true, status: 201, user });

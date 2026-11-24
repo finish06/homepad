@@ -13,7 +13,7 @@ import { LauncherProvider } from '../launcher/launcher';
 import { AlertHistoryProvider, useAlertHistory, type AlertEvent } from './alerts';
 import type { User } from '../api';
 
-const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'user', themePref: 'system' };
+const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'member', themePref: 'system' };
 
 function ev(n: number, over: Partial<AlertEvent> = {}): AlertEvent {
   return {

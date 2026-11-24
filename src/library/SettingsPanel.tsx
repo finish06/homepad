@@ -302,15 +302,24 @@ function PersonalSettings({
           </dd>
         </div>
         {/* cap6 v2 — the per-user uptime display. Was a global admin System
-            setting until v2; the admin row now only seeds NEW accounts. */}
+            setting until v2; the admin row now only seeds NEW accounts.
+            SPEC-decisions-18.4.0 AC-009 (#488): the hint says what it shows at
+            each Tile density. The dots show at every density (only on tiles
+            with check history); the 24h/7d/30d line only at Large (index.css). */}
         <div className="settings-kv-row settings-kv-row--control">
-          <dt id="uptime-display-toggle-label">Show uptime display</dt>
+          <dt>
+            <span id="uptime-display-toggle-label">Show uptime display</span>
+            <span id="uptime-display-toggle-help" className="settings-kv-help">
+              Recent checks on monitored tiles. Large also shows 24h, 7d and 30d uptime.
+            </span>
+          </dt>
           <dd>
             <button
               type="button"
               role="switch"
               aria-checked={showUptimeDisplay}
               aria-labelledby="uptime-display-toggle-label"
+              aria-describedby="uptime-display-toggle-help"
               className="settings-switch"
               data-testid="setting-uptime-display"
               onClick={() => onSetUptimeDisplay(!showUptimeDisplay)}

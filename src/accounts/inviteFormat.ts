@@ -7,6 +7,7 @@ export function endDay(iso: string): string {
 }
 
 // roleLabel — the UI never says "user": that role reads "member" (AC-021).
+// The API says `member` since 18.4.0; `user` is still read as it (#599).
 export function roleLabel(role: string): string {
   return role === 'user' ? 'member' : role;
 }

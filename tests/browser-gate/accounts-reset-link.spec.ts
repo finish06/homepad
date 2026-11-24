@@ -8,8 +8,8 @@ import { defaultAccounts, mockAdminAccounts, type MockAccount } from './kidMocks
 // buttons at touch size. The accounts API is mocked (kidMocks.ts); the
 // reset-link route is mocked here. homepad-api's route tests prove the server.
 
-const JO: MockAccount = { id: 'u-jo', name: 'Jo', role: 'user', lastSeenAt: null, email: 'jo@example.com', avatarColor: '', hasPassword: true };
-const PAT: MockAccount = { id: 'u-pat', name: 'Pat', role: 'user', lastSeenAt: null, email: 'pat@example.com', avatarColor: '', hasPassword: false };
+const JO: MockAccount = { id: 'u-jo', name: 'Jo', role: 'member', lastSeenAt: null, email: 'jo@example.com', avatarColor: '', hasPassword: true };
+const PAT: MockAccount = { id: 'u-pat', name: 'Pat', role: 'member', lastSeenAt: null, email: 'pat@example.com', avatarColor: '', hasPassword: false };
 
 function accounts(): MockAccount[] {
   const [caleb, , maya] = defaultAccounts().accounts;

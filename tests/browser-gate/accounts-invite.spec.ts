@@ -78,7 +78,7 @@ for (const [label, w, h] of [
       await expect(link.getByRole('button', { name: 'Copied' })).toBeVisible();
       expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(await field.inputValue());
       await link.getByRole('button', { name: 'Done' }).click();
-      expect(mock.inviteCreates).toEqual([{ name: 'Alex', role: 'user' }]);
+      expect(mock.inviteCreates).toEqual([{ name: 'Alex', role: 'member' }]);
 
       const row = page.getByTestId('invite-row').filter({ hasText: 'Alex' });
       await expect(row).toContainText('member');

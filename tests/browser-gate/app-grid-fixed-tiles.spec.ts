@@ -24,7 +24,7 @@ test.describe('A1 fixed-tile layout', () => {
       { width: 4, tools: ['Grafana'] },
     ]);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await mockApi(page, services, categories, 'user');
+    await mockApi(page, services, categories, 'member');
     await page.goto('/');
 
     const boxes = page.getByTestId('app-grid-box');
@@ -47,7 +47,7 @@ test.describe('A1 fixed-tile layout', () => {
       { width: 3, tools: ['Grafana', 'Prometheus', 'Loki'] },
     ]);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await mockApi(page, services, categories, 'user');
+    await mockApi(page, services, categories, 'member');
     await page.goto('/');
 
     const boxes = page.getByTestId('app-grid-box');
@@ -74,7 +74,7 @@ test.describe('A1 fixed-tile layout', () => {
       { width: 12, tools: ['Grafana', 'Prometheus', 'Loki'] },
     ]);
     await page.setViewportSize({ width: 1280, height: 900 });
-    await mockApi(page, services, categories, 'user');
+    await mockApi(page, services, categories, 'member');
     await page.goto('/');
 
     const boxes = page.getByTestId('app-grid-box');
@@ -102,7 +102,7 @@ test.describe('A1 fixed-tile layout', () => {
       { width: 4, tools: ['Plex', 'Jellyfin', 'Sonarr', 'Radarr', 'Tautulli'] },
     ]);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await mockApi(page, services, categories, 'user');
+    await mockApi(page, services, categories, 'member');
     await page.goto('/');
 
     const tools = page.getByTestId('tool-link');
@@ -123,7 +123,7 @@ test.describe('A1 fixed-tile layout', () => {
       { width: 4, tools: ['Plex', 'ArchiveTeam Warrior1'] },
     ]);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await mockApi(page, services, categories, 'user');
+    await mockApi(page, services, categories, 'member');
     await page.goto('/');
 
     const tools = page.getByTestId('tool-link');

@@ -117,7 +117,7 @@ With `HOMEPAD_SETTINGS_FROM_ENV_ONLY=true`, step 1 is skipped for every key (§2
 | `OIDC_ADMIN_GROUP` | Sign-in | Admin group | 0–255 characters, trimmed | empty | Live |
 | `OIDC_MEMBER_GROUP` | Sign-in | Member group | 0–255 characters, trimmed | empty | Live |
 
-"Live" means the next request or poll after the save uses the new value, on the process that saved it. Homepad runs one API process. If more ever run, each reloads `server_settings` every 30 seconds (AC-030).
+"Live" means the next request or poll after the save uses the new value, on the process that saved it. Homepad runs one API process. If more ever run, each reloads `server_settings` every 25 seconds, so a change reaches them within 30 (AC-030).
 
 **How each one goes live** (the build notes for §1a's "No" column):
 

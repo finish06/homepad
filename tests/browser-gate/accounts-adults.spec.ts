@@ -10,7 +10,7 @@ import { defaultAccounts, mockAdminAccounts, type MockAccount, type MockInvite }
 const ALEX_ADMIN: MockAccount = {
   id: 'u-alex', name: 'Alex', role: 'admin', lastSeenAt: null, email: 'alex.a.very.long.address@example.com', avatarColor: '',
 };
-const JO: MockAccount = { id: 'u-jo', name: 'Jo', role: 'user', lastSeenAt: null, email: 'jo@example.com', avatarColor: '' };
+const JO: MockAccount = { id: 'u-jo', name: 'Jo', role: 'member', lastSeenAt: null, email: 'jo@example.com', avatarColor: '' };
 
 function accounts(): MockAccount[] {
   const [caleb, , maya] = defaultAccounts().accounts;
@@ -20,7 +20,7 @@ function accounts(): MockAccount[] {
 const PAT: MockInvite = {
   id: 'i-pat',
   name: 'Pat',
-  role: 'user',
+  role: 'member',
   createdAt: '2026-11-19T10:00:00Z',
   expiresAt: '2026-11-26T10:00:00Z',
   createdBy: { id: 'u-alex', name: 'Alex' },

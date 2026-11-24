@@ -41,7 +41,7 @@ test.describe('SPEC-tile-density — the density switch', () => {
   test('a fresh device defaults to Compact and the switch reflects it', async ({ page }) => {
     const { services, categories } = makeStatusTiles(['UP']);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await mockApi(page, services, categories, 'user', null); // null → do NOT seed density
+    await mockApi(page, services, categories, 'member', null); // null → do NOT seed density
     await page.goto('/');
     await expect(page.locator('.app-grid')).toHaveAttribute('data-density', 'compact');
     await openDensityControl(page);
@@ -55,7 +55,7 @@ test.describe('SPEC-tile-density — the density switch', () => {
     const { services, categories } = makeStatusTiles(['UP', 'UP', 'UP', 'UP']);
     await setDensity(page, 'compact');
     await page.setViewportSize({ width: 1440, height: 900 });
-    await mockApi(page, services, categories, 'user', 'compact');
+    await mockApi(page, services, categories, 'member', 'compact');
     await page.goto('/');
 
     const wraps = page.locator('.app-grid-tool-wrap');
@@ -89,7 +89,7 @@ test.describe('SPEC-tile-density — the density switch', () => {
       services[0].favorite = true;
       await setDensity(page, density);
       await page.setViewportSize({ width: 1440, height: 900 });
-      await mockApi(page, services, categories, 'user', density);
+      await mockApi(page, services, categories, 'member', density);
       await page.goto('/');
       const wrap = page.locator('.app-grid-tool-wrap').first();
 
@@ -129,7 +129,7 @@ test.describe('SPEC-tile-density — the density switch', () => {
     const { services, categories } = makeStatusTiles(['UP']);
     await setDensity(page, 'compact');
     await page.setViewportSize({ width: 1440, height: 900 });
-    await mockApi(page, services, categories, 'user', 'compact');
+    await mockApi(page, services, categories, 'member', 'compact');
     await page.goto('/');
 
     const line = tile(page, 'App UP').getByTestId('tile-statusline');
@@ -142,7 +142,7 @@ test.describe('SPEC-tile-density — the density switch', () => {
     const { services, categories } = makeStatusTiles(['UP', 'UP']);
     await setDensity(page, 'compact');
     await page.setViewportSize({ width: 1440, height: 900 });
-    await mockApi(page, services, categories, 'user', 'compact');
+    await mockApi(page, services, categories, 'member', 'compact');
     await page.goto('/');
 
     await openDensityControl(page);
@@ -165,7 +165,7 @@ test.describe('SPEC-tile-density — the density switch', () => {
     const { services, categories } = makeStatusTiles(['UP']);
     await setDensity(page, 'large');
     await page.setViewportSize({ width: 1440, height: 900 });
-    await mockApi(page, services, categories, 'user', 'large');
+    await mockApi(page, services, categories, 'member', 'large');
     await page.goto('/');
 
     const link = await tile(page, 'App UP').getByTestId('tool-link').boundingBox();

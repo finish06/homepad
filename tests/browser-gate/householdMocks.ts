@@ -13,7 +13,7 @@ const text = (route: Route, body: string, status: number) =>
 export const MEMBER_USER = {
   id: 'u-alex',
   email: 'alex@example.com',
-  role: 'user',
+  role: 'member',
   themePref: 'light',
   name: 'Alex',
   displayName: 'Alex',
@@ -36,7 +36,7 @@ export type HouseholdMock = {
 // only; any other token is the one 404 every dead link gets.
 export async function mockHousehold(
   page: Page,
-  opts: { setupDone?: boolean; registration?: 'open' | 'invite_only'; token?: string; inviteRole?: 'admin' | 'user' } = {},
+  opts: { setupDone?: boolean; registration?: 'open' | 'invite_only'; token?: string; inviteRole?: 'admin' | 'member' } = {},
 ): Promise<HouseholdMock> {
   const state: HouseholdMock = { urls: [], registers: [], accepts: [] };
   let setupDone = opts.setupDone ?? false;
@@ -75,7 +75,7 @@ export async function mockHousehold(
       if (!opts.token || token !== opts.token || used) return text(route, 'invite not found', 404);
       return json(route, {
         name: 'Alex',
-        role: opts.inviteRole ?? 'user',
+        role: opts.inviteRole ?? 'member',
         inviterName: 'Caleb',
         expiresAt: '2026-11-14T12:00:00Z',
       });
@@ -85,7 +85,7 @@ export async function mockHousehold(
       state.accepts.push(body);
       if (!opts.token || body.token !== opts.token || used) return text(route, 'invite not found', 404);
       used = true;
-      me = { ...MEMBER_USER, role: opts.inviteRole ?? 'user', name: body.name ?? 'Alex', displayName: body.name ?? 'Alex' };
+      me = { ...MEMBER_USER, role: opts.inviteRole ?? 'member', name: body.name ?? 'Alex', displayName: body.name ?? 'Alex' };
       return json(route, me, 201);
     }
     if (!me) return text(route, 'unauthorized', 401);

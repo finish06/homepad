@@ -344,7 +344,7 @@ func TestOIDCCallbackCreatesRegularUser(t *testing.T) {
 
 	email, role := fetchMe(t, homepad, cookie)
 	assert.Equal(t, "regular@calebdunn.tech", email)
-	assert.Equal(t, "user", role)
+	assert.Equal(t, "member", role)
 }
 
 // An existing local account with the same email is linked, not duplicated, and
@@ -366,7 +366,7 @@ func TestOIDCCallbackLinksExistingLocalUserByEmail(t *testing.T) {
 
 	gotEmail, role := fetchMe(t, homepad, cookie)
 	assert.Equal(t, email, gotEmail)
-	assert.Equal(t, "user", role, "linking must not change the existing user's role")
+	assert.Equal(t, "member", role, "linking must not change the existing user's role")
 
 	linked, err := store.UserByEmail(ctx, email)
 	require.NoError(t, err)

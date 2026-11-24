@@ -18,7 +18,7 @@ import (
 
 // SPEC-household-basics §2.2 / §7 — invite links for adding an adult.
 //
-// An admin makes an invite with a name and a role (admin or user) and gets a
+// An admin makes an invite with a name and a role (admin or member) and gets a
 // one-time token, returned once. The web app puts it in a URL fragment
 // (/#invite=…), so it never reaches an access log; the API only ever receives
 // it in POST bodies. Only sha256(token) is stored. Lookup and accept are
@@ -108,8 +108,13 @@ func (s *server) handleCreateInvite(w http.ResponseWriter, r *http.Request) {
 	}
 	// Only the two adult roles. A kid is never invited: kids are made in
 	// Accounts, with no email or password (§3.1).
-	if in.Role == nil || (*in.Role != "admin" && *in.Role != "user") {
-		http.Error(w, "role must be admin or user", http.StatusBadRequest)
+	if in.Role == nil {
+		http.Error(w, badRoleMsg, http.StatusBadRequest)
+		return
+	}
+	role, deprecated, ok := parseAdultRole(*in.Role)
+	if !ok {
+		http.Error(w, badRoleMsg, http.StatusBadRequest)
 		return
 	}
 	token, hash, err := newInviteToken()
@@ -117,7 +122,7 @@ func (s *server) handleCreateInvite(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	inv, err := s.store.CreateInvite(r.Context(), hash, name, *in.Role, admin.ID, inviteTTL, s.cfg().maxAccounts)
+	inv, err := s.store.CreateInvite(r.Context(), hash, name, role, admin.ID, inviteTTL, s.cfg().maxAccounts)
 	if errors.Is(err, storage.ErrAccountLimit) {
 		s.refuseAtLimit(w, r)
 		return
@@ -128,9 +133,10 @@ func (s *server) handleCreateInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("invite: admin %s created invite %s role=%s expires=%s",
-		admin.ID, inv.ID, inv.Role, inv.ExpiresAt.UTC().Format(time.RFC3339))
+		admin.ID, inv.ID, apiRole(inv.Role), inv.ExpiresAt.UTC().Format(time.RFC3339))
+	warnUserAlias(w, deprecated)
 	writeJSON(w, http.StatusCreated, inviteView{
-		ID: inv.ID, Name: inv.Name, Role: inv.Role, CreatedAt: inv.CreatedAt, ExpiresAt: inv.ExpiresAt, Token: token,
+		ID: inv.ID, Name: inv.Name, Role: apiRole(inv.Role), CreatedAt: inv.CreatedAt, ExpiresAt: inv.ExpiresAt, Token: token,
 	})
 }
 
@@ -148,7 +154,7 @@ func (s *server) handleListInvites(w http.ResponseWriter, r *http.Request) {
 	out := make([]inviteView, 0, len(invs))
 	for _, inv := range invs {
 		out = append(out, inviteView{
-			ID: inv.ID, Name: inv.Name, Role: inv.Role, CreatedAt: inv.CreatedAt, ExpiresAt: inv.ExpiresAt,
+			ID: inv.ID, Name: inv.Name, Role: apiRole(inv.Role), CreatedAt: inv.CreatedAt, ExpiresAt: inv.ExpiresAt,
 			CreatedBy: &inviteCreator{ID: inv.CreatedByID, Name: inv.CreatedByName},
 		})
 	}
@@ -213,7 +219,7 @@ func (s *server) handleLookupInvite(w http.ResponseWriter, r *http.Request) {
 		Role        string    `json:"role"`
 		InviterName string    `json:"inviterName"`
 		ExpiresAt   time.Time `json:"expiresAt"`
-	}{inv.Name, inv.Role, inv.CreatedByName, inv.ExpiresAt})
+	}{inv.Name, apiRole(inv.Role), inv.CreatedByName, inv.ExpiresAt})
 }
 
 // handleAcceptInvite — POST /api/invites/accept {token, email, password,
@@ -281,7 +287,7 @@ func (s *server) handleAcceptInvite(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	log.Printf("invite: invite %s accepted, created user %s role=%s", inv.ID, u.ID, u.Role)
+	log.Printf("invite: invite %s accepted, created user %s role=%s", inv.ID, u.ID, apiRole(u.Role))
 	if !s.startSession(w, r, u) {
 		return
 	}

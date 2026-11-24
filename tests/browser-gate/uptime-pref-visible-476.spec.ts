@@ -33,7 +33,7 @@ async function boot(page: import('@playwright/test').Page, showUptime: boolean) 
     showUptime ? 'true' : 'false',
   );
   await page.setViewportSize(AT_COMPACT);
-  await mockApi(page, withChecks as never, categories, 'user', 'compact');
+  await mockApi(page, withChecks as never, categories, 'member', 'compact');
   await page.goto('/');
   await expect(page.locator('.app-grid')).toHaveAttribute('data-density', 'compact');
 }
@@ -98,7 +98,7 @@ test.describe('#476 — the uptime preference controls something visible at the 
         on ? 'true' : 'false',
       );
       await page.setViewportSize(AT_COMPACT);
-      await mockApi(page, withChecks as never, categories, 'user', 'large');
+      await mockApi(page, withChecks as never, categories, 'member', 'large');
       await page.goto('/');
       heights.push((await page.getByTestId('tool-link').first().boundingBox())!.height);
     }

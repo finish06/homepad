@@ -27,7 +27,7 @@ test.describe('SPEC-242 per-tile status dot', () => {
   }) => {
     const { services, categories } = makeStatusTiles(STATES);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await mockApi(page, services, categories, 'user');
+    await mockApi(page, services, categories, 'member');
     await page.goto('/');
     // v29 — the ★ is a control only in arrange mode, and D-1's whole argument for
     // putting the dot top-LEFT is that top-right belongs to the star. That
@@ -66,7 +66,7 @@ test.describe('SPEC-242 per-tile status dot', () => {
   }) => {
     const { services, categories } = makeStatusTiles(STATES);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await mockApi(page, services, categories, 'user');
+    await mockApi(page, services, categories, 'member');
     await page.goto('/');
 
     const styleOf = (state: string) =>
@@ -110,7 +110,7 @@ test.describe('SPEC-242 per-tile status dot', () => {
   }) => {
     const { services, categories } = makeStatusTiles(STATES);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await mockApi(page, services, categories, 'user');
+    await mockApi(page, services, categories, 'member');
     await page.goto('/');
 
     const wraps = page.locator('.app-grid-tool-wrap');

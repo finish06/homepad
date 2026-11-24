@@ -147,7 +147,7 @@ func TestRegister_FirstAccountIsAdminInEveryMode(t *testing.T) {
 			sb := readAll(t, second)
 			if mode == api.RegistrationOpen {
 				require.Equal(t, http.StatusCreated, second.StatusCode, string(sb))
-				assert.Contains(t, string(sb), `"role":"user"`)
+				assert.Contains(t, string(sb), `"role":"member"`)
 			} else {
 				assert.Equal(t, http.StatusForbidden, second.StatusCode, string(sb))
 			}
@@ -199,7 +199,7 @@ func TestRegister_ConcurrentBootstrapMakesOneAdmin(t *testing.T) {
 				switch {
 				case codes[i] == http.StatusCreated && roles[i] == "admin":
 					admins++
-				case codes[i] == http.StatusCreated && roles[i] == "user":
+				case codes[i] == http.StatusCreated && roles[i] == "member":
 					users++
 				case codes[i] == http.StatusForbidden:
 					forbidden++

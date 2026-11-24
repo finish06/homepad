@@ -108,7 +108,7 @@ An admin can add an adult today (invites), but not take one away, and not make a
 | AC-003 | `{id}` that names a kid, an unknown id or a malformed id gets 404 on both routes. | Must |
 | AC-004 | Removing an adult revokes their pending invites (Q3). Used invites keep their `used_by` and `created_by` history until the sweep (SET NULL on the deleted id). | Must |
 | AC-005 | An admin acting on their own id gets 409 `{"error":"self"}` on both routes, and nothing changes (Q1). | Must |
-| AC-006 | `PATCH /api/admin/accounts/{id}` with `{"role":"admin"}` or `{"role":"user"}` changes the role and answers 200 with the account row. Any other role, any other field, or no body is 400. Setting the role it already has is 200 and changes nothing (no sessions end). | Must |
+| AC-006 | *(18.4.0: `member`, with `user` as a deprecated alias; SPEC-decisions-18.4.0.)* `PATCH /api/admin/accounts/{id}` with `{"role":"admin"}` or `{"role":"user"}` changes the role and answers 200 with the account row. Any other role, any other field, or no body is 400. Setting the role it already has is 200 and changes nothing (no sessions end). | Must |
 | AC-007 | After removal, a request with the removed adult's old cookie gets 401, and the web app shows the sign-in screen (through AC-016). | Must |
 | AC-008 | After a role change, every session of that account is ended (Q2). The changed adult's next request gets 401. | Must |
 | AC-009 | A change that would leave zero admins gets 409 `{"error":"last_admin"}`, and nothing changes. With two admins sending opposite demotions at once, exactly one succeeds. | Must |

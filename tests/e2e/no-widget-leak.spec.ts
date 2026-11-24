@@ -21,7 +21,7 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-for (const role of ['user', 'kid'] as const) {
+for (const role of ['member', 'kid'] as const) {
   test(`a ${role} receives no widget address, username or key`, async ({ page }) => {
     const mock = await mockWidgets(page, { role, info: INFO_ON, savedWidget: true, density: 'compact' });
     await page.goto('/');
@@ -32,7 +32,7 @@ for (const role of ['user', 'kid'] as const) {
     await page.getByTestId('launcher-trigger').click();
     await page.getByTestId('launcher-input').fill('jelly');
     await page.keyboard.press('Escape');
-    if (role === 'user') {
+    if (role === 'member') {
       await page.getByTestId('user-menu-trigger').click();
       await page.getByTestId('menu-my-settings').click();
       await expect(page.getByRole('switch', { name: 'Show widgets' })).toBeVisible();

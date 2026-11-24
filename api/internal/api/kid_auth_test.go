@@ -38,7 +38,7 @@ func TestKid_MeReportsKidRoleAndDisplayName(t *testing.T) {
 	// Adults gain displayName too (additive), nothing else changes.
 	code, me = getMeRaw(t, env.URL, "non-admin-session")
 	require.Equal(t, http.StatusOK, code)
-	assert.Equal(t, "user", me["role"])
+	assert.Equal(t, "member", me["role"])
 	assert.Equal(t, "user@homepad.test", me["email"])
 	assert.Contains(t, me, "displayName")
 }
@@ -82,7 +82,7 @@ func TestRegister_CannotCreateKid(t *testing.T) {
 	require.Equal(t, http.StatusCreated, resp.StatusCode, "existing register behaviour is unchanged")
 	var u map[string]any
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&u))
-	assert.Equal(t, "user", u["role"], "self-registration cannot pick a role")
+	assert.Equal(t, "member", u["role"], "self-registration cannot pick a role")
 
 	var role string
 	require.NoError(t, env.Store.Pool().QueryRow(context.Background(),

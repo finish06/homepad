@@ -186,7 +186,7 @@ export default function SystemSettings({
       </h3>
       <p className="settings-section-note">
         These settings apply to everyone. A value saved here wins over the server's environment. <strong>Reset</strong>{' '}
-        goes back to it.
+        returns to the environment value, or the default if there is none.
       </p>
       {envOnly && (
         <div className="settings-envonly-banner" role="status" data-testid="settings-envonly-banner">

@@ -1,4 +1,4 @@
-import { request, type Result, type User } from './api';
+import { request, withRole, type Result, type User } from './api';
 
 // ---------------------------------------------------------------------------
 // SPEC-password-reset-link §7 — passwords. An admin makes a one-time reset link
@@ -59,7 +59,7 @@ export async function lookupReset(token: string): Promise<Result & { info?: Rese
 // signs this device in: 200 with the /api/me body.
 export async function acceptReset(token: string, password: string): Promise<Result & { user?: User }> {
   const r = await post('/api/password-resets/accept', 200, { token, password });
-  return r.ok ? { ...result(r), user: r.data as User } : result(r);
+  return r.ok ? { ...result(r), user: withRole(r.data as User) } : result(r);
 }
 
 // changePassword — 204; 403 wrong_password; 409 sso_account; 429 with the

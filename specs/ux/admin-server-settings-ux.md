@@ -30,7 +30,7 @@ Admin Panel
 
 The old "Environment Configuration" list and its note ("set via environment variables and redeploy") are gone. New note:
 
-> These settings apply to everyone. A value saved here wins over the server's environment. **Reset** goes back to it.
+> These settings apply to everyone. A value saved here wins over the server's environment. **Reset** goes back to the environment value, or the default if there is none.
 
 ## 2. The shared row
 
