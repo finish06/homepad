@@ -2,6 +2,28 @@
   "pending": [],
   "versions": [
     {
+      "version": "18.3.0",
+      "date": "2026-11-24",
+      "changes": [
+        {
+          "type": "bug-fix",
+          "text": "Status dots in search and the alert history are easier to see, and an unknown status no longer glows red."
+        },
+        {
+          "type": "bug-fix",
+          "text": "If part of the app fails to load, you see a message with Reload and Close instead of a blank page."
+        },
+        {
+          "type": "bug-fix",
+          "text": "In arrange mode at Compact and List density, tapping the star no longer opens the tile editor."
+        },
+        {
+          "type": "enhancement",
+          "text": "An old Retry message no longer comes back, and the Inline overlay hint explains sites that block embedding."
+        }
+      ]
+    },
+    {
       "version": "18.2.0",
       "date": "2026-11-23",
       "changes": [

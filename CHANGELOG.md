@@ -7,7 +7,9 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
-## [Unreleased] — 18.3.0
+## [18.3.0] — 2026-11-24 — UI fixes and test setup
+
+**Upgrading.** Deploy the web image. There are no database or API changes.
 
 - The status dots in ⌘K search and the alert history have a thin dark edge, so green, amber and grey dots are easy to see on white (#262).
 - Those dots glow in their own colour. An unknown status no longer glows red (#263).
