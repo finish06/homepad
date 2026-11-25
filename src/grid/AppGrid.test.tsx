@@ -797,7 +797,7 @@ describe('loading skeleton (AC-001, AC-005, AC-008, AC-020)', () => {
 
   it('reserves the admin\'s empty-box button, except when every box is empty (admin-empty)', () => {
     vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
-    const reserved = () => screen.getByTestId('app-grid-loading').querySelectorAll('.app-grid-skel-hidden').length;
+    const reserved = () => screen.getByTestId('app-grid-loading').querySelectorAll('.app-grid-empty-add').length;
     putShape({ v: 1, user: 'u1', recent: false, boxes: [{ span: 6, count: 2, collapsed: false }, { span: 6, count: 0, collapsed: false }] });
     const { unmount } = render(<AppGrid isAdmin userId="u1" />);
     expect(reserved()).toBe(1);
@@ -808,6 +808,41 @@ describe('loading skeleton (AC-001, AC-005, AC-008, AC-020)', () => {
     putShape({ v: 1, user: 'u1', recent: false, boxes: [{ span: 6, count: 0, collapsed: false }] });
     render(<AppGrid isAdmin userId="u1" />);
     expect(reserved()).toBe(0);
+  });
+
+  it('an empty box draws its real line, unseen, so a wrapping line wraps in the skeleton too', () => {
+    vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
+    const line = () =>
+      screen.getByTestId('app-grid-loading').querySelector('.app-grid-empty.app-grid-skel-hidden')?.textContent;
+    putShape({ v: 1, user: 'u1', recent: false, boxes: [{ span: 3, count: 2, collapsed: false }, { span: 3, count: 0, collapsed: false }] });
+    const a = render(<AppGrid isAdmin={false} userId="u1" />);
+    expect(line()).toBe('No apps here yet. Ask an admin to add some.');
+    a.unmount();
+    const b = render(<AppGrid isAdmin userId="u1" />);
+    expect(line()).toBe('No apps yet.');
+    b.unmount();
+    // Every box empty: the member-empty case, so the short line (AC-021).
+    putShape({ v: 1, user: 'u1', recent: false, boxes: [{ span: 3, count: 0, collapsed: false }] });
+    render(<AppGrid isAdmin={false} userId="u1" />);
+    expect(line()).toBe('No apps here yet.');
+  });
+
+  it('draws the boxes empty when App already knows the dashboard is empty', () => {
+    vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
+    render(<AppGrid isAdmin userId="u1" dashboardEmpty />);
+    const loading = screen.getByTestId('app-grid-loading');
+    expect(loading.querySelectorAll('.app-grid-box')).toHaveLength(3);
+    expect(loading.querySelectorAll('.app-grid-tool')).toHaveLength(0);
+    expect(loading.querySelectorAll('.app-grid-empty-add')).toHaveLength(0);
+  });
+
+  it('reserves the admin\'s "+ Add box" row, and only for an admin', () => {
+    vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
+    const a = render(<AppGrid isAdmin userId="u1" />);
+    expect(screen.getByTestId('app-grid-loading').querySelectorAll('.app-grid .app-grid-add')).toHaveLength(1);
+    a.unmount();
+    render(<AppGrid isAdmin={false} userId="u1" />);
+    expect(screen.getByTestId('app-grid-loading').querySelectorAll('.app-grid-add')).toHaveLength(0);
   });
 
   it('is accessible: shapes aria-hidden, one polite status, nothing focusable, no axe violations (AC-008)', async () => {

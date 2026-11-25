@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { safeHref } from '../lib/safeUrl';
 import Modal from '../ui/Modal';
 import {
@@ -230,24 +230,30 @@ export default function AppGrid({
   // §3.1 — the skeleton draws the last shape this device showed this user, read
   // once on mount; another user's, a bad or a missing entry draws the fallback.
   const [skeletonShape] = useState<GridShape>(() => readShape(userId) ?? FALLBACK_SHAPE);
-  // cap3 — the Recently opened list, resolved here (not inside the row) so the
-  // shape written to the cache knows whether the row drew.
-  const recentItems = useRecentlyOpened(svcs ?? []);
   const boxes = loading ? [] : boxesFromData(cats, svcs ?? []);
-  // Edit Dashboard (admin) hides the row (AC-008) and an empty catalog has none.
-  const showRecent = !(isAdmin && editMode) && (svcs?.length ?? 0) > 0 && recentItems.length > 0;
+  // cap3 — the Recently opened row is mounted only outside Edit Dashboard (admin,
+  // AC-008) and with a non-empty catalog (AC-009); it reports whether it drew
+  // anything, so the cached shape knows (AC-005) without AppGrid re-rendering on
+  // every tile open.
+  const recentMounted = !loading && !(isAdmin && editMode) && (svcs?.length ?? 0) > 0;
+  const [recentDrawn, setRecentDrawn] = useState(false);
+  const showRecent = recentMounted && recentDrawn;
   // §3.1 / AC-006 — write the rendered shape, debounced, whenever it changes.
   // Not while loading, and not while arranging: every box then shows open, which
   // is not the shape the next load draws. Turning arranging off re-runs this with
   // the view shape. The cleanup cancels a pending write on a newer shape (the
-  // debounce), on arranging turning on, and on unmount.
-  const shapeJson = loading ? '' : JSON.stringify(shapeOf(boxes, showRecent));
-  const canWriteShape = !!userId && !loading && !editMode;
+  // debounce), on arranging turning on, and on unmount. The JSON is the change
+  // key: a re-render with the same shape keeps the same object, so no write.
+  const nextShape = loading ? null : shapeOf(boxes, showRecent);
+  const shapeKey = nextShape ? JSON.stringify(nextShape) : '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the shape's content, not its identity
+  const shape = useMemo(() => nextShape, [shapeKey]);
+  const canWriteShape = !!userId && !editMode;
   useEffect(() => {
-    if (!canWriteShape || !userId) return;
-    scheduleShapeWrite(userId, JSON.parse(shapeJson) as GridShape);
+    if (!canWriteShape || !userId || !shape) return;
+    scheduleShapeWrite(userId, shape);
     return () => cancelPendingShapeWrite();
-  }, [canWriteShape, userId, shapeJson]);
+  }, [canWriteShape, userId, shape]);
 
   // Update the services the grid renders from. When a provider is present it owns
   // the array (the SAME one the launcher's Favorites section filters — §3/A12), so
@@ -427,7 +433,13 @@ export default function AppGrid({
 
   if (loading) {
     return (
-      <GridSkeleton shape={skeletonShape} density={density} viewportWidth={viewportWidth} isAdmin={isAdmin} />
+      <GridSkeleton
+        shape={skeletonShape}
+        density={density}
+        viewportWidth={viewportWidth}
+        isAdmin={isAdmin}
+        dashboardEmpty={dashboardEmpty}
+      />
     );
   }
 
@@ -478,7 +490,9 @@ export default function AppGrid({
       {/* cap3 — "Recently opened". Hidden in edit mode (AC-008) and when the
           catalog is empty (AC-009); the component itself hides when nothing
           resolves (AC-001/AC-006). */}
-      {showRecent && <RecentlyOpenedRow recent={recentItems} theme={gridTheme} onOpenIframe={openIframe} />}
+      {recentMounted && (
+        <RecentlyOpenedRow items={svcs ?? []} theme={gridTheme} onOpenIframe={openIframe} onDrawn={setRecentDrawn} />
+      )}
       <div
         className={`app-grid${editing ? ' is-editing' : ''}`}
         data-testid="app-grid"
@@ -567,18 +581,33 @@ function GridSkeleton({
   density,
   viewportWidth,
   isAdmin,
+  dashboardEmpty,
 }: {
   shape: GridShape;
   density: TileDensity;
   viewportWidth: number;
   isAdmin: boolean;
+  dashboardEmpty: boolean;
 }) {
+  // App.tsx already knows the dashboard is empty (services answered, none)
+  // while categories still load: draw the boxes empty, not full of tiles.
+  if (dashboardEmpty) {
+    shape = { recent: false, boxes: shape.boxes.map((b) => ({ ...b, count: 0 })) };
+  }
   const contentWidth = frameContentPx(viewportWidth);
   const floors = shape.boxes.map((b) => boxWidthPx(b.span, contentWidth));
   const rowCounts = rowFillCounts(floors, contentWidth);
-  // An admin's empty box carries a button, except while admin-empty shows — and
-  // a shape whose every box is empty is that case (no apps at all, OQ-3).
-  const reserveButton = isAdmin && shape.boxes.some((b) => b.count > 0);
+  // An empty box draws its real line, unseen, so a line that wraps in a narrow
+  // box wraps here too. The admin's line carries a button, except while
+  // admin-empty shows; a shape whose every box is empty is taken as that case
+  // (no apps at all, OQ-3), and so is the member's short line (AC-021).
+  const looksEmpty = dashboardEmpty || shape.boxes.every((b) => b.count === 0);
+  const emptyLine = isAdmin
+    ? 'No apps yet.'
+    : looksEmpty
+      ? 'No apps here yet.'
+      : 'No apps here yet. Ask an admin to add some.';
+  const reserveButton = isAdmin && !looksEmpty;
   return (
     <div className="app-grid-skeleton" data-testid="app-grid-loading">
       <p className="sr-only" role="status" aria-live="polite">
@@ -637,7 +666,7 @@ function GridSkeleton({
                   // An empty box: its line, plus the admin's button reserved
                   // (unseen) so the box keeps its loaded height (AC-009).
                   <div className="app-grid-empty-state">
-                    <p className="app-grid-empty">&nbsp;</p>
+                    <p className="app-grid-empty app-grid-skel-hidden">{emptyLine}</p>
                     {reserveButton && (
                       <span className="settings-ghost-btn app-grid-empty-add app-grid-skel-hidden">
                         Browse the App Library
@@ -648,6 +677,8 @@ function GridSkeleton({
             </section>
           );
         })}
+        {/* The admin's "+ Add box" row closes the loaded grid; reserve it. */}
+        {isAdmin && <span className="app-grid-add app-grid-skel-hidden" />}
       </div>
     </div>
   );
@@ -1342,18 +1373,26 @@ function UptimeSparkline({ checks }: { checks?: UptimeCheck[] }) {
 // tile's behaviour per-service (clickAction: new_tab | same_tab | iframe). The
 // AC's INTENT is "behave like the main tile", so these honour clickAction rather
 // than hardcoding a new tab — hardcoding it would now DIVERGE from the tile.
-// The list is resolved by AppGrid (useRecentlyOpened), which renders the row
-// only when it is non-empty (AC-001 / AC-006) and records that in the skeleton
-// cache (SPEC-dashboard-empty-loading AC-005).
+// `onDrawn` tells AppGrid whether the row shows anything, for the skeleton
+// cache (SPEC-dashboard-empty-loading AC-005); false again on unmount.
 function RecentlyOpenedRow({
-  recent,
+  items,
   theme,
   onOpenIframe,
+  onDrawn,
 }: {
-  recent: Service[];
+  items: Service[];
   theme: 'light' | 'dark';
   onOpenIframe: (s: Service) => void;
+  onDrawn: (drawn: boolean) => void;
 }) {
+  const recent = useRecentlyOpened(items);
+  const drawn = recent.length > 0;
+  useEffect(() => {
+    onDrawn(drawn);
+    return () => onDrawn(false);
+  }, [drawn, onDrawn]);
+  if (!drawn) return null; // AC-001 / AC-006
   return (
     <div className={`${CONTENT_WIDTH} recently-opened`} data-testid="recently-opened-row">
       <span className="recently-opened-label">Recently opened</span>

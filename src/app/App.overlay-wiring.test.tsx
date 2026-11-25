@@ -23,7 +23,7 @@ import { authConfig, me, type User } from '../api';
 // from the shared services list: empty, it shows the box button (when App
 // passes onAddToBox); filled, its tiles carry data-service-id like the real
 // grid's, unless `stubGrid.collapsed` hides them.
-const stubGrid = vi.hoisted(() => ({ collapsed: false }));
+const stubGrid = vi.hoisted(() => ({ collapsed: false, boxGone: false }));
 vi.mock('../grid/AppGrid', async () => {
   const { useServicesContext } = await import('../services');
   return {
@@ -31,6 +31,8 @@ vi.mock('../grid/AppGrid', async () => {
       onAddToBox?: (box: { id: string; title: string }, opener: HTMLButtonElement) => void;
     }) {
       const inBox = (useServicesContext()?.items ?? []).filter((s) => s.categoryId === 'c1');
+      // The box deleted elsewhere while the Library was open.
+      if (stubGrid.boxGone && inBox.length > 0) return <div data-testid="app-grid-stub" />;
       return (
         <div data-testid="app-grid-stub">
           <section data-box-id="c1">
@@ -336,6 +338,7 @@ describe('App overlay wiring — alerts and the edit-mode banner', () => {
 describe('App overlay wiring — the Library from an empty box', () => {
   beforeEach(() => {
     stubGrid.collapsed = false;
+    stubGrid.boxGone = false;
   });
 
   it('the box button opens the one Library with that box as its target', async () => {
@@ -390,5 +393,16 @@ describe('App overlay wiring — the Library from an empty box', () => {
     await u.click(screen.getByTestId('lib-close'));
     expect(screen.getByRole('heading', { name: 'Media' })).toHaveFocus();
     expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it('when the box itself is gone, focus still lands on the dashboard, never <body>', async () => {
+    stubGrid.boxGone = true;
+    const u = userEvent.setup();
+    await boot(ADMIN);
+    await u.click(await screen.findByTestId('stub-box-add'));
+    await u.click(await screen.findByTestId('lib-added'));
+    await u.click(screen.getByTestId('lib-close'));
+    expect(document.activeElement).not.toBe(document.body);
+    expect(screen.getByTestId('settings-gear')).toHaveFocus();
   });
 });

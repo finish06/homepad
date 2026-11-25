@@ -187,6 +187,9 @@ test.describe('dashboard skeleton — geometry (AC-002, AC-003, AC-005)', () => 
       await firstVisit(page);
       const { skeleton, real } = await returningVisit(page, api);
       expectSameGrid(skeleton, real, relY);
+      // … and the grid ends where it did: the footer holds relative to the section.
+      const below = (x: Snap) => x.footerTop - x.sectionTop;
+      expect(Math.abs(below(skeleton) - below(real))).toBeLessThanOrEqual(1);
     });
   }
 
@@ -198,6 +201,9 @@ test.describe('dashboard skeleton — geometry (AC-002, AC-003, AC-005)', () => 
     await expect(page.getByTestId('box-add-from-library')).toBeVisible();
     const { skeleton, real } = await returningVisit(page, api);
     expectSameGrid(skeleton, real, relY);
+    // … and the grid ends where it did: the footer holds relative to the section.
+    const below = (x: Snap) => x.footerTop - x.sectionTop;
+    expect(Math.abs(below(skeleton) - below(real))).toBeLessThanOrEqual(1);
   });
 
   const cases: { density: 'large' | 'compact' | 'list'; width: number; kid?: boolean }[] = [

@@ -357,7 +357,14 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
         )
       : undefined;
     const link = tile?.querySelector<HTMLElement>('[data-testid="tool-link"]');
-    (link ?? box?.querySelector<HTMLElement>('h2'))?.focus();
+    // If the box itself is gone (deleted elsewhere meanwhile), the first box
+    // heading, else the Gear — somewhere on the dashboard, never <body>.
+    const target =
+      link ??
+      box?.querySelector<HTMLElement>('h2') ??
+      document.querySelector<HTMLElement>('[data-box-id] h2') ??
+      document.querySelector<HTMLElement>('[data-testid="settings-gear"]');
+    target?.focus();
   }, [browseOpen]);
   function onSavedCustom(saved: Service, mode: 'add' | 'edit') {
     services?.setItems((cur) => {
