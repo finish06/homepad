@@ -13,7 +13,7 @@ Meet WCAG AA everywhere homepad is used, starting with the one issue marked majo
 
 ## Success Criteria
 
-- [x] #379: login in **dark mode** meets AA. Already fixed by the v27 login restyle (d3a0b2a, #381), and now pinned by a real-browser gate: `tests/browser-gate/a11y-touch-v19.spec.ts` "v19 login @768 DARK" (added in #729) measures the labels, subtitle, "Create account", "or", PocketID and the typed text in the input, and fails if the field is a light slab. Measured 2026-11-25: 5.9:1 to 15.5:1
+- [x] #379: login in **dark mode** meets AA. Already fixed by the v27 login restyle (d3a0b2a, #381), and now pinned by a real-browser gate: `tests/browser-gate/a11y-touch-v19.spec.ts` "v19 login @768 DARK" (added in #729) measures the labels, subtitle, "Create account", "or", PocketID and the typed text in the input against the background the browser actually paints (gradient, glass card and the control's own fill), and fails if the field is a light slab. Measured 2026-11-25: 4.74:1 (subtitle) to 12.1:1
 - [x] #262 / #263: the shared `.status-dot` has a definition ring that meets 3:1, and its glow follows its state (UNKNOWN has no glow). 18.3.0, #703 (SPEC-ui-cleanup-18.3.0 AC-001, AC-002; `tests/browser-gate/status-dot-shared-262-263.spec.ts`)
 - [x] #187: avatar hover covers the full target. No longer true: the avatar disc is now 44×44, the same size as its button. Closed in the #703 triage
 - [x] #513: the ★ and edit-pencil hit areas never take each other's taps, at every density. 18.3.0, #703 (AC-007; `tests/browser-gate/fav-edit-hit-areas-513.spec.ts` hit-tests Large, Compact and List)

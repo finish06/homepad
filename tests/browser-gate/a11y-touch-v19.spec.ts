@@ -256,24 +256,29 @@ test.describe('v19 dark @768 — #163 admin edit-mode chrome contrast', () => {
 });
 
 // ── Login state (logged out) ────────────────────────────────────────────────
+// Logged-out login screen, shared by the light and dark login suites.
+async function setupLogin(page: Page) {
+  await page.addInitScript(INIT);
+  // 401 on /api/me → App renders AuthForm; oidcEnabled:true so the "or" divider
+  // (AC-004) is present to measure. registration:'open' so the "Create account"
+  // mode toggle (AC-003) exists: since SPEC-household-basics it shows only on
+  // installs that keep sign-up open.
+  await page.route('**/api/me', (route) => route.fulfill({ status: 401, body: '' }));
+  await page.route('**/api/auth/config', (route) =>
+    route.fulfill({ json: { oidcEnabled: true, registration: 'open', setupNeeded: false } }),
+  );
+  await page.goto('/');
+  await expect(page.locator('button[type="submit"]')).toBeVisible();
+  // AC-004 measures the OIDC "or" divider (div.my-4). oidcEnabled starts false
+  // and only flips true after /api/auth/config resolves async, so the divider
+  // may not be in the DOM yet when the submit button first paints. Wait for it
+  // to render before any measurement, else div.my-4 is ELEMENT NOT FOUND (#300).
+  await expect(page.locator('div.my-4')).toBeVisible();
+}
+
 test.describe('v19 login @768 — touch targets & contrast', () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(INIT);
-    // 401 on /api/me → App renders AuthForm; oidcEnabled:true so the "or" divider
-    // (AC-004) is present to measure. registration:'open' so the "Create account"
-    // mode toggle (AC-003) exists: since SPEC-household-basics it shows only on
-    // installs that keep sign-up open.
-    await page.route('**/api/me', (route) => route.fulfill({ status: 401, body: '' }));
-    await page.route('**/api/auth/config', (route) =>
-      route.fulfill({ json: { oidcEnabled: true, registration: 'open', setupNeeded: false } }),
-    );
-    await page.goto('/');
-    await expect(page.locator('button[type="submit"]')).toBeVisible();
-    // AC-004 measures the OIDC "or" divider (div.my-4). oidcEnabled starts false
-    // and only flips true after /api/auth/config resolves async, so the divider
-    // may not be in the DOM yet when the submit button first paints. Wait for it
-    // to render before any measurement, else div.my-4 is ELEMENT NOT FOUND (#300).
-    await expect(page.locator('div.my-4')).toBeVisible();
+    await setupLogin(page);
   });
 
   test('AC-001 "Sign in" submit button ≥44px tall', async ({ page }) => {
@@ -313,20 +318,82 @@ test.describe('v19 login @768 — touch targets & contrast', () => {
 // preference: colorScheme 'dark' is how a dark-mode visitor first sees the
 // login. #379 was white input slabs and 1.7:1 labels in dark mode; the v27
 // restyle fixed it, and this pins it in a real browser.
-test.describe('v19 login @768 DARK — #379 contrast', () => {
+//
+// __measure resolves the ground from background-color only, which misses the
+// dark app-surface gradient, the bloom and the translucent glass card. So this
+// suite measures the ground the browser actually paints: it hides the text of
+// the element, screenshots its box, and takes a light pixel of it (the 90th
+// percentile by luminance, so a lighter patch of the gradient counts against
+// light text). The text colour is then composited over that pixel. The box
+// includes the element's own fill, so the PocketID button and the input are
+// measured against their own backgrounds.
+type RGB = { r: number; g: number; b: number };
+
+async function paintedGround(page: Page, selector: string): Promise<RGB> {
+  const el = page.locator(selector).first();
+  const hide = await page.addStyleTag({
+    content: `${selector}, ${selector} * { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; caret-color: transparent !important; }`,
+  });
+  const png = await el.screenshot({ animations: 'disabled' });
+  await hide.evaluate((n) => (n as Element).remove());
+  return page.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${b64}`;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, c.width, c.height).data;
+    const lum = (window as unknown as { __lum: (r: number, g: number, b: number) => number }).__lum;
+    const px: { l: number; r: number; g: number; b: number }[] = [];
+    // Inset 2px so a border or focus ring at the edge is not taken as the ground.
+    for (let y = 2; y < c.height - 2; y++) {
+      for (let x = 2; x < c.width - 2; x++) {
+        const i = (y * c.width + x) * 4;
+        px.push({ l: lum(d[i], d[i + 1], d[i + 2]), r: d[i], g: d[i + 1], b: d[i + 2] });
+      }
+    }
+    px.sort((a, z) => a.l - z.l);
+    const p = px[Math.floor(px.length * 0.9)];
+    return { r: p.r, g: p.g, b: p.b };
+  }, png.toString('base64'));
+}
+
+async function paintedContrast(page: Page, selector: string) {
+  const ground = await paintedGround(page, selector);
+  return page.evaluate(
+    ({ sel, bg }) => {
+      const w = window as unknown as {
+        __parse: (s: string) => { r: number; g: number; b: number; a: number } | null;
+        __composite: (f: object, b: object) => RGB;
+        __ratio: (a: number[], b: number[]) => number;
+        __lum: (r: number, g: number, b: number) => number;
+      };
+      const cs = getComputedStyle(document.querySelector(sel)!);
+      const c = w.__parse(cs.color)!;
+      const fg = w.__composite({ ...c, a: c.a * parseFloat(cs.opacity) }, bg);
+      return {
+        color: cs.color,
+        bg,
+        groundLum: w.__lum(bg.r, bg.g, bg.b),
+        ratio: Math.round(w.__ratio([fg.r, fg.g, fg.b], [bg.r, bg.g, bg.b]) * 100) / 100,
+      };
+    },
+    { sel: selector, bg: ground },
+  );
+}
+
+test.describe('v19 login @768 DARK — #379 contrast on the painted ground', () => {
   test.use({ colorScheme: 'dark' });
 
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(INIT);
-    await page.route('**/api/me', (route) => route.fulfill({ status: 401, body: '' }));
-    await page.route('**/api/auth/config', (route) =>
-      route.fulfill({ json: { oidcEnabled: true, registration: 'open', setupNeeded: false } }),
-    );
-    await page.goto('/');
-    await expect(page.locator('button[type="submit"]')).toBeVisible();
-    await expect(page.locator('.auth-divider')).toBeVisible();
+    await setupLogin(page);
     // Fail loudly if dark didn't apply: no vacuous light-mode pass.
     await expect.poll(async () => page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(true);
+    // Hover moves the PocketID fill; keep the pointer off every control.
+    await page.mouse.move(0, 0);
   });
 
   for (const [label, sel] of [
@@ -337,29 +404,18 @@ test.describe('v19 login @768 DARK — #379 contrast', () => {
     ['PocketID button', '.auth-oidc'],
   ] as const) {
     test(`#379 dark ${label} contrast ≥4.5:1`, async ({ page }) => {
-      const m = await measure(page, sel);
-      log('#379', `dark login ${label}`, m, `need ≥${AA_TEXT}:1`);
-      expect(m).not.toBeNull();
-      expect(m!.ratio).toBeGreaterThanOrEqual(AA_TEXT);
+      const m = await paintedContrast(page, sel);
+      console.log(`[v19-measure] #379 | dark login ${label} | color=${m.color} painted-bg=rgb(${m.bg.r},${m.bg.g},${m.bg.b}) ratio=${m.ratio}:1 | need ≥${AA_TEXT}:1`);
+      expect(m.ratio).toBeGreaterThanOrEqual(AA_TEXT);
     });
   }
 
-  test('#379 dark inputs: typed text ≥4.5:1 on the field, and the field is not a white slab', async ({ page }) => {
+  test('#379 dark email input: typed text ≥4.5:1, and the field is not a light slab', async ({ page }) => {
     await page.locator('input[type="email"]').fill('caleb@example.com');
-    const r = await page.evaluate(() => {
-      const w = window as unknown as {
-        __parse: (s: string) => { r: number; g: number; b: number; a: number } | null;
-        __composite: (f: object, b: object) => { r: number; g: number; b: number };
-        __resolveBg: (el: Element) => { r: number; g: number; b: number };
-        __ratio: (a: number[], b: number[]) => number;
-      };
-      const el = document.querySelector('input[type="email"]')!;
-      const bg = w.__resolveBg(el);
-      const fg = w.__composite(w.__parse(getComputedStyle(el).color)!, bg);
-      return { bg, ratio: Math.round(w.__ratio([fg.r, fg.g, fg.b], [bg.r, bg.g, bg.b]) * 100) / 100 };
-    });
-    console.log(`[v19-measure] #379 | dark email input | bg=rgb(${r.bg.r},${r.bg.g},${r.bg.b}) ratio=${r.ratio}:1 | need ≥${AA_TEXT}:1, not white`);
-    expect(r.ratio).toBeGreaterThanOrEqual(AA_TEXT);
-    expect(Math.min(r.bg.r, r.bg.g, r.bg.b)).toBeLessThan(200);
+    const m = await paintedContrast(page, 'input[type="email"]');
+    console.log(`[v19-measure] #379 | dark email input | color=${m.color} painted-bg=rgb(${m.bg.r},${m.bg.g},${m.bg.b}) lum=${m.groundLum.toFixed(3)} ratio=${m.ratio}:1 | need ≥${AA_TEXT}:1, ground lum <0.2`);
+    expect(m.ratio).toBeGreaterThanOrEqual(AA_TEXT);
+    // Relative luminance, not one channel: pale yellow or pink slabs fail too.
+    expect(m.groundLum).toBeLessThan(0.2);
   });
 });

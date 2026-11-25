@@ -4,7 +4,7 @@
 **Closes:** #369
 **Created:** 2026-07-15
 **Author:** Walt (product lead)
-**Status:** SHIPPED — v15.3.0 (`28411d3`, PR #374). Live at `src/library/SettingsPanel.tsx` + `GET /api/admin/env-config` until 18.1.0, when SPEC-admin-server-settings replaced the list. Status line read "Ready for Stitch" until 2026-09-22.
+**Status:** SHIPPED — v15.3.0 (`28411d3`, PR #374). The settings-panel list was live until 18.1.0, when SPEC-admin-server-settings replaced it. `GET /api/admin/env-config` is still served, deprecated, until 19.0.0 (see Superseded). Status line read "Ready for Stitch" until 2026-09-22.
 **Superseded by:** [`SPEC-admin-server-settings.md`](./SPEC-admin-server-settings.md), shipped in 18.1.0. The read-only list became editable settings in Admin Panel → System. `GET /api/admin/env-config` stays, unchanged and deprecated, until 19.0.0 (Q3 A); the web app no longer calls it.
 **Repos:** `Code/homepad` (UI) · `Code/homepad-api` (API)
 **Target version:** 15.3.0

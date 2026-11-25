@@ -39,7 +39,7 @@ Two cycles. Much of this lives in ci-shared and QA infrastructure, so it moves a
 | Staging fit for QA | — | IN_PROGRESS | #607 #606 #591 closed in 18.5.0 (#709); #576 HTTPS cert open (Joe) | — |
 | Admin-modal browser coverage | — | DONE | #423, closed by #523 | cycle-2 |
 | Staging security headers | — | DONE | #414 closed in-cluster; CSP split out as #529 (M3) | cycle-2 |
-| Old staging-env advisories | — | DOWNHILL | #487 and #261 closed; #256 is live (homepad-api#72) | cycle-2 |
+| Old staging-env advisories | — | DONE | #487 and #261 closed; #256 closed in 18.6.0 (#711) | cycle-2 |
 
 Every issue listed here was **re-checked against `main` at `57733eb` on 2026-10-11** and is still true. Issues that turned out to be fixed, obsolete or duplicates were closed with evidence rather than carried in.
 

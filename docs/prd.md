@@ -218,7 +218,7 @@ status and detail.
 | **Now** | [M7 — Growth: install funnel + launch](milestones/M7-growth-install-funnel.md) | Organic growth plus the launch posts. The 3× by 11-12 target was missed (accepted by Caleb 11-07) | IN_PROGRESS (funnel done; launch waits on Caleb) |
 | **Later** | [M5 — Non-admin arrange](milestones/M5-non-admin-arrange.md) | Per-user tile drag for non-admins (v29 §3.3) — needs a spec first | NOT_STARTED |
 | **Done** | [M9 — 18.0.1: release follow-ups](milestones/M9-18-0-1-follow-ups.md) | Fix what QA found on the 18.0.0 release, and clean up the spec and doc drift from 17.x–18.0 | COMPLETE (2026-11-25 — 31 issues closed, most in 18.0.1, the last in 18.5.0. Two production checks for Caleb carried) |
-| **Done** | [M4 — Accessibility debt](milestones/M4-accessibility-debt.md) | AA everywhere, starting with the dark-mode login (#379) | COMPLETE (2026-11-25 — 9 issues closed in 18.3.0, 18.4.0 and 18.6.0.. #729 added a dark-mode login gate) |
+| **Done** | [M4 — Accessibility debt](milestones/M4-accessibility-debt.md) | AA everywhere, starting with the dark-mode login (#379) | COMPLETE (2026-11-25 — 9 issues closed: 6 fixed or built in 18.3.0, 18.4.0 and 18.6.0, 3 already fixed or obsolete. #729 added a dark-mode login gate) |
 | **Done** | [M6 — Layout & design evolution](milestones/M6-layout-design-evolution.md) | Kare-led layout and visual decisions | COMPLETE (2026-11-25 — 7 issues closed; #352, #403 and #346 decided by Caleb, no build) |
 | **Done** | [M3 — Robustness & security](milestones/M3-robustness-security.md) | ErrorBoundary for lazy overlays (#341), a Content-Security-Policy (#529), the iframe sandbox (#334) | COMPLETE (2026-11-25 — 18.0.0, 18.3.0 and 18.6.0; the CSP is live on staging and production) |
 | **Done** | [M8 — Household accounts (17.0.0 → 18.0.0)](milestones/M8-household-accounts.md) | Kid accounts, household accounts, backup and import, status widgets, managing adults, safer sign-in | COMPLETE (2026-11-22 — 18.0.0 in production) |
@@ -231,7 +231,7 @@ milestones name against Gitea, and sorted the 40 issues opened since 10-11 into
 M2, M3 and M9.
 
 **Refreshed 2026-11-25.** 18.1.0 to 18.6.0 shipped on 11-23 and 11-24, and
-18.6.0 is in production. M9, M3, M4 and M6 are closed. No milestone is active. Open: M2 (#576, Joe), M7 (launch posts, Caleb) and M5 (needs a spec).
+18.6.0 is in production. M9, M3, M4 and M6 are closed. No milestone is active. Open: M2 (#576, Joe), M7 (launch posts, Caleb) and M5 (needs a spec). Outside any milestone: #715 (preview CSP), #691 (QA runner) and the UI enhancements #717–#726.
 
 **Decisions are folded into milestones**, not held in a separate queue (Caleb,
 2026-10-11): #368 #172 #295 #449 #200 → M1; #487 → M2; #488 #477 → M4; #403 → M6.

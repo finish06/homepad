@@ -91,7 +91,7 @@ It ran over: 18.0.1 held most of it, and #599, #578 and #610 needed a decision o
 ## Left over
 
 - The two "Needs Caleb" items above.
-- #715 (open): the per-PR preview sends only `frame-ancestors 'none'`, not the full 18.6.0 policy. Staging and production send the full policy. Tracked with M3's CSP work.
+- #715 (open): the per-PR preview sends only `frame-ancestors 'none'`, not the full 18.6.0 policy. Staging and production send the full policy. M3 is closed, so it is tracked on its own: in the PRD roadmap's open list and `.add/handoff.md`.
 
 ## Retrospective Notes
 
