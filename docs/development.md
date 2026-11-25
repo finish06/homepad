@@ -211,8 +211,16 @@ npm test                       # Vitest suite (builds the app itself for the dis
 npm run test:all               # every CI gate, web and API, and what couldn't run here
 npm run test:e2e:install       # one-time Playwright browsers
 npm run test:e2e               # full E2E suite (desktop + mobile)
+npm run build && npm run test:gate   # required real-browser gate; serves dist/
 npm run build && npm run lhci   # Lighthouse perf budgets (AC A8)
 ```
+
+The browser gate (#35) runs the specs in `tests/browser-gate/` against the
+**built** app in real Chromium, with `/api/*` mocked per test — no API, no
+database. It needs `npm run build` first; `npm run test:gate` alone serves a
+stale `dist/`. CI only runs it for PRs that touch a surface it can see
+(`bash scripts/ci/gate-surfaces.sh <base> <head>` prints the decision);
+`docs/cicd.md#the-browser-gate` has the whole contract.
 
 API, from `api/`:
 

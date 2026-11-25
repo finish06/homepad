@@ -181,6 +181,7 @@ The full guide, with how to make the groups in PocketID, is [docs/single-sign-on
 - **Repo layout:** one repo. The web app (React + Vite) is at the root, and the API (Go + Postgres) is in [`api/`](./api/). The old `homepad-api` repo is archived. One release tag ships both images.
 - **Develop:** run the API from `api/` and the web app with `npm run dev`. Vite sends `/api` to the API. The steps are in [docs/development.md](./docs/development.md#develop).
 - **Contributing:** issues and PRs are welcome. Start with [docs/development.md](./docs/development.md).
+- **CI:** every PR runs the unit and real-browser gates, then deploys its own preview and sends it to QA before anything merges. How that pipeline is wired, and what each check actually proves, is in [docs/cicd.md](./docs/cicd.md).
 - **License:** [MIT](./LICENSE)
 
 If Homepad is useful to your household, a ⭐ helps other homelabbers find it.

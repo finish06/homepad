@@ -54,6 +54,8 @@ jobs:
           bash scripts/preview/teardown-if-owner.test.sh
           bash scripts/preview/api-image.test.sh
           bash scripts/ci/changed-sides.test.sh
+          bash scripts/ci/gate-surfaces.test.sh
+          bash scripts/ci/playwright-image.test.sh
           bash scripts/ci/staging-api-rollout.test.sh
           bash scripts/ci/workflows.test.sh
           bash scripts/ci/docs-only.test.sh

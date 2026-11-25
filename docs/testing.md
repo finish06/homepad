@@ -7,10 +7,13 @@ commit (branch protection on `main`):
 |---|---|---|
 | `CI / Web (build, unit tests)` | `.gitea/workflows/ci.yml` | preview and CI shell tests, `npm run lint`, `npm run build`, `npx vitest run` |
 | `CI / API (vet, build, tests)` | `.gitea/workflows/ci.yml` | `go vet ./...`, `go build ./...`, `go test ./... -count=1 -p 1` against a throwaway Postgres |
-| `Browser gate` | `.gitea/workflows/browser-gate.yml` | `npm run test:gate` (Playwright, mocked API) |
+| `Browser gate` | `.gitea/workflows/browser-gate.yml` | `npm run test:gate` (real Chromium, mocked API) — only when the PR touches a surface the suite pins; otherwise a no-op pass |
 
 Each job checks which side the PR changed and skips its steps when that side
 didn't change. A change under `scripts/ci/` or `.gitea/` counts as both sides.
+The browser gate's trigger is `scripts/ci/gate-surfaces.sh` and it fails closed
+— an unreadable diff runs the suite, never a green no-op. The contract is in
+[cicd.md](cicd.md#the-browser-gate).
 
 **QA reviews what CI can't:** the running preview of the PR, the spec, and the
 diff. Its runner has no Go and does not install packages, so a QA review that
