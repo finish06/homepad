@@ -43,19 +43,19 @@ The fixes went out in 18.0.1. The last few came later, inside the 18.4.0 and 18.
 - [x] README spec index and docs-only path list are current (#542, #544, #598); SPEC-kid-accounts §6 data model is corrected (#543), #620. PR #579's description is updated (#595), done by hand on 2026-11-22
 - [x] Old 16.7.x leftovers: changelog chip type (#537) fixed in 18.0.1, #632. Quickstart compose pin (#535) closed as obsolete: `compose.yaml` pins a version that exists. Missing `SESSION_SECRET` (#533) closed as obsolete: the API never read it, and 18.0.1 (#632) removed it from `.env.example` and `compose.build.yaml`
 
-### Needs Caleb
+## Carried to Caleb (not milestone criteria)
 
-These are production checks and a production setting, not release work. They are not done, as far as the repo and Gitea show. They move to "Left over" below.
+These are production checks and a production setting, not release work. They are not done, as far as the repo and Gitea show. They were taken out of the success criteria when M9 closed, and are tracked in `.add/handoff.md`.
 
-- [ ] On production, as admin: the reset-link Copy button works over HTTPS, and Add an adult shows the PocketID line
-- [ ] Decide production `OIDC_MEMBER_GROUP`. While it is unset, only the `Family` group gets SSO accounts. Since 18.1.0 an admin can set it in **Admin Panel → System → Sign-in**, with no restart
+- On production, as admin: the reset-link Copy button works over HTTPS, and Add an adult shows the PocketID line
+- Decide production `OIDC_MEMBER_GROUP`. While it is unset, only the `Family` group gets SSO accounts. Since 18.1.0 an admin can set it in **Admin Panel → System → Sign-in**, with no restart
 
 ## Releases
 
 | Release | Date | PRs | M9 items |
 |---------|------|-----|----------|
 | — (docs) | 2026-11-22 | #620 | #593, #563, #564, #594, #588, #542, #544, #598, #543 |
-| 18.0.1 | 2026-11-22 | #632 (web), homepad-api#112 (API), release #636 | #612, #613, #617, #583, #582, #587, #584, #590, #585, #609, #537, the lookup bound, the #110 nits |
+| 18.0.1 | 2026-11-22 (CHANGELOG; #636 merged and prod 11-23) | #632 (web), homepad-api#112 (API), release #636 | #612, #613, #617, #583, #582, #587, #584, #590, #585, #609, #537, the lookup bound, the #110 nits |
 | 18.4.0 | 2026-11-24 | #707, release #708 | #599 |
 | 18.5.0 | 2026-11-24 | #709, release #710 | #578, #610 |
 

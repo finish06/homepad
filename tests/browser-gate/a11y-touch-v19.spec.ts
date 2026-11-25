@@ -307,3 +307,59 @@ test.describe('v19 login @768 — touch targets & contrast', () => {
     expect(m!.ratio).toBeGreaterThanOrEqual(AA_TEXT);
   });
 });
+
+// ── Login state, DARK mode (#379) ───────────────────────────────────────────
+// Logged out there is no server themePref, so the boot script takes the OS
+// preference: colorScheme 'dark' is how a dark-mode visitor first sees the
+// login. #379 was white input slabs and 1.7:1 labels in dark mode; the v27
+// restyle fixed it, and this pins it in a real browser.
+test.describe('v19 login @768 DARK — #379 contrast', () => {
+  test.use({ colorScheme: 'dark' });
+
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(INIT);
+    await page.route('**/api/me', (route) => route.fulfill({ status: 401, body: '' }));
+    await page.route('**/api/auth/config', (route) =>
+      route.fulfill({ json: { oidcEnabled: true, registration: 'open', setupNeeded: false } }),
+    );
+    await page.goto('/');
+    await expect(page.locator('button[type="submit"]')).toBeVisible();
+    await expect(page.locator('.auth-divider')).toBeVisible();
+    // Fail loudly if dark didn't apply: no vacuous light-mode pass.
+    await expect.poll(async () => page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(true);
+  });
+
+  for (const [label, sel] of [
+    ['label (Email)', '.auth-label'],
+    ['subtitle', '.auth-subtitle'],
+    ['"Create account"', '.auth-secondary'],
+    ['"or" divider', '.auth-divider'],
+    ['PocketID button', '.auth-oidc'],
+  ] as const) {
+    test(`#379 dark ${label} contrast ≥4.5:1`, async ({ page }) => {
+      const m = await measure(page, sel);
+      log('#379', `dark login ${label}`, m, `need ≥${AA_TEXT}:1`);
+      expect(m).not.toBeNull();
+      expect(m!.ratio).toBeGreaterThanOrEqual(AA_TEXT);
+    });
+  }
+
+  test('#379 dark inputs: typed text ≥4.5:1 on the field, and the field is not a white slab', async ({ page }) => {
+    await page.locator('input[type="email"]').fill('caleb@example.com');
+    const r = await page.evaluate(() => {
+      const w = window as unknown as {
+        __parse: (s: string) => { r: number; g: number; b: number; a: number } | null;
+        __composite: (f: object, b: object) => { r: number; g: number; b: number };
+        __resolveBg: (el: Element) => { r: number; g: number; b: number };
+        __ratio: (a: number[], b: number[]) => number;
+      };
+      const el = document.querySelector('input[type="email"]')!;
+      const bg = w.__resolveBg(el);
+      const fg = w.__composite(w.__parse(getComputedStyle(el).color)!, bg);
+      return { bg, ratio: Math.round(w.__ratio([fg.r, fg.g, fg.b], [bg.r, bg.g, bg.b]) * 100) / 100 };
+    });
+    console.log(`[v19-measure] #379 | dark email input | bg=rgb(${r.bg.r},${r.bg.g},${r.bg.b}) ratio=${r.ratio}:1 | need ≥${AA_TEXT}:1, not white`);
+    expect(r.ratio).toBeGreaterThanOrEqual(AA_TEXT);
+    expect(Math.min(r.bg.r, r.bg.g, r.bg.b)).toBeLessThan(200);
+  });
+});

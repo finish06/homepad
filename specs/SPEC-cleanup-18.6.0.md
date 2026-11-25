@@ -99,7 +99,7 @@ Every path, and how it is guarded:
 
 For Joe. Staging and prod serve the `homepad-web-nginx` ConfigMap (Code/homelab, `homepad-staging/03-web.yaml` and `homepad/03-web.yaml`), not the image's nginx config. The policy reaches them only through this change.
 
-**Done.** Both ConfigMaps carry the line, applied with the 18.6.0 promotion on 2026-11-24. Checked on 2026-11-25 with `curl -sI` on the four paths in step 3: each sent exactly one header, the line below.
+**Done.** Both ConfigMaps carry the line, applied with the 18.6.0 promotion on 2026-11-24. Checked on 2026-11-25 with `curl -sI` on the four paths in step 3: each sent exactly one `Content-Security-Policy` header: the full policy in step 1's second block, not the old `frame-ancestors` line it replaces.
 
 **1. In both ConfigMaps, replace every line**
 
