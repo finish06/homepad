@@ -5,6 +5,7 @@
 **Created:** 2026-11-25
 **Author:** Claude (Caleb asked 2026-11-25 to write up M10)
 **Status:** Approved — 2026-11-25 (Caleb took every recommended answer in §7). Not built. Kare checks the DOWN and DEGRADED shapes on a real screen during the build
+**Supersedes (members only):** `v18-gear-edit-menu.md` A2 and D4, which show "Add apps" to every user. Since 18.0.0 adding is admin-only on the server, so members lose the item (AC-017). `v29-favorite-star-arrange-only.md` AC-005 ("Arrange apps" for everyone) is unchanged.
 **Repo:** `Code/homepad` (web app at the root; no `api/` changes)
 **Issues:** #725
 **Target version:** 18.7.0
@@ -110,13 +111,13 @@ Who sees what, under the 18.0.0 roles:
 | AC-008 | 3 | Every toast has a labelled dismiss button of at least 24×24px that closes it at once. If focus was in the toast, it moves to the next toast's dismiss button, or else to the alert bell. | Must |
 | AC-009 | 3 | Status-change toasts have a "View" button that opens the alert history panel and closes the toast. | Should |
 | AC-010 | 4 | In both the Gear menu and the user menu, ArrowDown/ArrowUp move focus through every item (including `menuitemcheckbox`) and wrap; Home/End go to the first/last item; Escape closes and returns focus to the trigger. Both menus use one shared hook. | Must |
-| AC-011 | 4 | The user menu's theme group stays out of the arrow order, and every existing `UserMenu.test.tsx` and `gear-menu.test.tsx` case passes unchanged. | Must |
+| AC-011 | 4 | The user menu's theme group stays out of the arrow order, and every existing `UserMenu.test.tsx` and `gear-menu.test.tsx` case passes unchanged, except the member "Add apps" cases that AC-017 reverses (`gear-menu.test.tsx` "non-admin also sees Add apps" and `gear-arrange-apps.test.tsx` TC-006). | Must |
 | AC-012 | 5 | The tile pip draws DOWN and DEGRADED as two shapes distinct from each other and from the UP/UNKNOWN circle. All are solid; NOT_MONITORED stays the only hollow shape. The pip box (9px, top-left 8/8), fills, ring and glow values from SPEC-242 D-2/D-3 are unchanged, so `app-grid-status-dot.spec.ts` and `status-dot-shared-262-263.spec.ts` pass. | Must |
 | AC-013 | 5 | The pip's `role="img"` and `aria-label` ("status: …") are unchanged, the DOWN breathe still stops under reduced motion, and no tile moves or changes size at any density. | Must |
 | AC-014 | 6 | Library offers are grouped under a heading per suggested category with a visible count; uncategorized offers are in "Other", last; group and row order follow §3.6. | Must |
 | AC-015 | 6 | An All / Not added / Added radio group filters the list together with the text filter. Empty groups are hidden and counts match what is shown. Adding an offer under "Not added" moves it out of that view and announces "… added" as today. | Must |
 | AC-016 | 6 | Tab order follows the visual order (filter, then groups top to bottom), the dialog focus trap still works, and jest-axe finds no violations. | Should |
-| AC-017 | 6 | A member never sees an add control that the server refuses, per the answer to Open question 3 (default: no "Add apps" in a member's Gear menu). | Must |
+| AC-017 | 6 | A member never sees an add control that the server refuses: no "Add apps" in a member's Gear menu (decided, Open question 3), and no other entry point to the Library's Add buttons. A member still sees "Arrange apps" (SPEC-v29 AC-005 stands). This supersedes v18-gear-edit-menu A2 and D4 for members only; admins are unchanged. | Must |
 | AC-018 | 7 | The show/hide button switches the password field between `password` and `text` without clearing it, keeps focus and caret in the field, and is not part of the field's accessible name. | Must |
 | AC-019 | 7 | While the password field has focus and Caps Lock is on, "Caps Lock is on" shows, is linked by `aria-describedby`, and is announced; it goes away when Caps Lock goes off or the field loses focus. | Should |
 | AC-020 | 7 | A second failed sign-in with the same error text is announced again (the alert node is replaced, not reused). | Should |
@@ -137,7 +138,7 @@ Each AC with code has a test that fails before its change.
 | AC-011 | `src/app/UserMenu.test.tsx`, `src/app/gear-menu.test.tsx` (existing cases). |
 | AC-012, AC-013 | `tests/browser-gate/ui-quick-wins-725.spec.ts` (computed `transform`/`border-radius` per state, box size, tile rects at Large, Compact, List). Existing `tests/browser-gate/app-grid-status-dot.spec.ts` and `status-dot-shared-262-263.spec.ts` must pass unchanged. |
 | AC-014, AC-015, AC-016 | `src/library/LibraryBrowse.test.tsx`. |
-| AC-017 | `src/app/gear-menu.test.tsx` (member vs admin). |
+| AC-017 | `src/app/gear-menu.test.tsx`: the case "non-admin also sees Add apps" is rewritten to assert a member sees no `gear-add-apps`, and an admin case keeps it. `src/app/gear-arrange-apps.test.tsx`: TC-006 is rewritten to assert a member sees Arrange apps and not Add apps, with a comment naming this spec as the reversal, the same way it already names v29. |
 | AC-018, AC-019, AC-020 | `src/app/AuthForm.test.tsx`. `tests/browser-gate/ui-quick-wins-725.spec.ts` for caret and focus on toggle. |
 
 Gates: `npm run lint`, `npm run build`, `npx vitest run`, `npm run test:gate`, `npm run test:e2e`.

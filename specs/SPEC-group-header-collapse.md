@@ -56,7 +56,7 @@ One row, in this order:
 ### 3.2 Count pill and status bar
 
 - The pill shows `box.tools.length` in the `.cat-count` style. Its accessible text is "6 apps".
-- The bar is 64×5px with rounded ends. It has up to three segments in band order: green (UP), gray (NOT_MONITORED, UNKNOWN), red (DOWN, DEGRADED). Each segment's width is its share of the box's apps, with a 4px minimum so one red app always shows. A band with no apps draws nothing.
+- The bar is 64×5px with rounded ends. It has up to three segments in band order: green (UP), gray (NOT_MONITORED, UNKNOWN), red (DOWN, DEGRADED). Each non-empty band gets at least 4px, so one red app always shows. The rest of the 64px is shared among the non-empty bands by app count: width = 4 + (64 − 4 × bands) × count / total. The three widths always add up to 64px, so the bar never overflows or clips. Example: 98 up, 1 gray, 1 down gives 4 + 52 × 0.98 ≈ 55.0, then 4.5 and 4.5 px. A band with no apps draws nothing.
 - Colours reuse the health meter: `.health-tick-up`, `.health-tick-idle`, `.health-tick-down` (or the same tokens). `tickClass` and `statusBand` move out of `StatusBar.tsx` into one shared module that both the meter and the bar import. No new status colours.
 - Status hue is separate from tile icon hue. The bar never uses the service hue or a category hue (#352, `specs/DECISIONS.md` 2026-11-24).
 - The bar is `aria-hidden`. A visually hidden line carries the same facts: "6 apps: 4 up, 1 down, 1 not monitored". Bands with zero apps are left out of the line.
@@ -72,19 +72,19 @@ One row, in this order:
 ### 3.4 Collapse
 
 - The chevron is a real `<button>` placed before the `h2`. It points down when open and right when collapsed.
-- `aria-expanded` is `true` when open. `aria-controls` names the tools region. Its accessible name is "{title} apps" and does not change with state.
+- `aria-expanded` is `true` when open. `aria-controls` names a wrapper `div` around the box body (tools grid or empty line) that is always rendered, with `hidden` set while collapsed, so the id always exists. The body's contents are not rendered while collapsed. Its accessible name is "{title} apps" and does not change with state.
 - The hit area is at least 24×24px (44×44 at Large and on touch), using negative margins like the box grip so the header height does not change.
-- Collapsed: the header row stays; the tools grid, the empty-state line and the rename/delete panels are not rendered. The box keeps its width, so the boxes beside it do not move. Only its height shrinks.
+- Collapsed: the header row stays; the tools grid, the empty-state line and the rename/delete panels are not rendered (the empty, `hidden` body wrapper from the line above stays). The box keeps its width, so the boxes beside it do not move. Only its height shrinks.
 - After a toggle, focus stays on the chevron. The button is the same element in both states.
 - The existing `app-grid-announce` live region says "Media collapsed. 6 apps, 1 down." or "Media expanded."
 - The Uncategorized box (id `''`) gets the pill, bar and badge but no chevron. It has no category id to save, and v5 Q2 (`specs/DECISIONS.md` 2026-06-12) keeps render-time buckets always expanded.
 
 ### 3.5 Saving the state
 
-- On load, AppGrid fetches `GET /api/me/collapsed-categories` beside `fetchCategories()`. The grid renders once both answer, so a collapsed box never flashes open. Any error or non-200 means "all expanded".
+- On load, AppGrid fetches `GET /api/me/collapsed-categories` beside `fetchCategories()`, in parallel. The grid renders once both answer, so a collapsed box never flashes open. Any error or non-200 means "all expanded". A kid skips the fetch and renders at once: a kid has no chevron (§3.7), so the set never changes what a kid sees.
 - Ids in the set that name no current box are ignored. The server already drops them on write, and a deleted box's row is removed by the FK cascade.
 - A toggle updates the screen at once, then sends `PUT` with the whole set. If the PUT fails, the toggle rolls back and the existing grid toast says "Couldn't save. Try again."
-- Fast toggles are not lost: each PUT sends the latest full set, and a reply for an older PUT never rolls back a newer toggle.
+- Fast toggles are not lost. PUTs are sent one at a time: while one is in flight, further toggles only update the screen, and when it returns the client sends one more PUT with the latest full set if it differs from what was sent. So the server can never apply an older set after a newer one, and a reply for an older PUT never rolls back a newer toggle.
 - Re-add `getCollapsedCategories()` and `setCollapsedCategories(ids)` to `src/api.ts` on the shared `request()` helper.
 
 ### 3.6 Edit Dashboard and arrange mode
@@ -114,15 +114,15 @@ A kid can read the set (`GET` is kid-filtered) but gets 403 on `PUT` (`classKidF
 | ID | Criterion | Priority |
 |----|-----------|----------|
 | AC-001 | Every box header shows a count pill equal to the number of apps the user sees in that box, in the `.cat-count` style, with the accessible text "N apps". | Must |
-| AC-002 | Every box with at least one app shows a 64×5px status bar with up to three segments in the order green, gray, red. Segment widths follow the app counts, with a 4px minimum. An empty box shows no bar. | Must |
+| AC-002 | Every box with at least one app shows a 64×5px status bar with up to three segments in the order green, gray, red. Widths follow §3.2's formula: each non-empty band ≥4px and the total is exactly 64px (98/1/1 does not overflow). An empty box shows no bar. | Must |
 | AC-003 | The bar uses the health meter's band mapping and colour tokens from one shared module that `StatusBar.tsx` also uses. DEGRADED is red, UNKNOWN is gray. No service or category hue is used. | Must |
 | AC-004 | Each header has hidden text naming the counts per band ("6 apps: 4 up, 1 down, 1 not monitored"). The bar is `aria-hidden`. | Must |
 | AC-005 | A box with any DOWN or DEGRADED app shows a "N down" badge with visible text, in both states. N counts both. It is hidden when N is 0. | Must |
-| AC-006 | Every real category box has a chevron `<button>` with `aria-expanded`, `aria-controls` and the stable name "{title} apps". Uncategorized has none. | Must |
+| AC-006 | Every real category box has a chevron `<button>` with `aria-expanded`, `aria-controls` and the stable name "{title} apps". The `aria-controls` id exists in the DOM when the box is open, collapsed or empty. Uncategorized has none. | Must |
 | AC-007 | Collapsing hides the tools grid and shows only the header row, with title, pill, badge and bar. The box keeps its width; no other box moves. | Must |
 | AC-008 | Enter and Space toggle the chevron. Focus stays on it. The live region announces "{title} collapsed. N apps, M down." (the down part only when M > 0) or "{title} expanded." | Must |
 | AC-009 | The collapsed set loads from `GET /api/me/collapsed-categories` before the grid first renders. A collapsed box never shows open first. A failed GET renders all boxes open. | Must |
-| AC-010 | A toggle PUTs the whole current set. A failed PUT rolls back that toggle and shows an error toast. A reply to an older PUT never undoes a newer toggle. | Must |
+| AC-010 | A toggle PUTs the whole current set. At most one PUT is in flight; toggles made meanwhile are sent as one follow-up PUT with the latest set, so the server always ends on the newest set. A failed PUT rolls back and shows an error toast. A reply to an older PUT never undoes a newer toggle. A kid's grid makes no collapse request. | Must |
 | AC-011 | The state survives a reload and is per user: user A collapsing a box does not collapse it for user B. | Must |
 | AC-012 | Ids in the loaded set that match no box are ignored, and no error shows. | Should |
 | AC-013 | In Edit Dashboard every box shows open and no chevron renders. The saved set is unchanged, and the saved state returns on leaving the mode. | Must |

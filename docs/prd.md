@@ -232,7 +232,7 @@ milestones name against Gitea, and sorted the 40 issues opened since 10-11 into
 M2, M3 and M9.
 
 **Refreshed 2026-11-25.** 18.1.0 to 18.6.0 shipped on 11-23 and 11-24, and
-18.6.0 is in production. M9, M3, M4 and M6 are closed. No milestone is active. Open: M2 (#576, Joe), M7 (launch posts, Caleb) and M5 (needs a spec). Outside any milestone: #715 (preview CSP) and #691 (QA runner).
+18.6.0 is in production. M9, M3, M4 and M6 are closed, and M10 (below) is now the active milestone. Also open: M2 (#576, Joe), M7 (launch posts, Caleb) and M5 (needs a spec). Outside any milestone: #715 (preview CSP) and #691 (QA runner).
 
 **M10 added 2026-11-25** (Caleb's go): the top three of the 2026-11-24 UI review, #725, #722 and #718, plus the dead CSS from #724, as 18.7.0. The rest of #717–#726 stays open in ranked order. M10 is the active milestone.
 

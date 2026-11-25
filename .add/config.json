@@ -11,7 +11,7 @@
     "level": "ga",
     "promoted_from": null,
     "promoted_date": null,
-    "next_promotion_criteria": "GA is the top level. Sole outstanding evidence gap at adoption: no enforced coverage threshold (resolved by this init \u2014 90% configured in vite.config.ts)."
+    "next_promotion_criteria": "GA is the top level. Sole outstanding evidence gap at adoption: no enforced coverage threshold (resolved by this init — 90% configured in vite.config.ts)."
   },
   "architecture": {
     "languages": [

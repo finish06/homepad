@@ -41,7 +41,7 @@ Checked at `f32a4b0`. Line numbers in the issues have drifted.
 | #724: `.recently-opened-*` is dead | **Partly wrong.** Only the v14 rail is dead: `.recently-opened-rail`, `.recently-opened-chips`, `.recently-opened-chip`. The cap3 row is live: `.recently-opened`, `-label`, `-list`, `-item`, `-icon`, `-name`, `-clear` (`AppGrid.tsx:1177-1219`). Keep those. |
 | #724: `.tile` is dead | True for the app, but `tests/infra/dark-tile-shadow.test.tsx` greps `.tile` and `.dark .tile` out of `index.css`. Deleting the rules fails it. AC-016 says how it changes. |
 | Not in either issue | `.cat-count` (`index.css:413-431`) is also unreferenced. #718 plans to reuse it for the box count pill, so it stays. |
-| Not in either issue | The Gear shows **Add apps** to members (`src/app/AppHeader.tsx:203-212`, pinned by `gear-arrange-apps.test.tsx` TC-006). It opens a Library whose Add buttons 403. That is a separate bug; see §5. |
+| Not in either issue | The Gear shows **Add apps** to members (`src/app/AppHeader.tsx:203-212`, pinned by `gear-arrange-apps.test.tsx` TC-006). It opens a Library whose Add buttons 403. Decided 2026-11-25: members lose "Add apps" in the Gear. That fix is in SPEC-ui-quick-wins AC-017, also in M10; this spec doesn't change the Gear. |
 
 ## 3. Open questions — decided
 
@@ -52,7 +52,7 @@ Checked at `f32a4b0`. Line numbers in the issues have drifted.
 | OQ-1 | What shape does the skeleton draw before the data arrives? | **Remember the last layout on this device.** Store each box's span and app count (capped at 12, no names or ids) in `localStorage`, the same way density is cached. Draw that. On a first visit, or when the cache is missing or bad, draw a fallback: two half boxes with 3 tiles and one full box with 4 tiles. |
 | OQ-2 | When an admin adds from an empty box's button, where does the app go? | **Into that box.** `addFromLibrary` already takes a `categoryId` (`src/api.ts:597`). The Library opens with that box as its target and says so in its heading ("Add to Media"). The Gear's Add apps keeps landing apps in Uncategorized. |
 | OQ-3 | An admin with boxes but no apps sees the dashboard empty state and an empty-box button in every box. Is that too many buttons (#119)? | **Hide the box buttons while `admin-empty` shows.** The boxes keep their text. Once there is one app, `admin-empty` goes and the box buttons appear. |
-| OQ-4 | Should a member get a read-only "Browse the App Library" in empty states? | **No.** A member can't add, so a Library full of Add buttons that fail is worse than no button. Members get plain words. Fix the Gear for members in its own issue (§5). |
+| OQ-4 | Should a member get a read-only "Browse the App Library" in empty states? | **No.** A member can't add, so a Library full of Add buttons that fail is worse than no button. Members get plain words. The Gear fix for members is SPEC-ui-quick-wins AC-017 (§5). |
 
 The ACs below use these answers.
 
@@ -104,7 +104,7 @@ The ACs below use these answers.
 ## 5. Out of scope
 
 - The accent decision (#724 options A and B), token consolidation, and splitting `index.css`. Those wait for Caleb's call on #724.
-- Fixing **Add apps** for members in the Gear. It opens a Library whose Add buttons 403. File it as its own issue: either hide it for members or make the Library read-only for them. This spec does not change the Gear.
+- The Gear's **Add apps** for members. SPEC-ui-quick-wins AC-017 removes it (decided 2026-11-25, `specs/DECISIONS.md`). This spec does not change the Gear and needs no new issue.
 - Any change to who can add apps. The API's role rules stay as they are.
 - A skeleton for the app-level loader (`App.tsx:148-160`), Settings, the Library or the launcher.
 - Group header count pills and collapsing (#718).
