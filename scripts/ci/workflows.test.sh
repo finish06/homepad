@@ -108,6 +108,8 @@ check "#680 qa-login-url is the same host plus /api/login" \
   grep -qF 'qa-login-url: http://pr-${{ github.event.pull_request.number }}.${{ vars.PREVIEW_DOMAIN }}/api/login' "$mr"
 # Code review before QA (ci-shared code-review input): a blocking review halts QA.
 check "code-review is on for the mr-staging step" grep -qxF "          code-review: 'true'" "$mr"
+check "code-review: REVIEW_TRIGGER_TOKEN is mapped into the mr-staging step env" \
+  grep -qE '^          REVIEW_TRIGGER_TOKEN: +\$\{\{ secrets\.REVIEW_TRIGGER_TOKEN \}\}$' "$mr"
 check "#680 deploy-cmd builds PREVIEW_URL from PREVIEW_DOMAIN" \
   grep -qF 'PREVIEW_URL="http://pr-$PR_NUMBER.$PREVIEW_DOMAIN"' "$mr"
 check "#680 the step maps PREVIEW_DOMAIN into its env" \
