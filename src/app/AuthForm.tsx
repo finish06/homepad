@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { authConfig, login, register, type AuthConfig, type Result, type User } from '../api';
 import { accountLimitMessage, isAccountLimit } from '../lib/accountLimit';
 import { waitMessage } from '../lib/waitMessage';
@@ -23,7 +23,23 @@ export default function AuthForm({ onAuthed, ssoError }: { onAuthed: (u: User) =
   const [config, setConfig] = useState<AuthConfig | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setErrorText] = useState('');
+  // SPEC-ui-quick-wins AC-020 — every error shown is a NEW alert node (keyed on
+  // this count), so a second failure with the same words is announced again
+  // instead of leaving a live region whose text did not change.
+  const [errorSeq, setErrorSeq] = useState(0);
+  const setError = (msg: string) => {
+    setErrorText(msg);
+    if (msg) setErrorSeq((n) => n + 1);
+  };
+  // SPEC-ui-quick-wins §3.7 — show/hide password and the Caps Lock hint.
+  const [showPassword, setShowPassword] = useState(false);
+  const [capsLock, setCapsLock] = useState(false);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  // The caret to put back after a show/hide toggle (AC-018).
+  const restoreCaret = useRef<[number, number] | null>(null);
+  const passwordId = useId();
+  const capsId = useId();
   // SPEC-signin-hardening UX §2 — the single sign-on line, for the code App
   // read from /#signin-error=. Its copy is a lazy module, loaded only when a
   // code is present (AC-020). It stays until the next try, a submit or
@@ -51,6 +67,36 @@ export default function AuthForm({ onAuthed, ssoError }: { onAuthed: (u: User) =
     // Once, on mount: App hands over the code once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // AC-018 — after a show/hide toggle, focus and the caret go back into the
+  // field, where they were (switching `type` can reset the selection).
+  useLayoutEffect(() => {
+    const caret = restoreCaret.current;
+    const input = passwordRef.current;
+    if (!caret || !input) return;
+    restoreCaret.current = null;
+    input.focus();
+    input.setSelectionRange(caret[0], caret[1]);
+    // Chrome resets the selection to 0 at the next style update after a
+    // `type` change (measured in the browser gate; jsdom does not), so put it
+    // back once more before that frame paints.
+    const raf = requestAnimationFrame(() => {
+      if (document.activeElement === input) input.setSelectionRange(caret[0], caret[1]);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [showPassword]);
+
+  function togglePassword() {
+    const input = passwordRef.current;
+    if (input) restoreCaret.current = [input.selectionStart ?? input.value.length, input.selectionEnd ?? input.value.length];
+    setShowPassword((v) => !v);
+  }
+
+  // AC-019 — read Caps Lock from every key event in the field; it can change
+  // while the field has focus (the CapsLock key itself), so keyup counts too.
+  function readCapsLock(e: React.KeyboardEvent<HTMLInputElement>) {
+    setCapsLock(e.getModifierState?.('CapsLock') === true);
+  }
 
   const canRegister = config?.registration === 'open';
   const oidcEnabled = config?.oidcEnabled === true;
@@ -138,27 +184,58 @@ export default function AuthForm({ onAuthed, ssoError }: { onAuthed: (u: User) =
           />
         </label>
 
-        <label className="auth-label mt-4 block text-[13px] font-medium">
+        {/* SPEC-ui-quick-wins §3.7 — the label no longer wraps the input, so
+            the show/hide button beside it never joins the field's name. */}
+        <label htmlFor={passwordId} className="auth-label mt-4 block text-[13px] font-medium">
           Password
+        </label>
+        <div className="relative mt-1.5">
           <input
-            type="password"
+            ref={passwordRef}
+            id={passwordId}
+            type={showPassword ? 'text' : 'password'}
             required
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            aria-describedby={mode === 'setup' ? hintId : undefined}
-            className="auth-field mt-1.5 min-h-[44px] w-full"
+            onKeyDown={readCapsLock}
+            onKeyUp={readCapsLock}
+            onBlur={() => setCapsLock(false)}
+            aria-describedby={
+              [mode === 'setup' ? hintId : '', capsLock ? capsId : ''].filter(Boolean).join(' ') || undefined
+            }
+            className="auth-field min-h-[44px] w-full pr-12"
           />
-        </label>
+          {/* AC-018 — 44×44, type="button" so it never submits. Its name is its
+              (visually hidden) text, not an aria-label, so it is not picked up
+              as a label for the password field either. A mouse press must not
+              take focus out of the field. */}
+          <button
+            type="button"
+            data-testid="auth-password-toggle"
+            aria-pressed={showPassword}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={togglePassword}
+            className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center rounded-lg text-[color:var(--v-muted)] outline-none transition hover:text-[color:var(--v-txt)] focus-visible:text-[color:var(--v-txt)] focus-visible:ring-2 focus-visible:ring-indigo-500"
+          >
+            <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
+            <EyeIcon off={showPassword} />
+          </button>
+        </div>
         {mode === 'setup' && (
           <p id={hintId} className="auth-subtitle mt-1.5 text-xs">
             At least 8 characters.
           </p>
         )}
+        {/* AC-019 — always in the DOM (empty when off), so the polite live
+            region exists before its text appears and the hint is announced. */}
+        <p id={capsId} aria-live="polite" className={capsLock ? 'auth-subtitle mt-1.5 text-xs' : 'sr-only'}>
+          {capsLock ? 'Caps Lock is on' : ''}
+        </p>
 
         {error && (
-          <p role="alert" className="auth-error mt-3 text-sm">
+          <p key={errorSeq} role="alert" className="auth-error mt-3 text-sm">
             {error}
           </p>
         )}
@@ -228,5 +305,17 @@ export default function AuthForm({ onAuthed, ssoError }: { onAuthed: (u: User) =
         homepad v{__APP_VERSION__}
       </p>
     </main>
+  );
+}
+
+// The show/hide glyph: an eye, struck through while the password is shown
+// (pressing it again hides it). aria-hidden; the button's text names it.
+function EyeIcon({ off }: { off: boolean }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="3" />
+      {off && <path strokeLinecap="round" d="M4 4l16 16" />}
+    </svg>
   );
 }

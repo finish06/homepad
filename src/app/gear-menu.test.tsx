@@ -11,7 +11,8 @@ expect.extend(toHaveNoViolations);
 // The Gear is a unified dropdown menu. SPEC-app-grid §2/§7 retired the Catalog
 // layout that owned tile Arrange + Edit-tiles modes, so those two items are gone;
 // the Gear now carries the service-management actions that outlive the layout
-// swap: "Add apps" (Library, all users) and "Add custom app" (admin).
+// swap: "Add apps" (Library) and "Add custom app", both admin-only since
+// SPEC-ui-quick-wins AC-017.
 
 const ADMIN: User = { id: 'a1', email: 'caleb@ohana.io', role: 'admin', themePref: 'system' };
 const USER: User = { id: 'u1', email: 'nani@ohana.io', role: 'member', themePref: 'system' };
@@ -72,11 +73,17 @@ describe('A2 — personal items for all users', () => {
     expect(screen.getByTestId('gear-add-apps')).toHaveTextContent(/add apps/i);
   });
 
-  it('non-admin also sees Add apps', async () => {
+  // SPEC-ui-quick-wins AC-017 reverses this case (it was "non-admin also sees
+  // Add apps", v18 A2/D4). Adding from the Library is admin-only on the server
+  // since 18.0.0, so a member's every Add failed with no message. A member now
+  // sees no Add apps; the admin case above keeps it. Arrange apps stays for
+  // everyone (v29 AC-005), covered in AG-EDIT-1 below.
+  it('non-admin does NOT see Add apps (SPEC-ui-quick-wins AC-017)', async () => {
     const user = userEvent.setup();
     renderHeader(USER);
     await openGear(user);
-    expect(screen.getByTestId('gear-add-apps')).toBeInTheDocument();
+    expect(screen.getByTestId('gear-menu')).toBeInTheDocument();
+    expect(screen.queryByTestId('gear-add-apps')).not.toBeInTheDocument();
   });
 
   // The retired Catalog Arrange/Edit-tiles items must not resurface (#223 / §7).
@@ -216,5 +223,60 @@ describe('A13 — accessibility', () => {
       rules: { 'aria-required-children': { enabled: false } },
     });
     expect(results).toHaveNoViolations();
+  });
+});
+
+// SPEC-ui-quick-wins AC-010 — the Gear menu gets the user menu's arrow-key
+// model, from one shared hook (src/ui/useMenuKeys.ts). It must walk the
+// menuitemcheckbox "Arrange apps" too, which a menuitem-only walk would skip.
+describe('AC-010 — Gear arrow keys', () => {
+  const ids = () => document.activeElement?.getAttribute('data-testid');
+
+  it('admin: ArrowDown/ArrowUp walk every item, including the checkbox, and wrap', async () => {
+    const user = userEvent.setup();
+    renderHeader(ADMIN);
+    await openGear(user);
+    expect(ids()).toBe('gear-add-apps');
+    await user.keyboard('{ArrowDown}');
+    expect(ids()).toBe('gear-edit-dashboard');
+    await user.keyboard('{ArrowDown}');
+    expect(ids()).toBe('gear-add-custom-app');
+    await user.keyboard('{ArrowDown}');
+    expect(ids()).toBe('gear-add-apps');
+    await user.keyboard('{ArrowUp}');
+    expect(ids()).toBe('gear-add-custom-app');
+    await user.keyboard('{ArrowUp}');
+    expect(ids()).toBe('gear-edit-dashboard');
+  });
+
+  it('admin: Home and End go to the first and last item', async () => {
+    const user = userEvent.setup();
+    renderHeader(ADMIN);
+    await openGear(user);
+    await user.keyboard('{End}');
+    expect(ids()).toBe('gear-add-custom-app');
+    await user.keyboard('{Home}');
+    expect(ids()).toBe('gear-add-apps');
+  });
+
+  it('member: focus lands on Arrange apps (now the first item) and arrows stay on it', async () => {
+    const user = userEvent.setup();
+    renderHeader(USER);
+    await openGear(user);
+    expect(ids()).toBe('gear-edit-dashboard');
+    await user.keyboard('{ArrowDown}');
+    expect(ids()).toBe('gear-edit-dashboard');
+    await user.keyboard('{End}');
+    expect(ids()).toBe('gear-edit-dashboard');
+  });
+
+  it('Escape after arrowing still closes and returns focus to the gear', async () => {
+    const user = userEvent.setup();
+    renderHeader(ADMIN);
+    await openGear(user);
+    await user.keyboard('{ArrowDown}{ArrowDown}');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByTestId('gear-menu')).not.toBeInTheDocument();
+    expect(screen.getByTestId('settings-gear')).toHaveFocus();
   });
 });

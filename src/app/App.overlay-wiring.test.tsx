@@ -49,6 +49,17 @@ vi.mock('../library/LibraryBrowse', () => ({
   ),
 }));
 
+// SPEC-ui-quick-wins AC-009 — the toast overlay, stubbed with a button that
+// fires the onView App passes in (the real toasts need a status flip between
+// two polls; Toasts.test.tsx covers them).
+vi.mock('../alerts/Toasts', () => ({
+  default: (props: { onView?: () => void }) => (
+    <button data-testid="toast-view-stub" onClick={() => props.onView?.()}>
+      view
+    </button>
+  ),
+}));
+
 vi.mock('../library/ServiceForm', () => ({
   default: (props: { onClose: () => void; onSaved: (s: unknown, m: 'add' | 'edit') => void }) => (
     <div data-testid="form-stub">
@@ -113,9 +124,20 @@ const openUserMenu = async (u: ReturnType<typeof userEvent.setup>) =>
   u.click(await screen.findByTestId('user-menu-trigger'));
 
 describe('App overlay wiring — the library browser', () => {
-  it('gear → Add apps mounts the library, and its onClose unmounts it', async () => {
+  // SPEC-ui-quick-wins AC-017 — adding from the Library is admin-only on the
+  // server (403 for members since 18.0.0), so a member's Gear has no way in.
+  // The library cases below therefore boot as an admin.
+  it('a member has no Add apps in the Gear, so no way into the Library', async () => {
     const u = userEvent.setup();
     await boot(USER);
+    await openGear(u);
+    expect(screen.queryByTestId('gear-add-apps')).not.toBeInTheDocument();
+    expect(screen.getByTestId('gear-edit-dashboard')).toBeInTheDocument();
+  });
+
+  it('gear → Add apps mounts the library, and its onClose unmounts it', async () => {
+    const u = userEvent.setup();
+    await boot(ADMIN);
     await openGear(u);
     await u.click(screen.getByTestId('gear-add-apps'));
     expect(await screen.findByTestId('library-stub')).toBeInTheDocument();
@@ -129,7 +151,7 @@ describe('App overlay wiring — the library browser', () => {
     // the library would leave two overlays stacked, and "the form appeared" alone
     // would not notice.
     const u = userEvent.setup();
-    await boot(USER);
+    await boot(ADMIN);
     await openGear(u);
     await u.click(screen.getByTestId('gear-add-apps'));
     await screen.findByTestId('library-stub');
@@ -141,7 +163,7 @@ describe('App overlay wiring — the library browser', () => {
 
   it('the library\'s onAdded is wired and leaves the overlay open', async () => {
     const u = userEvent.setup();
-    await boot(USER);
+    await boot(ADMIN);
     await openGear(u);
     await u.click(screen.getByTestId('gear-add-apps'));
     await screen.findByTestId('library-stub');
@@ -244,6 +266,18 @@ describe('App overlay wiring — alerts and the edit-mode banner', () => {
     await u.click(await screen.findByTestId('alert-bell'));
     await u.click(await screen.findByTestId('alert-panel-close'));
     expect(screen.queryByTestId('alert-panel-close')).not.toBeInTheDocument();
+  });
+
+  // SPEC-ui-quick-wins AC-009 — a toast's View opens the alert history panel,
+  // through the same path as the bell (badge cleared, launcher closed).
+  it('a toast\'s View opens the alert history panel, and a second View keeps it open', async () => {
+    const u = userEvent.setup();
+    await boot(USER);
+    await u.click(await screen.findByTestId('toast-view-stub'));
+    expect(await screen.findByTestId('alert-panel-close')).toBeInTheDocument();
+    // View is "open", never "toggle": a second toast's View must not close it.
+    await u.click(screen.getByTestId('toast-view-stub'));
+    expect(screen.getByTestId('alert-panel-close')).toBeInTheDocument();
   });
 
   it('an admin in arrange mode can exit via the banner Done button', async () => {

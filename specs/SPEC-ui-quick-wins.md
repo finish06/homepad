@@ -50,7 +50,7 @@ Seven small UI items from the 2026-11-24 review. Each can ship on its own. None 
 ### 3.2 Freshness label (item 2)
 
 - For admins and members the label becomes a `<button>`. Visible text stays "Updated Xs ago". Accessible name: "Updated Xs ago. Refresh status".
-- While a refresh runs it shows "Refreshing…", has `aria-busy="true"` and is disabled.
+- While a refresh runs it shows "Refreshing…", has `aria-busy="true"` and is disabled with `aria-disabled` (not the `disabled` attribute, so keyboard focus stays on it; a click while busy is ignored).
 - The outcome goes to a polite live region: "Status refreshed", "Couldn't reach the status source", or "Checked — nothing newer yet". These map to `refreshed`, `unreachable`, `still-stale`.
 - `refresh()` in the provider keeps one in-flight promise and hands it to every caller until it settles.
 
@@ -107,7 +107,7 @@ Who sees what, under the 18.0.0 roles:
 | AC-003 | 1 | The inline script in `index.html` is byte-for-byte unchanged. `tests/infra/frame-headers.test.ts` ("every inline script in the BUILT index.html is hash-listed", "the source index.html hashes the same", "the homelab ConfigMap block in the spec carries the same line (§7)") passes with no edit to `nginx-security-headers.conf`, the other nginx configs or SPEC-cleanup-18.6.0 §7. | Must |
 | AC-004 | 2 | For admins and members, the header "Updated Xs ago" is a button. Clicking it, or Enter/Space, calls `refresh()`. | Must |
 | AC-005 | 2 | While a refresh is in flight, more `refresh()` calls (from the header or the health panel) send no second `POST /api/status/refresh` and resolve to the same outcome. | Must |
-| AC-006 | 2 | While in flight the label shows "Refreshing…", is disabled and `aria-busy`. The outcome is announced politely in words for each of `refreshed`, `unreachable`, `still-stale`. The freshness rules of SPEC-v24 §12.3 hold (no counter reset unless refreshed). | Must |
+| AC-006 | 2 | While in flight the label shows "Refreshing…", is disabled (`aria-disabled`, §3.2) and `aria-busy`. The outcome is announced politely in words for each of `refreshed`, `unreachable`, `still-stale`. The freshness rules of SPEC-v24 §12.3 hold (no counter reset unless refreshed). | Must |
 | AC-007 | 3 | A toast's timer pauses while it is hovered or has focus inside it, and resumes with the time left when both end. A toast never closes while hovered or focused. | Must |
 | AC-008 | 3 | Every toast has a labelled dismiss button of at least 24×24px that closes it at once. If focus was in the toast, it moves to the next toast's dismiss button, or else to the alert bell. | Must |
 | AC-009 | 3 | Status-change toasts have a "View" button that opens the alert history panel and closes the toast. | Should |
@@ -163,3 +163,15 @@ Decided by Caleb on 2026-11-25 (`specs/DECISIONS.md`). The ACs use these answers
 2. **Where does a toast's "View" go?** Decided: it opens the alert history panel. It always works, even when the tile is filtered out or off screen. It does not scroll to the tile.
 3. **What does a member get from the Library?** Today a member can open it but every add fails without a message. Decided: a member's Gear menu has no "Add apps", as kids are already kept from controls that 403 (AC-017). No read-only Library for members.
 4. **Which shapes for DOWN and DEGRADED?** Decided: DOWN a diamond, DEGRADED a rounded square, both in the same 9px box so ring and glow stay intact. Kare checks them on a real screen during the build.
+
+## 8. Build notes (#725)
+
+Small calls made while building. None reopens a §7 decision.
+
+- **AC-006, "disabled".** The busy freshness button uses `aria-disabled`, not the `disabled` attribute. `disabled` drops keyboard focus to `<body>` the moment you press Enter. A click while busy is ignored, so the effect is the same.
+- **AC-020 already held.** On `main` the submit clears the error before the request, and React commits that before the answer comes back, so the second alert was already a new node. The test pins it. The alert now also has a key that changes with every error, so it stays true if that clearing render is ever batched away.
+- **AC-014 group order.** Group order is worked out from the whole library, not the filtered view, so groups don't jump when the filter changes.
+- **AC-015 focus.** Under "Not added", the row you added leaves the view. Focus moves to the row that took its place (or the filter), not to `<body>`.
+- **AC-012 diamond.** The turn uses the CSS `rotate` property, not `transform`, so the SPEC-242 change-pulse (`transform: scale()`) still works on a DOWN pip. The pip box stays 9px. Its on-screen bounding box is about 12.7px while turned, and the SPEC-242 position gate still passes.
+- **AC-018 caret.** Chrome resets the selection to 0 at the next style update after an input's `type` changes. The caret is put back once more on the next animation frame. The browser gate checks this; jsdom does not show the reset.
+- **AC-017 tests.** Beyond the two named reversals, `App.overlay-wiring.test.tsx` opened the Library from a member's Gear in three cases. Those now start as an admin, and a new case checks that a member has no way in.

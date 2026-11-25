@@ -8,6 +8,7 @@
 
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { setThemePref, type ThemePref } from '../api';
+import { syncThemeColor } from './browserChrome';
 
 export type ResolvedTheme = 'light' | 'dark';
 
@@ -128,6 +129,9 @@ export function ThemeProvider({
   // Apply before paint to avoid a flash, and mirror into the first-paint cache.
   useLayoutEffect(() => {
     document.documentElement.classList.toggle('dark', resolved === 'dark');
+    // SPEC-ui-quick-wins AC-001 — the page background just changed, so the
+    // browser bar's theme-color follows it.
+    syncThemeColor();
     try {
       localStorage.setItem(THEME_CACHE_KEY, resolved);
     } catch {

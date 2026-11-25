@@ -276,7 +276,21 @@ export function ServicesProvider({
     };
   }, [pollMs]);
 
-  async function refresh(): Promise<RefreshOutcome> {
+  // SPEC-ui-quick-wins AC-005 — ONE refresh in flight at a time. The header's
+  // freshness button and the health panel's "Retry now" both call this; while a
+  // POST is pending every caller gets the same promise, so no second POST is
+  // sent and all callers see the same outcome. Cleared once it settles.
+  const inflight = useRef<Promise<RefreshOutcome> | null>(null);
+  function refresh(): Promise<RefreshOutcome> {
+    if (inflight.current) return inflight.current;
+    const p = refreshOnce().finally(() => {
+      inflight.current = null;
+    });
+    inflight.current = p;
+    return p;
+  }
+
+  async function refreshOnce(): Promise<RefreshOutcome> {
     const r = await refreshStatus();
     if (!r.ok) return 'unreachable';
     // A 200 with the same as_of as last time means the poller answered but had

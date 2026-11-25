@@ -11,6 +11,20 @@ import { categoryHue } from '../lib/categoryColor';
 // available (delegated to the existing ServiceForm via onCustomAdd). CLIENT-SIDE
 // only — no homepad-api change.
 
+// SPEC-ui-quick-wins AC-015 — the Added filter's three choices.
+type Show = 'all' | 'not-added' | 'added';
+const SHOW_OPTIONS: { id: Show; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'not-added', label: 'Not added' },
+  { id: 'added', label: 'Added' },
+];
+// What to say when the radio filter alone leaves nothing to show.
+const NOTHING_SHOWN: Record<Show, string> = {
+  all: 'No apps to show.',
+  'not-added': 'Every app is already added.',
+  added: 'No added apps yet.',
+};
+
 export default function LibraryBrowse({
   onClose,
   onAdded,
@@ -30,6 +44,8 @@ export default function LibraryBrowse({
 }) {
   const [offers, setOffers] = useState<LibraryOffer[] | null>(null);
   const [query, setQuery] = useState('');
+  // SPEC-ui-quick-wins AC-015 — All · Not added · Added.
+  const [show, setShow] = useState<Show>('all');
   // The id currently being added — disables its button so a double-click can't
   // fire two copies by accident (an intentional "Add again" still can).
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -94,14 +110,65 @@ export default function LibraryBrowse({
   const visible = useMemo(() => {
     if (!offers) return [];
     const q = query.trim().toLowerCase();
-    if (q === '') return offers;
     return offers.filter(
       (o) =>
-        o.name.toLowerCase().includes(q) ||
-        o.description.toLowerCase().includes(q) ||
-        o.suggestedCategory.toLowerCase().includes(q),
+        // SPEC-ui-quick-wins AC-015 — the Added filter combines with the text one.
+        (show === 'all' || (show === 'added') === o.added) &&
+        (q === '' ||
+          o.name.toLowerCase().includes(q) ||
+          o.description.toLowerCase().includes(q) ||
+          o.suggestedCategory.toLowerCase().includes(q)),
     );
-  }, [offers, query]);
+  }, [offers, query, show]);
+
+  // SPEC-ui-quick-wins §3.6 / AC-014 — one group per suggested category, in the
+  // order of each group's first offer in the admin's library order; offers with
+  // no category go in "Other", last. The ORDER comes from the whole library,
+  // not the filtered view, so groups don't jump as the filter changes; only
+  // groups with a visible offer render, and counts are what is shown. Library
+  // order holds inside a group. Groups only sort the list: they never decide
+  // where an app lands on the dashboard.
+  const groups = useMemo(() => {
+    const order = new Map<string, number>();
+    (offers ?? []).forEach((o) => {
+      if (o.suggestedCategory && !order.has(o.suggestedCategory)) order.set(o.suggestedCategory, order.size);
+    });
+    const byCat = new Map<string, LibraryOffer[]>();
+    visible.forEach((o) => {
+      const rows = byCat.get(o.suggestedCategory);
+      if (rows) rows.push(o);
+      else byCat.set(o.suggestedCategory, [o]);
+    });
+    const rank = (c: string) => (c === '' ? Number.MAX_SAFE_INTEGER : (order.get(c) ?? 0));
+    return Array.from(byCat, ([category, rows]) => ({ category, rows })).sort(
+      (a, b) => rank(a.category) - rank(b.category),
+    );
+  }, [offers, visible]);
+  // Each visible offer's position in the rendered (grouped) order.
+  const rowIndex = useMemo(
+    () => new Map(groups.flatMap((g) => g.rows).map((o, i) => [o.id, i] as const)),
+    [groups],
+  );
+
+  // AC-015 — under "Not added", an Add moves its row out of the view, and the
+  // button that held focus goes with it. Focus then moves to the row that took
+  // its place (or the filter) instead of falling to <body>.
+  const refocusAt = useRef<number | null>(null);
+  function addFromRow(offer: LibraryOffer, index: number) {
+    refocusAt.current = index;
+    void add(offer);
+  }
+  useEffect(() => {
+    const i = refocusAt.current;
+    const panel = panelRef.current;
+    if (i === null || !panel || busyId !== null) return;
+    refocusAt.current = null;
+    // The row is still there (All or Added view): focus never left it.
+    if (panel.contains(document.activeElement)) return;
+    const buttons = panel.querySelectorAll<HTMLElement>('.library-row button:not([disabled])');
+    const fallback = panel.querySelector<HTMLElement>('input[name="library-show"]:checked');
+    (buttons[i] ?? buttons[buttons.length - 1] ?? fallback)?.focus();
+  }, [visible, busyId]);
 
   return (
     <Modal onDismiss={onClose} overlayClassName="launcher-overlay" overlayTestId="library-browse-overlay">
@@ -149,6 +216,35 @@ export default function LibraryBrowse({
           </div>
         )}
 
+        {/* SPEC-ui-quick-wins AC-015 / AC-016 — All · Not added · Added, as
+            native radios (one Tab stop, arrows move within), right under the
+            text filter so Tab order follows what you see. */}
+        {offers && offers.length > 0 && (
+          <div role="radiogroup" aria-label="Show" data-testid="library-show" className="flex flex-wrap gap-1.5 px-4 pb-2 pt-1">
+            {SHOW_OPTIONS.map((opt) => (
+              <label
+                key={opt.id}
+                className={
+                  'relative inline-flex min-h-[44px] cursor-pointer items-center rounded-full border px-4 text-sm font-medium transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 ' +
+                  (show === opt.id
+                    ? 'border-indigo-600 bg-indigo-600 text-white dark:border-indigo-400 dark:bg-indigo-400 dark:text-neutral-950'
+                    : 'border-neutral-300 text-neutral-700 hover:bg-neutral-100 dark:border-neutral-600 dark:text-neutral-200 dark:hover:bg-neutral-800')
+                }
+              >
+                <input
+                  type="radio"
+                  name="library-show"
+                  value={opt.id}
+                  checked={show === opt.id}
+                  onChange={() => setShow(opt.id)}
+                  className="sr-only"
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+        )}
+
         <div className="launcher-results" role="region" aria-label="Library offers">
           {offers === null ? (
             <p className="library-loading">Loading…</p>
@@ -183,68 +279,93 @@ export default function LibraryBrowse({
             </div>
           ) : visible.length === 0 ? (
             <p data-testid="library-no-matches" className="launcher-no-results-title">
-              No apps match “{query.trim()}”.
+              {query.trim() ? <>No apps match “{query.trim()}”.</> : NOTHING_SHOWN[show]}
             </p>
           ) : (
-            <ul className="library-list" aria-label="Library offers">
-              {visible.map((o) => (
-                <li
-                  key={o.id}
-                  data-testid="library-row"
-                  data-library-id={o.id}
-                  className="library-row"
-                >
-                  <img
-                    src={o.icon || initialBadge(o.name)}
-                    alt=""
-                    onError={(e) => {
-                      const img = e.currentTarget;
-                      img.onerror = null;
-                      img.src = initialBadge(o.name);
-                    }}
-                    className="launcher-row-icon"
-                  />
-                  <div className="library-row-text">
-                    <span className="library-row-name">{o.name}</span>
-                    {o.description && (
-                      <span className="library-row-desc">{o.description}</span>
+            // SPEC-ui-quick-wins AC-014 — one labelled section per category,
+            // each with its own list. The heading shows the count of what is
+            // visible, and the category hue the row chips use (#90).
+            groups.map(({ category, rows }) => {
+              const name = category || 'Other';
+              return (
+                <section key={category ? `c:${category}` : 'other'} data-testid="library-group" aria-label={name}>
+                  <h3
+                    data-testid="library-group-title"
+                    className="flex items-center gap-2 px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-neutral-600 dark:text-neutral-300"
+                  >
+                    {category && (
+                      <span
+                        data-testid="library-group-hue"
+                        data-hue={categoryHue(category)}
+                        aria-hidden="true"
+                        className="inline-block h-2 w-2 flex-none rounded-full"
+                        style={{ backgroundColor: `hsl(${categoryHue(category)} 70% 50%)` }}
+                      />
                     )}
-                  </div>
-                  {o.suggestedCategory && (
-                    <span
-                      className="library-chip"
-                      style={{ '--chip-hue': categoryHue(o.suggestedCategory) } as CSSProperties}
-                    >
-                      {o.suggestedCategory}
-                    </span>
-                  )}
-                  {o.added ? (
-                    <button
-                      type="button"
-                      data-testid={`library-added-${o.id}`}
-                      aria-label={`Add another ${o.name} to my dashboard`}
-                      title="Add again"
-                      disabled={busyId === o.id}
-                      onClick={() => add(o)}
-                      className="library-added"
-                    >
-                      <span aria-hidden="true">✓</span> Added
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      data-testid={`library-add-${o.id}`}
-                      aria-label={`Add ${o.name} to my dashboard`}
-                      disabled={busyId === o.id}
-                      onClick={() => add(o)}
-                      className="library-add"
-                    >
-                      Add
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
+                    {`${name} (${rows.length})`}
+                  </h3>
+                  <ul className="library-list" aria-label={name}>
+                    {rows.map((o) => (
+                      <li
+                        key={o.id}
+                        data-testid="library-row"
+                        data-library-id={o.id}
+                        className="library-row"
+                      >
+                        <img
+                          src={o.icon || initialBadge(o.name)}
+                          alt=""
+                          onError={(e) => {
+                            const img = e.currentTarget;
+                            img.onerror = null;
+                            img.src = initialBadge(o.name);
+                          }}
+                          className="launcher-row-icon"
+                        />
+                        <div className="library-row-text">
+                          <span className="library-row-name">{o.name}</span>
+                          {o.description && (
+                            <span className="library-row-desc">{o.description}</span>
+                          )}
+                        </div>
+                        {o.suggestedCategory && (
+                          <span
+                            className="library-chip"
+                            style={{ '--chip-hue': categoryHue(o.suggestedCategory) } as CSSProperties}
+                          >
+                            {o.suggestedCategory}
+                          </span>
+                        )}
+                        {o.added ? (
+                          <button
+                            type="button"
+                            data-testid={`library-added-${o.id}`}
+                            aria-label={`Add another ${o.name} to my dashboard`}
+                            title="Add again"
+                            disabled={busyId === o.id}
+                            onClick={() => addFromRow(o, rowIndex.get(o.id) ?? 0)}
+                            className="library-added"
+                          >
+                            <span aria-hidden="true">✓</span> Added
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            data-testid={`library-add-${o.id}`}
+                            aria-label={`Add ${o.name} to my dashboard`}
+                            disabled={busyId === o.id}
+                            onClick={() => addFromRow(o, rowIndex.get(o.id) ?? 0)}
+                            className="library-add"
+                          >
+                            Add
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })
           )}
         </div>
 

@@ -291,3 +291,48 @@ describe('OQ-1 (a) — My settings is reachable by every user', () => {
     expect(precedes(mine, admin)).toBe(true);
   });
 });
+
+// SPEC-ui-quick-wins AC-010 / AC-011 — the user menu's arrow keys now come from
+// the shared hook (src/ui/useMenuKeys.ts) the Gear menu uses: ArrowDown/Up wrap,
+// Home/End jump. The Appearance theme group is a role="group" reached by Tab
+// and stays out of the arrow order.
+describe('AC-010 / AC-011 — user menu arrow keys', () => {
+  const ids = () => document.activeElement?.getAttribute('data-testid');
+
+  it('ArrowDown/ArrowUp walk the menu items and wrap at both ends', async () => {
+    const user = userEvent.setup();
+    renderMenu(ADMIN);
+    await open();
+    expect(ids()).toBe('menu-go-dashboard');
+    await user.keyboard('{ArrowUp}');
+    expect(ids()).toBe('menu-logout');
+    await user.keyboard('{ArrowDown}');
+    expect(ids()).toBe('menu-go-dashboard');
+    await user.keyboard('{ArrowDown}');
+    expect(ids()).toBe('menu-my-settings');
+    await user.keyboard('{ArrowDown}');
+    expect(ids()).toBe('menu-admin-settings');
+  });
+
+  it('Home and End go to the first and last item', async () => {
+    const user = userEvent.setup();
+    renderMenu(USER);
+    await open();
+    await user.keyboard('{End}');
+    expect(ids()).toBe('menu-logout');
+    await user.keyboard('{Home}');
+    expect(ids()).toBe('menu-go-dashboard');
+  });
+
+  it('the theme group is never reached by an arrow key', async () => {
+    const user = userEvent.setup();
+    renderMenu(USER);
+    await open();
+    const theme = screen.getByTestId('theme-control');
+    for (let i = 0; i < 8; i++) {
+      await user.keyboard('{ArrowDown}');
+      expect(theme.contains(document.activeElement)).toBe(false);
+    }
+  });
+});
+

@@ -4,6 +4,8 @@ import LauncherTrigger from '../launcher/LauncherTrigger';
 import { useServicesContext } from '../services';
 import UserMenu from './UserMenu';
 import { CONTENT_WIDTH } from '../lib/layout';
+import { focusFirstMenuItem, useMenuKeys } from '../ui/useMenuKeys';
+import type { RefreshOutcome } from '../services';
 
 // v13 — render the elapsed-since-last-refresh label. Seconds for the first
 // minute, then whole minutes, capped at "5m+" so the text can never grow without
@@ -22,10 +24,29 @@ export function formatUpdatedAgo(seconds: number): string {
 // lastUpdatedAt and self-ticks once a second (≤2s granularity, AC-004) so the
 // label counts up in real time without any new fetch. Renders nothing until the
 // first successful load (or when no provider is present — isolated tests).
+//
+// SPEC-ui-quick-wins §3.2 / AC-004..AC-006 — it is also the refresh control:
+// a click (or Enter/Space, it is a native button) calls the provider's
+// refresh(), the same call as the health panel's "Retry now", de-duped there
+// (AC-005). While it runs the label reads "Refreshing…" and is aria-busy and
+// aria-disabled. aria-disabled, not `disabled`, so a keyboard user's focus
+// stays on it instead of falling to <body>; a click while busy is ignored.
+// The outcome is spoken through a polite live region. The counter resets only
+// on "refreshed": the provider reloads only then (SPEC-v24 §12.3). Kids never
+// get here (the kid header has no freshness label, and the POST is
+// kid-forbidden).
+const REFRESH_WORDS: Record<RefreshOutcome, string> = {
+  refreshed: 'Status refreshed',
+  unreachable: "Couldn't reach the status source",
+  'still-stale': 'Checked — nothing newer yet',
+};
+
 function LastUpdated() {
   const ctx = useServicesContext();
   const lastUpdatedAt = ctx?.lastUpdatedAt ?? null;
   const [now, setNow] = useState(() => Date.now());
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState('');
 
   useEffect(() => {
     if (lastUpdatedAt == null) return;
@@ -33,15 +54,46 @@ function LastUpdated() {
     return () => clearInterval(id);
   }, [lastUpdatedAt]);
 
+  // A refresh that lands resets lastUpdatedAt; re-read the clock at once so
+  // the label says "just now" without waiting for the next tick.
+  useEffect(() => {
+    setNow(Date.now());
+  }, [lastUpdatedAt]);
+
+  async function onRefresh() {
+    if (!ctx || busy) return;
+    setBusy(true);
+    setSaid('');
+    let outcome: RefreshOutcome;
+    try {
+      outcome = await ctx.refresh();
+    } catch {
+      outcome = 'unreachable';
+    }
+    setBusy(false);
+    setSaid(REFRESH_WORDS[outcome]);
+  }
+
   if (lastUpdatedAt == null) return null;
-  const seconds = (now - lastUpdatedAt) / 1000;
+  const ago = formatUpdatedAgo((now - lastUpdatedAt) / 1000);
   return (
-    <span
-      data-testid="status-last-updated"
-      className="hidden whitespace-nowrap text-xs text-neutral-500 sm:inline dark:text-neutral-400"
-    >
-      Updated {formatUpdatedAgo(seconds)}
-    </span>
+    <>
+      <button
+        type="button"
+        data-testid="status-last-updated"
+        aria-label={busy ? 'Refreshing status' : `Updated ${ago}. Refresh status`}
+        aria-busy={busy || undefined}
+        aria-disabled={busy || undefined}
+        title="Refresh status"
+        onClick={() => void onRefresh()}
+        className="hidden min-h-[44px] whitespace-nowrap rounded-md px-1.5 text-xs text-neutral-500 outline-none transition hover:text-neutral-800 hover:underline focus-visible:ring-2 focus-visible:ring-indigo-500 aria-disabled:cursor-progress aria-disabled:no-underline sm:inline dark:text-neutral-400 dark:hover:text-neutral-100"
+      >
+        {busy ? 'Refreshing…' : `Updated ${ago}`}
+      </button>
+      <span data-testid="status-refresh-live" role="status" aria-live="polite" className="sr-only">
+        {said}
+      </span>
+    </>
   );
 }
 
@@ -183,10 +235,15 @@ function GearMenu({
 
   // On open, move focus into the menu (first item) so keyboard users land inside
   // the popup — standard menu pattern, mirrors UserMenu.
+  //
+  // SPEC-ui-quick-wins AC-010 — arrows, Home and End come from the hook the user
+  // menu uses, which walks the "Arrange apps" menuitemcheckbox too. For a
+  // member that checkbox is now the first item (AC-017), so "first" must count
+  // it: a menuitem-only query would leave focus on the gear.
   useEffect(() => {
-    const first = menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]');
-    first?.focus();
+    focusFirstMenuItem(menuRef.current);
   }, []);
+  const onMenuKeyDown = useMenuKeys(menuRef);
 
   function act(fn: () => void) {
     fn();
@@ -194,22 +251,36 @@ function GearMenu({
   }
 
   return (
-    <div ref={menuRef} data-testid="gear-menu" role="menu" aria-label="Dashboard menu" className="gear-menu">
+    <div
+      ref={menuRef}
+      data-testid="gear-menu"
+      role="menu"
+      aria-label="Dashboard menu"
+      onKeyDown={onMenuKeyDown}
+      className="gear-menu"
+    >
       {/* Personal section — all users. */}
       <div data-testid="gear-menu-section-personal" className="menu-section-label">
         My Dashboard
       </div>
 
-      <button
-        type="button"
-        role="menuitem"
-        data-testid="gear-add-apps"
-        onClick={() => act(onAddApps)}
-        className="menu-item"
-      >
-        <PlusIcon />
-        Add apps
-      </button>
+      {/* SPEC-ui-quick-wins AC-017 (decided §7 Q3) — admins only. Adding from
+          the Library is admin-only on the server since 18.0.0, so a member's
+          every Add got a 403 and the UI said nothing. A member keeps "Arrange
+          apps" below (v29 AC-005). Supersedes v18-gear-edit-menu A2 and D4 for
+          members; kids have no Gear at all. */}
+      {isAdmin && (
+        <button
+          type="button"
+          role="menuitem"
+          data-testid="gear-add-apps"
+          onClick={() => act(onAddApps)}
+          className="menu-item"
+        >
+          <PlusIcon />
+          Add apps
+        </button>
+      )}
 
       {/* SPEC-density-to-my-settings AC-007 / OQ-3 — "Arrange apps" (was "Edit
           dashboard") sits directly under "Add apps", with no section header
