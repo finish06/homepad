@@ -314,4 +314,23 @@ describe('ToastContainer — pause, dismiss, View (SPEC-ui-quick-wins)', () => {
     fireEvent.click(within(toastOf('App a went DOWN')).getByTestId('toast-dismiss'), { detail: 1 });
     expect(b).toHaveAttribute('data-paused', 'false');
   });
+
+  // #735 review round 2 — the same reflow when a QUEUED toast moves up into the
+  // freed slot: the count stays at 3, the stack still shifts.
+  it('AC-007: a reflow with a queued toast filling the slot also re-reads hover', () => {
+    vi.useFakeTimers();
+    ctxValue = {
+      recentChanges: ['a', 'b', 'c', 'd'].map((id) => change(id, 'UP', 'DOWN')),
+      clearRecentChanges,
+    };
+    render(<ToastContainer />);
+    expect(screen.getAllByTestId('toast')).toHaveLength(3);
+    const b = toastOf('App b went DOWN');
+    fireEvent.mouseEnter(b);
+    document.body.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    fireEvent.click(within(toastOf('App a went DOWN')).getByTestId('toast-dismiss'), { detail: 1 });
+    expect(screen.getAllByTestId('toast')).toHaveLength(3);
+    expect(screen.getByText('App d went DOWN')).toBeInTheDocument();
+    expect(b).toHaveAttribute('data-paused', 'false');
+  });
 });

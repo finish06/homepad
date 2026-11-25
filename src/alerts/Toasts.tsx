@@ -102,7 +102,7 @@ export default function ToastContainer({ onView }: { onView?: () => void } = {})
           toast={t}
           onDismiss={(byKeyboard) => dismiss(t.key, byKeyboard)}
           onView={onView ? () => view(t.key) : undefined}
-          stack={visible.length}
+          stack={visible.map((v) => v.key).join(' ')}
         />
       ))}
     </div>
@@ -121,8 +121,9 @@ function ToastItem({
   toast: Toast;
   onDismiss: (byKeyboard: boolean) => void;
   onView?: () => void;
-  // How many toasts are showing; when it changes the stack reflows.
-  stack: number;
+  // Which toasts are showing, in order. When it changes the stack reflows:
+  // fewer toasts, or a queued one moving up into a freed slot.
+  stack: string;
 }) {
   const { change } = toast;
   const isDown = change.to === 'DOWN' || change.to === 'DEGRADED';
