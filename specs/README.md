@@ -1,10 +1,14 @@
 # homepad — Spec Index
 
-**Current as of:** 2026-11-25 (after 18.6.0)  **Maintainer:** Walt (product lead)
+**Current as of:** 2026-11-25 (after 18.6.0; M10 specs added and approved)  **Maintainer:** Walt (product lead)
 
 This directory holds the **current, authoritative** product specs and decisions for
 homepad. Historical specs for shipped versions v2–v10 are in
 [`specs/archive/`](./archive/).
+
+**Spec count.** "N specs" in `CLAUDE.md` and `docs/prd.md` means the feature specs indexed below: the top-level `specs/*.md` files other than `README.md`, `DECISIONS.md` and `test-plan-v1.md`. Count them with `ls specs/*.md | grep -v -e README -e DECISIONS -e test-plan-v1 | wc -l`. Subfolders (`specs/archive/`, `specs/ux/`) are not counted. On 2026-11-25 it is 61, and the section counts in the headings below add up to it (3 + 9 + 9 + 39 + 0 + 1).
+
+**Not counted:** [`DECISIONS.md`](./DECISIONS.md) is the decision record. [`test-plan-v1.md`](./test-plan-v1.md) is the AC-to-test methodology reference, not a feature spec.
 
 > **How this index is maintained.** Every `Status:` line below was reconciled
 > against `src/` and `CHANGELOG.md` on 2026-09-22 — not copied from the spec's own
@@ -28,6 +32,16 @@ homepad. Historical specs for shipped versions v2–v10 are in
 > `CHANGELOG.md`, the release PRs and the code at 18.6.0 (`5475545`).
 
 ---
+
+## Approved — M10, target 18.7.0 (3)
+
+Written 2026-11-25 from the 2026-11-24 UI review. Caleb decided every open question the same day. Nothing is built yet.
+
+| File | Feature | Status |
+|---|---|---|
+| [`SPEC-ui-quick-wins.md`](./SPEC-ui-quick-wins.md) | #725: browser colour, tap "Updated" to refresh, toasts that pause and close, Gear menu arrow keys, status shapes at Large, Library grouping, sign-in polish | Approved 2026-11-25 — not built |
+| [`SPEC-dashboard-empty-loading.md`](./SPEC-dashboard-empty-loading.md) | #722: a skeleton at the real grid size while loading, empty states with an action per role; #724's dead CSS removed | Approved 2026-11-25 — not built |
+| [`SPEC-group-header-collapse.md`](./SPEC-group-header-collapse.md) | #718: app count and status bar on each group header; fold a group, saved per user through the existing collapse API | Approved 2026-11-25 — not built; Kare checks the bar during the build |
 
 ## Shipped — 18.1.0 to 18.6.0, one repo, previews and cleanups (9)
 
