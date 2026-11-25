@@ -76,6 +76,17 @@ reorder rolled back under a green gate). Mock contracts are your responsibility
 when you change an endpoint; the deployed behaviour is what the QA pool checks
 against the PR's preview in `mr-staging.yml`.
 
+**Overlap with `e2e.yml`.** Both workflows install deps, build, and run
+Playwright on the built app in the same pinned image, on the same PR.
+`e2e.yml` runs `tests/e2e` (first paint, the theme boot path, the built-bundle
+secret scan) on every web-changing PR; this gate runs `tests/browser-gate` (the
+#35 interaction pins, and the accounts/CSP/kid-board/widget pins). The specs are
+disjoint, so neither is redundant — but the setup is paid for twice. Folding
+both into one workflow (one `npm ci`, one `npm run build`, two `playwright test`
+runs) is the obvious follow-up; it is not done here because the required status
+context *is* this job's name, so moving it is a branch-protection change rather
+than a workflow edit.
+
 Local run: `npm run build && npm run test:gate` (needs the build — the gate
 serves `dist/`, not the dev server). To see whether CI would run it for a
 branch: `bash scripts/ci/gate-surfaces.sh "$(git merge-base HEAD origin/main)" HEAD`.
