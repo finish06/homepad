@@ -223,6 +223,9 @@ deployed.
     (the `qa-login-url` input) with the test login the qa-runner holds, the same
     one the seed created. The model is
     Sonnet 5.5 at medium effort, set on the qa-runner trigger, not here.
+    A code review of the PR runs first (the `code-review` input). If it finds
+    something blocking, QA is skipped, so the PR can't auto-merge until a new
+    push passes review.
   - Any other value: no QA is started. The run logs an error note but still
     goes green, and someone has to start QA by hand.
   - Either way, QA is only started for the PR's newest commit. Older pushes are
