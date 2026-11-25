@@ -227,8 +227,6 @@ deployed.
     review-runner as `review-claude`. QA starts only after the review passes.
     A blocked or failed review means no QA and no auto-merge until a new push.
     The mr-staging step stays open while the review runs (up to 30 minutes).
-    This needs a ci-shared `@v3` that includes ci-shared#49. Until then the
-    input is dropped silently and QA runs without a review.
   - Any other value: no QA is started. The run logs an error note but still
     goes green, and someone has to start QA by hand.
   - Either way, QA is only started for the PR's newest commit. Older pushes are

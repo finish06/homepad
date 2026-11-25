@@ -60,8 +60,7 @@ jobs:
           # A code review runs first on the review-runner (as review-claude);
           # qa-gate starts only if it passes, so a blocked or failed review means
           # no QA and no auto-merge. This step stays open while the review runs
-          # (up to 30 minutes). Needs a ci-shared @v3 that declares this input
-          # (ci-shared#49); an older @v3 just drops it.
+          # (up to 30 minutes).
           code-review: 'true'
           # Test-dedup: the unit suite is NOT re-run here. ci.yml ("Web (build,
           # unit tests)") and browser-gate.yml are required status checks on
