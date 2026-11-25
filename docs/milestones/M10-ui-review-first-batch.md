@@ -52,8 +52,8 @@ Source files only. Tests named in each spec's test plan follow their source file
 | File | #725 | #722 | #718 |
 |---|---|---|---|
 | `src/index.css` | `color-scheme` on `:root` / `.dark`; pip shapes in `.app-grid-tool-status` | skeleton rules; deletes the dead #724 rules | header chevron, pill, badge, bar |
-| `src/grid/AppGrid.tsx` | — | skeleton, `userId` prop, empty-box copy and button, cache write | header, collapse state, `collapsedReady` |
-| `src/app/App.tsx` | `onView` for `ToastContainer` | `userId` to AppGrid, `member-empty`, box button opens `LibraryBrowse` with a target, sign-out clears the cache | — |
+| `src/grid/AppGrid.tsx` | — | skeleton; new props `userId` and `onAddToBox(box, opener)`; empty-box copy and button; debounced cache write | header; new prop `isKid`; collapse state, `confirmed`/`desired`, `collapsedReady` |
+| `src/app/App.tsx` | `onView` for `ToastContainer` | `userId` and `onAddToBox` on `<AppGrid>`; `browseTarget` state, `targetCategory` to `LibraryBrowse` and focus return on close; `member-empty`; sign-out clears the cache | `isKid` on `<AppGrid>` (one line) |
 | `src/library/LibraryBrowse.tsx` | groups and the Added filter | `targetCategory` heading and `categoryId` | — |
 | `src/grid/gridShapeCache.ts` (new) | — | creates it | writes real `collapsed` |
 | `src/app/StatusBar.tsx` | — | — | imports the shared band module |
@@ -67,13 +67,13 @@ Source files only. Tests named in each spec's test plan follow their source file
 | `src/theme/browserChrome.ts` (new), `src/theme/theme.tsx`, `src/theme/accent.ts` | `theme-color` | — | — |
 | `src/app/AuthForm.tsx` | show password, Caps Lock, re-announce | — | — |
 
-Shared files: `src/index.css` (all three), `src/app/App.tsx` and `src/library/LibraryBrowse.tsx` (#725 and #722), `src/grid/AppGrid.tsx` and `src/grid/gridShapeCache.ts` (#722 and #718). The shared tests follow the same pairs: `src/app/App.overlay-wiring.test.tsx` and `src/library/LibraryBrowse.test.tsx` (#725, #722), `src/grid/gridShapeCache.test.ts` and `tests/browser-gate/app-grid-skeleton.spec.ts` (#722, #718).
+Shared files: `src/index.css` and `src/app/App.tsx` (all three), `src/library/LibraryBrowse.tsx` (#725 and #722), `src/grid/AppGrid.tsx` and `src/grid/gridShapeCache.ts` (#722 and #718). The shared tests follow the same pairs: `src/app/App.overlay-wiring.test.tsx` and `src/library/LibraryBrowse.test.tsx` (#725, #722), `src/grid/gridShapeCache.test.ts` and `tests/browser-gate/app-grid-skeleton.spec.ts` (#722, #718).
 
 ### Build order and file reservations (L-023)
 
-1. **#722 and #725 build in parallel.** #722 owns `src/grid/AppGrid.tsx` and `src/grid/gridShapeCache.ts`. In the three shared files each touches only its own part from the table above: #725 never edits the empty states, the AppGrid props or `LibraryBrowse`'s heading and `add()`; #722 never edits `ToastContainer`, the pip rules or `LibraryBrowse`'s list rendering.
+1. **#722 and #725 build in parallel.** #722 owns `src/grid/AppGrid.tsx` and `src/grid/gridShapeCache.ts`. In the three shared files each touches only its own part from the table above: #725 never edits the empty states, the `<AppGrid>` element, the `LibraryBrowse` element and its state, or `LibraryBrowse`'s heading and `add()`; #722 never edits `ToastContainer`, the pip rules or `LibraryBrowse`'s list rendering.
 2. **#722 merges first.** #725 then rebases onto it and resolves `src/index.css`, `src/app/App.tsx` and `src/library/LibraryBrowse.tsx`. The #725 builder does the rebase.
-3. **#718 starts after #722 merges**, on top of it. It owns `src/grid/AppGrid.tsx`, `src/grid/gridShapeCache.ts`, `src/app/StatusBar.tsx` and `src/api.ts`. It shares only `src/index.css` with #725, in different rules.
+3. **#718 starts after #722 merges**, on top of it. It owns `src/grid/AppGrid.tsx`, `src/grid/gridShapeCache.ts`, `src/app/StatusBar.tsx` and `src/api.ts`. In `src/app/App.tsx` it adds only the `isKid` prop to the `<AppGrid>` element that #722 already changed, so it never meets #722 there. It shares `src/index.css` (different rules) and `src/app/App.tsx` (the `<AppGrid>` element vs `ToastContainer`) with #725.
 4. The planned merge order is #722, #725, #718. If #725 runs late, #718 may merge before it, and the #725 builder rebases once more. Whoever rebases also resolves the `CHANGELOG.md` lines.
 
 ## Risks

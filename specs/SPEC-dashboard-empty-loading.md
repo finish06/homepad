@@ -1,7 +1,7 @@
 # Spec: Dashboard empty and loading states
 
 **Spec ID:** SPEC-dashboard-empty-loading
-**Version:** 0.2.0
+**Version:** 0.3.0
 **Created:** 2026-11-25
 **Author:** Claude (Caleb asked 2026-11-25 to write up M10)
 **Status:** Approved — 2026-11-25 (Caleb's answers are in §3). Not built
@@ -52,7 +52,7 @@ Decided by Caleb on 2026-11-25 (`specs/DECISIONS.md`). The ACs use these answers
 |---|---|---|
 | OQ-1 | What shape does the skeleton draw before the data arrives? | **Remember the last layout on this device.** §3.1 says what is stored. On a first visit, or when the cache is missing, bad or for another user, draw a fallback: two half boxes with 3 tiles and one full box with 4 tiles. |
 | OQ-2 | When an admin adds from an empty box's button, where does the app go? | **Into that box.** `addFromLibrary` already takes a `categoryId` (`src/api.ts:597`). The Library opens with that box as its target and says so in its heading ("Add to Media"). The Gear's Add apps keeps landing apps in Uncategorized. §3.3 says how this fits the Library grouping from SPEC-ui-quick-wins. |
-| OQ-3 | An admin with boxes but no apps sees the dashboard empty state and an empty-box button in every box. Is that too many buttons (#119)? | **Hide the box buttons while `admin-empty` shows.** The boxes keep their text. Once there is one app, `admin-empty` goes and the box buttons appear. |
+| OQ-3 | An admin with boxes but no apps sees the dashboard empty state and an empty-box button in every box. Is that too many buttons (#119)? | **Hide the box buttons while `admin-empty` shows.** The boxes keep their text. Once there is one app, `admin-empty` goes and the box buttons appear. The same intent covers members: while `member-empty` shows, the boxes drop their "Ask an admin" line, so the ask is made once, by `member-empty` (AC-021). |
 | OQ-4 | Should a member get a read-only "Browse the App Library" in empty states? | **No.** A member can't add, so a Library full of Add buttons that fail is worse than no button. Members get "Ask an admin" text. The Gear fix for members is SPEC-ui-quick-wins AC-017 (§5). |
 
 ### 3.1 The skeleton cache
@@ -61,7 +61,8 @@ Decided by Caleb on 2026-11-25 (`specs/DECISIONS.md`). The ACs use these answers
 - `span` is the box's width (3, 4, 6 or 12). `count` is the exact number of apps the user sees in the box, not capped, because `--grow` and `--cap` use the full count. `collapsed` is whether the box drew folded (SPEC-group-header-collapse). `recent` is whether the Recently opened row drew.
 - No box names, box ids, app names or app ids are stored. The user id is stored only to tell whose shape it is.
 - AppGrid gets a new `userId` prop from `App.tsx` (`user.id`). It reads the entry only if `user` equals `userId`. Any other entry counts as missing: the fallback draws, and the next successful load overwrites it. So a kid who signs in after an admin on a shared iPad never sees the admin's box shape.
-- AppGrid writes the entry, under its own `userId`, each time `loading` turns false. It does not write while `arranging` is on, because every box then shows open (SPEC-group-header-collapse §3.6) and that is not the shape the next load draws.
+- AppGrid writes the entry, under its own `userId`, whenever the rendered shape changes: when `loading` turns false, and after any change to the boxes or their apps (a box added, deleted or resized, an app added, removed or moved between boxes, the Recently opened row appearing or going, and once #718 ships a box folded or unfolded). It compares the new entry with the last one written and skips equal ones. Writes are debounced by 500 ms, so a burst of changes is one write.
+- It does not write while `arranging` is on (arrange mode, members and admins), because every box then shows open (SPEC-group-header-collapse §3.6) and that is not the shape the next load draws. When `arranging` turns off, the debounced write runs with the view shape.
 - An entry is bad if it does not parse, has another `v`, or holds a `span` outside 3, 4, 6, 12 or a `count` that is not a whole number from 0 to 999. A bad entry counts as missing.
 - Sign-out (`handleLogout` in `App.tsx`) removes the key. A session that ends another way leaves it, and the user check above keeps it from showing to the next person.
 - Until SPEC-group-header-collapse ships, `collapsed` is always written as `false`. The skeleton already draws a box with `collapsed: true` as its header row only, at its width. When #718 lands it writes the real value, and no skeleton change is needed.
@@ -76,12 +77,18 @@ SPEC-group-header-collapse §3.5 widens it to:
 
 `loading = !catsLoaded || svcs === null || !collapsedReady`
 
-`collapsedReady` is true at once for a kid, and true for an adult once `GET /api/me/collapsed-categories` settles (any outcome). Nothing else may add a second loading state or a spinner. The skeleton covers the whole wait, and AC-003 measures that whole wait.
+`collapsedReady` is true at once for a kid (#718 adds an `isKid` prop for this), and true for an adult once `GET /api/me/collapsed-categories` settles (any outcome). Nothing else may add a second loading state or a spinner. The skeleton covers the whole wait, and AC-003 measures that whole wait.
 
 ### 3.3 The Library's target box
 
 - `LibraryBrowse` gets an optional `targetCategory: { id, title }`. With it, the heading reads "Add to {title}" and every Add sends that `categoryId`. Without it, the heading stays "App Library" and adds land in Uncategorized, as today.
 - SPEC-ui-quick-wins item 6 groups offers by `suggestedCategory`. The groups only sort the list. With a target, an offer goes into the target box whatever group it is listed under. The All / Not added / Added filter works the same with or without a target.
+
+### 3.4 Opening the Library from a box
+
+- AppGrid gets a new optional prop: `onAddToBox?: (box: { id: string; title: string }, opener: HTMLButtonElement) => void`. The admin's empty-box button calls it with its box and itself. AppGrid renders the button only when `onAddToBox` is set, the user is an admin, and `admin-empty` is not showing (OQ-3).
+- `App.tsx` owns the rest. It keeps `browseTarget: { id, title, opener } | null` beside `browseOpen`, and renders the one `LibraryBrowse` with `targetCategory` set to `browseTarget`'s `{ id, title }`. From the Gear, `browseTarget` is `null` and no target is passed.
+- `App.tsx` owns focus return. When the Library closes it clears `browseTarget`, then: if `opener.isConnected`, it focuses `opener`; else it focuses the first `[data-testid="tool-link"]` inside `[data-box-id="{id}"]`; else the Gear trigger (`data-testid="settings-gear"`). An add does not remount AppGrid (`onAddedFromLibrary` only updates the services list), so the opener stays connected unless its box filled.
 
 ## 4. Acceptance criteria
 
@@ -94,7 +101,7 @@ SPEC-group-header-collapse §3.5 widens it to:
 | AC-003 | When the loaded layout matches the cached shape (same spans, counts, `collapsed` flags and `recent` flag, §3.1), loading causes no layout shift. In a real browser, the summed `layout-shift` entries from first paint of the skeleton to the loaded grid are under 0.01, at 390, 1440 and 1920px. The window covers the whole `loading` wait (§3.2), including the collapsed-set GET once #718 ships. A 30-app box and a collapsed box are in the cached shape. The first box's top-left corner and the x-position of every tile column do not move. | Must |
 | AC-004 | With no cache, a bad cache, or a cache for another user, the fallback skeleton (OQ-1) still puts the first box's top edge and the first tile column where the real grid puts them. Only box count and box height may change. | Must |
 | AC-005 | The skeleton reserves the Recently opened row when the cache says `recent: true`. Otherwise, and in the fallback, it reserves nothing there. | Should |
-| AC-006 | After each successful load, the grid writes its shape to the cache (§3.1), but not while `arranging` is on. The entry holds only the version, the user id, the `recent` flag and per box `span`, exact `count` and `collapsed`. A read that throws, holds bad data, or names another user falls back without error. | Should |
+| AC-006 | The grid writes its shape to the cache after load and whenever the rendered shape changes (§3.1), debounced by 500 ms and skipped when equal to the last write. It does not write while `arranging` is on, and writes the view shape when `arranging` turns off. The entry holds only the version, the user id, the `recent` flag and per box `span`, exact `count` and `collapsed`. A read that throws, holds bad data, or names another user falls back without error. | Should |
 | AC-007 | Motion. With `prefers-reduced-motion: no-preference`, ghost shapes may shimmer (opacity only; no transform). With `reduce`, the skeleton is static: no element under it has a running animation or transition. With `prefers-reduced-transparency: reduce`, ghost boxes follow the real boxes' near-solid rule. | Must |
 | AC-008 | Accessibility. The skeleton shapes are `aria-hidden`. One polite status line says "Loading dashboard…". The skeleton has no focusable element. jest-axe finds no violations. Ghost shapes meet 3:1 against the box in light and dark (WCAG 1.4.11 is not required for decoration, but they must be visible). | Must |
 
@@ -102,9 +109,9 @@ SPEC-group-header-collapse §3.5 widens it to:
 
 | ID | Criterion | Priority |
 |----|-----------|----------|
-| AC-009 | Who sees what in an empty box. **Admin:** the line "No apps yet." and a button **Browse the App Library**. **Member and kid** (any non-admin): the line "No apps here yet. Ask an admin to add some." and no button. In arrange mode (`editing`) the admin sees the same. While `admin-empty` shows, the admin's box buttons are hidden (OQ-3). | Must |
+| AC-009 | Who sees what in an empty box. **Admin:** the line "No apps yet." and a button **Browse the App Library**. **Member and kid** (any non-admin): the line "No apps here yet. Ask an admin to add some." and no button, except while `member-empty` shows (AC-021). In arrange mode (`editing`) the admin sees the same. While `admin-empty` shows, the admin's box buttons are hidden (OQ-3). | Must |
 | AC-010 | The admin's button opens the existing App-level `LibraryBrowse` (one instance, not a second copy inside AppGrid). It opens with that box as the target and the heading "Add to {title}" (§3.3). Apps added from it land in that box (OQ-2), whatever group the offer is listed under. The Gear's Add apps still opens "App Library" and adds to Uncategorized. | Must |
-| AC-011 | Focus after the Library closes. If the button is still on the page, focus returns to it. If the box filled and the button is gone, focus moves to the first added tile in that box. Focus never lands on `<body>`. | Must |
+| AC-011 | Focus after the Library closes, owned by `App.tsx` (§3.4). If the button is still on the page, focus returns to it. If the box filled and the button is gone, focus moves to the first tile link in that box, which is the first added app. Focus never lands on `<body>`. | Must |
 
 ### Empty dashboard
 
@@ -134,6 +141,8 @@ SPEC-group-header-collapse §3.5 widens it to:
 |----|-----------|----------|
 | AC-019 | The cache is per user (§3.1). AppGrid reads an entry only when its user id equals the `userId` prop, so user B never sees user A's shape on the same device. Sign-out removes the key. | Must |
 | AC-020 | A box the cache marks `collapsed: true` draws as its header row only, at its full width, so once SPEC-group-header-collapse ships a collapsed box never draws full height and then folds. Until then `collapsed` is always written `false`. | Must |
+| AC-021 | While `member-empty` shows (a non-admin who sees no apps), each empty box shows only "No apps here yet." with no "Ask an admin" line and no button. Once the member sees one app, `member-empty` goes and empty boxes show the full AC-009 line. | Must |
+| AC-022 | AppGrid takes `onAddToBox(box, opener)` and `userId` as in §3.1 and §3.4. A member or kid render never shows the box button even if `onAddToBox` is passed. | Must |
 
 ## 5. Out of scope
 
@@ -150,12 +159,12 @@ Each AC with code has a test that fails before its change.
 - AC-001: `src/grid/AppGrid.test.tsx` — loading renders `app-grid-loading` inside `.app-grid` with `data-density`, and no `.app-spinner`; the skeleton shows while categories or services are pending and goes when both arrive.
 - AC-002: `tests/browser-gate/app-grid-skeleton.spec.ts` — measure ghost and real tile rects at Large, Compact and List, at 390 and 1440px, and a kid at Large. Widths and heights match within 1px.
 - AC-003, AC-004, AC-005: `tests/browser-gate/app-grid-skeleton.spec.ts` — hold the mocked `/api/services` response, observe `layout-shift` with a `PerformanceObserver`, release it, then sum the shifts. Compare the first box corner and tile column x-positions before and after. Run once with a matching cache (one box of 30 apps), once with none, once with a cache for another user, and once with `recent: true`.
-- AC-006, AC-019: `src/grid/gridShapeCache.test.ts` (new, for `src/grid/gridShapeCache.ts`) — writes only the listed fields, exact counts above 12, no write in arrange mode; a throwing, junk or other-user read falls back; sign-out removes the key (`src/app/App.test.tsx`, beside its existing logout case).
+- AC-006, AC-019: `src/grid/gridShapeCache.test.ts` (new, for `src/grid/gridShapeCache.ts`) — writes only the listed fields, exact counts above 12; `src/grid/AppGrid.test.tsx` with fake timers — one write after load, one debounced write after a burst of changes (box resize, app add), none for an equal shape, none while arranging, one on leaving arrange mode; a throwing, junk or other-user read falls back; sign-out removes the key (`src/app/App.test.tsx`, beside its existing logout case).
 - AC-020: `src/grid/gridShapeCache.test.ts` and `tests/browser-gate/app-grid-skeleton.spec.ts` — a `collapsed: true` box draws header-only at full width; `layout-shift` stays under 0.01 once #718 ships (the #718 build adds this browser case).
 - AC-007: `tests/browser-gate/app-grid-skeleton.spec.ts` — `page.emulateMedia({ reducedMotion: 'reduce' })`, then `document.getAnimations()` on the skeleton is empty and computed `animation-name` is `none`. A second case with `no-preference` checks the shimmer uses opacity only.
 - AC-008: `src/grid/AppGrid.test.tsx` — jest-axe on the loading state, one status line, no focusable element. Contrast of the ghost fill is measured in the browser-gate run, light and dark.
-- AC-009: `src/grid/AppGrid.test.tsx` — replace the two copy cases at lines 246-258 with admin (button), member (no button) and kid (no button) cases, and the hidden-button case while `admin-empty` shows.
-- AC-010, AC-011: `src/app/App.overlay-wiring.test.tsx` — the box button opens the one `LibraryBrowse` with the box's id; an add sends that `categoryId`; focus returns to the button, or to the first new tile when the box filled. `src/library/LibraryBrowse.test.tsx` — heading "Add to {title}" with a target, "App Library" without; an offer grouped under another category still sends the target id.
+- AC-009, AC-021, AC-022: `src/grid/AppGrid.test.tsx` — replace the two copy cases at lines 246-258 with admin (button), member (no button) and kid (no button) cases, the hidden-button case while `admin-empty` shows, the short member line while the member sees no apps, and a member render with `onAddToBox` passed that still shows no button.
+- AC-010, AC-011: `src/app/App.overlay-wiring.test.tsx` — the box button calls `onAddToBox` and opens the one `LibraryBrowse` with the box's id; an add sends that `categoryId`; on close focus returns to the button, or to the first `tool-link` in the box when it filled. `src/library/LibraryBrowse.test.tsx` — heading "Add to {title}" with a target, "App Library" without; an offer grouped under another category still sends the target id.
 - AC-012, AC-013: `src/app/admin-empty-import.test.tsx` — a member-empty case; the existing AC-032 cases unchanged.
 - AC-014, AC-015, AC-017: `tests/infra/retired-css.test.ts` (new) — no deleted selector in `src/index.css`, no class use in `src/**` or `index.html`; the live `.recently-opened` row, `.cat-count` and `.app-spinner` rules are still there.
 - AC-016: `tests/infra/dark-tile-shadow.test.tsx` — retargeted as above.

@@ -6,7 +6,9 @@ This directory holds the **current, authoritative** product specs and decisions 
 homepad. Historical specs for shipped versions v2–v10 are in
 [`specs/archive/`](./archive/).
 
-**Spec count.** "N specs" in `CLAUDE.md` and `docs/prd.md` means the top-level `specs/*.md` files other than `README.md` and `DECISIONS.md`: `ls specs/*.md | grep -v -e README -e DECISIONS | wc -l`. It does not count `specs/archive/`, `specs/ux/` or other subfolders. On 2026-11-25 it is 62.
+**Spec count.** "N specs" in `CLAUDE.md` and `docs/prd.md` means the feature specs indexed below: the top-level `specs/*.md` files other than `README.md`, `DECISIONS.md` and `test-plan-v1.md`. Count them with `ls specs/*.md | grep -v -e README -e DECISIONS -e test-plan-v1 | wc -l`. Subfolders (`specs/archive/`, `specs/ux/`) are not counted. On 2026-11-25 it is 61, and the section counts in the headings below add up to it (3 + 9 + 9 + 39 + 0 + 1).
+
+**Not counted:** [`DECISIONS.md`](./DECISIONS.md) is the decision record. [`test-plan-v1.md`](./test-plan-v1.md) is the AC-to-test methodology reference, not a feature spec.
 
 > **How this index is maintained.** Every `Status:` line below was reconciled
 > against `src/` and `CHANGELOG.md` on 2026-09-22 — not copied from the spec's own
