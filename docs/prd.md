@@ -1,8 +1,8 @@
 # homepad — Product Requirements Document
 
-**Version:** 0.3.2
+**Version:** 0.3.3
 **Created:** 2026-09-15
-**Updated:** 2026-11-25 (facts brought up to 18.6.0; M9 and M3 closed)
+**Updated:** 2026-11-25 (facts brought up to 18.6.0; M9, M3, M4 and M6 closed)
 **Author:** Caleb Dunn
 **Status:** Adopted (retroactive — written at ADD adoption, v16.2.0 already in production; §1–5 and §7–9 updated for 18.0.0, and checked against 18.6.0 on 2026-11-25)
 
@@ -150,11 +150,12 @@ On a fresh install, the first account becomes the admin.
   Homepad's own address never gets it. Every nginx config and, since 18.0.1,
   the API send `X-Frame-Options: DENY` and `frame-ancestors 'none'`, so
   nothing can frame Homepad.
-- **Content-Security-Policy.** Since 18.6.0 every nginx config sends a full
-  policy: scripts and styles from Homepad only (the one inline script by its
-  hash), icons from any http/https address or `data:`, overlay frames of any
-  http/https app, everything else same-origin (SPEC-cleanup-18.6.0). Staging
-  and production get the same line from the homelab ConfigMap.
+- **Content-Security-Policy.** Since 18.6.0 the image, both compose configs
+  and the homelab ConfigMap for staging and production send a full policy:
+  scripts and styles from Homepad only (the one inline script by its hash),
+  icons from any http/https address or `data:`, overlay frames of any
+  http/https app, everything else same-origin (SPEC-cleanup-18.6.0). The
+  per-PR preview still sends only `frame-ancestors 'none'` (#715).
 - **Server settings.** Since 18.1.0 admins change secure cookies, trusted
   proxies, the Gatus address, the "Slow" threshold, sign-up, the account cap
   and single sign-on in **Admin Panel → System**. They are stored in Postgres
@@ -213,7 +214,7 @@ status and detail.
 
 | Horizon | Milestone | Goal | Status |
 |---|---|---|---|
-| **Now** | [M2 — QA pipeline reliability](milestones/M2-qa-pipeline-reliability.md) | One reviewer per PR, a reserved staging slot, a QA browser env that fails only for real | IN_PROGRESS |
+| **Now** | [M2 — QA pipeline reliability](milestones/M2-qa-pipeline-reliability.md) | One reviewer per PR, a per-PR preview for QA (replaced the shared staging slot), a QA browser env that fails only for real | IN_PROGRESS |
 | **Now** | [M7 — Growth: install funnel + launch](milestones/M7-growth-install-funnel.md) | Organic growth plus the launch posts. The 3× by 11-12 target was missed (accepted by Caleb 11-07) | IN_PROGRESS (funnel done; launch waits on Caleb) |
 | **Later** | [M5 — Non-admin arrange](milestones/M5-non-admin-arrange.md) | Per-user tile drag for non-admins (v29 §3.3) — needs a spec first | NOT_STARTED |
 | **Done** | [M9 — 18.0.1: release follow-ups](milestones/M9-18-0-1-follow-ups.md) | Fix what QA found on the 18.0.0 release, and clean up the spec and doc drift from 17.x–18.0 | COMPLETE (2026-11-25 — 31 issues closed, most in 18.0.1, the last in 18.5.0. Two production checks for Caleb carried) |

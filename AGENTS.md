@@ -42,7 +42,7 @@ Production deploys and merges to the default branch always require human approva
 
 ## Currently Active Spec
 
-- None. No milestone is active; M9 and M3 closed on 2026-11-25 (`docs/prd.md` §6).
+- None. No milestone is active; M9, M3, M4 and M6 closed on 2026-11-25 (`docs/prd.md` §6).
 
 ## Pointers
 

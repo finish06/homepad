@@ -55,7 +55,7 @@ These are production checks and a production setting, not release work. They are
 | Release | Date | PRs | M9 items |
 |---------|------|-----|----------|
 | — (docs) | 2026-11-22 | #620 | #593, #563, #564, #594, #588, #542, #544, #598, #543 |
-| 18.0.1 | 2026-11-23 | #632 (web), homepad-api#112 (API), release #636 | #612, #613, #617, #583, #582, #587, #584, #590, #585, #609, #537, #533, the lookup bound, the #110 nits |
+| 18.0.1 | 2026-11-22 | #632 (web), homepad-api#112 (API), release #636 | #612, #613, #617, #583, #582, #587, #584, #590, #585, #609, #537, the lookup bound, the #110 nits |
 | 18.4.0 | 2026-11-24 | #707, release #708 | #599 |
 | 18.5.0 | 2026-11-24 | #709, release #710 | #578, #610 |
 
