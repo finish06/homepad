@@ -1,6 +1,6 @@
 # homepad — Spec Index
 
-**Current as of:** 2026-11-25 (after 18.6.0)  **Maintainer:** Walt (product lead)
+**Current as of:** 2026-11-25 (after 18.6.0; M10 drafts added)  **Maintainer:** Walt (product lead)
 
 This directory holds the **current, authoritative** product specs and decisions for
 homepad. Historical specs for shipped versions v2–v10 are in
@@ -28,6 +28,16 @@ homepad. Historical specs for shipped versions v2–v10 are in
 > `CHANGELOG.md`, the release PRs and the code at 18.6.0 (`5475545`).
 
 ---
+
+## Draft — M10, target 18.7.0 (3)
+
+Written 2026-11-25 from the 2026-11-24 UI review. Each has open questions for Caleb; nothing is built.
+
+| File | Feature | Status |
+|---|---|---|
+| [`SPEC-ui-quick-wins.md`](./SPEC-ui-quick-wins.md) | #725: browser colour, tap "Updated" to refresh, toasts that pause and close, Gear menu arrow keys, status shapes at Large, Library grouping, sign-in polish | Draft — needs Caleb's review |
+| [`SPEC-dashboard-empty-loading.md`](./SPEC-dashboard-empty-loading.md) | #722: a skeleton at the real grid size while loading, empty states with an action per role; #724's dead CSS removed | Draft — needs Caleb's review |
+| [`SPEC-group-header-collapse.md`](./SPEC-group-header-collapse.md) | #718: app count and status bar on each group header; fold a group, saved per user through the existing collapse API | Draft — needs Caleb's review (and Kare's on the bar) |
 
 ## Shipped — 18.1.0 to 18.6.0, one repo, previews and cleanups (9)
 

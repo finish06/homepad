@@ -1,15 +1,15 @@
 # homepad — Product Requirements Document
 
-**Version:** 0.3.3
+**Version:** 0.4.0
 **Created:** 2026-09-15
-**Updated:** 2026-11-25 (facts brought up to 18.6.0; M9, M3, M4 and M6 closed)
+**Updated:** 2026-11-25 (M10 added; M9, M3, M4 and M6 closed)
 **Author:** Caleb Dunn
 **Status:** Adopted (retroactive — written at ADD adoption, v16.2.0 already in production; §1–5 and §7–9 updated for 18.0.0, and checked against 18.6.0 on 2026-11-25)
 
 > This PRD was generated during `/add:init` adoption of an existing, shipped
 > project. It documents what homepad *is*, now at 18.6.0, rather than proposing
 > something new. The authoritative feature-level source of truth remains
-> `specs/` (58 specs, indexed in `specs/README.md`).
+> `specs/` (61 specs, indexed in `specs/README.md`).
 
 ## 1. Problem Statement
 
@@ -214,6 +214,7 @@ status and detail.
 
 | Horizon | Milestone | Goal | Status |
 |---|---|---|---|
+| **Now** | [M10 — UI review, first batch (18.7.0)](milestones/M10-ui-review-first-batch.md) | UI quick wins (#725), dashboard empty and loading states (#722), group header count, status and folding (#718) | NOT_STARTED (specs drafted 2026-11-25; active milestone) |
 | **Now** | [M2 — QA pipeline reliability](milestones/M2-qa-pipeline-reliability.md) | One reviewer per PR, a per-PR preview for QA (replaced the shared staging slot), a QA browser env that fails only for real | IN_PROGRESS |
 | **Now** | [M7 — Growth: install funnel + launch](milestones/M7-growth-install-funnel.md) | Organic growth plus the launch posts. The 3× by 11-12 target was missed (accepted by Caleb 11-07) | IN_PROGRESS (funnel done; launch waits on Caleb) |
 | **Later** | [M5 — Non-admin arrange](milestones/M5-non-admin-arrange.md) | Per-user tile drag for non-admins (v29 §3.3) — needs a spec first | NOT_STARTED |
@@ -231,7 +232,9 @@ milestones name against Gitea, and sorted the 40 issues opened since 10-11 into
 M2, M3 and M9.
 
 **Refreshed 2026-11-25.** 18.1.0 to 18.6.0 shipped on 11-23 and 11-24, and
-18.6.0 is in production. M9, M3, M4 and M6 are closed. No milestone is active. Open: M2 (#576, Joe), M7 (launch posts, Caleb) and M5 (needs a spec). Outside any milestone: #715 (preview CSP), #691 (QA runner) and the UI enhancements #717–#726.
+18.6.0 is in production. M9, M3, M4 and M6 are closed. No milestone is active. Open: M2 (#576, Joe), M7 (launch posts, Caleb) and M5 (needs a spec). Outside any milestone: #715 (preview CSP) and #691 (QA runner).
+
+**M10 added 2026-11-25** (Caleb's go): the top three of the 2026-11-24 UI review, #725, #722 and #718, plus the dead CSS from #724, as 18.7.0. The rest of #717–#726 stays open in ranked order. M10 is the active milestone.
 
 **Decisions are folded into milestones**, not held in a separate queue (Caleb,
 2026-10-11): #368 #172 #295 #449 #200 → M1; #487 → M2; #488 #477 → M4; #403 → M6.
@@ -332,3 +335,4 @@ User docs: `docs/accounts.md`, `docs/kid-accounts.md`,
 | 2026-11-25 | 0.3.1 | roadmap | M9 COMPLETE: all 31 of its issues are closed (24 fixed, most in 18.0.1 and the rest through 18.5.0; 3 duplicates; 4 closed without code); two production checks for Caleb carried. M9 → Done; no milestone active. Facts updated to 18.6.0: §3 test path, §4 and §5 server settings (18.1.0), API frame headers (18.0.1) and the lookup limit, the full CSP on staging and production, §7 adds 18.1.0–18.6.0, §8 CSP and 19.0.0 removals, §9 re-check dates. Spec count 51 → 58 |
 | 2026-11-25 | 0.3.2 | roadmap | M3 COMPLETE: #334 in 18.0.0; #341, #335 and #451 in 18.3.0 (#703); #529 in 18.6.0 (#711), checked live on staging and production. M3 Next → Done |
 | 2026-11-25 | 0.3.3 | roadmap | M4 and M6 COMPLETE. M4: #262, #263, #513 and #376 fixed in 18.3.0; #379, #187 and #375 already fixed or obsolete; #488 (18.4.0) and #477 (18.6.0) decided by Caleb and built. #729 adds a dark-mode login contrast gate (#379). M6: #192, #269, #206 and #348 already done; #352, #403 and #346 decided by Caleb, no build. Both → Done |
+| 2026-11-25 | 0.4.0 | roadmap | M10 (UI review, first batch: #725, #722, #718 and #724's dead CSS, target 18.7.0) added to Now as the active milestone. Three draft specs: SPEC-ui-quick-wins, SPEC-dashboard-empty-loading, SPEC-group-header-collapse |

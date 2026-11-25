@@ -42,7 +42,7 @@ Production deploys and merges to the default branch always require human approva
 
 ## Currently Active Spec
 
-- None. No milestone is active; M9, M3, M4 and M6 closed on 2026-11-25 (`docs/prd.md` §6).
+- M10 (UI review, first batch, target 18.7.0) is active: `docs/milestones/M10-ui-review-first-batch.md`. Its three specs are drafts waiting on Caleb's answers: `specs/SPEC-ui-quick-wins.md`, `specs/SPEC-dashboard-empty-loading.md`, `specs/SPEC-group-header-collapse.md`. Don't build until each spec's Status line says it is approved.
 
 ## Pointers
 
