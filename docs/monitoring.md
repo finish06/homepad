@@ -49,8 +49,10 @@ endpoints:
 ```bash
 docker run -d --name gatus -p 8081:8080 \
   -v "$PWD/gatus.yaml:/config/config.yaml" \
-  ghcr.io/twin/gatus:latest
+  ghcr.io/twin/gatus:v5.37.0
 ```
+
+`v5.37.0` is the version both compose files pin (`GATUS_VERSION`).
 
 Each entry under `endpoints` is one check. `conditions` decide pass or fail;
 `[STATUS] == 200` is enough for most services. Any failed condition — including

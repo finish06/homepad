@@ -1,6 +1,6 @@
 # homepad — Spec Index
 
-**Current as of:** 2026-11-23 (after 18.0.1 and the one-repo move)  **Maintainer:** Walt (product lead)
+**Current as of:** 2026-11-25 (after 18.6.0)  **Maintainer:** Walt (product lead)
 
 This directory holds the **current, authoritative** product specs and decisions for
 homepad. Historical specs for shipped versions v2–v10 are in
@@ -23,15 +23,25 @@ homepad. Historical specs for shipped versions v2–v10 are in
 > On 2026-11-22 every spec from 17.0.0 to 18.0.0, and the rows for
 > density-to-my-settings, cap3, cap4, SPEC-app-grid and SPEC-245, were checked again
 > against `CHANGELOG.md` and the code on `main`.
+>
+> On 2026-11-25 every spec shipped in 18.1.0 to 18.6.0 was checked against
+> `CHANGELOG.md`, the release PRs and the code at 18.6.0 (`5475545`).
 
 ---
 
-## Shipped — after 18.0.1, one repo and per-PR previews (2)
+## Shipped — 18.1.0 to 18.6.0, one repo, previews and cleanups (9)
 
-| File | Feature | Status (verified 2026-11-23) |
+| File | Feature | Status (verified 2026-11-25) |
 |------|---------|------|
-| [`SPEC-monorepo-api.md`](./SPEC-monorepo-api.md) | Move homepad-api into this repo under `api/`, keep both images | SHIPPED — 2026-11-23 (`85e1a67`, PR #642). homepad-api archived on Gitea and GitHub; releases are tagged only here. |
-| [`SPEC-preview-environments.md`](./SPEC-preview-environments.md) | Per-PR Preview Environments — isolated QA envs, one per open PR | SHIPPED — workflows #626 and #634, seed #627 and #637. Live on PRs. |
+| [`SPEC-monorepo-api.md`](./SPEC-monorepo-api.md) | Move homepad-api into this repo under `api/`, keep both images | SHIPPED — 2026-11-23 (`85e1a67`, PR #642), first released in 18.1.0. homepad-api archived on Gitea and GitHub; releases are tagged only here. |
+| [`SPEC-preview-environments.md`](./SPEC-preview-environments.md) | Per-PR Preview Environments — isolated QA envs, one per open PR | SHIPPED — workflows #626 and #634, seed #627 and #637. Live on PRs, up to 3 at once. |
+| [`SPEC-admin-server-settings.md`](./SPEC-admin-server-settings.md) | Admins edit server settings in Admin Panel → System, stored in Postgres; a saved value wins over env. Replaces the read-only SPEC-v26 list. UX: [`ux/admin-server-settings-ux.md`](./ux/admin-server-settings-ux.md) | SHIPPED — 18.1.0 (2026-11-23): #685, #684, #694. Migrations `0024`, `0025`. `GET /api/admin/env-config` deprecated until 19.0.0. |
+| [`SPEC-api-cleanup-18.2.0.md`](./SPEC-api-cleanup-18.2.0.md) | 18.2.0 API cleanup: the 28 issues moved from homepad-api (#651–#676, #688), each fixed with a test or closed with evidence | SHIPPED — 18.2.0 (2026-11-23): #698. |
+| [`SPEC-test-infra-18.3.0.md`](./SPEC-test-infra-18.3.0.md) | 18.3.0 test setup cleanup: vitest runs on a clean checkout, envsubst without root, `npm run test:all`, CI named as the gate | SHIPPED — 18.3.0 (2026-11-24): #702. #691 (runner side, Joe) still open. |
+| [`SPEC-ui-cleanup-18.3.0.md`](./SPEC-ui-cleanup-18.3.0.md) | 18.3.0 UI and accessibility cleanup: 19 UI, design and a11y issues; ErrorBoundary for lazy chunks (#341) | SHIPPED — 18.3.0 (2026-11-24): #703. The five left for a decision were decided in 18.4.0 and 18.6.0. |
+| [`SPEC-decisions-18.4.0.md`](./SPEC-decisions-18.4.0.md) | 18.4.0 decisions: the API says `member` (`user` a deprecated alias until 19.0.0, #599), per-service tile hue (#352), the uptime hint (#488), docs match the code | SHIPPED — 18.4.0 (2026-11-24): #707. |
+| [`SPEC-qa-cleanup-18.5.0.md`](./SPEC-qa-cleanup-18.5.0.md) | 18.5.0 QA and test reliability: removing an adult (#591), a clear error when the homelab read token is missing (#578), the kid-accounts phone test (#567), browser tests for what staging can't show (#606, #607, #610), sources in the M7 table (#540) | SHIPPED — 18.5.0 (2026-11-24): #709. No app change. |
+| [`SPEC-cleanup-18.6.0.md`](./SPEC-cleanup-18.6.0.md) | 18.6.0: a full Content-Security-Policy (#529), scratch test databases must be `_test` (#256), decisions on sparkline focus (#477), drag placeholder (#403) and bento grid (#346) | SHIPPED — 18.6.0 (2026-11-24): #711. The CSP is live on staging and production (checked 2026-11-25); the per-PR preview still sends only `frame-ancestors` (#715). |
 
 ## Shipped — 17.0.0 to 18.0.0, household accounts (9)
 
@@ -72,16 +82,16 @@ UX artifacts are in [`ux/`](./ux/).
 | [`SPEC-ultrawide-fluid-frame.md`](./SPEC-ultrawide-fluid-frame.md) | Ultra-wide Fluid Content Frame (Phase 1b of pane-fill) | SHIPPED — merged to `main` as #284 (`cb15eec`, 2026-07); `src/lib/layout.ts` carries `max-w-[max(1536px,92vw)]`, `frameContentPx` lives in `src/grid/appGridLayout.ts`, the R3 centring rule is in `index.css` (`@media (min-width:… |
 | [`SPEC-v24-health-meter-banding.md`](./SPEC-v24-health-meter-banding.md) | Homepad v24 — Health-Panel Meter: Status-Banded Tick Strip | SHIPPED — v15.1.0 (impl PR #361, merged 2026-07-14). Walt + Kare co-signed 2026-07-14. |
 | [`SPEC-v25-gatus-key-tile-health.md`](./SPEC-v25-gatus-key-tile-health.md) | homepad v25 — Gatus Endpoint Key on Tiles | SHIPPED — v15.2.0 (`5e82db3`). `Service.gatusKey` on the tile editor. Status line read "Approved … cleared for Stitch" until 2026-09-22. AC-002 amended 2026-10-12 (#367, code wins): `gatus_key` is optional on the client. |
-| [`SPEC-v26-admin-env-config.md`](./SPEC-v26-admin-env-config.md) | homepad v26 — Admin Env-Config Viewer | SHIPPED — v15.3.0 (`28411d3`, PR #374). Live at `src/library/SettingsPanel.tsx` + `GET /api/admin/env-config`. Status line read "Ready for Stitch" until 2026-09-22. To be superseded by SPEC-admin-server-settings (Draft). |
+| [`SPEC-v26-admin-env-config.md`](./SPEC-v26-admin-env-config.md) | homepad v26 — Admin Env-Config Viewer | SHIPPED — v15.3.0 (`28411d3`, PR #374). Live at `src/library/SettingsPanel.tsx` + `GET /api/admin/env-config`. Status line read "Ready for Stitch" until 2026-09-22. Superseded in 18.1.0 by SPEC-admin-server-settings; the web app no longer shows the list. |
 | [`cap3-recently-opened.md`](./cap3-recently-opened.md) | "Recently Opened" Row — Capability #3 | SHIPPED — 16.5.0 (2026-09-22). See §8 for the two deviations from this spec's original guidance. |
-| [`cap4-sparkline-dot-tooltip.md`](./cap4-sparkline-dot-tooltip.md) | Sparkline Dot Hover Tooltip — Capability #4 | SHIPPED — 16.5.0 (2026-09-22, restored) — see §8. Originally shipped 2026-06-23 (PR #145), lost 2026-07-02 with its host component. |
+| [`cap4-sparkline-dot-tooltip.md`](./cap4-sparkline-dot-tooltip.md) | Sparkline Dot Hover Tooltip — Capability #4 | SHIPPED — 16.5.0 (2026-09-22, restored) — see §8. Originally shipped 2026-06-23 (PR #145), lost 2026-07-02 with its host component. AC-006 (keyboard focus) withdrawn 2026-11-24 (#477); 18.6.0 adds a check summary to the tile link instead. |
 | [`cap5-status-change-toasts.md`](./cap5-status-change-toasts.md) | Status-Change Toast Alerts — Capability #5 | SHIPPED — prod. The AC-015 ghost-toast defect (#147) was fixed in v12.0.3 (`a0b5fd5`); no outstanding work. |
-| [`SPEC-status-degraded-threshold.md`](./SPEC-status-degraded-threshold.md) | "Slow" threshold — `statusDegradedMs` | SHIPPED — v16.2.0 (PR #444). Spec written retroactively 2026-10-11 (#449) from the code on both sides; OQ-1 (no way back to "unset") open. |
+| [`SPEC-status-degraded-threshold.md`](./SPEC-status-degraded-threshold.md) | "Slow" threshold — `statusDegradedMs` | SHIPPED — v16.2.0 (PR #444). Spec written retroactively 2026-10-11 (#449) from the code on both sides. OQ-1 (no way back to "unset") closed in 18.1.0: Reset goes back to the server default. |
 | [`v29-favorite-star-arrange-only.md`](./v29-favorite-star-arrange-only.md) | The favorite ★ is a control only in Arrange mode | SHIPPED — #506 (`0bae21c`), released in 16.7.0, in production via 16.7.1. Opened Arrange apps to every user; supersedes SPEC-density-to-my-settings AC-008/TC-006. §3.3 (non-admin tile drag) open → M5. *(Added to this index 2026-10-11 — it was missing.)* |
-| [`cap6-uptime-display-toggle.md`](./cap6-uptime-display-toggle.md) | Uptime Display Toggle — Capability #6 | v1 SHIPPED (prod v13.5.0, global admin setting). **v2 SHIPPED — prod v16.4.0, 2026-09-20** (the setting is per-user; the admin row now seeds new accounts). OQ-1 resolved. v2 product/design sign-off waived 2026-09-20 under the o… |
+| [`cap6-uptime-display-toggle.md`](./cap6-uptime-display-toggle.md) | Uptime Display Toggle — Capability #6 | v1 SHIPPED (prod v13.5.0, global admin setting). **v2 SHIPPED — prod v16.4.0, 2026-09-20** (the setting is per-user; the admin row now seeds new accounts). OQ-1 resolved. v2 product/design sign-off waived 2026-09-20 under the o… 18.4.0 adds the density hint (#488). |
 | [`large-monitor-grid.md`](./large-monitor-grid.md) | Large-Monitor Grid & Layout Alignment | SHIPPED — v12.7.1 / v12.7.2 (#194, #195, #196). Walt (product) ✓ · Kare (design) ✓ |
 | [`not-monitored-state.md`](./not-monitored-state.md) | Distinct "Not Monitored" Tile State | Shipped — prod (PR #48/#49/#50/#100, 2026-06-18) |
-| [`uptime-sparkline.md`](./uptime-sparkline.md) | Uptime Sparkline on Homepad Tiles | Shipped — prod (PR #46/#47/#51, 2026-06-18). **Absent from the product |
+| [`uptime-sparkline.md`](./uptime-sparkline.md) | Uptime Sparkline on Homepad Tiles | Shipped — prod (PR #46/#47/#51, 2026-06-18). Absent 2026-07-02 → 2026-09-22, restored on the App Grid with cap4. Renders behind each person's "Show uptime display": bars at every density, the label only at Large; see the spec's "As built (18.6.0)". |
 | [`uptime-windows.md`](./uptime-windows.md) | Long-Window Uptime Metrics on Homepad Tiles | SHIPPED — carried by the v13.2.0 release (`697d2ca`, PR #268). `UptimeWindowsLine` in `src/grid/AppGrid.tsx`. The 13.2.0 CHANGELOG entry covers only pane-fill and never mentions this feature. Status line read "Draft — building … |
 | [`v1-launcher.md`](./v1-launcher.md) | homepad v1 — Spec | Shipped — canonical foundation; v1 through v12 all build on this spec |
 | [`v11-admin-ux-clarity.md`](./v11-admin-ux-clarity.md) | homepad v11 — Admin / Personal Scope Clarity — Product Spec | SHIPPED — v8.0.0 (2026-06-18). |
@@ -95,20 +105,12 @@ UX artifacts are in [`ux/`](./ux/).
 | [`v20-fav-star-a11y.md`](./v20-fav-star-a11y.md) | homepad v20 — Favorite Star: Touch Target & Contrast Fix | Shipped — v13.9.0 (PR #306, merged). Design co-sign confirmed on built UI (§10). |
 | [`v21-tile-edit-modal.md`](./v21-tile-edit-modal.md) | homepad v21 — Tile Edit Modal | SHIPPED — v13.10.0. `src/grid/TileEditModal.tsx`. Status line read "Draft — awaiting Kare §8" until 2026-09-22. |
 | [`v22-icon-light-dark-tabs.md`](./v22-icon-light-dark-tabs.md) | homepad v22 — Icon Light/Dark Tabs in TileEditModal | SHIPPED — v13.11.0 (`f0a2286`). Status line read "Draft" until 2026-09-22. |
-| [`v28-tile-drag-reorder.md`](./v28-tile-drag-reorder.md) | homepad v28 — Tile Drag-and-Drop Reorder in Edit Mode | SHIPPED — v15.6.0 (`03fa922`, PR #402). dnd-kit sortable tiles in edit mode. Status line read "Ready for Build" until 2026-09-22. |
+| [`v28-tile-drag-reorder.md`](./v28-tile-drag-reorder.md) | homepad v28 — Tile Drag-and-Drop Reorder in Edit Mode | SHIPPED — v15.6.0 (`03fa922`, PR #402). dnd-kit sortable tiles in edit mode. Status line read "Ready for Build" until 2026-09-22. §8.4 placeholder: the in-place shift stays (#403, decided 2026-11-24). |
 | [`SPEC-density-to-my-settings.md`](./SPEC-density-to-my-settings.md) | Tile density moves to My settings · gear "Edit dashboard" becomes "Arrange apps" | SHIPPED — 16.6.0 (2026-09-25). AC-008 and TC-006 partly superseded by v29. *(Listed here as "Ready for build" until 2026-11-22.)* |
 
-## Open — not shipped (2)
+## Open — not shipped (0)
 
-| File | Feature | Status |
-|------|---------|------|
-| [`SPEC-admin-server-settings.md`](./SPEC-admin-server-settings.md) | Admins edit server settings in Admin Panel → System, stored in Postgres; UI value wins over env. Replaces the read-only SPEC-v26 list. UX: [`ux/admin-server-settings-ux.md`](./ux/admin-server-settings-ux.md) | Approved — Caleb 2026-11-23, target 18.1.0. In build. |
-| [`SPEC-test-infra-18.3.0.md`](./SPEC-test-infra-18.3.0.md) | 18.3.0 test setup cleanup: vitest runs on a clean checkout, envsubst without root, `npm run test:all`, CI named as the gate; closes the QA "couldn't run" duplicates | In review — target 18.3.0. |
-| [`SPEC-api-cleanup-18.2.0.md`](./SPEC-api-cleanup-18.2.0.md) | 18.2.0 API cleanup: sort the 28 issues moved from homepad-api (#651–#676, #688), fix the real ones with a test each, close the rest with evidence | In review — target 18.2.0. |
-| [`SPEC-ui-cleanup-18.3.0.md`](./SPEC-ui-cleanup-18.3.0.md) | 18.3.0 UI and accessibility cleanup: sort 19 open UI, design and a11y issues, fix the seven real ones with a test each, close or park the rest with evidence | In review — target 18.3.0. |
-| [`SPEC-decisions-18.4.0.md`](./SPEC-decisions-18.4.0.md) | 18.4.0 decisions: the API says `member` (`user` a deprecated alias until 19.0.0, #599), per-service tile hue (#352), the uptime hint (#488), docs match the code | In review — target 18.4.0. |
-| [`SPEC-qa-cleanup-18.5.0.md`](./SPEC-qa-cleanup-18.5.0.md) | 18.5.0 QA and test reliability: tests for removing an adult (#591), a clear error when the homelab read token is missing (#578), the kid-accounts phone test measured (#567), browser tests for what staging can't show (#606, #607, #610), sources in the M7 table (#540) | In review — target 18.5.0. |
-| [`SPEC-cleanup-18.6.0.md`](./SPEC-cleanup-18.6.0.md) | 18.6.0 cleanup: a full Content-Security-Policy from an audit of the built app, with a browser test under the real header (#529), scratch test databases must be `_test` (#256), decisions on sparkline focus (#477), drag placeholder (#403) and bento grid (#346) | In review — target 18.6.0. |
+No spec is open.
 
 One part of a shipped spec is also open: Phase 2 of
 [`SPEC-status-widgets.md`](./SPEC-status-widgets.md) (Pi-hole, qBittorrent,

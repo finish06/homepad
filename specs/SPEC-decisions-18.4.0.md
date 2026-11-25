@@ -4,7 +4,7 @@
 **Version:** 0.1.0
 **Created:** 2026-11-24
 **Author:** Claude (from Caleb's decisions of 2026-11-24 on #599, #352, #488 and the docs-vs-code list)
-**Status:** In review
+**Status:** SHIPPED — 18.4.0 (2026-11-24): #707, release #708. Status line read "In review" until 2026-11-25.
 **Repo:** `Code/homepad` (web app and `api/`)
 **Issues:** #599, #352, #488
 **Target version:** 18.4.0

@@ -4,7 +4,8 @@
 **Created:** 2026-06-23
 **Author:** Walt (product lead)
 **Status:** SHIPPED — 16.5.0 (2026-09-22, restored) — see §8. Originally shipped 2026-06-23 (PR #145),
-lost 2026-07-02 with its host component, rebuilt on AppGrid.
+lost 2026-07-02 with its host component, rebuilt on AppGrid. AC-006 (keyboard focus) withdrawn 2026-11-24
+(#477, `DECISIONS.md`); 18.6.0 gives the tile link a check summary instead (§8.3).
 **Repo:** `Code/homepad` (frontend only — no backend changes)
 **Estimate:** ~30 minutes
 **Depends on:** Uptime sparkline (shipped), v14 status summary bar (pending fix)

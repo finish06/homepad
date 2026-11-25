@@ -39,6 +39,47 @@ identity)") for tile icons; that spec lives on the `design/v15-reference`
 branch and was never merged to main. Category hue still tints the library
 chips (#90). Status colour and text stay accent-proof either way.
 
+## 2026-11-24 — The API calls the member role `member` (#599): Caleb's call
+
+The API sends `"role": "member"` for an adult who is not an admin, as the UI and
+docs already did. It still takes `"user"` as input until 19.0.0 and answers
+with a `Warning` header. The database keeps `user`; one helper maps it at the
+API edge, so any image can run on the same data and a rollback needs no down
+migration. Shipped in 18.4.0. See SPEC-decisions-18.4.0 §2.
+
+## 2026-11-24 — "Show uptime display" gets a hint, not a new layout (#488): Caleb's call
+
+The switch in My settings keeps its place next to Tile density and gains one
+line: "Recent checks on monitored tiles. Large also shows 24h, 7d and 30d
+uptime." Shipped in 18.4.0. See SPEC-decisions-18.4.0 §4.
+
+## 2026-11-24 — Staging keeps open sign-up (#615): Joe's call
+
+Staging runs `HOMEPAD_REGISTRATION=open` on purpose. OIDC is off there, so
+self sign-up is how QA gets accounts, and staging is reachable only on the
+LAN. The cost: staging does not test `invite_only`. A PR that changes
+invite-only or SSO-under-invite-only behaviour tests it in its own preview with
+`HOMEPAD_REGISTRATION=invite_only`, not by changing shared staging.
+
+## 2026-11-23 — Server settings live in the database, a saved value wins: Caleb's call
+
+Admins change server settings in Admin Panel → System, not with SQL. A value
+saved there wins over the environment, then the built-in default, so an
+existing install changes nothing until someone saves. Q1 A: a saved OIDC client
+secret is sealed with `HOMEPAD_SECRET_KEY`. Q2 A: a sign-in change needs a
+passing test sign-in when no admin has a password. Q3 A: `GET
+/api/admin/env-config` stays, deprecated, until 19.0.0. Shipped in 18.1.0. See
+SPEC-admin-server-settings §0.
+
+## 2026-11-20 — 18.0.0 household management: Caleb's calls
+
+Recorded in each spec's §0, not repeated here: the household owns the catalog
+and backups move to `schemaVersion` 2 (SPEC-household-catalog-owner), managing
+adults (SPEC-household-manage-adults), admin-made reset links with no email
+(SPEC-password-reset-link), sign-in limits and `email_verified` for single
+sign-on (SPEC-signin-hardening), and the strict overlay sandbox with a per-app
+opt-in (SPEC-iframe-sandbox-optin).
+
 ## 2026-06-12 — v5 collapsible-categories (Q1–Q4): Joe's calls (delegated)
 
 Unblocks the v5 build. The four open NEEDS-JOE calls in

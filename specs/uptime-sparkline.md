@@ -1,14 +1,37 @@
 # Spec: Uptime Sparkline on Homepad Tiles
 
-**Version:** 0.1.0
+**Version:** 0.1.1
 **Created:** 2026-06-14
 **Author:** Walt (product lead)
 **Status:** Shipped — prod (PR #46/#47/#51, 2026-06-18). **Absent from the product
 2026-07-02 → 2026-09-22**: `4c7dce2` restored the App Grid and `Catalog.tsx` — the only
 file rendering this strip — stopped being rendered. Not a product decision; no
 `DECISIONS.md` entry. Restored on `AppGrid` alongside cap4; see
-`specs/cap4-sparkline-dot-tooltip.md` §8.
-**Repos:** `Code/homepad` (frontend) · `Code/homepad-api` (backend)
+`specs/cap4-sparkline-dot-tooltip.md` §8. Renders today as described in "As built (18.6.0)" below,
+behind each person's "Show uptime display" setting. Checked against the code on 2026-11-25.
+**Repos:** `Code/homepad` (frontend; the backend moved into `api/` in 18.1.0) · `Code/homepad-api` (backend, archived)
+
+## As built (18.6.0)
+
+The sections below are the June 2026 design. This is how the strip renders now.
+
+- **Where.** `UptimeSparkline` in `src/grid/AppGrid.tsx`, on every App Grid tile with check
+  history. `Catalog.tsx` is gone.
+- **When.** Only while the viewer's **Show uptime display** is on (My settings). The setting is
+  per person since 16.4.0; the admin row in System only seeds new accounts (cap6). Off, the tile
+  renders as if it had no history.
+- **What.** Up to 20 bars, oldest on the left: green for a pass, red for a fail. They share the
+  row evenly, are 5px tall and never wrap, so the strip keeps one size as history grows. No
+  checks, no strip, and the tile keeps its height.
+- **Density.** The bars show at Large, Compact and List. The `XX% / N checks` label shows only at
+  Large, like the 24h / 7d / 30d line (cap4 §8 D-5). My settings says so under the switch (18.4.0,
+  #488).
+- **Hover.** On a device that can hover, a bar shows a tooltip with the result and the local time
+  (cap4).
+- **Screen readers.** Each bar is `role="img"` with a label such as "Passed – Nov 24, 13:05". The
+  bars can't take keyboard focus (cap4 AC-006 withdrawn, #477). Since 18.6.0 the tile link is
+  described by a summary such as "Last 20 checks: 19 up, 1 down", only while the display is on.
+  This replaces the "decorative, `aria-hidden`" rule in §6.
 
 ---
 
@@ -453,3 +476,4 @@ This section is product-to-implementer notes, not acceptance criteria.
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
 | 2026-06-14 | 0.1.0 | Walt | Initial spec — grounded in code review of poller.go, services.go, api.ts, Catalog.tsx |
+| 2026-11-25 | 0.1.1 | Claude | "As built (18.6.0)" added: where and when the strip renders now, the density rule, and the screen-reader summary. The June sections are kept as written. |

@@ -4,7 +4,7 @@
 **Version:** 0.1.0
 **Created:** 2026-11-23
 **Author:** Claude (Caleb asked, 2026-11-23: "clean up more issues, tackle another bundle". This is the web UI, design and accessibility bundle.)
-**Status:** In review
+**Status:** SHIPPED — 18.3.0 (2026-11-24): #703, release #706. The five left open in §3 were decided later: #352 and #488 in 18.4.0 (SPEC-decisions-18.4.0), #477, #403 and #346 in 18.6.0 (SPEC-cleanup-18.6.0, `DECISIONS.md`). Status line read "In review" until 2026-11-25.
 **Repo:** `Code/homepad` (web app at the root; no `api/` changes)
 **Issues:** #187, #192, #206, #262, #263, #269, #335, #341, #346, #348, #352, #375, #376, #379, #403, #451, #477, #488, #513
 **Target version:** 18.3.0

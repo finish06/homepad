@@ -1,10 +1,10 @@
 # Spec: Content-Security-Policy and the last issue cleanup for 18.6.0
 
 **Spec ID:** SPEC-cleanup-18.6.0
-**Version:** 0.2.0
+**Version:** 0.2.1
 **Created:** 2026-11-24
 **Author:** Claude (orchestrated 18.6.0 feature work, "last batch of issue cleanup")
-**Status:** In review
+**Status:** SHIPPED — 18.6.0 (2026-11-24): #711, release #714. In production since 2026-11-24. The §7 ConfigMap line is live: on 2026-11-25 staging and production answered `/`, a script file, `/version.json` and `/manifest.webmanifest` with exactly one full policy header. The per-PR preview still sends only `frame-ancestors` (#715, open). Status line read "In review" until 2026-11-25.
 **Repo:** `Code/homepad` (nginx configs, `compose.yaml`, `tests/`, `src/grid/`, `api/internal/`, `specs/`)
 **Issues:** #529, #256, #477, #403, #346
 **Target version:** 18.6.0
@@ -99,6 +99,8 @@ Every path, and how it is guarded:
 
 For Joe. Staging and prod serve the `homepad-web-nginx` ConfigMap (Code/homelab, `homepad-staging/03-web.yaml` and `homepad/03-web.yaml`), not the image's nginx config. The policy reaches them only through this change.
 
+**Done.** Both ConfigMaps carry the line, applied with the 18.6.0 promotion on 2026-11-24. Checked on 2026-11-25 with `curl -sI` on the four paths in step 3: each sent exactly one header, the line below.
+
 **1. In both ConfigMaps, replace every line**
 
 ```
@@ -169,3 +171,4 @@ add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src '
 |---|---|---|
 | 2026-11-24 | 0.1.0 | Draft for 18.6.0, checked against `de3e806`. |
 | 2026-11-24 | 0.2.0 | As built: §6 test-path table, §7 ConfigMap lines, §8. Enforced, not Report-Only. |
+| 2026-11-25 | 0.2.1 | Shipped in 18.6.0. §7: the ConfigMap change is live on staging and production. |

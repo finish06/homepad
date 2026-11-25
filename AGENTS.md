@@ -27,7 +27,7 @@ Vite frontend at the root; Go backend in `api/` (same repo).
 - `npx vitest run` builds the app itself for the dist suites; no `npm run build` first.
   `npm run test:all` runs every CI gate and lists what it could not run (`docs/testing.md`).
 - Unit: Vitest. Interaction: `npm run test:gate` (Playwright, mocked API, serves `dist/`).
-  End-to-end: `npm run test:e2e` (needs a live API).
+  End-to-end: `npm run test:e2e` (mocked API, serves `dist/` on :4174).
 
 ## Maturity & Autonomy Ceiling
 
@@ -42,7 +42,7 @@ Production deploys and merges to the default branch always require human approva
 
 ## Currently Active Spec
 
-- [`specs/SPEC-health-bar-visibility-toggle.md`](./specs/SPEC-health-bar-visibility-toggle.md)
+- None. No milestone is active; M9 and M3 closed on 2026-11-25 (`docs/prd.md` §6).
 
 ## Pointers
 
