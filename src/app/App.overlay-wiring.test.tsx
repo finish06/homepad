@@ -19,9 +19,45 @@ import { authConfig, me, type User } from '../api';
 // Each case therefore asserts the OBSERVABLE consequence (which overlay is
 // mounted or gone), never just that a handler ran.
 
-vi.mock('../grid/AppGrid', () => ({
-  default: () => <div data-testid="app-grid-stub" />,
-}));
+// SPEC-dashboard-empty-loading §3.4 — the stub draws one box, "Media" (c1),
+// from the shared services list: empty, it shows the box button (when App
+// passes onAddToBox); filled, its tiles carry data-service-id like the real
+// grid's, unless `stubGrid.collapsed` hides them.
+const stubGrid = vi.hoisted(() => ({ collapsed: false }));
+vi.mock('../grid/AppGrid', async () => {
+  const { useServicesContext } = await import('../services');
+  return {
+    default: function AppGridStub(props: {
+      onAddToBox?: (box: { id: string; title: string }, opener: HTMLButtonElement) => void;
+    }) {
+      const inBox = (useServicesContext()?.items ?? []).filter((s) => s.categoryId === 'c1');
+      return (
+        <div data-testid="app-grid-stub">
+          <section data-box-id="c1">
+            <h2 tabIndex={-1}>Media</h2>
+            {inBox.length === 0
+              ? props.onAddToBox && (
+                  <button
+                    data-testid="stub-box-add"
+                    onClick={(e) => props.onAddToBox!({ id: 'c1', title: 'Media' }, e.currentTarget)}
+                  >
+                    Browse the App Library
+                  </button>
+                )
+              : !stubGrid.collapsed &&
+                inBox.map((t) => (
+                  <div key={t.id} className="app-grid-tool-wrap" data-service-id={t.id}>
+                    <a data-testid="tool-link" href="#t">
+                      {t.name}
+                    </a>
+                  </div>
+                ))}
+          </section>
+        </div>
+      );
+    },
+  };
+});
 
 // The three lazy children, stubbed with buttons that fire the callbacks App
 // passes in — the only way to reach them from outside.
@@ -30,8 +66,9 @@ vi.mock('../library/LibraryBrowse', () => ({
     onClose: () => void;
     onAdded: (s: unknown) => void;
     onCustomAdd: () => void;
+    targetCategory?: { id: string; title: string };
   }) => (
-    <div data-testid="library-stub">
+    <div data-testid="library-stub" data-target={props.targetCategory?.id ?? ''} data-target-title={props.targetCategory?.title ?? ''}>
       <button data-testid="lib-close" onClick={props.onClose}>close</button>
       <button data-testid="lib-custom" onClick={props.onCustomAdd}>custom</button>
       <button
@@ -40,6 +77,8 @@ vi.mock('../library/LibraryBrowse', () => ({
           props.onAdded({
             id: 's9', slug: 's9', name: 'Added App', description: '', url: 'https://a.test',
             icon: '', status: 'UP', favorite: false, iconLight: false, iconDark: false,
+            // The server files the copy in the target box (SPEC-dashboard-empty-loading OQ-2).
+            categoryId: props.targetCategory?.id ?? null,
           })
         }
       >
@@ -289,5 +328,67 @@ describe('App overlay wiring — alerts and the edit-mode banner', () => {
 
     await u.click(screen.getByTestId('exit-edit-mode'));
     expect(screen.queryByTestId('edit-mode-banner')).not.toBeInTheDocument();
+  });
+});
+
+// SPEC-dashboard-empty-loading AC-010, AC-011 — an admin's empty-box button
+// opens the ONE App-level Library aimed at that box, and App returns focus.
+describe('App overlay wiring — the Library from an empty box', () => {
+  beforeEach(() => {
+    stubGrid.collapsed = false;
+  });
+
+  it('the box button opens the one Library with that box as its target', async () => {
+    const u = userEvent.setup();
+    await boot(ADMIN);
+    await u.click(await screen.findByTestId('stub-box-add'));
+    const lib = await screen.findByTestId('library-stub');
+    expect(lib).toHaveAttribute('data-target', 'c1');
+    expect(lib).toHaveAttribute('data-target-title', 'Media');
+    expect(screen.getAllByTestId('library-stub')).toHaveLength(1);
+  });
+
+  it('the Gear\'s Add apps still opens the Library with no target', async () => {
+    const u = userEvent.setup();
+    await boot(ADMIN);
+    // Open from a box first, close, then from the Gear: the target must not stick.
+    await u.click(await screen.findByTestId('stub-box-add'));
+    await u.click(await screen.findByTestId('lib-close'));
+    await openGear(u);
+    await u.click(screen.getByTestId('gear-add-apps'));
+    expect(await screen.findByTestId('library-stub')).toHaveAttribute('data-target', '');
+  });
+
+  it('closing with nothing added returns focus to the box button', async () => {
+    const u = userEvent.setup();
+    await boot(ADMIN);
+    const btn = await screen.findByTestId('stub-box-add');
+    await u.click(btn);
+    await u.click(await screen.findByTestId('lib-close'));
+    expect(screen.queryByTestId('library-stub')).toBeNull();
+    expect(btn).toHaveFocus();
+  });
+
+  it('when the box filled and the button is gone, focus moves to the added app\'s tile link', async () => {
+    const u = userEvent.setup();
+    await boot(ADMIN);
+    await u.click(await screen.findByTestId('stub-box-add'));
+    await u.click(await screen.findByTestId('lib-added'));
+    expect(screen.queryByTestId('stub-box-add')).toBeNull();
+    await u.click(screen.getByTestId('lib-close'));
+    const link = screen.getByTestId('tool-link');
+    expect(link.closest('[data-service-id]')).toHaveAttribute('data-service-id', 's9');
+    expect(link).toHaveFocus();
+  });
+
+  it('when that tile is not rendered, focus moves to the box heading', async () => {
+    stubGrid.collapsed = true;
+    const u = userEvent.setup();
+    await boot(ADMIN);
+    await u.click(await screen.findByTestId('stub-box-add'));
+    await u.click(await screen.findByTestId('lib-added'));
+    await u.click(screen.getByTestId('lib-close'));
+    expect(screen.getByRole('heading', { name: 'Media' })).toHaveFocus();
+    expect(document.activeElement).not.toBe(document.body);
   });
 });

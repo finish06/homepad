@@ -1,10 +1,10 @@
 # Spec: Dashboard empty and loading states
 
 **Spec ID:** SPEC-dashboard-empty-loading
-**Version:** 0.4.0
+**Version:** 0.5.0
 **Created:** 2026-11-25
 **Author:** Claude (Caleb asked 2026-11-25 to write up M10)
-**Status:** Approved — 2026-11-25 (Caleb's answers are in §3). Not built
+**Status:** Approved — 2026-11-25 (Caleb's answers are in §3). Built for 18.7.0 (#722); see §8 for the build notes
 **Repo:** `Code/homepad` (web app at the root; no `api/` changes)
 **Issues:** #722, #724 (dead CSS only)
 **Target version:** 18.7.0
@@ -104,7 +104,7 @@ SPEC-group-header-collapse §3.5 widens it to:
 |----|-----------|----------|
 | AC-001 | While AppGrid's one `loading` flag is true (§3.2: `!catsLoaded \|\| svcs === null`, widened by SPEC-group-header-collapse to include `!collapsedReady`), it renders a skeleton inside a real `.app-grid` element with the user's `data-density`. No `.app-spinner` shows in the content section. The wrapper keeps `data-testid="app-grid-loading"`. The app-level loader in `App.tsx` is unchanged. | Must |
 | AC-002 | The skeleton is built from the real grid classes (`.app-grid-box`, `.app-grid-box-header`, `.app-grid-tools`, `.app-grid-tool` shell), with `--floor`, `--grow` and `--cap` set by the same helpers as real boxes (`boxWidthPx`, `contentMaxPx`, `rowFillCounts`). So every density and breakpoint rule applies to it unchanged. A ghost tile measures the same as a real tile at each density: Large 190px wide and the real Large height, Compact 236×68px, List full width × 44px with a 6px gap. This holds below 640px too. A kid's skeleton is Large, as their grid is. | Must |
-| AC-003 | When the loaded layout matches the cached shape (same spans, counts, `collapsed` flags and `recent` flag, §3.1), loading causes no layout shift. In a real browser, the summed `layout-shift` entries from first paint of the skeleton to the loaded grid are under 0.01, at 390, 1440 and 1920px. The window covers the whole `loading` wait (§3.2), including the collapsed-set GET once #718 ships. A 30-app box and a collapsed box are in the cached shape. The first box's top-left corner and the x-position of every tile column do not move. | Must |
+| AC-003 | When the loaded layout matches the cached shape (same spans, counts, `collapsed` flags and `recent` flag, §3.1), loading causes no layout shift. In a real browser, the summed `layout-shift` entries from first paint of the skeleton to the loaded grid are under 0.01, at 390, 1440 and 1920px. The window covers the whole `loading` wait (§3.2), including the collapsed-set GET once #718 ships. A 30-app box and a collapsed box are in the cached shape. The first box's top-left corner and the x-position of every tile column do not move. *Build note (§8): the health panel above the grid grows when services arrive, which moves the page for adults; the page-level sum is measured for a kid (no health panel), and for adults the grid is measured inside its own section.* | Must |
 | AC-004 | With no cache, a bad cache, or a cache for another user, the fallback skeleton (OQ-1) still puts the first box's top edge and the first tile column where the real grid puts them. Only box count and box height may change. | Must |
 | AC-005 | The skeleton reserves the Recently opened row when the cache says `recent: true`. Otherwise, and in the fallback, it reserves nothing there. | Should |
 | AC-006 | The grid writes its shape to the cache after load and whenever the rendered shape changes (§3.1), debounced by 500 ms and skipped when equal to the last write. It does not write while `arranging` is on, and writes the view shape when `arranging` turns off. The entry holds only the version, the user id, the `recent` flag and per box `span`, exact `count` and `collapsed`. A read that throws, holds bad data, or names another user falls back without error. | Should |
@@ -181,3 +181,11 @@ Gates: `npm run lint`, `npm run build`, `npx vitest run`, `npm run test:gate`, `
 ## 7. Build order
 
 Build this spec before SPEC-group-header-collapse. #718 widens the loading predicate (§3.2) and fills the cache's `collapsed` field (§3.1). Both specs change `src/grid/AppGrid.tsx` and `src/index.css`; see the file plan in `docs/milestones/M10-ui-review-first-batch.md`.
+
+## 8. Build notes (2026-11-25)
+
+Calls made while building, each small; the PR lists them under "Spec deviations".
+
+1. **AC-003 measures the grid, not the health panel.** `StatusBar` (the health panel above the grid) is shorter while services load: its verdict gains a line when they arrive (about 20px), and with the health bar on its chips and meter mount too (about 68px more). That moves everything below it, skeleton or spinner alike, and it is outside this spec's files. So the browser gate checks the literal page-level sum (< 0.01, footer still) for a **kid**, who has no health panel, at 390, 1440 and 1920px; and for a member and an admin it checks that every box corner, size and tile column holds **inside the grid's own section**. Making the health panel keep its loaded height while it checks is a follow-up.
+2. **"The real Large height" is a tile without its optional lines.** A Large tile with uptime windows, a sparkline or a widget line is taller. The cache stores no per-app detail (§3.1), so the ghost tile is the plain tile; boxes of such tiles grow on load.
+3. **The admin's empty-box button is reserved.** A cached box with `count: 0` draws an unseen copy of the admin's button, so an admin's empty box does not grow on load. It is skipped when every cached box is empty (that is the `admin-empty` case, where the buttons hide, OQ-3).

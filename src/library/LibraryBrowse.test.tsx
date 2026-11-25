@@ -40,6 +40,7 @@ function renderBrowse(props: Partial<React.ComponentProps<typeof LibraryBrowse>>
         onCustomAdd={props.onCustomAdd ?? vi.fn()}
         isAdmin={props.isAdmin ?? false}
         onManageLibrary={props.onManageLibrary}
+        targetCategory={props.targetCategory}
       />
     </ThemeProvider>,
   );
@@ -377,3 +378,29 @@ describe('SPEC-ui-quick-wins — groups and the Added filter', () => {
   });
 });
 
+// SPEC-dashboard-empty-loading AC-010 / §3.3 — opened from an empty box, the
+// Library says which box and files every add there, whatever group the offer
+// is listed under. Without a target nothing changes.
+describe('the target box (AC-010)', () => {
+  it('without a target the heading is "App Library" and adds send no category', async () => {
+    const u = userEvent.setup();
+    renderBrowse();
+    expect(await screen.findByRole('heading', { name: 'App Library' })).toBeInTheDocument();
+    await u.click(await screen.findByTestId('library-add-L1'));
+    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L1'));
+    expect(vi.mocked(addFromLibrary).mock.calls[0]).toHaveLength(1);
+  });
+
+  it('with a target the heading reads "Add to {title}" and every add sends that categoryId', async () => {
+    const u = userEvent.setup();
+    renderBrowse({ targetCategory: { id: 'c7', title: 'Games' } });
+    expect(await screen.findByRole('heading', { name: 'Add to Games' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'App Library' })).toBeNull();
+    // L1 is suggested for "Media" — it still goes into the target box.
+    await u.click(await screen.findByTestId('library-add-L1'));
+    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L1', 'c7'));
+    // An "Add again" on an already-added offer goes there too.
+    await u.click(screen.getByTestId('library-added-L2'));
+    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L2', 'c7'));
+  });
+});

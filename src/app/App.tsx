@@ -12,6 +12,7 @@ import {
 } from '../api';
 import AppHeader from './AppHeader';
 import AppGrid from '../grid/AppGrid';
+import { clearShapeCache } from '../grid/gridShapeCache';
 import { useTileDensity } from '../grid/tileDensity';
 import { useHealthBarPref } from './healthBarPref';
 import { useUptimeDisplayPref } from './uptimeDisplayPref';
@@ -244,6 +245,14 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // lifted here so the header Gear can trigger them and their result flows into
   // the shared services context that AppGrid renders from.
   const [browseOpen, setBrowseOpen] = useState(false);
+  // SPEC-dashboard-empty-loading §3.4 — the box an admin's empty-box button
+  // aimed the Library at (null from the Gear), with the button for focus return,
+  // and the ids added in that Library session (the first is the focus fallback).
+  const [browseTarget, setBrowseTarget] = useState<{ id: string; title: string; opener: HTMLButtonElement } | null>(
+    null,
+  );
+  const browseAdded = useRef<string[]>([]);
+  const browseFocus = useRef<{ id: string; opener: HTMLButtonElement; added: string | undefined } | null>(null);
   const [customFormOpen, setCustomFormOpen] = useState(false);
   // v9.3 §7.3 — the admin Settings modal (App Library management + read-only
   // System settings). Opened from the avatar menu (admin only). SPEC-v26: the
@@ -275,6 +284,10 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   const bellRef = useRef<HTMLButtonElement>(null);
   const alerts = useAlertHistory();
   const services = useServicesContext();
+  // SPEC-dashboard-empty-loading §3.5 — the one answer to "is the dashboard
+  // empty", used for admin-empty, member-empty, kid-empty and AppGrid's prop.
+  // False while services are still loading (items null).
+  const dashboardEmpty = services?.items?.length === 0;
   const { open: launcherOpen, closeLauncher } = useLauncher();
   // Categories feed the add-custom-app form's category picker (parity with the
   // list Catalog used to pass). AppGrid owns box widths independently; this is a
@@ -305,7 +318,47 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // create/update response serializes as zero values.
   function onAddedFromLibrary(added: Service) {
     services?.setItems((cur) => [...(cur ?? []), added]);
+    browseAdded.current.push(added.id);
   }
+
+  // §3.4 — open the one Library: from the Gear (no target, adds land in
+  // Uncategorized) or from an empty box (that box is the target, OQ-2).
+  function openBrowse(target: { id: string; title: string; opener: HTMLButtonElement } | null) {
+    browseAdded.current = [];
+    browseFocus.current = null;
+    setBrowseTarget(target);
+    setBrowseOpen(true);
+  }
+  function closeBrowse() {
+    if (browseTarget) {
+      browseFocus.current = { id: browseTarget.id, opener: browseTarget.opener, added: browseAdded.current[0] };
+    }
+    setBrowseTarget(null);
+    setBrowseOpen(false);
+  }
+  // AC-011 — after a box's Library closes (and after LibraryBrowse's own
+  // unmount focus, which this runs after): back to the button if it is still on
+  // the page; else the tile link of the first app added, found by its id; else
+  // that box's heading. Never <body>.
+  useEffect(() => {
+    const f = browseFocus.current;
+    if (browseOpen || !f) return;
+    browseFocus.current = null;
+    if (f.opener.isConnected) {
+      f.opener.focus();
+      return;
+    }
+    const box = Array.from(document.querySelectorAll<HTMLElement>('[data-box-id]')).find(
+      (el) => el.dataset.boxId === f.id,
+    );
+    const tile = f.added
+      ? Array.from(box?.querySelectorAll<HTMLElement>('.app-grid-tool-wrap[data-service-id]') ?? []).find(
+          (el) => el.dataset.serviceId === f.added,
+        )
+      : undefined;
+    const link = tile?.querySelector<HTMLElement>('[data-testid="tool-link"]');
+    (link ?? box?.querySelector<HTMLElement>('h2'))?.focus();
+  }, [browseOpen]);
   function onSavedCustom(saved: Service, mode: 'add' | 'edit') {
     services?.setItems((cur) => {
       if (mode === 'add') return [...(cur ?? []), saved];
@@ -335,6 +388,10 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
 
   async function handleLogout() {
     await logout();
+    // SPEC-dashboard-empty-loading AC-019 — the skeleton shape is this user's:
+    // cancel a pending write first, then remove the key, so nothing queued just
+    // before sign-out can put it back for the next person on this device.
+    clearShapeCache();
     onLogout();
   }
 
@@ -367,7 +424,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
           user={user}
           editMode={editMode}
           onToggleEdit={() => setEditMode((e) => !e)}
-          onOpenLibrary={() => setBrowseOpen(true)}
+          onOpenLibrary={() => openBrowse(null)}
           onOpenCustomAppForm={() => setCustomFormOpen(true)}
           onOpenAdminSettings={() => {
             setSettingsScope('admin');
@@ -437,7 +494,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               leaving an empty band is what AC-006 forbids. SPEC-tile-density OQ-9
               put the switch here "matching the v16 artboard"; Caleb reversed that
               placement 2026-09-23 (OQ-1 — a product call over a design one). */}
-          {isKid && services?.items?.length === 0 ? (
+          {isKid && dashboardEmpty ? (
             // UX §5 — the kid's empty state: plain words, no buttons. There is
             // nothing a child can do about it but ask.
             <p data-testid="kid-empty" className="kid-empty">
@@ -448,14 +505,14 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               {/* SPEC-backup-import UX §5 / B-2 — a new install's admin gets the
                   Homepage import one click from the empty dashboard. Users and
                   kids see no change (AC-032); the block goes once there is an app. */}
-              {isAdmin && services?.items?.length === 0 && (
+              {isAdmin && dashboardEmpty && (
                 <div data-testid="admin-empty" className="kid-empty">
                   <p>No apps yet.</p>
                   <div className="mt-4 flex flex-wrap justify-center gap-3">
                     <button type="button" className="library-add" onClick={() => setCustomFormOpen(true)}>
                       + Add an app
                     </button>
-                    <button type="button" className="settings-ghost-btn" onClick={() => setBrowseOpen(true)}>
+                    <button type="button" className="settings-ghost-btn" onClick={() => openBrowse(null)}>
                       Browse the App Library
                     </button>
                   </div>
@@ -466,6 +523,13 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
                     </button>
                   </p>
                 </div>
+              )}
+              {/* SPEC-dashboard-empty-loading AC-012 — a member can't add apps,
+                  so they get plain words and no button, in the same look. */}
+              {!isAdmin && dashboardEmpty && (
+                <p data-testid="member-empty" className="kid-empty">
+                  No apps yet. Ask an admin to add some.
+                </p>
               )}
               <AppGrid
                 // AC-002 — the grid reads its sections once, on mount. When a
@@ -481,6 +545,12 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
                 // over a device cache left by another account, and a kid has no
                 // control that could write it (PATCH /api/me is themePref-only).
                 density={isKid ? 'large' : density}
+                // SPEC-dashboard-empty-loading — whose skeleton shape to keep
+                // (§3.1), the empty-box button's Library (§3.4; AppGrid shows it
+                // to admins only), and the one dashboardEmpty value (§3.5).
+                userId={user.id}
+                onAddToBox={(box, opener) => openBrowse({ ...box, opener })}
+                dashboardEmpty={dashboardEmpty}
               />
             </>
           )}
@@ -492,13 +562,15 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             AppGrid (unlike Catalog) doesn't host them; their result lands in the
             shared services context AppGrid renders from. */}
         {browseOpen && (
-          <ChunkErrorBoundary onClose={() => setBrowseOpen(false)}>
+          <ChunkErrorBoundary onClose={closeBrowse}>
           <Suspense fallback={null}>
             <LibraryBrowse
               isAdmin={isAdmin}
-              onClose={() => setBrowseOpen(false)}
+              targetCategory={browseTarget ? { id: browseTarget.id, title: browseTarget.title } : undefined}
+              onClose={closeBrowse}
               onAdded={onAddedFromLibrary}
               onCustomAdd={() => {
+                setBrowseTarget(null);
                 setBrowseOpen(false);
                 setCustomFormOpen(true);
               }}
