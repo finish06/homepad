@@ -62,6 +62,29 @@ check "AC-015 the api job runs from api/" job_has "$ci" api 'working-directory: 
 check "AC-015 the api job runs go vet ./..." job_has "$ci" api 'run: go vet \./\.\.\.'
 check "AC-015 the api job runs go test ./..." job_has "$ci" api 'run: go test \./\.\.\.'
 check "AC-018 the web job runs the CI script tests" job_has "$ci" web 'scripts/ci/docs-only\.test\.sh'
+for t in gate-surfaces playwright-image; do
+  check "AC-018 the web job runs scripts/ci/$t.test.sh" job_has "$ci" web "scripts/ci/$t\.test\.sh"
+done
+
+# browser-gate.yml is a required status check on main, and its context is
+# <workflow> / <job name> (pull_request): "Browser gate / Browser gate (#35
+# tile/menu/dnd) (pull_request)". The job name IS the context, so renaming it
+# silently blocks every PR — pinned here. The trigger and the image pin are
+# pinned too: the trigger used to be an inline `git diff | grep` that reported
+# green when it could not read the diff, and the image tag is a literal that
+# drifts from package-lock.json on its own.
+bg="$wf/browser-gate.yml"
+check "browser-gate keeps the required check's job name" \
+  bash -c 'grep -qxF "    name: Browser gate (#35 tile/menu/dnd)" "$0"' "$bg"
+check "browser-gate decides with scripts/ci/gate-surfaces.sh (fails closed)" job_has "$bg" browser-gate 'scripts/ci/gate-surfaces\.sh'
+check "browser-gate has no inline git diff of its own" bash -c '! grep -q "git diff" "$0"' "$bg"
+check "browser-gate verifies the container image against the lockfile" job_has "$bg" browser-gate 'scripts/ci/playwright-image\.sh'
+check "browser-gate pins a playwright image tag playwright-image.sh can read" \
+  grep -qE '^    container: mcr\.microsoft\.com/playwright:v[0-9]+\.[0-9]+\.[0-9]+-[a-z]+$' "$bg"
+check "browser-gate cancels superseded runs for the same PR" \
+  grep -qF 'group: browser-gate-pr-${{ github.event.pull_request.number }}' "$bg"
+check "browser-gate has a job timeout" job_has "$bg" browser-gate '^    timeout-minutes: 25$'
+
 
 e2e="$wf/e2e.yml"
 check "AC-004 e2e.yml skips at step level with 'skipped: no web changes'" job_has "$e2e" e2e 'skipped: no web changes'
@@ -83,6 +106,10 @@ check "#680 staging-url is pr-<n>.\$PREVIEW_DOMAIN" \
   grep -qF 'staging-url: http://pr-${{ github.event.pull_request.number }}.${{ vars.PREVIEW_DOMAIN }}' "$mr"
 check "#680 qa-login-url is the same host plus /api/login" \
   grep -qF 'qa-login-url: http://pr-${{ github.event.pull_request.number }}.${{ vars.PREVIEW_DOMAIN }}/api/login' "$mr"
+# Code review before QA (ci-shared code-review input): a blocking review halts QA.
+check "code-review is on for the mr-staging step" grep -qxF "          code-review: 'true'" "$mr"
+check "code-review: REVIEW_TRIGGER_TOKEN is mapped into the mr-staging step env" \
+  grep -qE '^          REVIEW_TRIGGER_TOKEN: +\$\{\{ secrets\.REVIEW_TRIGGER_TOKEN \}\}$' "$mr"
 check "#680 deploy-cmd builds PREVIEW_URL from PREVIEW_DOMAIN" \
   grep -qF 'PREVIEW_URL="http://pr-$PR_NUMBER.$PREVIEW_DOMAIN"' "$mr"
 check "#680 the step maps PREVIEW_DOMAIN into its env" \

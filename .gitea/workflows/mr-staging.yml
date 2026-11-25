@@ -57,6 +57,11 @@ jobs:
           # ci-shared @v3 that declares this input (ci-shared#46); an older @v3
           # just drops it.
           qa-login-url: http://pr-${{ github.event.pull_request.number }}.${{ vars.PREVIEW_DOMAIN }}/api/login
+          # A code review runs first on the review-runner (as review-claude);
+          # qa-gate starts only if it passes, so a blocked or failed review means
+          # no QA and no auto-merge. This step stays open while the review runs
+          # (up to 30 minutes).
+          code-review: 'true'
           # Test-dedup: the unit suite is NOT re-run here. ci.yml ("Web (build,
           # unit tests)") and browser-gate.yml are required status checks on
           # this same PR head sha — branch protection already blocks the QA
@@ -202,6 +207,7 @@ jobs:
           NATS_PUBLISH_URL:   ${{ secrets.NATS_PUBLISH_URL }}
           NATS_PUBLISH_TOKEN: ${{ secrets.NATS_PUBLISH_TOKEN }}
           QA_TRIGGER_TOKEN:   ${{ secrets.QA_TRIGGER_TOKEN }}
+          REVIEW_TRIGGER_TOKEN: ${{ secrets.REVIEW_TRIGGER_TOKEN }}
           # Preview deploy (deploy-cmd above). KUBECONFIG_PREVIEW is the
           # homepad-preview ci-deployer SA; HOMELAB_READ_TOKEN reads the
           # templates from Code/homelab; QA_EMAIL / QA_PASSWORD feed the seed.
