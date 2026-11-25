@@ -57,6 +57,10 @@ jobs:
           # ci-shared @v3 that declares this input (ci-shared#46); an older @v3
           # just drops it.
           qa-login-url: http://pr-${{ github.event.pull_request.number }}.${{ vars.PREVIEW_DOMAIN }}/api/login
+          # A gated code review runs before qa-gate; a blocking (or failed)
+          # review skips QA, so nothing auto-merges. Needs a ci-shared @v3 that
+          # declares this input (ci-shared#49); an older @v3 just drops it.
+          code-review: 'true'
           # Test-dedup: the unit suite is NOT re-run here. ci.yml ("Web (build,
           # unit tests)") and browser-gate.yml are required status checks on
           # this same PR head sha — branch protection already blocks the QA
