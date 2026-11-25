@@ -4,7 +4,7 @@
 **Version:** 0.1.0
 **Created:** 2026-11-25
 **Author:** Claude (Caleb asked 2026-11-25 to write up M10)
-**Status:** Draft — needs Caleb's review
+**Status:** Approved — 2026-11-25 (Caleb took every recommended answer in §7). Not built. Kare checks the DOWN and DEGRADED shapes on a real screen during the build
 **Repo:** `Code/homepad` (web app at the root; no `api/` changes)
 **Issues:** #725
 **Target version:** 18.7.0
@@ -153,7 +153,9 @@ Gates: `npm run lint`, `npm run build`, `npx vitest run`, `npm run test:gate`, `
 - Password fields outside `AuthForm` (`JoinScreen`, `ResetPasswordScreen`, `ChangePassword`).
 - Any API change, including letting members add from the Library.
 
-## 7. Open questions
+## 7. Open questions — decided
+
+**Decided by Caleb on 2026-11-25: every recommended answer below is taken.** The ACs use them.
 
 1. **What colour does `theme-color` take?** Recommended: the page background (`--bg-1`), so the browser bar blends with the page. The other choice is the accent.
 2. **Where does a toast's "View" go?** Recommended: open the alert history panel. It always works, even when the tile is filtered out or off screen. Scrolling to the tile is the other choice.

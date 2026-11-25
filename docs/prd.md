@@ -1,6 +1,6 @@
 # homepad — Product Requirements Document
 
-**Version:** 0.4.0
+**Version:** 0.4.1
 **Created:** 2026-09-15
 **Updated:** 2026-11-25 (M10 added; M9, M3, M4 and M6 closed)
 **Author:** Caleb Dunn
@@ -214,7 +214,7 @@ status and detail.
 
 | Horizon | Milestone | Goal | Status |
 |---|---|---|---|
-| **Now** | [M10 — UI review, first batch (18.7.0)](milestones/M10-ui-review-first-batch.md) | UI quick wins (#725), dashboard empty and loading states (#722), group header count, status and folding (#718) | NOT_STARTED (specs drafted 2026-11-25; active milestone) |
+| **Now** | [M10 — UI review, first batch (18.7.0)](milestones/M10-ui-review-first-batch.md) | UI quick wins (#725), dashboard empty and loading states (#722), group header count, status and folding (#718) | NOT_STARTED (specs approved 2026-11-25; active milestone) |
 | **Now** | [M2 — QA pipeline reliability](milestones/M2-qa-pipeline-reliability.md) | One reviewer per PR, a per-PR preview for QA (replaced the shared staging slot), a QA browser env that fails only for real | IN_PROGRESS |
 | **Now** | [M7 — Growth: install funnel + launch](milestones/M7-growth-install-funnel.md) | Organic growth plus the launch posts. The 3× by 11-12 target was missed (accepted by Caleb 11-07) | IN_PROGRESS (funnel done; launch waits on Caleb) |
 | **Later** | [M5 — Non-admin arrange](milestones/M5-non-admin-arrange.md) | Per-user tile drag for non-admins (v29 §3.3) — needs a spec first | NOT_STARTED |
@@ -336,3 +336,4 @@ User docs: `docs/accounts.md`, `docs/kid-accounts.md`,
 | 2026-11-25 | 0.3.2 | roadmap | M3 COMPLETE: #334 in 18.0.0; #341, #335 and #451 in 18.3.0 (#703); #529 in 18.6.0 (#711), checked live on staging and production. M3 Next → Done |
 | 2026-11-25 | 0.3.3 | roadmap | M4 and M6 COMPLETE. M4: #262, #263, #513 and #376 fixed in 18.3.0; #379, #187 and #375 already fixed or obsolete; #488 (18.4.0) and #477 (18.6.0) decided by Caleb and built. #729 adds a dark-mode login contrast gate (#379). M6: #192, #269, #206 and #348 already done; #352, #403 and #346 decided by Caleb, no build. Both → Done |
 | 2026-11-25 | 0.4.0 | roadmap | M10 (UI review, first batch: #725, #722, #718 and #724's dead CSS, target 18.7.0) added to Now as the active milestone. Three draft specs: SPEC-ui-quick-wins, SPEC-dashboard-empty-loading, SPEC-group-header-collapse |
+| 2026-11-25 | 0.4.1 | Caleb Dunn | M10 specs approved: every recommended answer taken. Members no longer see "Add apps" (specs/DECISIONS.md) |

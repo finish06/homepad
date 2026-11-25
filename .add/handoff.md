@@ -5,13 +5,12 @@
 ## Where things stand
 - **18.6.0 is in production** since 2026-11-24 (`5475545`). 18.0.1 to 18.6.0 all shipped on 11-22 to 11-24.
 - The full Content-Security-Policy is live on staging and production (checked 2026-11-25). The per-PR preview still sends only `frame-ancestors` (#715).
-- **M10 is active** (UI review, first batch, 18.7.0; three draft specs). Before it: M9 (18.0.1 follow-ups), M3 (robustness and security), M4 (accessibility debt) and M6 (layout and design) are COMPLETE in `docs/milestones/`. `planning.current_milestone` is `M10-ui-review-first-batch`.
+- **M10 is active** (UI review, first batch, 18.7.0; three specs approved 2026-11-25, ready to build). Before it: M9 (18.0.1 follow-ups), M3 (robustness and security), M4 (accessibility debt) and M6 (layout and design) are COMPLETE in `docs/milestones/`. `planning.current_milestone` is `M10-ui-review-first-batch`.
 
 ## Done this window
 - #729 closed M9, M3, M4 and M6 in the docs, brought the PRD, specs index, spec `Status:` lines and docs up to 18.6.0, and added a dark-mode login contrast gate (#379).
 
 ## Needs Caleb
-- M10: answer the open questions in the three draft specs (SPEC-ui-quick-wins, SPEC-dashboard-empty-loading, SPEC-group-header-collapse). Both #725 and #722 found that members can open the Library from the Gear menu, but adding is admin-only (403) and fails silently.
 - Production `OIDC_MEMBER_GROUP`. It is unset, so only the `Family` group gets SSO accounts. Since 18.1.0 it can be set in Admin Panel → System → Sign-in.
 - Two production checks as admin: the reset-link Copy button over HTTPS, and the PocketID line in Add an adult.
 - M7 launch posts (drafts in getHomepad #30).

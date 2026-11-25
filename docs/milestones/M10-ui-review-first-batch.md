@@ -1,7 +1,7 @@
 # Milestone: M10 — UI review, first batch (18.7.0)
 
 **Target Maturity:** GA (maintain)
-**Status:** NOT_STARTED (specs drafted; waiting on Caleb's review)
+**Status:** NOT_STARTED (specs approved 2026-11-25; ready to build)
 **Horizon:** NOW
 **Started:** TBD
 **Completed:** TBD
@@ -31,9 +31,9 @@ One cycle, about a week. #725 and #722 are small and can go first, in parallel. 
 
 | Feature | Spec | Position | Status | Cycle |
 |---------|------|----------|--------|-------|
-| UI quick wins | [SPEC-ui-quick-wins](../../specs/SPEC-ui-quick-wins.md) | SPECCED | #725 — draft, needs Caleb | — |
-| Dashboard empty and loading states | [SPEC-dashboard-empty-loading](../../specs/SPEC-dashboard-empty-loading.md) | SPECCED | #722 + #724 dead CSS — draft, needs Caleb | — |
-| Group header count, status bar and folding | [SPEC-group-header-collapse](../../specs/SPEC-group-header-collapse.md) | SPECCED | #718 — draft, needs Caleb | — |
+| UI quick wins | [SPEC-ui-quick-wins](../../specs/SPEC-ui-quick-wins.md) | SPECCED | #725 — approved 2026-11-25 | — |
+| Dashboard empty and loading states | [SPEC-dashboard-empty-loading](../../specs/SPEC-dashboard-empty-loading.md) | SPECCED | #722 + #724 dead CSS — approved 2026-11-25 | — |
+| Group header count, status bar and folding | [SPEC-group-header-collapse](../../specs/SPEC-group-header-collapse.md) | SPECCED | #718 — approved 2026-11-25; Kare checks the bar | — |
 
 ## Not in M10
 
@@ -41,7 +41,8 @@ These stay open on Gitea, in ranked order, for a later milestone: #720 (health p
 
 ## Dependencies
 
-- Caleb answers each spec's open questions before the build starts.
+- Caleb answered every spec's open questions on 2026-11-25 (all recommended answers taken; specs/DECISIONS.md).
+- Kare checks the DOWN/DEGRADED shapes (#725) and the group status bar (#718) on a real screen during the build.
 - The specs touch different files, except `src/index.css` and `src/grid/AppGrid.tsx`, which #722 and #718 both change. Build #722 first, or reserve those files per agent.
 
 ## Risks

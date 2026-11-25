@@ -4,7 +4,7 @@
 **Version:** 0.1.0
 **Created:** 2026-11-25
 **Author:** Claude (Caleb asked 2026-11-25 to write up M10)
-**Status:** Draft — needs Caleb's review
+**Status:** Approved — 2026-11-25 (Caleb took every recommended answer in §6). Not built. Kare checks the status bar during the build, since it replaces the held direction in SPEC-app-grid §10.1–10.3
 **Repo:** `Code/homepad` (web app at the root; no `api/` changes)
 **Issues:** #718
 **Target version:** 18.7.0
@@ -131,7 +131,9 @@ A kid can read the set (`GET` is kid-filtered) but gets 403 on `PUT` (`classKidF
 | AC-016 | A kid sees pill, bar and badge but no chevron, and the client never sends the PUT for a kid. | Should |
 | AC-017 | The new header passes jest-axe in light and dark mode. Pill and badge text meet 4.5:1, and the bar segments meet 3:1 against the box. | Must |
 
-## 6. Open questions
+## 6. Open questions — decided
+
+**Decided by Caleb on 2026-11-25: every recommended answer below is taken.** The ACs use them.
 
 | ID | Question | Recommended default |
 |----|----------|---------------------|

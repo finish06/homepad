@@ -4,7 +4,7 @@
 **Version:** 0.1.0
 **Created:** 2026-11-25
 **Author:** Claude (Caleb asked 2026-11-25 to write up M10)
-**Status:** Draft — needs Caleb's review
+**Status:** Approved — 2026-11-25 (Caleb took every recommended answer in §3). Not built
 **Repo:** `Code/homepad` (web app at the root; no `api/` changes)
 **Issues:** #722, #724 (dead CSS only)
 **Target version:** 18.7.0
@@ -43,7 +43,9 @@ Checked at `f32a4b0`. Line numbers in the issues have drifted.
 | Not in either issue | `.cat-count` (`index.css:413-431`) is also unreferenced. #718 plans to reuse it for the box count pill, so it stays. |
 | Not in either issue | The Gear shows **Add apps** to members (`src/app/AppHeader.tsx:203-212`, pinned by `gear-arrange-apps.test.tsx` TC-006). It opens a Library whose Add buttons 403. That is a separate bug; see §5. |
 
-## 3. Open questions — decisions for Caleb
+## 3. Open questions — decided
+
+**Decided by Caleb on 2026-11-25: every recommended answer below is taken.** The ACs use them.
 
 | # | Question | Recommended default |
 |---|---|---|
@@ -52,7 +54,7 @@ Checked at `f32a4b0`. Line numbers in the issues have drifted.
 | OQ-3 | An admin with boxes but no apps sees the dashboard empty state and an empty-box button in every box. Is that too many buttons (#119)? | **Hide the box buttons while `admin-empty` shows.** The boxes keep their text. Once there is one app, `admin-empty` goes and the box buttons appear. |
 | OQ-4 | Should a member get a read-only "Browse the App Library" in empty states? | **No.** A member can't add, so a Library full of Add buttons that fail is worse than no button. Members get plain words. Fix the Gear for members in its own issue (§5). |
 
-The ACs below assume every recommended default.
+The ACs below use these answers.
 
 ## 4. Acceptance criteria
 

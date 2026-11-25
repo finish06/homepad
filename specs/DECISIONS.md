@@ -2,6 +2,16 @@
 
 Decisions made under authority delegated by Caleb → Joe (2026-06-11). Newest on top.
 
+## 2026-11-25 — Members don't see "Add apps"; M10 open questions (#725, #722, #718): Caleb's call
+
+Adding from the App Library is admin-only on the server (403 for members since
+18.0.0), but members could still open it from the Gear menu, and every add
+failed with no message. Members no longer get "Add apps" in the Gear menu, and
+empty states tell a member to ask an admin instead of offering the Library.
+Caleb took every other recommended answer in the three M10 specs as written:
+SPEC-ui-quick-wins §7, SPEC-dashboard-empty-loading §3 and
+SPEC-group-header-collapse §6.
+
 ## 2026-11-24 — Sparkline dots get no keyboard focus; cap4 AC-006 withdrawn (#477): Caleb's call
 
 cap4 AC-006 (a tooltip when a sparkline dot gets keyboard focus) is
