@@ -52,10 +52,10 @@ Source files only. Tests named in each spec's test plan follow their source file
 | File | #725 | #722 | #718 |
 |---|---|---|---|
 | `src/index.css` | `color-scheme` on `:root` / `.dark`; pip shapes in `.app-grid-tool-status` | skeleton rules; deletes the dead #724 rules | header chevron, pill, badge, bar |
-| `src/grid/AppGrid.tsx` | — | skeleton; new props `userId` and `onAddToBox(box, opener)`; empty-box copy and button; debounced cache write | header; new prop `isKid`; collapse state, `confirmed`/`desired`, `collapsedReady` |
-| `src/app/App.tsx` | `onView` for `ToastContainer` | `userId` and `onAddToBox` on `<AppGrid>`; `browseTarget` state, `targetCategory` to `LibraryBrowse` and focus return on close; `member-empty`; sign-out clears the cache | `isKid` on `<AppGrid>` (one line) |
+| `src/grid/AppGrid.tsx` | — | skeleton; new props `userId`, `onAddToBox(box, opener)` and `dashboardEmpty`; empty-box copy and button; `data-service-id` on the tile wrapper; focusable box heading; debounced cache write, cancelled on unmount | header; new prop `isKid`; collapse state, `confirmed`/`desired`, `collapsedReady` |
+| `src/app/App.tsx` | `onView` for `ToastContainer` | `userId`, `onAddToBox` and `dashboardEmpty` on `<AppGrid>`; one `dashboardEmpty` value for `admin-empty`, `member-empty` and the prop; `browseTarget` state, added ids, `targetCategory` to `LibraryBrowse` and focus return on close; sign-out cancels the pending cache write, then clears the key | `isKid` on `<AppGrid>` (one line) |
 | `src/library/LibraryBrowse.tsx` | groups and the Added filter | `targetCategory` heading and `categoryId` | — |
-| `src/grid/gridShapeCache.ts` (new) | — | creates it | writes real `collapsed` |
+| `src/grid/gridShapeCache.ts` (new) | — | creates it, with `cancelPendingShapeWrite()` | writes real `collapsed` |
 | `src/app/StatusBar.tsx` | — | — | imports the shared band module |
 | `src/lib/statusBands.ts` (new) | — | — | creates it |
 | `src/api.ts` | — | — | collapse client functions |
