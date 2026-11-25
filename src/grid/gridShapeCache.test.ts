@@ -9,6 +9,8 @@ import {
   scheduleShapeWrite,
   SHAPE_KEY,
   SHAPE_WRITE_DELAY_MS,
+  shapeFromKey,
+  shapeKey,
   shapeOf,
 } from './gridShapeCache';
 
@@ -172,4 +174,15 @@ describe('clearShapeCache — sign-out (AC-019)', () => {
   function put() {
     localStorage.setItem(SHAPE_KEY, JSON.stringify({ v: 1, user: 'u1', recent: false, boxes: [] }));
   }
+});
+
+describe('shapeKey — the compact change key', () => {
+  it('round-trips a shape, and differs when any field differs', () => {
+    const a = { recent: true, boxes: [{ span: 6 as const, count: 30, collapsed: false }, { span: 12 as const, count: 0, collapsed: true }] };
+    expect(shapeKey(a)).toBe('1|6:30:0,12:0:1');
+    expect(shapeFromKey(shapeKey(a))).toEqual(a);
+    expect(shapeFromKey(shapeKey({ recent: false, boxes: [] }))).toEqual({ recent: false, boxes: [] });
+    expect(shapeKey({ ...a, recent: false })).not.toBe(shapeKey(a));
+    expect(shapeKey({ ...a, boxes: [{ span: 6, count: 31, collapsed: false }, a.boxes[1]] })).not.toBe(shapeKey(a));
+  });
 });

@@ -394,10 +394,13 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   }, [launcherOpen]);
 
   async function handleLogout() {
-    await logout();
     // SPEC-dashboard-empty-loading AC-019 — the skeleton shape is this user's:
     // cancel a pending write first, then remove the key, so nothing queued just
-    // before sign-out can put it back for the next person on this device.
+    // before sign-out can put it back for the next person on this device. Done
+    // before the request (so a slow or failed POST can't leave it) and again
+    // after it (in case the grid wrote while the request was in flight).
+    clearShapeCache();
+    await logout();
     clearShapeCache();
     onLogout();
   }

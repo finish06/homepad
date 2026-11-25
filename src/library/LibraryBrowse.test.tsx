@@ -386,6 +386,7 @@ describe('the target box (AC-010)', () => {
     const u = userEvent.setup();
     renderBrowse();
     expect(await screen.findByRole('heading', { name: 'App Library' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'App Library' })).toBeInTheDocument();
     await u.click(await screen.findByTestId('library-add-L1'));
     await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L1'));
     expect(vi.mocked(addFromLibrary).mock.calls[0]).toHaveLength(1);
@@ -395,6 +396,8 @@ describe('the target box (AC-010)', () => {
     const u = userEvent.setup();
     renderBrowse({ targetCategory: { id: 'c7', title: 'Games' } });
     expect(await screen.findByRole('heading', { name: 'Add to Games' })).toBeInTheDocument();
+    // The dialog's name says the same, for a screen reader.
+    expect(screen.getByRole('dialog', { name: 'Add to Games' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'App Library' })).toBeNull();
     // L1 is suggested for "Media" — it still goes into the target box.
     await u.click(await screen.findByTestId('library-add-L1'));

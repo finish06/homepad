@@ -184,7 +184,7 @@ export default function LibraryBrowse({
         data-testid="library-browse"
         role="dialog"
         aria-modal="true"
-        aria-label="App Library"
+        aria-label={targetCategory ? `Add to ${targetCategory.title}` : 'App Library'}
         className="launcher-panel library-panel"
         onKeyDown={onPanelKeyDown}
       >

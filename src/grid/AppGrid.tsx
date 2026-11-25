@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import { safeHref } from '../lib/safeUrl';
 import Modal from '../ui/Modal';
 import {
@@ -45,6 +45,8 @@ import {
   FALLBACK_SHAPE,
   readShape,
   scheduleShapeWrite,
+  shapeFromKey,
+  shapeKey as keyOfShape,
   shapeOf,
   type GridShape,
 } from './gridShapeCache';
@@ -229,7 +231,7 @@ export default function AppGrid({
 
   // §3.1 — the skeleton draws the last shape this device showed this user, read
   // once on mount; another user's, a bad or a missing entry draws the fallback.
-  const [skeletonShape] = useState<GridShape>(() => readShape(userId) ?? FALLBACK_SHAPE);
+  const [cachedShape] = useState<GridShape | null>(() => readShape(userId));
   const boxes = loading ? [] : boxesFromData(cats, svcs ?? []);
   // cap3 — the Recently opened row is mounted only outside Edit Dashboard (admin,
   // AC-008) and with a non-empty catalog (AC-009); it reports whether it drew
@@ -242,18 +244,15 @@ export default function AppGrid({
   // Not while loading, and not while arranging: every box then shows open, which
   // is not the shape the next load draws. Turning arranging off re-runs this with
   // the view shape. The cleanup cancels a pending write on a newer shape (the
-  // debounce), on arranging turning on, and on unmount. The JSON is the change
-  // key: a re-render with the same shape keeps the same object, so no write.
-  const nextShape = loading ? null : shapeOf(boxes, showRecent);
-  const shapeKey = nextShape ? JSON.stringify(nextShape) : '';
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the shape's content, not its identity
-  const shape = useMemo(() => nextShape, [shapeKey]);
+  // debounce), on arranging turning on, and on unmount. The compact key is the
+  // change signal: a re-render with the same shape keeps the same key, so no write.
+  const shapeKey = loading ? '' : keyOfShape(shapeOf(boxes, showRecent));
   const canWriteShape = !!userId && !editMode;
   useEffect(() => {
-    if (!canWriteShape || !userId || !shape) return;
-    scheduleShapeWrite(userId, shape);
+    if (!canWriteShape || !userId || !shapeKey) return;
+    scheduleShapeWrite(userId, shapeFromKey(shapeKey));
     return () => cancelPendingShapeWrite();
-  }, [canWriteShape, userId, shape]);
+  }, [canWriteShape, userId, shapeKey]);
 
   // Update the services the grid renders from. When a provider is present it owns
   // the array (the SAME one the launcher's Favorites section filters — §3/A12), so
@@ -434,7 +433,7 @@ export default function AppGrid({
   if (loading) {
     return (
       <GridSkeleton
-        shape={skeletonShape}
+        shape={cachedShape}
         density={density}
         viewportWidth={viewportWidth}
         isAdmin={isAdmin}
@@ -568,6 +567,27 @@ export default function AppGrid({
   );
 }
 
+// The flex variables that size a box (SPEC-pane-fill-reflow, SPEC-app-grid
+// §10.4), shared by BoxCard and the loading skeleton so the two can never size
+// a box differently (SPEC-dashboard-empty-loading AC-002/AC-003).
+//   --w     : the RAW configured span (drives the width selector state).
+//   --floor : boxWidthPx(--w) — the box's minimum (the admin width is a FLOOR).
+//   --grow  : app count (0 if empty) — a box that can USE extra width (more
+//             tile columns) claims proportionally more of it.
+//   --cap   : content-max — the width to show every app in one row, never below
+//             the floor. A LONE box (alone in its row, R4) lifts this to 100%; an
+//             EMPTY box keeps grow 0 + floor cap so it never balloons.
+// The ≤640px mobile behavior (full-width box, 2-col shrink) is pure CSS (D-4).
+function boxFlexStyle(span: number, floorPx: number, count: number, lone: boolean): React.CSSProperties {
+  const hasApps = count > 0;
+  return {
+    ['--w' as string]: span,
+    ['--floor' as string]: `${floorPx}px`,
+    ['--grow' as string]: hasApps ? count : 0,
+    ['--cap' as string]: lone && hasApps ? '100%' : `${Math.max(floorPx, contentMaxPx(count))}px`,
+  };
+}
+
 // SPEC-dashboard-empty-loading AC-001..AC-008 — the loading skeleton. It is
 // built from the real grid classes (.app-grid, .app-grid-box, -header, -tools,
 // .app-grid-tool) with --floor/--grow/--cap from the same helpers BoxCard uses,
@@ -583,25 +603,28 @@ function GridSkeleton({
   isAdmin,
   dashboardEmpty,
 }: {
-  shape: GridShape;
+  // The cached shape, or null when there is none (missing, bad, another user's).
+  shape: GridShape | null;
   density: TileDensity;
   viewportWidth: number;
   isAdmin: boolean;
   dashboardEmpty: boolean;
 }) {
-  // App.tsx already knows the dashboard is empty (services answered, none)
-  // while categories still load: draw the boxes empty, not full of tiles.
-  if (dashboardEmpty) {
-    shape = { recent: false, boxes: shape.boxes.map((b) => ({ ...b, count: 0 })) };
-  }
+  // App.tsx may already know the dashboard is empty (services answered, none)
+  // while categories still load. Then the cached boxes draw empty, not full of
+  // tiles; with no cache there is nothing to guess from, and a new install has
+  // no boxes, so none draw. Otherwise: the cached shape, else the fallback.
+  const shown: GridShape = dashboardEmpty
+    ? { recent: false, boxes: (shape?.boxes ?? []).map((b) => ({ ...b, count: 0 })) }
+    : (shape ?? FALLBACK_SHAPE);
   const contentWidth = frameContentPx(viewportWidth);
-  const floors = shape.boxes.map((b) => boxWidthPx(b.span, contentWidth));
+  const floors = shown.boxes.map((b) => boxWidthPx(b.span, contentWidth));
   const rowCounts = rowFillCounts(floors, contentWidth);
   // An empty box draws its real line, unseen, so a line that wraps in a narrow
   // box wraps here too. The admin's line carries a button, except while
   // admin-empty shows; a shape whose every box is empty is taken as that case
   // (no apps at all, OQ-3), and so is the member's short line (AC-021).
-  const looksEmpty = dashboardEmpty || shape.boxes.every((b) => b.count === 0);
+  const looksEmpty = dashboardEmpty || shown.boxes.every((b) => b.count === 0);
   const emptyLine = isAdmin
     ? 'No apps yet.'
     : looksEmpty
@@ -613,7 +636,7 @@ function GridSkeleton({
       <p className="sr-only" role="status" aria-live="polite">
         Loading dashboard…
       </p>
-      {shape.recent && (
+      {shown.recent && (
         // AC-005 — the Recently opened row's height, reserved with its own classes.
         <div className={`${CONTENT_WIDTH} recently-opened`} aria-hidden="true" data-testid="skeleton-recent">
           <span className="recently-opened-label app-grid-skel-bar">Recently opened</span>
@@ -628,15 +651,9 @@ function GridSkeleton({
         </div>
       )}
       <div className="app-grid" data-density={density} aria-hidden="true">
-        {shape.boxes.map((b, i) => {
+        {shown.boxes.map((b, i) => {
           const hasApps = b.count > 0;
-          const style: React.CSSProperties = {
-            ['--w' as string]: b.span,
-            ['--floor' as string]: `${floors[i]}px`,
-            ['--grow' as string]: hasApps ? b.count : 0,
-            ['--cap' as string]:
-              rowCounts[i] === 1 && hasApps ? '100%' : `${Math.max(floors[i], contentMaxPx(b.count))}px`,
-          };
+          const style = boxFlexStyle(b.span, floors[i], b.count, rowCounts[i] === 1);
           return (
             <section
               key={i}
@@ -761,28 +778,10 @@ function BoxCard({
   const [renameError, setRenameError] = useState('');
   const [renamingBusy, setRenamingBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  // --w stays the RAW configured width (drives the width-selector state + the
-  // legacy content calc the tests assert). SPEC-pane-fill-reflow (Phase 1) adds the
-  // grow model as three more vars that index.css turns into `flex` + `max-width`:
-  //   --floor : boxWidthPx(--w) — the box's minimum (the admin width is a FLOOR).
-  //   --grow  : app count (0 if empty) — grow weight, so a box that can USE the
-  //             extra width (more 190px columns) claims proportionally more of it.
-  //   --cap   : content-max — the width to show every app in one row, but never
-  //             below the floor (so max-width can't shrink the box under its --w).
-  //             A LONE box (alone in its row, R4) lifts this to 100% to fill the
-  //             frame; an EMPTY box keeps grow 0 + floor cap so it never balloons.
-  // The ≤640px mobile behavior (full-width box, 2-col shrink) is pure CSS (D-4).
-  // §10.4 — the floor is the span's share of the CURRENT frame, so it tracks
-  // resizes; the grow/cap model on top of it is unchanged.
+  // --w / --floor / --grow / --cap — see boxFlexStyle. §10.4: the floor is the
+  // span's share of the CURRENT frame, so it tracks resizes.
   const floorPx = boxWidthPx(box.width, frameContentPx(viewportWidth));
-  const hasApps = box.tools.length > 0;
-  const capPx = Math.max(floorPx, contentMaxPx(box.tools.length));
-  const style: React.CSSProperties = {
-    ['--w' as string]: box.width,
-    ['--floor' as string]: `${floorPx}px`,
-    ['--grow' as string]: hasApps ? box.tools.length : 0,
-    ['--cap' as string]: lone && hasApps ? '100%' : `${capPx}px`,
-  };
+  const style = boxFlexStyle(box.width, floorPx, box.tools.length, lone);
   if (sortable) {
     style.transform = CSS.Transform.toString(sortable.transform);
     style.transition = sortable.transition;

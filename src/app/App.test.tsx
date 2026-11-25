@@ -467,6 +467,22 @@ describe('v7 §6 — top bar declutter + user menu', () => {
     expect(localStorage.getItem(SHAPE_KEY)).toBeNull();
   });
 
+  it('Log out clears the grid shape cache before the request, so a slow or failed POST cannot leave it', async () => {
+    const user = userEvent.setup();
+    mockedMe.mockResolvedValue(USER);
+    mockedLogout.mockReturnValue(new Promise(() => {})); // never answers
+    localStorage.setItem(SHAPE_KEY, JSON.stringify({ v: 1, user: 'u1', recent: false, boxes: [] }));
+    render(<App />);
+    await dropLoading();
+    await openMenu(user);
+    scheduleShapeWrite('u1', { recent: false, boxes: [{ span: 6, count: 1, collapsed: false }] });
+    await user.click(screen.getByTestId('menu-logout'));
+    expect(mockedLogout).toHaveBeenCalled();
+    expect(localStorage.getItem(SHAPE_KEY)).toBeNull();
+    await act(() => new Promise((r) => setTimeout(r, SHAPE_WRITE_DELAY_MS + 100)));
+    expect(localStorage.getItem(SHAPE_KEY)).toBeNull();
+  });
+
   it('Esc closes the menu and restores focus to the trigger (§8)', async () => {
     const user = userEvent.setup();
     mockedMe.mockResolvedValue(USER);

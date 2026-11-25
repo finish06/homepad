@@ -827,13 +827,24 @@ describe('loading skeleton (AC-001, AC-005, AC-008, AC-020)', () => {
     expect(line()).toBe('No apps here yet.');
   });
 
-  it('draws the boxes empty when App already knows the dashboard is empty', () => {
+  it('draws the cached boxes empty when App already knows the dashboard is empty', () => {
+    vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
+    putShape({ v: 1, user: 'u1', recent: true, boxes: [{ span: 6, count: 4, collapsed: false }, { span: 6, count: 2, collapsed: false }] });
+    render(<AppGrid isAdmin userId="u1" dashboardEmpty />);
+    const loading = screen.getByTestId('app-grid-loading');
+    expect(loading.querySelectorAll('.app-grid-box')).toHaveLength(2);
+    expect(loading.querySelectorAll('.app-grid-tool')).toHaveLength(0);
+    expect(loading.querySelectorAll('.app-grid-empty-add')).toHaveLength(0);
+    expect(loading.querySelector('.recently-opened')).toBeNull();
+  });
+
+  it('with no cache and an empty dashboard, draws no boxes (a new install has none)', () => {
     vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
     render(<AppGrid isAdmin userId="u1" dashboardEmpty />);
     const loading = screen.getByTestId('app-grid-loading');
-    expect(loading.querySelectorAll('.app-grid-box')).toHaveLength(3);
-    expect(loading.querySelectorAll('.app-grid-tool')).toHaveLength(0);
-    expect(loading.querySelectorAll('.app-grid-empty-add')).toHaveLength(0);
+    expect(loading.querySelectorAll('.app-grid-box')).toHaveLength(0);
+    // The admin's "+ Add box" row is still reserved.
+    expect(loading.querySelectorAll('.app-grid-add')).toHaveLength(1);
   });
 
   it('reserves the admin\'s "+ Add box" row, and only for an admin', () => {
