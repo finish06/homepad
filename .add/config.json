@@ -3,7 +3,7 @@
   "version": "0.5.0",
   "project": {
     "name": "homepad",
-    "description": "Self-hosted launcher/homepage for a homelab: one page listing every service in a shared catalog with live Gatus-backed status badges, per-user favorites and tile order. This repo is the React + Vite web frontend; it pairs with the Go backend at homepad-api.",
+    "description": "Self-hosted launcher/homepage for a homelab: one page listing every service in a shared catalog with live Gatus-backed status badges, per-user favorites and tile order. One repo: the React + Vite web app at the root and the Go API in api/ (homepad-api was moved in and archived on 2026-11-23).",
     "created": "2026-09-15",
     "author": "Caleb Dunn"
   },
@@ -27,7 +27,7 @@
       }
     ],
     "backend": {
-      "framework": "net/http (homepad-api, separate repo)",
+      "framework": "net/http (api/ in this repo)",
       "version": "n/a",
       "runtime": "go 1.25.0"
     },
@@ -169,7 +169,7 @@
     "archival_max_severity": "medium"
   },
   "planning": {
-    "current_milestone": "M9-18-0-1-follow-ups",
+    "current_milestone": null,
     "current_cycle": null,
     "wip_limit": 5,
     "parallel_agents": 5,
