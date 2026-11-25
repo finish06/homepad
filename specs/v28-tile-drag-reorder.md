@@ -18,7 +18,7 @@
 **Spec ID:** SPEC-v28-tile-drag-reorder
 **Created:** 2026-07-25
 **Author:** Walt (product lead)
-**Status:** SHIPPED — v15.6.0 (`03fa922`, PR #402). dnd-kit sortable tiles in edit mode. Status line read "Ready for Build" until 2026-09-22.
+**Status:** SHIPPED — v15.6.0 (`03fa922`, PR #402). dnd-kit sortable tiles in edit mode. Status line read "Ready for Build" until 2026-09-22. §8.4 placeholder: the in-place shift stays (decision 2026-11-24, #403, `DECISIONS.md`).
 **Repos:** `Code/homepad` (UI only — no API or DB changes required)
 **Estimate:** ~4–6 hours Stitch
 **Target version:** 15.5.0 (feature = minor, fully additive)

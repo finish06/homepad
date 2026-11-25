@@ -4,7 +4,7 @@
 **Version:** 0.1.0
 **Created:** 2026-11-23
 **Author:** Claude (Caleb asked, 2026-11-23: "clean up more issues, tackle another bundle". This is the test-setup bundle.)
-**Status:** In review
+**Status:** SHIPPED — 18.3.0 (2026-11-24): #702, release #706. Every listed issue is closed except #691 (§4, runner side, Joe). Status line read "In review" until 2026-11-25.
 **Repo:** `Code/homepad` (`tests/infra/`, `scripts/`, `vite.config.ts`, docs)
 **Issues:** #254, #547, #614, #619, #621, #628, #631, #635, #638, #639, #640, #641, #645, #646, #647, #648, #649, #678, #679, #681, #690, #691, #695, #697, #699
 **Target version:** 18.3.0

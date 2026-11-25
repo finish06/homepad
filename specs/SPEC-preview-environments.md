@@ -4,7 +4,7 @@
 **Created:** 2026-11-22
 **Revised:** 2026-11-22 (Joe review — workflow, quota enforcement, seed gate, cleanup)
 **Author:** Walt (product lead)
-**Status:** Ready for build — Caleb approved 2026-11-22. Joe dispatches Stitch; Joe and Stitch own the cluster and CI work respectively.
+**Status:** SHIPPED — 2026-11-23 (the last part, seed #637, merged 11-23): workflows #626 and #634, seed #627 and #637. Every non-docs PR gets its own preview, capped at 3 at once. Caleb approved 2026-11-22. Status line read "Ready for build" until 2026-11-25.
 **Repos:** `Code/homepad` (CI workflows) · `Code/homelab` (cluster manifests, `apps/homepad/preview/`)
 **Dependency:** homepad-api issue Code/homepad #623 (seed script — must land before first preview can be QA'd)
 

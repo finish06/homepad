@@ -1,15 +1,15 @@
 # homepad — Product Requirements Document
 
-**Version:** 0.3.0
+**Version:** 0.3.3
 **Created:** 2026-09-15
-**Updated:** 2026-11-22 (vision brought up to 18.0.0)
+**Updated:** 2026-11-25 (facts brought up to 18.6.0; M9, M3, M4 and M6 closed)
 **Author:** Caleb Dunn
-**Status:** Adopted (retroactive — written at ADD adoption, v16.2.0 already in production; §1–5 and §7–9 updated for 18.0.0)
+**Status:** Adopted (retroactive — written at ADD adoption, v16.2.0 already in production; §1–5 and §7–9 updated for 18.0.0, and checked against 18.6.0 on 2026-11-25)
 
 > This PRD was generated during `/add:init` adoption of an existing, shipped
-> project. It documents what homepad *is*, now at 18.0.0, rather than proposing
+> project. It documents what homepad *is*, now at 18.6.0, rather than proposing
 > something new. The authoritative feature-level source of truth remains
-> `specs/` (51 specs, indexed in `specs/README.md`).
+> `specs/` (58 specs, indexed in `specs/README.md`).
 
 ## 1. Problem Statement
 
@@ -54,7 +54,7 @@ On a fresh install, the first account becomes the admin.
 | Status freshness | Never staler than ~60s | v13 poller, `POLL_MS = 60_000`; "Updated X ago" indicator |
 | Kid list change shows up | Within ~30s | Kid shell polls every 20s (`KID_POLL_MS`, SPEC-household-basics AC-033) |
 | Gatus leak | Zero | `tests/e2e/no-gatus-leak.spec.ts`; `grep -ri gatus dist/` empty |
-| Hidden apps reach a kid | Zero | homepad-api `routes_test.go`: every route has a kid class, and kid-filtered routes never return an app off the list |
+| Hidden apps reach a kid | Zero | `api/internal/api/routes_test.go`: every route has a kid class, and kid-filtered routes never return an app off the list |
 | Unit coverage (src) | ≥90% | `npx vitest run --coverage` |
 | Touch targets | ≥44×44px | v19 a11y pass; `tests/browser-gate/a11y-touch-v19.spec.ts` |
 | Contrast | ≥4.5:1 body, ≥3:1 UI | v19 contrast sweep, measured in the browser gate |
@@ -81,7 +81,8 @@ On a fresh install, the first account becomes the admin.
 - Command launcher (⌘K), theme mode, accent selection
 - 12-column group grid with span-based sizing (SPEC-app-grid §10.4)
 - Tile density (Large / Compact / List), uptime sparklines, alert history
-- Admin settings surfaced in-app, with env-provided values badged as such
+- Server settings edited in the Admin Panel (since 18.1.0): a saved value wins
+  over the environment, and each row says where its value comes from
 - Status widgets (SPEC-status-widgets, amended 2026-11-07): one short line of
   numbers per tile, fetched by the server, plus a clock and weather strip and
   web search in ⌘K
@@ -140,18 +141,28 @@ On a fresh install, the first account becomes the admin.
   or `OIDC_MEMBER_GROUP` (18.0.0). A failed sign-in lands on the sign-in
   screen with a plain message.
 - **Sign-in limits.** Per client: 10 sign-in tries a minute. Per email: after
-  10 wrong passwords in 15 minutes, password sign-in waits 15 minutes. Limits
-  live in memory. `HOMEPAD_TRUSTED_PROXIES` tells the API which proxies to
+  10 wrong passwords in 15 minutes, password sign-in waits 15 minutes. Invite
+  and reset-link lookups share one server-wide limit, apart from sign-in
+  (18.0.1). Limits live in memory. `HOMEPAD_TRUSTED_PROXIES` tells the API which proxies to
   trust for the client address; without it, everyone shares one limit.
 - **Overlay sandbox.** An app in the overlay runs without `allow-same-origin`
   unless an admin turns on "Let this app keep its sign-in" for it. An app on
-  Homepad's own address never gets it. Both nginx configs send
-  `X-Frame-Options: DENY` and `frame-ancestors 'none'`, so nothing can frame
-  Homepad.
-- **Content-Security-Policy.** Since 18.6.0 every nginx config sends a full
-  policy: scripts and styles from Homepad only (the one inline script by its
-  hash), icons from any http/https address or `data:`, overlay frames of any
-  http/https app, everything else same-origin (SPEC-cleanup-18.6.0).
+  Homepad's own address never gets it. Every nginx config and, since 18.0.1,
+  the API send `X-Frame-Options: DENY` and `frame-ancestors 'none'`, so
+  nothing can frame Homepad.
+- **Content-Security-Policy.** Since 18.6.0 the image, both compose configs
+  and the homelab ConfigMap for staging and production send a full policy:
+  scripts and styles from Homepad only (the one inline script by its hash),
+  icons from any http/https address or `data:`, overlay frames of any
+  http/https app, everything else same-origin (SPEC-cleanup-18.6.0). The
+  per-PR preview still sends only `frame-ancestors 'none'` (#715).
+- **Server settings.** Since 18.1.0 admins change secure cookies, trusted
+  proxies, the Gatus address, the "Slow" threshold, sign-up, the account cap
+  and single sign-on in **Admin Panel → System**. They are stored in Postgres
+  and apply with no restart. A saved value wins over the environment; **Reset**
+  goes back to it. `HOMEPAD_SETTINGS_FROM_ENV_ONLY=true` ignores saved values.
+  A saved OIDC client secret is sealed with `HOMEPAD_SECRET_KEY`. Backups hold
+  no server settings (SPEC-admin-server-settings).
 - **Widgets.** The API fetches every number. App keys are stored encrypted
   with `HOMEPAD_SECRET_KEY`, and never sent to the browser. One guarded
   client makes every fetch: no redirects, no link-local or metadata
@@ -203,13 +214,13 @@ status and detail.
 
 | Horizon | Milestone | Goal | Status |
 |---|---|---|---|
-| **Now** | [M9 — 18.0.1: release follow-ups](milestones/M9-18-0-1-follow-ups.md) | Fix what QA found on the 18.0.0 release, and clean up the spec and doc drift from 17.x–18.0 | NOT_STARTED (active) |
-| **Now** | [M2 — QA pipeline reliability](milestones/M2-qa-pipeline-reliability.md) | One reviewer per PR, a reserved staging slot, a QA browser env that fails only for real | IN_PROGRESS |
+| **Now** | [M2 — QA pipeline reliability](milestones/M2-qa-pipeline-reliability.md) | One reviewer per PR, a per-PR preview for QA (replaced the shared staging slot), a QA browser env that fails only for real | IN_PROGRESS |
 | **Now** | [M7 — Growth: install funnel + launch](milestones/M7-growth-install-funnel.md) | Organic growth plus the launch posts. The 3× by 11-12 target was missed (accepted by Caleb 11-07) | IN_PROGRESS (funnel done; launch waits on Caleb) |
-| **Next** | [M3 — Robustness & security](milestones/M3-robustness-security.md) | ErrorBoundary for lazy overlays (#341), a Content-Security-Policy (#529). The iframe sandbox (#334) shipped in 18.0.0 | NOT_STARTED |
-| **Next** | [M4 — Accessibility debt](milestones/M4-accessibility-debt.md) | AA everywhere, starting with the dark-mode login (#379) | NOT_STARTED |
 | **Later** | [M5 — Non-admin arrange](milestones/M5-non-admin-arrange.md) | Per-user tile drag for non-admins (v29 §3.3) — needs a spec first | NOT_STARTED |
-| **Later** | [M6 — Layout & design evolution](milestones/M6-layout-design-evolution.md) | Kare-led layout and visual decisions | NOT_STARTED |
+| **Done** | [M9 — 18.0.1: release follow-ups](milestones/M9-18-0-1-follow-ups.md) | Fix what QA found on the 18.0.0 release, and clean up the spec and doc drift from 17.x–18.0 | COMPLETE (2026-11-25 — 31 issues closed, most in 18.0.1, the last in 18.5.0. Two production checks for Caleb carried) |
+| **Done** | [M4 — Accessibility debt](milestones/M4-accessibility-debt.md) | AA everywhere, starting with the dark-mode login (#379) | COMPLETE (2026-11-25 — 9 issues closed: 6 fixed or built in 18.3.0, 18.4.0 and 18.6.0, 3 already fixed or obsolete. #729 added a dark-mode login gate) |
+| **Done** | [M6 — Layout & design evolution](milestones/M6-layout-design-evolution.md) | Kare-led layout and visual decisions | COMPLETE (2026-11-25 — 7 issues closed; #352, #403 and #346 decided by Caleb, no build) |
+| **Done** | [M3 — Robustness & security](milestones/M3-robustness-security.md) | ErrorBoundary for lazy overlays (#341), a Content-Security-Policy (#529), the iframe sandbox (#334) | COMPLETE (2026-11-25 — 18.0.0, 18.3.0 and 18.6.0; the CSP is live on staging and production) |
 | **Done** | [M8 — Household accounts (17.0.0 → 18.0.0)](milestones/M8-household-accounts.md) | Kid accounts, household accounts, backup and import, status widgets, managing adults, safer sign-in | COMPLETE (2026-11-22 — 18.0.0 in production) |
 | **Done** | [M1 — 16.7.0 release + quick wins](milestones/M1-release-16-7-quick-wins.md) | Ship the 10 unreleased commits; clear 10 verified quick wins and 5 spec-cleanup decisions | COMPLETE (2026-10-12 — 16.7.1 in production) |
 
@@ -218,6 +229,9 @@ status and detail.
 table. M8 records it after the fact. The refresh re-checked every issue the
 milestones name against Gitea, and sorted the 40 issues opened since 10-11 into
 M2, M3 and M9.
+
+**Refreshed 2026-11-25.** 18.1.0 to 18.6.0 shipped on 11-23 and 11-24, and
+18.6.0 is in production. M9, M3, M4 and M6 are closed. No milestone is active. Open: M2 (#576, Joe), M7 (launch posts, Caleb) and M5 (needs a spec). Outside any milestone: #715 (preview CSP), #691 (QA runner) and the UI enhancements #717–#726.
 
 **Decisions are folded into milestones**, not held in a separate queue (Caleb,
 2026-10-11): #368 #172 #295 #449 #200 → M1; #487 → M2; #488 #477 → M4; #403 → M6.
@@ -228,7 +242,7 @@ See `specs/README.md` for the authoritative per-feature index and status. The
 canonical foundation spec is `specs/v1-launcher.md`; everything else builds on
 it.
 
-What 17.0.0 to 18.0.0 added, for a household:
+What 17.0.0 to 18.6.0 added:
 
 | Feature | Shipped | Spec |
 |---|---|---|
@@ -241,6 +255,10 @@ What 17.0.0 to 18.0.0 added, for a household:
 | Reset links and changing your own password | 18.0.0 | `SPEC-password-reset-link` |
 | Sign-in limits, verified emails and groups for single sign-on | 17.1.0 / 18.0.0 | `SPEC-signin-hardening` |
 | Stricter overlay, with a per-app opt-in | 18.0.0 | `SPEC-iframe-sandbox-optin` |
+| Admins change server settings in the Admin Panel, with no restart | 18.1.0 | `SPEC-admin-server-settings` |
+| A failed part of the app shows Reload and Close, not a blank page | 18.3.0 | `SPEC-ui-cleanup-18.3.0` |
+| The API calls the member role `member` (`user` accepted until 19.0.0) | 18.4.0 | `SPEC-decisions-18.4.0` |
+| A full Content-Security-Policy | 18.6.0 | `SPEC-cleanup-18.6.0` |
 
 User docs: `docs/accounts.md`, `docs/kid-accounts.md`,
 `docs/single-sign-on.md`, `docs/backup-import.md`, `docs/widgets.md`.
@@ -250,14 +268,17 @@ User docs: `docs/accounts.md`, `docs/kid-accounts.md`,
 - **Performance:** Lighthouse budgets enforced via `lighthouserc.cjs`; code
   splitting verified by `tests/infra/code-splitting.test.ts`.
 - **Security:** Gatus never reachable from the browser; nginx security headers
-  in `nginx-security-headers.conf`, including `X-Frame-Options: DENY` and a
-  Content-Security-Policy with `frame-ancestors 'none'`; no secrets in the bundle. Session tokens, invite
+  in `nginx-security-headers.conf`, including `X-Frame-Options: DENY` and,
+  since 18.6.0, a full Content-Security-Policy with no `'unsafe-inline'` and
+  `frame-ancestors 'none'`; no secrets in the bundle. Session tokens, invite
   tokens and reset tokens are stored only as hashes. Widget keys are stored
-  encrypted and never leave the server. Kids are filtered on the server, on
-  every route that returns apps.
+  encrypted and never leave the server. An OIDC client secret saved in the
+  Admin Panel is stored encrypted too, and never shown again. Kids are filtered on the server, on every route that
+  returns apps.
 - **Upgrades:** each release says in `CHANGELOG.md` what changes on upgrade.
   A major version means an upgrade with a cost: 17.0.0 signed everyone out
-  once, and 18.0.0's migration is one-way.
+  once, and 18.0.0's migration is one-way. 19.0.0 will drop the `user` role
+  alias and `GET /api/admin/env-config`, both deprecated in 18.x.
 - **Accessibility:** ≥44×44px touch targets, ≥4.5:1 text contrast, jest-axe in
   unit tests, real-browser measurement in the v19 gate.
 
@@ -272,12 +293,13 @@ User docs: `docs/accounts.md`, `docs/kid-accounts.md`,
   superseded `SPEC-category-pane-width-layout.md`; that spec explicitly leaves
   open whether the 12-column work reuses or replaces the field, and
   SPEC-app-grid §10.4 does not answer it. `saveCategoryLayout` currently has
-  zero callers. *(Still true 2026-11-22.)*
+  zero callers. *(Still true 2026-11-25, at 18.6.0.)*
 - ~~Five spec `Status:` lines contradict the code (v13, v21, v22, v28, cap5).~~
   **Resolved 2026-09-23 (PR #479):** all 38 spec headers were reconciled against
   the code and `CHANGELOG.md` — 21 were wrong, not five. `specs/README.md` was
   rebuilt from the verified headers and now carries the rule that a `Status:`
-  line is a claim, not evidence. Re-checked for 17.0.0–18.0.0 on 2026-11-22.
+  line is a claim, not evidence. Re-checked for 17.0.0–18.0.0 on 2026-11-22,
+  and for 18.0.1–18.6.0 on 2026-11-25.
 - ~~How does an admin add an adult without opening sign-up for everyone?~~
   **Resolved in 17.1.0:** invite links, and sign-up is `invite_only` by default.
 - ~~Can an adult be removed without losing the apps?~~ **Resolved in 18.0.0:**
@@ -307,3 +329,6 @@ User docs: `docs/accounts.md`, `docs/kid-accounts.md`,
 | 2026-11-07 | 0.2.4 | Caleb Dunn | §4 amended for SPEC-status-widgets (Q1 a): one line of server-fetched numbers per tile, a clock and weather strip, and ⌘K web search are in scope; charts, lists, history and detail pages stay out |
 | 2026-11-22 | 0.2.5 | roadmap | Refresh after 18.0.0: M8 (household accounts, 17.0.0–18.0.0) added as Done; M9 (18.0.1 follow-ups) added to Now as the active milestone; M7 target marked missed; #334 done; #529 into M3; new QA-env issues into M2 |
 | 2026-11-22 | 0.3.0 | Caleb Dunn (via Claude) | Vision brought up to 18.0.0: problem statement and users now cover the household (admins, members, kids); scope adds accounts, kid dashboards, reset links, backup and import, and the overlay sandbox (the 2026-11-07 widgets amendment kept); architecture adds Postgres sessions, the migration runner, roles and route classes, verified-email and group rules for SSO, sign-in limits and the sandbox opt-in; §7 lists the 17.0.0–18.0.0 features; §9 closes three questions and adds three. Internal hostnames and the staging address removed (public mirror). §6 unchanged. |
+| 2026-11-25 | 0.3.1 | roadmap | M9 COMPLETE: all 31 of its issues are closed (24 fixed, most in 18.0.1 and the rest through 18.5.0; 3 duplicates; 4 closed without code); two production checks for Caleb carried. M9 → Done; no milestone active. Facts updated to 18.6.0: §3 test path, §4 and §5 server settings (18.1.0), API frame headers (18.0.1) and the lookup limit, the full CSP on staging and production, §7 adds 18.1.0–18.6.0, §8 CSP and 19.0.0 removals, §9 re-check dates. Spec count 51 → 58 |
+| 2026-11-25 | 0.3.2 | roadmap | M3 COMPLETE: #334 in 18.0.0; #341, #335 and #451 in 18.3.0 (#703); #529 in 18.6.0 (#711), checked live on staging and production. M3 Next → Done |
+| 2026-11-25 | 0.3.3 | roadmap | M4 and M6 COMPLETE. M4: #262, #263, #513 and #376 fixed in 18.3.0; #379, #187 and #375 already fixed or obsolete; #488 (18.4.0) and #477 (18.6.0) decided by Caleb and built. #729 adds a dark-mode login contrast gate (#379). M6: #192, #269, #206 and #348 already done; #352, #403 and #346 decided by Caleb, no build. Both → Done |

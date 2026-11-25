@@ -250,7 +250,9 @@ This repo ships:
 
 - `Dockerfile`: multi-stage Vite build, served by nginx.
 - `api/Dockerfile`: the Go API, on a distroless image.
-- `nginx.conf`: SPA fallback and caching headers. Routing `/api/*` to
+- `nginx.conf`: SPA fallback, caching headers, and the security headers from
+  `nginx-security-headers.conf`, including the Content-Security-Policy
+  (18.6.0, SPEC-cleanup-18.6.0). Routing `/api/*` to
   `homepad-api` is the ingress's job (or, in Docker Compose, the web
   container's: see `compose.yaml`).
 - Public images: every merge to `main` publishes

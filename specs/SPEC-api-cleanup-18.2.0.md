@@ -4,7 +4,7 @@
 **Version:** 0.1.0
 **Created:** 2026-11-23
 **Author:** Claude (Caleb asked, 2026-11-23: "clean up the open issues, pick a section and do an 18.2.0". This is the API section.)
-**Status:** In review
+**Status:** SHIPPED — 18.2.0 (2026-11-23): #698, release #700. Every listed issue is closed. Status line read "In review" until 2026-11-25.
 **Repo:** `Code/homepad` (`api/`, `.gitea/workflows/`, `.github/workflows/`)
 **Issues:** #651–#676 and #688, moved from the archived homepad-api repo on 2026-11-23
 **Target version:** 18.2.0

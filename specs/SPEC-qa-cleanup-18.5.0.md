@@ -4,7 +4,7 @@
 **Version:** 0.1.0
 **Created:** 2026-11-24
 **Author:** Claude (orchestrated 18.5.0 feature work, "QA and test reliability")
-**Status:** In review
+**Status:** SHIPPED — 18.5.0 (2026-11-24): #709, release #710. Status line read "In review" until 2026-11-25.
 **Repo:** `Code/homepad` (`api/`, `.gitea/workflows/`, `tests/`, `docs/`)
 **Issues:** #540, #552, #553, #567, #578, #591, #606, #607, #610
 **Target version:** 18.5.0

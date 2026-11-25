@@ -4,14 +4,14 @@
 **Version:** 0.2.1
 **Created:** 2026-11-23
 **Author:** Claude (spec step for Caleb's request of 2026-11-23)
-**Status:** Approved — Caleb 2026-11-23 ("looks great. kick it off"): Q1 A, Q2 A, Q3 A; UX A-1…A-6 as recommended. Ready for build.
+**Status:** SHIPPED — 18.1.0 (2026-11-23): API #685, web #684, the AC-007 fix #694, release #696. Approved — Caleb 2026-11-23 ("looks great. kick it off"): Q1 A, Q2 A, Q3 A; UX A-1…A-6 as recommended. Status line read "Approved … Ready for build" until 2026-11-25.
 **Repo:** `Code/homepad` — `api/` (migration, settings store, live config, routes, OIDC test sign-in) and the web app (Admin Panel → System, docs)
 **Estimate:** ~3.5 days (table and store, live config holder, guards, OIDC test sign-in, recovery flag, the shared row in the web app, docs, tests)
 **Depends on:** SPEC-v26-admin-env-config (the allowlist this spec keeps), SPEC-status-degraded-threshold (the precedence model this spec copies), SPEC-signin-hardening (trusted proxies, `OIDC_MEMBER_GROUP`), SPEC-status-widgets (the server key and the guarded outbound client), SPEC-backup-import (what a backup may hold)
 **Target version:** 18.1.0
-**Supersedes, once shipped:** SPEC-v26-admin-env-config (the read-only Environment Configuration list)
+**Supersedes (since 18.1.0):** SPEC-v26-admin-env-config (the read-only Environment Configuration list)
 **UX:** [`specs/ux/admin-server-settings-ux.md`](./ux/admin-server-settings-ux.md) (Draft, A-1…A-6)
-**Issues folded in:** SPEC-status-degraded-threshold OQ-1 (no way back to "unset"); related: #599 (the member role is `user` in the API)
+**Issues folded in:** SPEC-status-degraded-threshold OQ-1 (no way back to "unset"); related: #599 (the member role was `user` in the API; `member` since 18.4.0)
 
 ---
 
