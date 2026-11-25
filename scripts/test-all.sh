@@ -52,6 +52,7 @@ fi
 # --- shell tests (the same list as ci.yml's web job) -------------------------
 for t in scripts/preview/render.test.sh scripts/preview/teardown-if-owner.test.sh \
   scripts/preview/api-image.test.sh scripts/ci/changed-sides.test.sh \
+  scripts/ci/gate-surfaces.test.sh scripts/ci/playwright-image.test.sh \
   scripts/ci/staging-api-rollout.test.sh scripts/ci/workflows.test.sh; do
   run "bash $t" bash "$t"
 done

@@ -7,11 +7,15 @@ import { decideGateCdp, GATE_CDP_ENV } from './tests/browser-gate/sidecar';
 const GATE_CDP = (process.env[GATE_CDP_ENV] = decideGateCdp(process.env));
 
 // Dedicated config for the #35 real-browser GATE (separate from the broader
-// tests/e2e suite, which expects a live API). This one runs ONLY the
-// tile/menu/dnd interaction specs under tests/browser-gate against the BUILT app
-// served by `vite preview`, with /api/* mocked per-test (see mockApi.ts) — no
-// backend, no DB. Kept as its own config + npm script so CI can wire it as a
-// single, separately-requireable status check.
+// tests/e2e suite, which expects a live API). This one runs every spec under
+// tests/browser-gate against the BUILT app served by `vite preview`, with
+// /api/* mocked per-test (see mockApi.ts) — no backend, no DB. It started as
+// the tile/menu/dnd interaction specs and has grown header, accounts, CSP,
+// kid-board, widget and backup/import pins; `.gitea/workflows/browser-gate.yml`
+// decides per PR whether it runs (scripts/ci/gate-surfaces.sh), and the job's
+// name is a required status check on main — see docs/cicd.md#the-browser-gate.
+// Kept as its own config + npm script so CI can wire it as a single,
+// separately-requireable status check.
 const PORT = 4173;
 const BASE_URL = `http://localhost:${PORT}`;
 // Keep in step with CSP_GATE_PORT's default in tests/browser-gate/csp-server.js.
