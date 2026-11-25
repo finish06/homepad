@@ -529,7 +529,10 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             is for a kid (UX §5 keeps tiles, ⌘K, favorites and Recently Opened):
             "Plex is DOWN" is the admin's business, and the kid header has no
             bell to open the history with. */}
-        {!isKid && <ToastContainer />}
+        {/* SPEC-ui-quick-wins AC-009 — a toast's View opens the alert history
+            the way the bell does (badge cleared, launcher closed). It only
+            opens: a second View while the panel is up must not close it. */}
+        {!isKid && <ToastContainer onView={() => !alertOpen && toggleAlerts()} />}
         {!isKid && (
           <AlertHistoryPanel open={alertOpen} events={alerts?.events ?? []} onClose={closeAlerts} />
         )}

@@ -16,6 +16,8 @@
 // pink and CONSOLIDATES indigo+violet into purple. A stored indigo/violet maps to
 // purple; anything unrecognised degrades to the new default, blue.
 
+import { syncThemeColor } from './browserChrome';
+
 export type AccentId =
   | 'blue'
   | 'teal'
@@ -68,8 +70,11 @@ export function resolveAccent(cache: string | null): AccentId {
 
 // applyAccent mirrors the chosen accent onto <html> as `data-theme`, which the
 // stylesheet's `[data-theme]` blocks resolve into the full token set.
+// SPEC-ui-quick-wins AC-001 — the field colour (--bg-1) is per accent, so the
+// browser bar's theme-color is re-read after every accent change.
 export function applyAccent(id: AccentId): void {
   document.documentElement.setAttribute('data-theme', id);
+  syncThemeColor();
 }
 
 // initAccent applies the cached preference at boot (called once from main.tsx,

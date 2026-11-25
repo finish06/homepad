@@ -126,10 +126,15 @@ describe('gear menu — "Arrange apps" (AC-007..AC-011)', () => {
   // reverses it (see the spec's "Supersedes" header). Kept as a live test of the
   // NEW rule rather than deleted, so the reversal is visible in this file's
   // history instead of looking like coverage that quietly disappeared.
-  it('TC-006 (v29 AC-005) — a non-admin sees BOTH Add apps and Arrange apps', async () => {
+  //
+  // SPEC-ui-quick-wins AC-017 reverses the other half: it asserted a non-admin
+  // sees BOTH Add apps and Arrange apps. Adding from the Library is admin-only
+  // on the server since 18.0.0, so a member now sees Arrange apps and NOT Add
+  // apps (that spec supersedes v18-gear-edit-menu A2 and D4 for members only).
+  it('TC-006 (v29 AC-005, SPEC-ui-quick-wins AC-017) — a non-admin sees Arrange apps and not Add apps', async () => {
     renderHeader('member');
     const menu = await openGear();
-    expect(within(menu).getByTestId('gear-add-apps')).toBeTruthy();
+    expect(within(menu).queryByTestId('gear-add-apps')).toBeNull();
     expect(within(menu).queryByTestId('gear-edit-dashboard')).not.toBeNull();
   });
 

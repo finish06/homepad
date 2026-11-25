@@ -4,6 +4,7 @@ import ThemeControl from '../theme/ThemeControl';
 import AccentControl from '../theme/AccentControl';
 import { userInitials } from '../lib/initials';
 import { avatarColorId, avatarSwatch } from '../lib/avatarColor';
+import { focusFirstMenuItem, useMenuKeys } from '../ui/useMenuKeys';
 
 // v7 §6 — the single account affordance that replaces the old six-control bar.
 // Avatar trigger toggles a dropdown carrying identity, role, the theme control
@@ -65,24 +66,14 @@ export default function UserMenu({
   // the popup — standard menu pattern.
   useEffect(() => {
     if (!open) return;
-    const first = menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]');
-    first?.focus();
+    focusFirstMenuItem(menuRef.current);
   }, [open]);
 
-  // Arrow keys cycle focus between the menu items (§8). The theme control is a
-  // separate role=group reached by Tab, so it's intentionally excluded here.
-  function onMenuKeyDown(e: React.KeyboardEvent) {
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-    const items = Array.from(
-      menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [],
-    );
-    if (items.length === 0) return;
-    e.preventDefault();
-    const idx = items.indexOf(document.activeElement as HTMLElement);
-    const delta = e.key === 'ArrowDown' ? 1 : -1;
-    const next = items[(idx + delta + items.length) % items.length] ?? items[0];
-    next.focus();
-  }
+  // Arrow keys cycle focus between the menu items (§8); Home/End jump to the
+  // ends. SPEC-ui-quick-wins AC-010 — the shared hook the Gear menu uses too.
+  // The theme control is a separate role=group reached by Tab, so it's
+  // intentionally outside the arrow order.
+  const onMenuKeyDown = useMenuKeys(menuRef);
 
   // Each action closes the menu after firing (the theme control stays open so a
   // user can A/B themes — it isn't a menuitem).

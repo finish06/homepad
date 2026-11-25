@@ -90,4 +90,61 @@ describe('ServicesProvider.refresh — SPEC-v24 §12.3', () => {
     expect(mockedList).toHaveBeenCalledTimes(2);
     expect(result.current!.lastUpdatedAt).toBe(before);
   });
+
+  // SPEC-ui-quick-wins AC-005 — the header's freshness button and the health
+  // panel's "Retry now" share ONE in-flight refresh: a second call while the
+  // first is pending sends no second POST and resolves to the same outcome.
+  it('AC-005: concurrent refresh() calls share one POST and one outcome', async () => {
+    const { result } = await mount();
+    let release!: (v: { ok: boolean; status: number; asOf?: string }) => void;
+    mockedRefresh.mockImplementation(
+      () => new Promise((r) => {
+        release = r;
+      }),
+    );
+    let a = '';
+    let b = '';
+    await act(async () => {
+      const pa = result.current!.refresh().then((o) => (a = o));
+      const pb = result.current!.refresh().then((o) => (b = o));
+      release({ ok: false, status: 503 });
+      await Promise.all([pa, pb]);
+    });
+    expect(mockedRefresh).toHaveBeenCalledTimes(1);
+    expect(a).toBe('unreachable');
+    expect(b).toBe('unreachable');
+
+    // Once settled, the next call is a fresh request, not the old promise.
+    mockedRefresh.mockResolvedValue({ ok: true, status: 200, asOf: '2026-11-25T10:00:00Z' });
+    let c = '';
+    await act(async () => {
+      c = await result.current!.refresh();
+    });
+    expect(mockedRefresh).toHaveBeenCalledTimes(2);
+    expect(c).toBe('refreshed');
+  });
+
+  // #725 review — the POST said "newer", but the reload GET failed: nothing on
+  // screen changed and the counter was not reset, so it must not say
+  // "refreshed". And the new as_of is not kept, so the next try still reloads
+  // instead of calling identical evidence "still-stale".
+  it('a refresh whose reload fails is "unreachable", and the next try still reloads', async () => {
+    const { result } = await mount();
+    const before = result.current!.lastUpdatedAt;
+    mockedRefresh.mockResolvedValue({ ok: true, status: 200, asOf: '2026-11-25T11:00:00Z' });
+    mockedList.mockResolvedValueOnce({ status: 500, services: [] });
+    let outcome = '';
+    await act(async () => {
+      outcome = await result.current!.refresh();
+    });
+    expect(outcome).toBe('unreachable');
+    expect(result.current!.lastUpdatedAt).toBe(before);
+
+    await new Promise((r) => setTimeout(r, 5));
+    await act(async () => {
+      outcome = await result.current!.refresh();
+    });
+    expect(outcome).toBe('refreshed');
+    expect(result.current!.lastUpdatedAt!).toBeGreaterThan(before!);
+  });
 });

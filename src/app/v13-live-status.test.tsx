@@ -274,3 +274,179 @@ describe('AC-008 — failed refresh is silently ignored', () => {
     expect(tileStatus('https://b.test')?.getAttribute('data-status')).toBe('DOWN');
   });
 });
+
+// SPEC-ui-quick-wins AC-004 / AC-006 — the header freshness label refreshes
+// status when clicked. The fetch stub here answers POST /api/status/refresh
+// from a deferred, so a test can hold the request in flight and then settle it
+// with each of the three outcomes the provider decides (SPEC-v24 §12.3).
+describe('SPEC-ui-quick-wins AC-004 / AC-006 — the freshness label is a refresh button', () => {
+  type Answer = { status: number; asOf?: string };
+  let settle: ((a: Answer) => void) | null;
+
+  function installRefreshFetch() {
+    const fn = installFetch();
+    const base = fn.getMockImplementation()!;
+    fn.mockImplementation(async (input: RequestInfo | URL) => {
+      if (String(input).includes('/api/status/refresh')) {
+        const a = await new Promise<Answer>((r) => {
+          settle = r;
+        });
+        return new Response(JSON.stringify(a.asOf ? { as_of: a.asOf } : {}), { status: a.status });
+      }
+      return base(input);
+    });
+    return fn;
+  }
+
+  function renderHeader(user: User = USER) {
+    return render(
+      <LauncherProvider>
+        <ServicesProvider>
+          <AppHeader
+            user={user}
+            onOpenAdminSettings={() => {}}
+            onOpenMySettings={() => {}}
+            onGoToDashboard={() => {}}
+            onLogout={() => {}}
+            alertCount={0}
+            onAlertClick={() => {}}
+          />
+        </ServicesProvider>
+      </LauncherProvider>,
+    );
+  }
+
+  const refreshCalls = (fn: ReturnType<typeof vi.fn>) =>
+    fn.mock.calls.filter((c) => String(c[0]).includes('/api/status/refresh')).length;
+
+  async function clickAndSettle(answer: Answer) {
+    const btn = screen.getByTestId('status-last-updated');
+    await act(async () => {
+      btn.click();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(btn).toHaveTextContent('Refreshing…');
+    expect(btn).toHaveAttribute('aria-busy', 'true');
+    expect(btn).toHaveAttribute('aria-disabled', 'true');
+    await act(async () => {
+      settle!(answer);
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    return btn;
+  }
+
+  beforeEach(() => {
+    settle = null;
+  });
+
+  for (const role of ['admin', 'member'] as const) {
+    it(`AC-004: for a ${role} it is a button named "Updated … Refresh status"`, async () => {
+      installRefreshFetch();
+      renderHeader({ ...USER, role });
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      const btn = screen.getByTestId('status-last-updated');
+      expect(btn.tagName).toBe('BUTTON');
+      expect(btn).toHaveAttribute('type', 'button');
+      expect(btn).toHaveTextContent('Updated just now');
+      expect(btn).toHaveAccessibleName('Updated just now. Refresh status');
+    });
+  }
+
+  it('AC-004: a click calls refresh() (one POST), and the button stays focusable', async () => {
+    const fn = installRefreshFetch();
+    renderHeader();
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    await clickAndSettle({ status: 200, asOf: 'T1' });
+    expect(refreshCalls(fn)).toBe(1);
+    // A native <button>, so Enter and Space activate it with no key handler of
+    // its own; jsdom maps neither key to a click, so pressing them is checked
+    // in the browser gate (ui-quick-wins-725.spec.ts).
+    const btn = screen.getByTestId('status-last-updated');
+    btn.focus();
+    expect(btn).toHaveFocus();
+  });
+
+  it('AC-005 / AC-006: while in flight a second click sends no second POST', async () => {
+    const fn = installRefreshFetch();
+    renderHeader();
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    const btn = screen.getByTestId('status-last-updated');
+    await act(async () => {
+      btn.click();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      btn.click();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(refreshCalls(fn)).toBe(1);
+    await act(async () => {
+      settle!({ status: 503 });
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(btn).not.toHaveAttribute('aria-busy');
+    expect(btn).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('AC-006: "refreshed" is announced politely and the counter resets', async () => {
+    installRefreshFetch();
+    renderHeader();
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+    expect(screen.getByTestId('status-last-updated')).toHaveTextContent('Updated 20s ago');
+    const btn = await clickAndSettle({ status: 200, asOf: 'T1' });
+    const live = screen.getByTestId('status-refresh-live');
+    expect(live).toHaveTextContent('Status refreshed');
+    expect(live).toHaveAttribute('aria-live', 'polite');
+    expect(btn).toHaveTextContent('Updated just now');
+  });
+
+  it('AC-006: "unreachable" is announced and the counter is NOT reset', async () => {
+    installRefreshFetch();
+    renderHeader();
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+    const btn = await clickAndSettle({ status: 503 });
+    expect(screen.getByTestId('status-refresh-live')).toHaveTextContent("Couldn't reach the status source");
+    expect(btn).toHaveTextContent('Updated 20s ago');
+  });
+
+  it('AC-006: "still-stale" is announced and the counter is NOT reset', async () => {
+    installRefreshFetch();
+    renderHeader();
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    await clickAndSettle({ status: 200, asOf: 'T1' });
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+    const btn = await clickAndSettle({ status: 200, asOf: 'T1' });
+    expect(screen.getByTestId('status-refresh-live')).toHaveTextContent('Checked — nothing newer yet');
+    expect(btn).toHaveTextContent('Updated 20s ago');
+  });
+
+  it('a kid header has no freshness button (POST /api/status/refresh is kid-forbidden)', async () => {
+    installRefreshFetch();
+    renderHeader({ ...USER, role: 'kid' });
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(screen.queryByTestId('status-last-updated')).toBeNull();
+  });
+
+  // #725 review — the visible label ticks every second; a focused control whose
+  // name keeps changing is re-announced by some screen readers. The name holds
+  // still while focused, and moves only when the data really reloads.
+  it('the accessible name holds still while focused; the visible text keeps ticking', async () => {
+    installRefreshFetch();
+    renderHeader();
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    const btn = screen.getByTestId('status-last-updated');
+    act(() => btn.focus());
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(btn).toHaveTextContent('Updated 20s ago');
+    expect(btn).toHaveAccessibleName('Updated 10s ago. Refresh status');
+    // A real reload moves the held name to the new age.
+    await clickAndSettle({ status: 200, asOf: 'T1' });
+    expect(btn).toHaveAccessibleName('Updated just now. Refresh status');
+    act(() => btn.blur());
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(btn).toHaveAccessibleName('Updated 10s ago. Refresh status');
+  });
+});

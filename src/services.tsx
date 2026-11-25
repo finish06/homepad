@@ -197,7 +197,7 @@ export function ServicesProvider({
 
   // The poll body lives in a ref so refresh() below can trigger the same load
   // path the interval uses, without re-subscribing the effect.
-  const loadRef = useRef<(initial: boolean) => Promise<void>>(async () => {});
+  const loadRef = useRef<(initial: boolean) => Promise<boolean>>(async () => false);
   // as_of the backend reported on the last manual refresh — the baseline for
   // telling "newer evidence" from "same snapshot" on the next one.
   const lastAsOf = useRef<string | null>(null);
@@ -205,34 +205,36 @@ export function ServicesProvider({
   useEffect(() => {
     let cancelled = false;
 
-    async function load(initial: boolean) {
-      if (stopped.current) return;
+    // Resolves true when it applied a fresh list (and reset lastUpdatedAt),
+    // false when it skipped or failed: refresh() reports on that.
+    async function load(initial: boolean): Promise<boolean> {
+      if (stopped.current) return false;
       // While hidden, polling is suspended (AC-002); the initial load still runs.
-      if (!initial && document.visibilityState === 'hidden') return;
+      if (!initial && document.visibilityState === 'hidden') return false;
       const { status, services: fresh } = await servicesWithStatus();
-      if (cancelled) return;
+      if (cancelled) return false;
       if (status === 401) {
         stopped.current = true; // AC-011 — stop silently
         onUnauthorizedRef.current?.();
-        return;
+        return false;
       }
       // AC-008 — a transient failure is ignored: keep the last good data and the
       // existing freshness counter (don't bump lastUpdatedAt). The initial load
       // is the one exception — it has nothing to keep, so an empty list stands.
-      if (status !== 200 && !initial) return;
+      if (status !== 200 && !initial) return false;
       const cur = itemsRef.current;
       // Initial load (or nothing to merge against) just sets the baseline — no
       // recentChanges, so no toasts fire on first paint (AC-003).
       if (initial || !cur) {
         setItems(fresh);
         setLastUpdatedAt(Date.now());
-        return;
+        return true;
       }
       if (syncRef.current && !sameMembers(cur, fresh)) {
         setItems(fresh);
         setLastUpdatedAt(Date.now());
         setMembershipVersion((v) => v + 1);
-        return;
+        return true;
       }
       const { next, changes, transitions } = mergeStatuses(cur, fresh);
       const now = Date.now();
@@ -256,6 +258,7 @@ export function ServicesProvider({
           }),
         );
       }
+      return true;
     }
 
     loadRef.current = load;
@@ -276,15 +279,33 @@ export function ServicesProvider({
     };
   }, [pollMs]);
 
-  async function refresh(): Promise<RefreshOutcome> {
+  // SPEC-ui-quick-wins AC-005 — ONE refresh in flight at a time. The header's
+  // freshness button and the health panel's "Retry now" both call this; while a
+  // POST is pending every caller gets the same promise, so no second POST is
+  // sent and all callers see the same outcome. Cleared once it settles.
+  const inflight = useRef<Promise<RefreshOutcome> | null>(null);
+  function refresh(): Promise<RefreshOutcome> {
+    if (inflight.current) return inflight.current;
+    const p = refreshOnce().finally(() => {
+      inflight.current = null;
+    });
+    inflight.current = p;
+    return p;
+  }
+
+  async function refreshOnce(): Promise<RefreshOutcome> {
     const r = await refreshStatus();
     if (!r.ok) return 'unreachable';
     // A 200 with the same as_of as last time means the poller answered but had
     // nothing newer. Reloading would reset the age over identical evidence —
     // the exact misleading behaviour OQ-5 rejected — so it is reported, not hidden.
     if (r.asOf !== undefined && r.asOf === lastAsOf.current) return 'still-stale';
+    // SPEC-ui-quick-wins (#725 review) — "refreshed" only when the list really
+    // reloaded. If the follow-up GET failed (or was skipped), nothing on screen
+    // changed and the counter was not reset, so it is reported as unreachable,
+    // and the new as_of is NOT kept: the next try must still reload.
+    if (!(await loadRef.current(false))) return 'unreachable';
     if (r.asOf !== undefined) lastAsOf.current = r.asOf;
-    await loadRef.current(false);
     return 'refreshed';
   }
 
@@ -299,7 +320,9 @@ export function ServicesProvider({
         clearRecentChanges: () => setRecentChanges([]),
         refresh,
         membershipVersion,
-        reload: () => loadRef.current(true),
+        reload: async () => {
+          await loadRef.current(true);
+        },
       }}
     >
       {children}

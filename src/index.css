@@ -10,6 +10,11 @@
    AMBIENT color rides these vars — never a text/icon/ring token, so accent
    choice can not move any WCAG-measured contrast. */
 :root {
+  /* SPEC-ui-quick-wins AC-002 — native chrome (scrollbars, form controls) follows
+     the theme. It rides the `dark` class, which index.html's inline script sets
+     before first paint, so this needs no JS. `.dark` below flips it. */
+  color-scheme: light;
+
   /* Type stacks (§3.1) — mono is used for numerics, status labels, counts, ⌘K. */
   --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
   --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
@@ -80,6 +85,9 @@
 }
 
 .dark {
+  /* SPEC-ui-quick-wins AC-002 — see :root above. */
+  color-scheme: dark;
+
   /* DARK surface / glass / status tokens (§3.4–3.8). */
   --v-txt: rgba(255, 255, 255, 0.93);
   --v-muted: rgba(255, 255, 255, 0.54);
@@ -4090,6 +4098,22 @@
   .app-grid-tool-status[data-status='UNKNOWN'] {
     background: #a3a3a3;
     box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.55);
+  }
+  /* SPEC-ui-quick-wins AC-012 (decided §7 Q4) — DOWN and DEGRADED differ by SHAPE,
+     not only colour: DOWN is a diamond (the same 9px box turned 45°, small
+     radius), DEGRADED a rounded square; UP and UNKNOWN stay circles. Same box,
+     same fills, ring and glow (SPEC-242 D-2/D-3): the box-shadow follows the
+     border radius, so no clip-path, which would cut the ring and glow off.
+     The turn uses the separate `rotate` property, not `transform`, so it
+     composes with the D-4 change-pulse's `transform: scale()` instead of being
+     replaced by it mid-pulse. Absolute and pointer-events:none as before, so no
+     tile moves (AC-013). */
+  .app-grid-tool-status[data-status='DOWN'] {
+    border-radius: 1.5px;
+    rotate: 45deg;
+  }
+  .app-grid-tool-status[data-status='DEGRADED'] {
+    border-radius: 2px;
   }
   /* NOT_MONITORED — the sole hollow/dashed shape (AC-017): transparent fill + a
      1.5px dashed neutral-500 ring that IS the boundary (no extra definition ring),
