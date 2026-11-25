@@ -1,10 +1,10 @@
 # Spec: UI quick wins from the 2026-11-24 review
 
 **Spec ID:** SPEC-ui-quick-wins
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Created:** 2026-11-25
 **Author:** Claude (Caleb asked 2026-11-25 to write up M10)
-**Status:** Approved — 2026-11-25 (Caleb took every recommended answer in §7). Not built. Kare checks the DOWN and DEGRADED shapes on a real screen during the build
+**Status:** Approved — 2026-11-25 (Caleb's answers are in §7). Not built. Kare checks the DOWN and DEGRADED shapes on a real screen during the build
 **Supersedes (members only):** `v18-gear-edit-menu.md` A2 and D4, which show "Add apps" to every user. Since 18.0.0 adding is admin-only on the server, so members lose the item (AC-017). `v29-favorite-star-arrange-only.md` AC-005 ("Arrange apps" for everyone) is unchanged.
 **Repo:** `Code/homepad` (web app at the root; no `api/` changes)
 **Issues:** #725
@@ -36,7 +36,7 @@ Seven small UI items from the 2026-11-24 review. Each can ship on its own. None 
 | 3. Toasts auto-dismiss after 4s, no close button (`Toasts.tsx:62-68`) | True; the timer is at `Toasts.tsx` lines 62–68. cap5 §"Out of scope" listed "click to navigate" as out. Toasts never render for kids (`App.tsx`: `!isKid && <ToastContainer />`). | Kept. This spec supersedes that one cap5 out-of-scope line. 4s stays (cap5 AC-006). |
 | 4. GearMenu only focuses the first item | Partly wrong. GearMenu already has Escape-closes-and-returns-focus (`AppHeader.tsx` `GearMenu`). It lacks arrow keys. UserMenu's arrow handler only walks `role="menuitem"`, and Gear's "Arrange apps" is `role="menuitemcheckbox"`, so a straight copy would skip it. | Kept, narrowed to arrows, Home/End and the checkbox item. |
 | 5. Large is colour + glow only; CSS at `index.css:3438-3464` | Line numbers drifted: the pip is `.app-grid-tool-status` at about `index.css:4062-4125`. DOWN also breathes (off under reduced motion), and DOWN/DEGRADED tiles get a left bar, which is colour again. Compact and List show a status word; Large does not. | Kept. The pip is one element at every density, so the shape applies everywhere. |
-| 6. Library is a flat list with category chips | True. The chips are per-row labels, not filters. Also found: `POST /api/library/{id}/add` and `POST /api/services` are `classCatalogWrite` (admin only since 18.0.0), but the Gear's "Add apps" opens the Library for members too. A member's Add click gets 403 and the UI shows nothing. | Kept. The member case is Open question 3. |
+| 6. Library is a flat list with category chips | True. The chips are per-row labels, not filters. Also found: `POST /api/library/{id}/add` and `POST /api/services` are `classCatalogWrite` (admin only since 18.0.0), but the Gear's "Add apps" opens the Library for members too. A member's Add click gets 403 and the UI shows nothing. | Kept. Decided (§7 Q3): members lose "Add apps" in the Gear (AC-017, Must). |
 | 7. Add `role="alert"` on the sign-in error | Already done. Both error lines in `src/app/AuthForm.tsx` (SSO error and form error) have `role="alert"`. The gap is different: a second failure with the same text leaves the same node in place, so many screen readers stay silent. | Replaced by AC-020 (re-announce). |
 
 ## 3. Design notes
@@ -58,7 +58,7 @@ Seven small UI items from the 2026-11-24 review. Each can ship on its own. None 
 
 - Hovering or focusing a toast pauses its timer. Leaving resumes it with the time that was left.
 - Each toast gets a dismiss button ("Dismiss", 24×24 minimum).
-- Status-change toasts (all toasts today) get a "View" button that opens the alert history panel and closes the toast. See Open question 2.
+- Status-change toasts (all toasts today) get a "View" button that opens the alert history panel and closes the toast (decided, §7 Q2). The panel's open state lives in `App.tsx` (`alertOpen`), so `ToastContainer` gets an `onView` prop from `App.tsx`.
 - If a focused toast closes, focus goes to the next toast's dismiss button, or else to the alert bell.
 
 ### 3.4 Gear menu (item 4)
@@ -72,7 +72,7 @@ Seven small UI items from the 2026-11-24 review. Each can ship on its own. None 
 - DOWN becomes a diamond (the 9px box rotated 45°, small radius). DEGRADED becomes a rounded square. Both keep the box-shadow ring and glow, so no `clip-path` (it would clip the shadow).
 - Fill colours, the 1px definition ring and the glow keep the values pinned by SPEC-242 D-2/D-3. The shared `.status-dot` (⌘K rows, alert history; SPEC-ui-cleanup-18.3.0 AC-001/002) is not touched.
 - Tile icon hue is not touched (#352, `DECISIONS.md` 2026-11-24).
-- See Open question 4 for the shape pair.
+- The shape pair is decided (§7 Q4). Kare checks it on a real screen during the build.
 
 ### 3.6 App Library (item 6)
 
@@ -80,8 +80,8 @@ Who sees what, under the 18.0.0 roles:
 
 | Role | Library today | After this spec |
 |---|---|---|
-| admin | Opens from Gear "Add apps" and the empty-dashboard button. Can add, add again, add a custom app, manage the library. | Same, plus groups and the filter. |
-| member | Opens from Gear "Add apps". `GET /api/library` works. Add and "+ Add a custom app" are admin-only server-side and fail silently. | Per Open question 3. Default: the member does not get "Add apps" at all. |
+| admin | Opens from Gear "Add apps" and the empty-dashboard button. Can add, add again, add a custom app, manage the library. | Same, plus groups and the filter. From an empty box the Library opens with that box as its target (SPEC-dashboard-empty-loading §3.3). |
+| member | Opens from Gear "Add apps". `GET /api/library` works. Add and "+ Add a custom app" are admin-only server-side and fail silently. | No "Add apps" in the Gear and no other way into the Library (AC-017, decided §7 Q3). Empty boxes and the empty dashboard tell a member to ask an admin (SPEC-dashboard-empty-loading AC-009, AC-012). |
 | kid | No Library, no Gear (SPEC-kid-accounts AC-008). `GET /api/library` is 403. | Unchanged. |
 
 - Offers are grouped under a heading per `suggestedCategory`, with a count: "Media (4)". Offers with no category go in "Other", last.
@@ -89,6 +89,7 @@ Who sees what, under the 18.0.0 roles:
 - "Added" means the offer is on the household dashboard (SPEC-household-catalog-owner AC-014).
 - A filter row above the list: **All · Not added · Added**, a radio group. It combines with the text filter. Groups with no match are hidden, and counts show what is visible.
 - Group headings keep the category hue from the row chips (#90). Rows keep their chips.
+- The groups only sort the list; they never pick where an app lands. SPEC-dashboard-empty-loading §3.3 adds an optional target box and the heading "Add to {title}". With a target, every Add goes to that box whatever group the offer is under; without one, adds go to Uncategorized as today. Both specs change `src/library/LibraryBrowse.tsx`; the milestone file plan says who builds first.
 
 ### 3.7 Sign-in (item 7)
 
@@ -117,7 +118,7 @@ Who sees what, under the 18.0.0 roles:
 | AC-014 | 6 | Library offers are grouped under a heading per suggested category with a visible count; uncategorized offers are in "Other", last; group and row order follow §3.6. | Must |
 | AC-015 | 6 | An All / Not added / Added radio group filters the list together with the text filter. Empty groups are hidden and counts match what is shown. Adding an offer under "Not added" moves it out of that view and announces "… added" as today. | Must |
 | AC-016 | 6 | Tab order follows the visual order (filter, then groups top to bottom), the dialog focus trap still works, and jest-axe finds no violations. | Should |
-| AC-017 | 6 | A member never sees an add control that the server refuses: no "Add apps" in a member's Gear menu (decided, Open question 3), and no other entry point to the Library's Add buttons. A member still sees "Arrange apps" (SPEC-v29 AC-005 stands). This supersedes v18-gear-edit-menu A2 and D4 for members only; admins are unchanged. | Must |
+| AC-017 | 6 | A member never sees an add control that the server refuses: no "Add apps" in a member's Gear menu (decided, §7 Q3), and no other entry point to the Library's Add buttons. A member still sees "Arrange apps" (SPEC-v29 AC-005 stands). This supersedes v18-gear-edit-menu A2 and D4 for members only; admins are unchanged. | Must |
 | AC-018 | 7 | The show/hide button switches the password field between `password` and `text` without clearing it, keeps focus and caret in the field, and is not part of the field's accessible name. | Must |
 | AC-019 | 7 | While the password field has focus and Caps Lock is on, "Caps Lock is on" shows, is linked by `aria-describedby`, and is announced; it goes away when Caps Lock goes off or the field loses focus. | Should |
 | AC-020 | 7 | A second failed sign-in with the same error text is announced again (the alert node is replaced, not reused). | Should |
@@ -128,16 +129,16 @@ Each AC with code has a test that fails before its change.
 
 | AC | Test file |
 |---|---|
-| AC-001 | `src/theme/browserChrome.test.ts` (pref, OS flip, accent change). `tests/browser-gate/ui-quick-wins-725.spec.ts` reads the meta in a real browser for light and dark. |
+| AC-001 | `src/theme/browserChrome.test.ts` (new; pref, OS flip, accent change). `tests/browser-gate/ui-quick-wins-725.spec.ts` reads the meta in a real browser for light and dark. |
 | AC-002 | `tests/browser-gate/ui-quick-wins-725.spec.ts`: computed `color-scheme` with `colorScheme: 'dark'` and `'light'`, checked before and after the app mounts. |
 | AC-003 | `tests/infra/frame-headers.test.ts` (existing cases, unchanged). |
 | AC-004, AC-006 | `src/app/v13-live-status.test.tsx` (button, busy, three outcomes). |
 | AC-005 | `src/services.refresh.test.tsx` (two concurrent calls, one POST). |
-| AC-007, AC-008, AC-009 | `src/alerts/Toasts.test.tsx` (fake timers for pause and resume; dismiss; View opens the panel). `tests/browser-gate/ui-quick-wins-725.spec.ts` for real hover and focus return. |
+| AC-007, AC-008, AC-009 | `src/alerts/Toasts.test.tsx` (fake timers for pause and resume; dismiss; View calls `onView` and closes the toast). `src/app/App.overlay-wiring.test.tsx` (View opens the alert history panel). `tests/browser-gate/ui-quick-wins-725.spec.ts` for real hover and focus return. |
 | AC-010 | `src/app/gear-menu.test.tsx` and `src/app/UserMenu.test.tsx`. `tests/browser-gate/ui-quick-wins-725.spec.ts` for real focus movement. |
 | AC-011 | `src/app/UserMenu.test.tsx`, `src/app/gear-menu.test.tsx` (existing cases). |
 | AC-012, AC-013 | `tests/browser-gate/ui-quick-wins-725.spec.ts` (computed `transform`/`border-radius` per state, box size, tile rects at Large, Compact, List). Existing `tests/browser-gate/app-grid-status-dot.spec.ts` and `status-dot-shared-262-263.spec.ts` must pass unchanged. |
-| AC-014, AC-015, AC-016 | `src/library/LibraryBrowse.test.tsx`. |
+| AC-014, AC-015, AC-016 | `src/library/LibraryBrowse.test.tsx` (grouping and filter, with and without a target box). |
 | AC-017 | `src/app/gear-menu.test.tsx`: the case "non-admin also sees Add apps" is rewritten to assert a member sees no `gear-add-apps`, and an admin case keeps it. `src/app/gear-arrange-apps.test.tsx`: TC-006 is rewritten to assert a member sees Arrange apps and not Add apps, with a comment naming this spec as the reversal, the same way it already names v29. |
 | AC-018, AC-019, AC-020 | `src/app/AuthForm.test.tsx`. `tests/browser-gate/ui-quick-wins-725.spec.ts` for caret and focus on toggle. |
 
@@ -156,9 +157,9 @@ Gates: `npm run lint`, `npm run build`, `npx vitest run`, `npm run test:gate`, `
 
 ## 7. Open questions — decided
 
-**Decided by Caleb on 2026-11-25: every recommended answer below is taken.** The ACs use them.
+Decided by Caleb on 2026-11-25 (`specs/DECISIONS.md`). The ACs use these answers.
 
-1. **What colour does `theme-color` take?** Recommended: the page background (`--bg-1`), so the browser bar blends with the page. The other choice is the accent.
-2. **Where does a toast's "View" go?** Recommended: open the alert history panel. It always works, even when the tile is filtered out or off screen. Scrolling to the tile is the other choice.
-3. **What does a member get from the Library?** Today a member can open it but every add fails without a message. Recommended: hide "Add apps" from a member's Gear menu, as kids already are kept from controls that 403. The other choice is a read-only Library with "Ask an admin to add apps."
-4. **Which shapes for DOWN and DEGRADED?** Recommended: DOWN a diamond, DEGRADED a rounded square, both in the same 9px box so ring and glow stay intact. Kare should check them on a real screen.
+1. **What colour does `theme-color` take?** Decided: the page background (`--bg-1`), so the browser bar blends with the page. Not the accent.
+2. **Where does a toast's "View" go?** Decided: it opens the alert history panel. It always works, even when the tile is filtered out or off screen. It does not scroll to the tile.
+3. **What does a member get from the Library?** Today a member can open it but every add fails without a message. Decided: a member's Gear menu has no "Add apps", as kids are already kept from controls that 403 (AC-017). No read-only Library for members.
+4. **Which shapes for DOWN and DEGRADED?** Decided: DOWN a diamond, DEGRADED a rounded square, both in the same 9px box so ring and glow stay intact. Kare checks them on a real screen during the build.

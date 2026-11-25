@@ -6,6 +6,8 @@ This directory holds the **current, authoritative** product specs and decisions 
 homepad. Historical specs for shipped versions v2–v10 are in
 [`specs/archive/`](./archive/).
 
+**Spec count.** "N specs" in `CLAUDE.md` and `docs/prd.md` means the top-level `specs/*.md` files other than `README.md` and `DECISIONS.md`: `ls specs/*.md | grep -v -e README -e DECISIONS | wc -l`. It does not count `specs/archive/`, `specs/ux/` or other subfolders. On 2026-11-25 it is 62.
+
 > **How this index is maintained.** Every `Status:` line below was reconciled
 > against `src/` and `CHANGELOG.md` on 2026-09-22 — not copied from the spec's own
 > header.
@@ -31,7 +33,7 @@ homepad. Historical specs for shipped versions v2–v10 are in
 
 ## Approved — M10, target 18.7.0 (3)
 
-Written 2026-11-25 from the 2026-11-24 UI review. Caleb took every recommended answer the same day. Nothing is built yet.
+Written 2026-11-25 from the 2026-11-24 UI review. Caleb decided every open question the same day. Nothing is built yet.
 
 | File | Feature | Status |
 |---|---|---|
