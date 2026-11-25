@@ -258,4 +258,60 @@ describe('ToastContainer — pause, dismiss, View (SPEC-ui-quick-wins)', () => {
     render(<ToastContainer onView={() => {}} />);
     expect(screen.getByRole('status')).toHaveTextContent(/^App a went DOWN$/);
   });
+
+  // #725 review — a MOUSE click focuses the button in Chrome and Firefox. Moving
+  // that focus to the next toast would pause it (AC-007) and it would never
+  // close on its own. Only a keyboard dismissal (click detail 0) moves focus.
+  it('AC-008: a pointer dismissal does not hand focus to the next toast, which keeps its timer', () => {
+    vi.useFakeTimers();
+    ctxValue = { recentChanges: [change('a', 'UP', 'DOWN'), change('b', 'UP', 'DOWN')], clearRecentChanges };
+    render(<ToastContainer />);
+    const first = within(toastOf('App a went DOWN')).getByTestId('toast-dismiss');
+    act(() => first.focus()); // what a Chrome mouse click does
+    fireEvent.click(first, { detail: 1 });
+    const next = toastOf('App b went DOWN');
+    expect(within(next).getByTestId('toast-dismiss')).not.toHaveFocus();
+    expect(next).toHaveAttribute('data-paused', 'false');
+    advance(4_000);
+    expect(screen.queryByText('App b went DOWN')).not.toBeInTheDocument();
+  });
+
+  // #725 review — with the panel already open, onView does not reopen it, so it
+  // does not grab focus; the focused toast hands focus to it as it closes.
+  it('AC-009: View from a focused toast with the alert history already open moves focus into it', () => {
+    const panel = document.createElement('div');
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-label', 'Alert History');
+    panel.tabIndex = -1;
+    document.body.appendChild(panel);
+    try {
+      ctxValue = { recentChanges: [change('a', 'UP', 'DOWN')], clearRecentChanges };
+      render(<ToastContainer onView={() => {}} />);
+      const view = within(toastOf('App a went DOWN')).getByTestId('toast-view');
+      act(() => view.focus());
+      fireEvent.click(view);
+      expect(screen.queryByText('App a went DOWN')).not.toBeInTheDocument();
+      expect(panel).toHaveFocus();
+    } finally {
+      panel.remove();
+    }
+  });
+
+  // #725 review — after a reflow a toast can slide out from under a cursor that
+  // never moved (no mouseleave). The real hover state is re-read then.
+  it('AC-007: when the stack reflows, a toast no longer under the pointer resumes', () => {
+    vi.useFakeTimers();
+    ctxValue = { recentChanges: [change('a', 'UP', 'DOWN'), change('b', 'UP', 'DOWN')], clearRecentChanges };
+    render(<ToastContainer />);
+    const b = toastOf('App b went DOWN');
+    fireEvent.mouseEnter(b);
+    expect(b).toHaveAttribute('data-paused', 'true');
+    // The pointer is now over something else, with no mouseleave reaching B
+    // (jsdom tracks :hover from mouseover; a mouseover on <body> never reaches
+    // React's root listener) — what a reflow under a still cursor looks like.
+    document.body.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    expect(b).toHaveAttribute('data-paused', 'true');
+    fireEvent.click(within(toastOf('App a went DOWN')).getByTestId('toast-dismiss'), { detail: 1 });
+    expect(b).toHaveAttribute('data-paused', 'false');
+  });
 });

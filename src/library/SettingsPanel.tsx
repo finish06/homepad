@@ -190,8 +190,8 @@ export default function SettingsPanel({
             </>
           ) : !isAdmin ? (
             <p className="settings-note">
-              Your apps and categories are managed right on your dashboard. Use
-              the “Add apps” button to browse the App Library.
+              Your admin manages the apps and categories on this dashboard.
+              Ask them to add an app.
             </p>
           ) : (
             <>
@@ -462,7 +462,7 @@ function LibraryManager() {
         App Library
       </h3>
       <p className="settings-section-note">
-        Shared catalog — all users see these offers in “Add apps.” Editing or
+        Shared catalog for all users — admins add these offers from “Add apps.” Editing or
         deleting an offer never touches copies users already added to their
         personal dashboards.
       </p>
@@ -660,7 +660,7 @@ function AddOfferModal({
       >
         <h3 className="add-offer-title">Add offer</h3>
         <p className="settings-section-note add-offer-note">
-          Adds a new app to the shared library — every user sees it in “Add apps.”
+          Adds a new app to the shared library — it shows up in “Add apps.”
         </p>
 
         <label className="add-offer-field">

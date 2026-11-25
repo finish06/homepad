@@ -69,11 +69,11 @@ test('AC-001: theme-color follows an accent change and a theme change in the men
 
 // ── Items 2 + 3: the freshness button, and the toasts it can surface ────────
 
-// One tile that flips UP → DOWN on the first manual refresh: the refresh
-// reloads the list, the merge sees the flip, and a toast fires (the real path).
-async function bootWithFlip(page: Page, role: 'admin' | 'member' = 'admin') {
-  const { services, categories } = makeStatusTiles(['UP']);
-  await mockApi(page, services, categories, role);
+// Tiles that flip UP → DOWN on the first manual refresh: the refresh reloads
+// the list, the merge sees the flips, and a toast fires per tile (the real path).
+async function bootWithFlip(page: Page, tiles = 1) {
+  const { services, categories } = makeStatusTiles(Array.from({ length: tiles }, () => 'UP'));
+  await mockApi(page, services, categories, 'admin');
   let flipped = false;
   let posts = 0;
   await page.route('**/api/status/refresh', async (route) => {
@@ -138,6 +138,22 @@ test('AC-007 / AC-008: a hovered toast never closes; Dismiss is ≥24×24 and re
   await page.keyboard.press('Enter');
   await expect(toast).toHaveCount(0);
   await expect(page.getByTestId('alert-bell')).toBeFocused();
+});
+
+// #725 review — Chrome focuses a button on mouse click. That focus must not be
+// handed to the next toast, or that toast pauses (AC-007) and never closes.
+test('AC-007 / AC-008: a mouse Dismiss leaves the next toast on its timer', async ({ page }) => {
+  await page.clock.install();
+  await bootWithFlip(page, 2);
+  await page.getByTestId('status-last-updated').click();
+  const toasts = page.getByTestId('toast');
+  await expect(toasts).toHaveCount(2);
+  await toasts.first().getByTestId('toast-dismiss').click();
+  await expect(toasts).toHaveCount(1);
+  await page.mouse.move(0, 0);
+  await expect(toasts.first()).toHaveAttribute('data-paused', 'false');
+  await page.clock.runFor(4_100);
+  await expect(toasts).toHaveCount(0);
 });
 
 test('AC-007: an untouched toast still closes after 4s', async ({ page }) => {

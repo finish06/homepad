@@ -428,4 +428,25 @@ describe('SPEC-ui-quick-wins AC-004 / AC-006 — the freshness label is a refres
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     expect(screen.queryByTestId('status-last-updated')).toBeNull();
   });
+
+  // #725 review — the visible label ticks every second; a focused control whose
+  // name keeps changing is re-announced by some screen readers. The name holds
+  // still while focused, and moves only when the data really reloads.
+  it('the accessible name holds still while focused; the visible text keeps ticking', async () => {
+    installRefreshFetch();
+    renderHeader();
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    const btn = screen.getByTestId('status-last-updated');
+    act(() => btn.focus());
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(btn).toHaveTextContent('Updated 20s ago');
+    expect(btn).toHaveAccessibleName('Updated 10s ago. Refresh status');
+    // A real reload moves the held name to the new age.
+    await clickAndSettle({ status: 200, asOf: 'T1' });
+    expect(btn).toHaveAccessibleName('Updated just now. Refresh status');
+    act(() => btn.blur());
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(btn).toHaveAccessibleName('Updated 10s ago. Refresh status');
+  });
 });

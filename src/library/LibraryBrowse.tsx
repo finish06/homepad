@@ -139,7 +139,9 @@ export default function LibraryBrowse({
       if (rows) rows.push(o);
       else byCat.set(o.suggestedCategory, [o]);
     });
-    const rank = (c: string) => (c === '' ? Number.MAX_SAFE_INTEGER : (order.get(c) ?? 0));
+    // Every visible offer is in `offers`, so every named category has a rank;
+    // "Other" ('') ranks after all of them.
+    const rank = (c: string) => (c === '' ? order.size : order.get(c)!);
     return Array.from(byCat, ([category, rows]) => ({ category, rows })).sort(
       (a, b) => rank(a.category) - rank(b.category),
     );

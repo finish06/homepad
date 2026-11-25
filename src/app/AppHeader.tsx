@@ -47,6 +47,11 @@ function LastUpdated() {
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState('');
+  // The "Updated …" part of the accessible name, frozen while the button has
+  // focus: the visible text ticks every second, and a focused control whose
+  // name keeps changing is re-announced by some screen readers. null = not
+  // focused (the name follows the live label).
+  const [heldAgo, setHeldAgo] = useState<string | null>(null);
 
   useEffect(() => {
     if (lastUpdatedAt == null) return;
@@ -55,9 +60,11 @@ function LastUpdated() {
   }, [lastUpdatedAt]);
 
   // A refresh that lands resets lastUpdatedAt; re-read the clock at once so
-  // the label says "just now" without waiting for the next tick.
+  // the label says "just now" without waiting for the next tick. A held name
+  // moves with it: the data really did change.
   useEffect(() => {
     setNow(Date.now());
+    if (lastUpdatedAt != null) setHeldAgo((h) => (h === null ? null : formatUpdatedAgo((Date.now() - lastUpdatedAt) / 1000)));
   }, [lastUpdatedAt]);
 
   async function onRefresh() {
@@ -81,7 +88,9 @@ function LastUpdated() {
       <button
         type="button"
         data-testid="status-last-updated"
-        aria-label={busy ? 'Refreshing status' : `Updated ${ago}. Refresh status`}
+        aria-label={busy ? 'Refreshing status' : `Updated ${heldAgo ?? ago}. Refresh status`}
+        onFocus={() => setHeldAgo(ago)}
+        onBlur={() => setHeldAgo(null)}
         aria-busy={busy || undefined}
         aria-disabled={busy || undefined}
         title="Refresh status"

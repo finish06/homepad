@@ -169,6 +169,11 @@ Decided by Caleb on 2026-11-25 (`specs/DECISIONS.md`). The ACs use these answers
 Small calls made while building. None reopens a §7 decision.
 
 - **AC-006, "disabled".** The busy freshness button uses `aria-disabled`, not the `disabled` attribute. `disabled` drops keyboard focus to `<body>` the moment you press Enter. A click while busy is ignored, so the effect is the same.
+- **AC-004, the name.** The visible "Updated Xs ago" ticks every second. While the button has focus, its accessible name keeps the age it had when it got focus, so screen readers don't re-read it every second. The name moves only when the data really reloads.
+- **AC-006, outcomes.** "Refreshed" means the list really reloaded. If the backend says it has newer data but the reload then fails, the outcome is "unreachable" and the counter is not reset. The new `as_of` is not kept either, so the next try still reloads.
+- **AC-008, focus.** Only a keyboard dismissal moves focus to the next toast or the bell. A mouse click also focuses the button in Chrome and Firefox, and moving that focus would pause the next toast for good. View from a focused toast, with the alert history already open, moves focus into the panel.
+- **AC-018, hiding again.** A shown password is hidden again when the card switches between sign in, create account and set up, and on submit.
+- **AC-017, settings copy.** A member's settings note said to use the "Add apps" button. It now says the admin manages the apps.
 - **AC-020 already held.** On `main` the submit clears the error before the request, and React commits that before the answer comes back, so the second alert was already a new node. The test pins it. The alert now also has a key that changes with every error, so it stays true if that clearing render is ever batched away.
 - **AC-014 group order.** Group order is worked out from the whole library, not the filtered view, so groups don't jump when the filter changes.
 - **AC-015 focus.** Under "Not added", the row you added leaves the view. Focus moves to the row that took its place (or the filter), not to `<body>`.

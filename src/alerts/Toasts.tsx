@@ -27,9 +27,6 @@ export default function ToastContainer({ onView }: { onView?: () => void } = {})
   // Dedup so a re-render with the same recentChanges reference can't double-enqueue.
   const seen = useRef(new Set<string>());
   const stackRef = useRef<HTMLDivElement>(null);
-  // AC-008 — set when a toast that held focus closes: the index (in the new
-  // visible stack) whose Dismiss button takes focus after the render.
-  const focusAfter = useRef<number | null>(null);
 
   // Enqueue toasts whenever a fresh batch of changes arrives. Empty on initial
   // load (AC-003); dropped entirely while the tab is hidden (AC-012).
@@ -49,28 +46,46 @@ export default function ToastContainer({ onView }: { onView?: () => void } = {})
     ctx?.clearRecentChanges();
   }, [recentChanges]);
 
-  // AC-008 — if focus was inside the toast that just closed, it goes to the
-  // toast that took its place (the next one down), or else to the alert bell.
+  // Where focus goes once a toast that held it has closed (set by dismiss/view,
+  // applied after the render that removed it):
+  //   number   AC-008 — the Dismiss button at that index in the new stack (the
+  //            toast that took its place), or else the alert bell;
+  //   'panel'  AC-009 — View with the alert history already open: into the
+  //            open panel (it only grabs focus when it opens).
+  const focusAfter = useRef<number | 'panel' | null>(null);
   useEffect(() => {
-    const i = focusAfter.current;
-    if (i === null) return;
+    const target = focusAfter.current;
+    if (target === null) return;
     focusAfter.current = null;
+    if (target === 'panel') {
+      // The panel was already open, or has just opened and focused itself.
+      if (document.activeElement && document.activeElement !== document.body) return;
+      document.querySelector<HTMLElement>('[role="dialog"][aria-label="Alert History"]')?.focus();
+      return;
+    }
     const buttons = stackRef.current?.querySelectorAll<HTMLElement>('[data-testid="toast-dismiss"]');
-    const target = buttons?.[i] ?? document.querySelector<HTMLElement>('[data-testid="alert-bell"]');
-    target?.focus();
+    (buttons?.[target] ?? document.querySelector<HTMLElement>('[data-testid="alert-bell"]'))?.focus();
   }, [queue]);
 
-  function dismiss(key: string, moveFocus = true) {
+  const holdsFocus = (idx: number) => stackRef.current?.children[idx]?.contains(document.activeElement) === true;
+
+  // AC-008 — `byKeyboard`: only a keyboard dismissal moves focus on. A mouse
+  // click also focuses the button in Chrome and Firefox, and handing that
+  // focus to the next toast would pause it (AC-007) for no reason, so a
+  // pointer dismissal leaves focus where the browser puts it.
+  function dismiss(key: string, byKeyboard: boolean) {
     const idx = queue.findIndex((t) => t.key === key);
-    const el = stackRef.current?.children[idx];
-    if (moveFocus && el?.contains(document.activeElement)) focusAfter.current = idx;
+    if (byKeyboard && holdsFocus(idx)) focusAfter.current = idx;
     setQueue((q) => q.filter((t) => t.key !== key));
   }
 
-  // AC-009 — View opens the alert history, which takes focus itself, so the
-  // closing toast must not also pull focus to a sibling or the bell.
+  // AC-009 — View opens the alert history, which takes focus as it opens. If
+  // it is already open it does not, so a focused toast hands focus to it
+  // rather than letting it fall to <body> as the toast unmounts.
   function view(key: string) {
-    dismiss(key, false);
+    const idx = queue.findIndex((t) => t.key === key);
+    if (holdsFocus(idx)) focusAfter.current = 'panel';
+    setQueue((q) => q.filter((t) => t.key !== key));
     onView?.();
   }
 
@@ -85,8 +100,9 @@ export default function ToastContainer({ onView }: { onView?: () => void } = {})
         <ToastItem
           key={t.key}
           toast={t}
-          onDismiss={() => dismiss(t.key)}
+          onDismiss={(byKeyboard) => dismiss(t.key, byKeyboard)}
           onView={onView ? () => view(t.key) : undefined}
+          stack={visible.length}
         />
       ))}
     </div>
@@ -100,10 +116,13 @@ function ToastItem({
   toast,
   onDismiss,
   onView,
+  stack,
 }: {
   toast: Toast;
-  onDismiss: () => void;
+  onDismiss: (byKeyboard: boolean) => void;
   onView?: () => void;
+  // How many toasts are showing; when it changes the stack reflows.
+  stack: number;
 }) {
   const { change } = toast;
   const isDown = change.to === 'DOWN' || change.to === 'DEGRADED';
@@ -116,6 +135,16 @@ function ToastItem({
   // The latest onDismiss, so the timer never calls a stale one.
   const dismissRef = useRef(onDismiss);
   dismissRef.current = onDismiss;
+  const ref = useRef<HTMLDivElement>(null);
+
+  // When a toast above closes, the stack reflows and this one can slide out
+  // from under a cursor that never moved, so no mouseleave fires. Re-check
+  // the real hover state then, or the toast would stay paused for good.
+  useEffect(() => {
+    if (hovered && ref.current && !ref.current.matches(':hover')) setHovered(false);
+    // Only on a reflow, not on every hover change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stack]);
 
   // AC-006 — auto-dismiss after 4 seconds, no interaction needed.
   // AC-007 — but never while hovered or focused: the timer stops, and resumes
@@ -123,7 +152,7 @@ function ToastItem({
   useEffect(() => {
     if (paused) return;
     const started = Date.now();
-    const timer = setTimeout(() => dismissRef.current(), remaining.current);
+    const timer = setTimeout(() => dismissRef.current(false), remaining.current);
     return () => {
       clearTimeout(timer);
       remaining.current = Math.max(0, remaining.current - (Date.now() - started));
@@ -138,6 +167,7 @@ function ToastItem({
   const accent = isDown ? 'border-red-500' : 'border-emerald-500';
   return (
     <div
+      ref={ref}
       data-testid="toast"
       data-paused={paused}
       onMouseEnter={() => setHovered(true)}
@@ -162,7 +192,8 @@ function ToastItem({
         data-testid="toast-dismiss"
         aria-label="Dismiss"
         title="Dismiss"
-        onClick={onDismiss}
+        // A keyboard press fires a click with detail 0; a pointer click has 1+.
+        onClick={(e) => onDismiss(e.detail === 0)}
         className={BUTTON}
       >
         <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2}>

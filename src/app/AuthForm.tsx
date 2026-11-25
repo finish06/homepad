@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { authConfig, login, register, type AuthConfig, type Result, type User } from '../api';
 import { accountLimitMessage, isAccountLimit } from '../lib/accountLimit';
 import { waitMessage } from '../lib/waitMessage';
@@ -28,16 +28,20 @@ export default function AuthForm({ onAuthed, ssoError }: { onAuthed: (u: User) =
   // this count), so a second failure with the same words is announced again
   // instead of leaving a live region whose text did not change.
   const [errorSeq, setErrorSeq] = useState(0);
-  const setError = (msg: string) => {
+  // Stable (useCallback over stable setters), so the OIDC timeout's closure
+  // calls the same function as everything else.
+  const setError = useCallback((msg: string) => {
     setErrorText(msg);
     if (msg) setErrorSeq((n) => n + 1);
-  };
+  }, []);
   // SPEC-ui-quick-wins §3.7 — show/hide password and the Caps Lock hint.
   const [showPassword, setShowPassword] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
   const passwordRef = useRef<HTMLInputElement>(null);
   // The caret to put back after a show/hide toggle (AC-018).
   const restoreCaret = useRef<[number, number] | null>(null);
+  // Has the field ever had focus? Before that, its caret position means nothing.
+  const everFocused = useRef(false);
   const passwordId = useId();
   const capsId = useId();
   // SPEC-signin-hardening UX §2 — the single sign-on line, for the code App
@@ -88,9 +92,23 @@ export default function AuthForm({ onAuthed, ssoError }: { onAuthed: (u: User) =
 
   function togglePassword() {
     const input = passwordRef.current;
-    if (input) restoreCaret.current = [input.selectionStart ?? input.value.length, input.selectionEnd ?? input.value.length];
+    if (input) {
+      const end = input.value.length;
+      // A field that never had focus (autofill, or a click straight on the eye)
+      // reports a caret of 0; put it at the end, where typing would continue.
+      const focused = document.activeElement === input || everFocused.current;
+      restoreCaret.current = focused
+        ? [input.selectionStart ?? end, input.selectionEnd ?? end]
+        : [end, end];
+    }
     setShowPassword((v) => !v);
   }
+
+  // A shown password is hidden again whenever the card changes what it is
+  // for (sign in / create account / set up), so it never carries over.
+  useEffect(() => {
+    setShowPassword(false);
+  }, [mode]);
 
   // AC-019 — read Caps Lock from every key event in the field; it can change
   // while the field has focus (the CapsLock key itself), so keyup counts too.
@@ -109,6 +127,9 @@ export default function AuthForm({ onAuthed, ssoError }: { onAuthed: (u: User) =
     e.preventDefault();
     setError('');
     setSso(false);
+    // Hide a shown password on submit: it is not left on screen while the
+    // request runs, and password managers offer to save a password field.
+    setShowPassword(false);
     setBusy(true);
     try {
       if (mode !== 'login') {
@@ -201,6 +222,9 @@ export default function AuthForm({ onAuthed, ssoError }: { onAuthed: (u: User) =
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={readCapsLock}
             onKeyUp={readCapsLock}
+            onFocus={() => {
+              everFocused.current = true;
+            }}
             onBlur={() => setCapsLock(false)}
             aria-describedby={
               [mode === 'setup' ? hintId : '', capsLock ? capsId : ''].filter(Boolean).join(' ') || undefined

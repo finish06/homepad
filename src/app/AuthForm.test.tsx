@@ -277,5 +277,43 @@ describe('SPEC-ui-quick-wins — password field polish', () => {
     expect(screen.getByText('Caps Lock is on')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
+
+  // #725 review — a shown password never carries over to another form state.
+  it('a shown password is hidden again when the card switches to Create account', async () => {
+    const user = userEvent.setup();
+    vi.mocked(authConfig).mockResolvedValue(cfg({ registration: 'open' }));
+    render(<AuthForm onAuthed={() => {}} />);
+    await user.type(field(), 'secret99');
+    await user.click(toggle());
+    expect(field()).toHaveAttribute('type', 'text');
+    await user.click(await screen.findByRole('button', { name: /create account/i }));
+    expect(screen.getByText('Create your account')).toBeInTheDocument();
+    expect(field()).toHaveAttribute('type', 'password');
+    expect(toggle()).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('a shown password is hidden again on submit', async () => {
+    const user = userEvent.setup();
+    vi.mocked(login).mockResolvedValue({ ok: false, status: 401, error: 'invalid email or password' });
+    render(<AuthForm onAuthed={() => {}} />);
+    await user.type(screen.getByLabelText(/email/i), 'a@b.lan');
+    await user.type(field(), 'wrongwrong');
+    await user.click(toggle());
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }));
+    await screen.findByRole('alert');
+    expect(field()).toHaveAttribute('type', 'password');
+  });
+
+  // #725 review — an autofilled field that never had focus reports a caret of
+  // 0; after the toggle, typing must continue at the END, not the start.
+  it('AC-018: a never-focused field gets its caret at the end after a toggle', async () => {
+    render(<AuthForm onAuthed={() => {}} />);
+    fireEvent.change(field(), { target: { value: 'autofilled' } });
+    field().setSelectionRange(0, 0);
+    expect(field()).not.toHaveFocus();
+    fireEvent.click(toggle());
+    expect(field()).toHaveFocus();
+    expect(field().selectionStart).toBe('autofilled'.length);
+  });
 });
 
