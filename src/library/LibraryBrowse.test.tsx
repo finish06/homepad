@@ -40,6 +40,7 @@ function renderBrowse(props: Partial<React.ComponentProps<typeof LibraryBrowse>>
         onCustomAdd={props.onCustomAdd ?? vi.fn()}
         isAdmin={props.isAdmin ?? false}
         onManageLibrary={props.onManageLibrary}
+        targetCategory={props.targetCategory}
       />
     </ThemeProvider>,
   );
@@ -108,7 +109,7 @@ describe('A16 — add from the library', () => {
     renderBrowse({ onAdded });
     await userEvent.click(await screen.findByTestId('library-add-L1'));
 
-    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L1'));
+    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L1', undefined));
     expect(onAdded).toHaveBeenCalledWith(NEW_SERVICE);
     // The row flips to the Added state and keeps an "Add again" affordance (D6).
     expect(await screen.findByTestId('library-added-L1')).toBeInTheDocument();
@@ -125,7 +126,7 @@ describe('A16 — add from the library', () => {
     renderBrowse();
     // L2 is already added; its affordance still lets you add again.
     await userEvent.click(await screen.findByTestId('library-added-L2'));
-    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L2'));
+    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L2', undefined));
   });
 });
 
@@ -377,3 +378,64 @@ describe('SPEC-ui-quick-wins — groups and the Added filter', () => {
   });
 });
 
+// SPEC-dashboard-empty-loading AC-010 / §3.3 — opened from an empty box, the
+// Library says which box and files every add there, whatever group the offer
+// is listed under. Without a target nothing changes.
+describe('the target box (AC-010)', () => {
+  it('without a target the heading is "App Library" and adds send no category', async () => {
+    const u = userEvent.setup();
+    renderBrowse();
+    expect(await screen.findByRole('heading', { name: 'App Library' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'App Library' })).toBeInTheDocument();
+    await u.click(await screen.findByTestId('library-add-L1'));
+    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L1', undefined));
+    expect(vi.mocked(addFromLibrary).mock.calls[0][1]).toBeUndefined();
+  });
+
+  it('with a target the heading reads "Add to {title}" and every add sends that categoryId', async () => {
+    const u = userEvent.setup();
+    renderBrowse({ targetCategory: { id: 'c7', title: 'Games' } });
+    expect(await screen.findByRole('heading', { name: 'Add to Games' })).toBeInTheDocument();
+    // The dialog's name says the same, for a screen reader.
+    expect(screen.getByRole('dialog', { name: 'Add to Games' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'App Library' })).toBeNull();
+    // L1 is suggested for "Media" — it still goes into the target box.
+    await u.click(await screen.findByTestId('library-add-L1'));
+    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L1', 'c7'));
+    // An "Add again" on an already-added offer goes there too.
+    await u.click(screen.getByTestId('library-added-L2'));
+    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L2', 'c7'));
+  });
+
+  // SPEC-ui-quick-wins groups only sort the list (§3.3): with a target box, an
+  // offer listed under any group — or "Other" — still lands in the target, and
+  // the Added filter works the same.
+  it('with a target box, offers in every group (and the Added filter) add into that box', async () => {
+    const u = userEvent.setup();
+    const offer = (id: string, name: string, cat: string, added: boolean, sortIndex: number): LibraryOffer => ({
+      id, name, url: `https://${id}.x`, icon: '', description: '', suggestedCategory: cat, sortIndex, added,
+    });
+    vi.mocked(listLibrary).mockResolvedValue([
+      offer('T1', 'Sonarr', 'Media', false, 0),
+      offer('T2', 'Pi-hole', 'Network', false, 1),
+      offer('T3', 'Notes', '', true, 2),
+    ]);
+    renderBrowse({ targetCategory: { id: 'c7', title: 'Games' } });
+    expect(await screen.findByRole('heading', { name: 'Add to Games' })).toBeInTheDocument();
+    const groupOf = (id: string) =>
+      screen
+        .getAllByTestId('library-group')
+        .find((g) => within(g).queryAllByTestId('library-row').some((r) => r.getAttribute('data-library-id') === id))!;
+    expect(within(groupOf('T1')).getByTestId('library-group-title')).toHaveTextContent('Media');
+    expect(within(groupOf('T2')).getByTestId('library-group-title')).toHaveTextContent('Network');
+    await u.click(within(groupOf('T1')).getByTestId('library-add-T1'));
+    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('T1', 'c7'));
+    await u.click(within(groupOf('T2')).getByTestId('library-add-T2'));
+    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('T2', 'c7'));
+    // The Added filter, then "Add again" from the "Other" group.
+    await u.click(screen.getByRole('radio', { name: 'Added' }));
+    await u.click(within(groupOf('T3')).getByTestId('library-added-T3'));
+    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('T3', 'c7'));
+    expect(vi.mocked(addFromLibrary).mock.calls.every((c) => c[1] === 'c7')).toBe(true);
+  });
+});

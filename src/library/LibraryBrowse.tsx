@@ -31,6 +31,7 @@ export default function LibraryBrowse({
   onCustomAdd,
   isAdmin = false,
   onManageLibrary,
+  targetCategory,
 }: {
   onClose: () => void;
   // Called with each freshly-copied service so the dashboard can reflect it
@@ -41,6 +42,10 @@ export default function LibraryBrowse({
   isAdmin?: boolean;
   // Admin-only: jump to the library-management view (Settings §7.3).
   onManageLibrary?: () => void;
+  // SPEC-dashboard-empty-loading §3.3 — opened from an empty box: the heading
+  // names the box and every add files into it, whatever group the offer is
+  // listed under. Absent (the Gear): "App Library", adds land in Uncategorized.
+  targetCategory?: { id: string; title: string };
 }) {
   const [offers, setOffers] = useState<LibraryOffer[] | null>(null);
   const [query, setQuery] = useState('');
@@ -95,7 +100,7 @@ export default function LibraryBrowse({
 
   async function add(offer: LibraryOffer) {
     setBusyId(offer.id);
-    const r = await addFromLibrary(offer.id);
+    const r = await addFromLibrary(offer.id, targetCategory?.id);
     setBusyId(null);
     if (!r.ok || !r.service) return;
     onAdded(r.service);
@@ -179,7 +184,7 @@ export default function LibraryBrowse({
         data-testid="library-browse"
         role="dialog"
         aria-modal="true"
-        aria-label="App Library"
+        aria-label={targetCategory ? `Add to ${targetCategory.title}` : 'App Library'}
         className="launcher-panel library-panel"
         onKeyDown={onPanelKeyDown}
       >
@@ -189,7 +194,7 @@ export default function LibraryBrowse({
 
         <div className="library-head">
           <div>
-            <h2 className="library-title">App Library</h2>
+            <h2 className="library-title">{targetCategory ? `Add to ${targetCategory.title}` : 'App Library'}</h2>
             <p className="library-subtitle">Add apps to your dashboard.</p>
           </div>
           <button

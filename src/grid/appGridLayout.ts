@@ -4,7 +4,8 @@ import type { Category, Service } from '../api';
 // the fixed-190px auto-fill tools track are pure CSS (see AppGrid.tsx / index.css);
 // these functions own the JS-side math the component and its tests rely on.
 
-// Kare's finalized tokens (A1 D-1) — byte-identical to the v14 .category-panel.
+// Kare's finalized tokens (A1 D-1) — the same values the retired v14 floating
+// panel used.
 export const TILE_PX = 190;
 export const GAP_PX = 16;
 export const PADDING_PX = 16;

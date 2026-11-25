@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { boxWidthPx, frameContentPx } from './appGridLayout';
+import { axe, toHaveNoViolations } from 'jest-axe';
+import { boxWidthPx, contentMaxPx, frameContentPx } from './appGridLayout';
+import { cancelPendingShapeWrite, SHAPE_KEY } from './gridShapeCache';
 import AppGrid from './AppGrid';
 import type { Category, Service } from '../api';
 import * as api from '../api';
@@ -37,6 +39,8 @@ vi.mock('./IframeOverlay', () => ({
     </div>
   ),
 }));
+
+expect.extend(toHaveNoViolations);
 
 const cat = (id: string, name: string, sortIndex: number, gridWidth: number): Category => ({
   id,
@@ -243,18 +247,101 @@ describe('AppGrid rendering', () => {
     });
   });
 
-  it('shows the designed empty state for a category with no tools (AC-012)', async () => {
+  it('shows an empty state for a category with no tools (AC-012)', async () => {
     vi.mocked(api.services).mockResolvedValue([]);
     await renderGrid(true);
-    const empties = screen.getAllByTestId('box-empty');
-    expect(empties).toHaveLength(2);
-    expect(empties[0]).toHaveTextContent('No apps yet — add from the Library.');
+    expect(screen.getAllByTestId('box-empty')).toHaveLength(2);
+  });
+});
+
+// SPEC-dashboard-empty-loading AC-009, AC-021, AC-022 — who sees what in an
+// empty box. The admin's button and the member's short line depend only on the
+// dashboardEmpty prop; AppGrid never works that out itself.
+describe('empty box copy and the Library button (AC-009, AC-021, AC-022)', () => {
+  beforeEach(() => {
+    vi.mocked(api.services).mockResolvedValue([svc('s2', 'Grafana', 'c2')]); // Media (c1) is empty
+  });
+  const mediaBox = () => screen.getAllByTestId('app-grid-box')[0];
+
+  it('admin: "No apps yet." and a Browse the App Library button', async () => {
+    const onAddToBox = vi.fn();
+    render(<AppGrid isAdmin onAddToBox={onAddToBox} dashboardEmpty={false} />);
+    await screen.findByTestId('app-grid');
+    expect(within(mediaBox()).getByTestId('box-empty')).toHaveTextContent(/^No apps yet\.$/);
+    const btn = within(mediaBox()).getByRole('button', { name: 'Browse the App Library' });
+    await userEvent.setup().click(btn);
+    expect(onAddToBox).toHaveBeenCalledWith({ id: 'c1', title: 'Media' }, btn);
   });
 
-  it('non-admin sees the empty box with the neutral copy (no admin hint)', async () => {
-    vi.mocked(api.services).mockResolvedValue([]);
+  it('admin in arrange mode sees the same line and button', async () => {
+    render(<AppGrid isAdmin editMode onAddToBox={vi.fn()} dashboardEmpty={false} />);
+    await screen.findByTestId('app-grid');
+    expect(within(mediaBox()).getByTestId('box-empty')).toHaveTextContent(/^No apps yet\.$/);
+    expect(within(mediaBox()).getByRole('button', { name: 'Browse the App Library' })).toBeInTheDocument();
+  });
+
+  it('admin: the button is hidden while admin-empty shows (OQ-3)', async () => {
+    render(<AppGrid isAdmin onAddToBox={vi.fn()} dashboardEmpty />);
+    await screen.findByTestId('app-grid');
+    expect(within(mediaBox()).getByTestId('box-empty')).toHaveTextContent(/^No apps yet\.$/);
+    expect(within(mediaBox()).queryByRole('button', { name: 'Browse the App Library' })).toBeNull();
+  });
+
+  it('admin without onAddToBox gets no button', async () => {
+    render(<AppGrid isAdmin dashboardEmpty={false} />);
+    await screen.findByTestId('app-grid');
+    expect(within(mediaBox()).queryByRole('button', { name: 'Browse the App Library' })).toBeNull();
+  });
+
+  it('member: the ask-an-admin line and no button', async () => {
+    render(<AppGrid isAdmin={false} dashboardEmpty={false} />);
+    await screen.findByTestId('app-grid');
+    expect(within(mediaBox()).getByTestId('box-empty')).toHaveTextContent(
+      /^No apps here yet\. Ask an admin to add some\.$/,
+    );
+    expect(within(mediaBox()).queryByRole('button')).toBeNull();
+  });
+
+  it('kid (any non-admin, large tiles): the same line and no button', async () => {
+    render(<AppGrid isAdmin={false} density="large" dashboardEmpty={false} />);
+    await screen.findByTestId('app-grid');
+    expect(within(mediaBox()).getByTestId('box-empty')).toHaveTextContent(
+      'No apps here yet. Ask an admin to add some.',
+    );
+    expect(within(mediaBox()).queryByRole('button')).toBeNull();
+  });
+
+  it('member while member-empty shows: only "No apps here yet." (AC-021)', async () => {
+    render(<AppGrid isAdmin={false} dashboardEmpty />);
+    await screen.findByTestId('app-grid');
+    expect(within(mediaBox()).getByTestId('box-empty')).toHaveTextContent(/^No apps here yet\.$/);
+  });
+
+  it('a member render never shows the button even with onAddToBox passed (AC-022)', async () => {
+    render(<AppGrid isAdmin={false} onAddToBox={vi.fn()} dashboardEmpty={false} />);
+    await screen.findByTestId('app-grid');
+    expect(screen.queryByRole('button', { name: 'Browse the App Library' })).toBeNull();
+  });
+});
+
+// SPEC-dashboard-empty-loading §3.4 — focus targets App.tsx uses after the
+// Library closes: a service id on every tile wrapper and a focusable heading.
+describe('focus targets for the Library return (AC-011)', () => {
+  it('every tile wrapper carries its service id, in view and arrange mode', async () => {
+    const { unmount } = render(<AppGrid isAdmin />);
+    await screen.findByTestId('app-grid');
+    const link = within(screen.getAllByTestId('app-grid-box')[0]).getByTestId('tool-link');
+    expect(link.closest('.app-grid-tool-wrap')).toHaveAttribute('data-service-id', 's1');
+    unmount();
+    render(<AppGrid isAdmin editMode />);
+    await screen.findByTestId('app-grid');
+    const editLink = within(screen.getAllByTestId('app-grid-box')[0]).getByTestId('tool-link');
+    expect(editLink.closest('.app-grid-tool-wrap')).toHaveAttribute('data-service-id', 's1');
+  });
+
+  it('the box heading is focusable by script only', async () => {
     await renderGrid(false);
-    expect(screen.getAllByTestId('box-empty')[0]).toHaveTextContent('No apps in this box.');
+    for (const h of screen.getAllByTestId('box-title')) expect(h).toHaveAttribute('tabindex', '-1');
   });
 });
 
@@ -617,5 +704,303 @@ describe('AppGrid box rename + delete (#241)', () => {
     await user.click(within(media).getByTestId('box-delete-no'));
     expect(within(media).queryByTestId('box-delete-confirm')).not.toBeInTheDocument();
     expect(api.deleteCategory).not.toHaveBeenCalled();
+  });
+});
+
+// SPEC-dashboard-empty-loading AC-001, AC-002 (DOM half), AC-005, AC-008,
+// AC-020 — the loading skeleton. Real geometry is the browser gate's job
+// (tests/browser-gate/app-grid-skeleton.spec.ts).
+describe('loading skeleton (AC-001, AC-005, AC-008, AC-020)', () => {
+  function deferred<T>() {
+    let resolve!: (v: T) => void;
+    const promise = new Promise<T>((r) => (resolve = r));
+    return { promise, resolve };
+  }
+  const putShape = (v: unknown) => localStorage.setItem(SHAPE_KEY, JSON.stringify(v));
+  beforeEach(() => localStorage.clear());
+
+  it('renders the skeleton inside a real .app-grid with the density, and no spinner', async () => {
+    const cats = deferred<Category[]>();
+    vi.mocked(api.categories).mockReturnValue(cats.promise);
+    const { container } = render(<AppGrid isAdmin={false} density="compact" userId="u1" />);
+    const loading = screen.getByTestId('app-grid-loading');
+    const grid = loading.querySelector('.app-grid');
+    expect(grid).not.toBeNull();
+    expect(grid).toHaveAttribute('data-density', 'compact');
+    expect(container.querySelector('.app-spinner')).toBeNull();
+    expect(screen.queryByTestId('app-grid')).toBeNull();
+    // Built from the real grid classes.
+    expect(grid!.querySelectorAll('.app-grid-box').length).toBe(3);
+    expect(grid!.querySelectorAll('.app-grid-box-header').length).toBe(3);
+    expect(grid!.querySelectorAll('.app-grid-tools .app-grid-tool').length).toBe(10);
+    await act(async () => cats.resolve([cat('c1', 'Media', 0, 4)]));
+    expect(screen.queryByTestId('app-grid-loading')).toBeNull();
+    expect(screen.getByTestId('app-grid')).toBeInTheDocument();
+  });
+
+  it('stays while services are pending even after categories arrive', async () => {
+    const svcs = deferred<Service[]>();
+    vi.mocked(api.services).mockReturnValue(svcs.promise);
+    render(<AppGrid isAdmin={false} />);
+    await act(async () => {});
+    expect(api.categories).toHaveBeenCalled();
+    expect(screen.getByTestId('app-grid-loading')).toBeInTheDocument();
+    await act(async () => svcs.resolve([]));
+    expect(screen.queryByTestId('app-grid-loading')).toBeNull();
+  });
+
+  it('sets --floor, --grow and --cap with the real helpers, from the exact cached count', () => {
+    vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
+    putShape({ v: 1, user: 'u1', recent: false, boxes: [{ span: 6, count: 30, collapsed: false }, { span: 6, count: 0, collapsed: false }] });
+    render(<AppGrid isAdmin={false} userId="u1" />);
+    const boxes = screen.getByTestId('app-grid-loading').querySelectorAll<HTMLElement>('.app-grid-box');
+    expect(boxes).toHaveLength(2);
+    const floor = boxWidthPx(6, frameContentPx(1920));
+    expect(boxes[0].style.getPropertyValue('--floor')).toBe(`${floor}px`);
+    expect(boxes[0].style.getPropertyValue('--grow')).toBe('30');
+    expect(boxes[0].style.getPropertyValue('--cap')).toBe(`${Math.max(floor, contentMaxPx(30))}px`);
+    expect(boxes[0].querySelectorAll('.app-grid-tool')).toHaveLength(30);
+    expect(boxes[1].style.getPropertyValue('--grow')).toBe('0');
+    expect(boxes[1].querySelectorAll('.app-grid-tool')).toHaveLength(0);
+  });
+
+  it('another user\'s cache draws the fallback (AC-019)', () => {
+    vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
+    putShape({ v: 1, user: 'admin-1', recent: true, boxes: [{ span: 12, count: 30, collapsed: false }] });
+    render(<AppGrid isAdmin={false} userId="kid-1" />);
+    const loading = screen.getByTestId('app-grid-loading');
+    expect(loading.querySelectorAll('.app-grid-box')).toHaveLength(3);
+    expect(loading.querySelector('.recently-opened')).toBeNull();
+  });
+
+  it('reserves the Recently opened row only when the cache says recent (AC-005)', () => {
+    vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
+    putShape({ v: 1, user: 'u1', recent: true, boxes: [{ span: 12, count: 2, collapsed: false }] });
+    const { unmount } = render(<AppGrid isAdmin={false} userId="u1" />);
+    expect(screen.getByTestId('app-grid-loading').querySelector('.recently-opened')).not.toBeNull();
+    unmount();
+    putShape({ v: 1, user: 'u1', recent: false, boxes: [{ span: 12, count: 2, collapsed: false }] });
+    render(<AppGrid isAdmin={false} userId="u1" />);
+    expect(screen.getByTestId('app-grid-loading').querySelector('.recently-opened')).toBeNull();
+  });
+
+  it('a collapsed box draws its header row only (AC-020)', () => {
+    vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
+    putShape({ v: 1, user: 'u1', recent: false, boxes: [{ span: 6, count: 5, collapsed: true }] });
+    render(<AppGrid isAdmin={false} userId="u1" />);
+    const box = screen.getByTestId('app-grid-loading').querySelector<HTMLElement>('.app-grid-box')!;
+    expect(box.querySelector('.app-grid-box-header')).not.toBeNull();
+    expect(box.querySelector('.app-grid-tools')).toBeNull();
+    // At its full width: the same grow model as an open box of 5.
+    expect(box.style.getPropertyValue('--grow')).toBe('5');
+  });
+
+  it('reserves the admin\'s empty-box button, except when every box is empty (admin-empty)', () => {
+    vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
+    const reserved = () => screen.getByTestId('app-grid-loading').querySelectorAll('.app-grid-empty-add').length;
+    putShape({ v: 1, user: 'u1', recent: false, boxes: [{ span: 6, count: 2, collapsed: false }, { span: 6, count: 0, collapsed: false }] });
+    const { unmount } = render(<AppGrid isAdmin userId="u1" />);
+    expect(reserved()).toBe(1);
+    unmount();
+    const member = render(<AppGrid isAdmin={false} userId="u1" />);
+    expect(reserved()).toBe(0);
+    member.unmount();
+    putShape({ v: 1, user: 'u1', recent: false, boxes: [{ span: 6, count: 0, collapsed: false }] });
+    render(<AppGrid isAdmin userId="u1" />);
+    expect(reserved()).toBe(0);
+  });
+
+  it('an empty box draws its real line, unseen, so a wrapping line wraps in the skeleton too', () => {
+    vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
+    const line = () =>
+      screen.getByTestId('app-grid-loading').querySelector('.app-grid-empty.app-grid-skel-hidden')?.textContent;
+    putShape({ v: 1, user: 'u1', recent: false, boxes: [{ span: 3, count: 2, collapsed: false }, { span: 3, count: 0, collapsed: false }] });
+    const a = render(<AppGrid isAdmin={false} userId="u1" />);
+    expect(line()).toBe('No apps here yet. Ask an admin to add some.');
+    a.unmount();
+    const b = render(<AppGrid isAdmin userId="u1" />);
+    expect(line()).toBe('No apps yet.');
+    b.unmount();
+    // Every box empty: the member-empty case, so the short line (AC-021).
+    putShape({ v: 1, user: 'u1', recent: false, boxes: [{ span: 3, count: 0, collapsed: false }] });
+    render(<AppGrid isAdmin={false} userId="u1" />);
+    expect(line()).toBe('No apps here yet.');
+  });
+
+  it('draws the cached boxes empty when App already knows the dashboard is empty', () => {
+    vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
+    putShape({ v: 1, user: 'u1', recent: true, boxes: [{ span: 6, count: 4, collapsed: false }, { span: 6, count: 2, collapsed: false }] });
+    render(<AppGrid isAdmin userId="u1" dashboardEmpty />);
+    const loading = screen.getByTestId('app-grid-loading');
+    expect(loading.querySelectorAll('.app-grid-box')).toHaveLength(2);
+    expect(loading.querySelectorAll('.app-grid-tool')).toHaveLength(0);
+    expect(loading.querySelectorAll('.app-grid-empty-add')).toHaveLength(0);
+    expect(loading.querySelector('.recently-opened')).toBeNull();
+  });
+
+  it('with no cache and an empty dashboard, draws no boxes (a new install has none)', () => {
+    vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
+    render(<AppGrid isAdmin userId="u1" dashboardEmpty />);
+    const loading = screen.getByTestId('app-grid-loading');
+    expect(loading.querySelectorAll('.app-grid-box')).toHaveLength(0);
+    // The admin's "+ Add box" row is still reserved.
+    expect(loading.querySelectorAll('.app-grid-add')).toHaveLength(1);
+  });
+
+  it('reserves the admin\'s "+ Add box" row, and only for an admin', () => {
+    vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
+    const a = render(<AppGrid isAdmin userId="u1" />);
+    expect(screen.getByTestId('app-grid-loading').querySelectorAll('.app-grid .app-grid-add')).toHaveLength(1);
+    a.unmount();
+    render(<AppGrid isAdmin={false} userId="u1" />);
+    expect(screen.getByTestId('app-grid-loading').querySelectorAll('.app-grid-add')).toHaveLength(0);
+  });
+
+  it('is accessible: shapes aria-hidden, one polite status, nothing focusable, no axe violations (AC-008)', async () => {
+    vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
+    putShape({ v: 1, user: 'u1', recent: true, boxes: [{ span: 6, count: 3, collapsed: false }] });
+    const { container } = render(<AppGrid isAdmin userId="u1" />);
+    const loading = screen.getByTestId('app-grid-loading');
+    const statuses = within(loading).getAllByRole('status');
+    expect(statuses).toHaveLength(1);
+    expect(statuses[0]).toHaveAttribute('aria-live', 'polite');
+    expect(statuses[0]).toHaveTextContent('Loading dashboard…');
+    for (const el of loading.querySelectorAll('.app-grid, .recently-opened')) {
+      expect(el).toHaveAttribute('aria-hidden', 'true');
+    }
+    expect(loading.querySelectorAll('a, button, input, select, textarea, [tabindex]')).toHaveLength(0);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+// SPEC-dashboard-empty-loading AC-006 — when the grid writes its shape. Fake
+// setTimeout only, and act() instead of findBy (whose polling would stall).
+describe('shape cache writes (AC-006)', () => {
+  const writes = () =>
+    vi.mocked(Storage.prototype.setItem).mock.calls.filter(([k]) => k === SHAPE_KEY);
+  const flush = () => act(async () => {});
+  const tick = (ms: number) =>
+    act(() => {
+      vi.advanceTimersByTime(ms);
+    });
+
+  beforeEach(() => {
+    localStorage.clear();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    vi.spyOn(Storage.prototype, 'setItem');
+  });
+  afterEach(() => {
+    cancelPendingShapeWrite();
+    vi.useRealTimers();
+    vi.mocked(Storage.prototype.setItem).mockRestore();
+  });
+
+  it('writes once, 500 ms after load', async () => {
+    render(<AppGrid isAdmin={false} userId="u1" />);
+    await flush();
+    tick(499);
+    expect(writes()).toHaveLength(0);
+    tick(1);
+    expect(writes()).toHaveLength(1);
+    expect(JSON.parse(localStorage.getItem(SHAPE_KEY)!)).toEqual({
+      v: 1,
+      user: 'u1',
+      recent: false,
+      boxes: [
+        { span: 4, count: 1, collapsed: false },
+        { span: 3, count: 1, collapsed: false },
+      ],
+    });
+  });
+
+  it('writes nothing without a userId', async () => {
+    render(<AppGrid isAdmin={false} />);
+    await flush();
+    tick(1000);
+    expect(writes()).toHaveLength(0);
+  });
+
+  it('a burst of app changes is one debounced write; an equal shape is none', async () => {
+    const ctx = (items: Service[]): services.ServicesContextValue => ({
+      items,
+      setItems: vi.fn(),
+      lastUpdatedAt: null,
+      recentChanges: [],
+      clearRecentChanges: () => {},
+      refresh: async () => 'refreshed' as const,
+    });
+    const base = [svc('s1', 'Plex', 'c1'), svc('s2', 'Grafana', 'c2')];
+    const spy = vi.spyOn(services, 'useServicesContext').mockReturnValue(ctx(base));
+    try {
+      const { rerender } = render(<AppGrid isAdmin={false} userId="u1" />);
+      await flush();
+      tick(500);
+      expect(writes()).toHaveLength(1);
+      // An app added, then another moved between boxes, inside 500 ms.
+      spy.mockReturnValue(ctx([...base, svc('s3', 'Sonarr', 'c1')]));
+      rerender(<AppGrid isAdmin={false} userId="u1" />);
+      tick(200);
+      spy.mockReturnValue(ctx([svc('s1', 'Plex', 'c1'), svc('s2', 'Grafana', 'c1'), svc('s3', 'Sonarr', 'c1')]));
+      rerender(<AppGrid isAdmin={false} userId="u1" />);
+      tick(500);
+      expect(writes()).toHaveLength(2);
+      expect(JSON.parse(localStorage.getItem(SHAPE_KEY)!).boxes.map((b: { count: number }) => b.count)).toEqual([3, 0]);
+      // A status-only change keeps the shape: no write.
+      spy.mockReturnValue(
+        ctx([{ ...svc('s1', 'Plex', 'c1'), status: 'UP' }, svc('s2', 'Grafana', 'c1'), svc('s3', 'Sonarr', 'c1')]),
+      );
+      rerender(<AppGrid isAdmin={false} userId="u1" />);
+      tick(1000);
+      expect(writes()).toHaveLength(2);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('does not write while arranging, and writes the view shape when arranging turns off', async () => {
+    const { rerender } = render(<AppGrid isAdmin editMode userId="u1" />);
+    await flush();
+    tick(1000);
+    expect(writes()).toHaveLength(0);
+    // A box resize in arrange mode.
+    fireEvent.click(within(screen.getAllByTestId('app-grid-box')[0]).getByTestId('width-btn-12'));
+    await flush();
+    tick(1000);
+    expect(writes()).toHaveLength(0);
+    rerender(<AppGrid isAdmin editMode={false} userId="u1" />);
+    tick(500);
+    expect(writes()).toHaveLength(1);
+    expect(JSON.parse(localStorage.getItem(SHAPE_KEY)!).boxes[0].span).toBe(12);
+  });
+
+  it('records whether the Recently opened row drew', async () => {
+    localStorage.setItem('homepad.recentlyOpened', JSON.stringify(['s1']));
+    render(<AppGrid isAdmin={false} userId="u1" />);
+    await flush();
+    expect(screen.getByTestId('recently-opened-row')).toBeInTheDocument();
+    tick(500);
+    expect(JSON.parse(localStorage.getItem(SHAPE_KEY)!).recent).toBe(true);
+  });
+
+  it('unmount within 500 ms writes nothing', async () => {
+    const { unmount } = render(<AppGrid isAdmin={false} userId="u1" />);
+    await flush();
+    tick(200);
+    unmount();
+    tick(1000);
+    expect(writes()).toHaveLength(0);
+  });
+
+  it('a read that throws falls back without error', () => {
+    const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('denied');
+    });
+    vi.mocked(api.categories).mockReturnValue(new Promise(() => {}));
+    try {
+      render(<AppGrid isAdmin={false} userId="u1" />);
+      expect(screen.getByTestId('app-grid-loading').querySelectorAll('.app-grid-box')).toHaveLength(3);
+    } finally {
+      get.mockRestore();
+    }
   });
 });

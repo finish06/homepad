@@ -40,6 +40,15 @@ import { boxesFromData, boxWidthPx, contentMaxPx, frameContentPx, DEFAULT_WIDTH,
 import { iconSrc, initialBadge } from '../lib/icons';
 import { useServicesContext } from '../services';
 import { clearRecentlyOpened, recordOpened, useRecentlyOpened } from '../lib/recentlyOpened';
+import {
+  cancelPendingShapeWrite,
+  FALLBACK_SHAPE,
+  readShape,
+  scheduleShapeWrite,
+  shapeKey as keyOfShape,
+  shapeOf,
+  type GridShape,
+} from './gridShapeCache';
 import ChunkErrorBoundary from '../ui/ChunkErrorBoundary';
 import { CONTENT_WIDTH } from '../lib/layout';
 import { useResolvedTheme } from '../theme/theme';
@@ -127,6 +136,9 @@ export default function AppGrid({
   editMode = false,
   showUptimeDisplay = true,
   density = 'large',
+  userId,
+  onAddToBox,
+  dashboardEmpty = false,
 }: {
   isAdmin: boolean;
   editMode?: boolean;
@@ -139,6 +151,16 @@ export default function AppGrid({
   // on the grid that the CSS keys the compact/list tile reshape off, and gates the
   // per-tile status line (rendered only in compact/list).
   density?: TileDensity;
+  // SPEC-dashboard-empty-loading §3.1 — whose skeleton shape to read and write.
+  // Without it (isolated renders) the grid neither reads nor writes the cache.
+  userId?: string;
+  // §3.4 — an admin's empty-box button opens the App-level Library with that
+  // box as its target. App.tsx owns the Library and the focus return.
+  onAddToBox?: (box: { id: string; title: string }, opener: HTMLButtonElement) => void;
+  // §3.5 — App.tsx's one answer to "is a dashboard empty state showing". While
+  // it is, the admin's box buttons hide (OQ-3) and the member's box line drops
+  // its "Ask an admin" (AC-021). AppGrid never works this out itself.
+  dashboardEmpty?: boolean;
 }) {
   // Services come from the shared provider (the SAME array the launcher + live
   // poll use — §3/A12); AppGrid self-fetches only when rendered without a
@@ -201,7 +223,39 @@ export default function AppGrid({
   }, [ctx]);
 
   const svcs = ctx ? ctx.items : ownSvcs;
+  // SPEC-dashboard-empty-loading §3.2 — the ONE loading flag. The skeleton shows
+  // exactly while it is true; SPEC-group-header-collapse widens it with
+  // `|| !collapsedReady`. Nothing else may add a second loading state.
   const loading = !catsLoaded || svcs === null;
+
+  // §3.1 — the skeleton draws the last shape this device showed this user, read
+  // once on mount; another user's, a bad or a missing entry draws the fallback.
+  const [cachedShape] = useState<GridShape | null>(() => readShape(userId));
+  const boxes = loading ? [] : boxesFromData(cats, svcs ?? []);
+  // cap3 — the Recently opened row is mounted only outside Edit Dashboard (admin,
+  // AC-008) and with a non-empty catalog (AC-009); it reports whether it drew
+  // anything, so the cached shape knows (AC-005) without AppGrid re-rendering on
+  // every tile open.
+  const recentMounted = !loading && !(isAdmin && editMode) && (svcs?.length ?? 0) > 0;
+  const [recentDrawn, setRecentDrawn] = useState(false);
+  const showRecent = recentMounted && recentDrawn;
+  // §3.1 / AC-006 — write the rendered shape, debounced, whenever it changes.
+  // Not while loading, and not while arranging: every box then shows open, which
+  // is not the shape the next load draws. Turning arranging off re-runs this with
+  // the view shape. The cleanup cancels a pending write on a newer shape (the
+  // debounce), on arranging turning on, and on unmount. The compact key is the
+  // change signal: a re-render with the same shape keeps the same key, so no
+  // write; the ref hands the effect the shape that key was made from.
+  const shape = loading ? null : shapeOf(boxes, showRecent);
+  const shapeKey = shape ? keyOfShape(shape) : '';
+  const shapeRef = useRef(shape);
+  shapeRef.current = shape;
+  const canWriteShape = !!userId && !editMode;
+  useEffect(() => {
+    if (!canWriteShape || !userId || !shapeKey || !shapeRef.current) return;
+    scheduleShapeWrite(userId, shapeRef.current);
+    return () => cancelPendingShapeWrite();
+  }, [canWriteShape, userId, shapeKey]);
 
   // Update the services the grid renders from. When a provider is present it owns
   // the array (the SAME one the launcher's Favorites section filters — §3/A12), so
@@ -381,13 +435,16 @@ export default function AppGrid({
 
   if (loading) {
     return (
-      <div className="app-spinner" role="status" aria-live="polite" data-testid="app-grid-loading">
-        <span className="sr-only">Loading dashboard…</span>
-      </div>
+      <GridSkeleton
+        shape={cachedShape}
+        density={density}
+        viewportWidth={viewportWidth}
+        isAdmin={isAdmin}
+        dashboardEmpty={dashboardEmpty}
+      />
     );
   }
 
-  const boxes = boxesFromData(cats, svcs ?? []);
   // R4 — mark boxes alone in their visual row so BoxCard lifts their cap to 100%.
   // Bin-pack the boxes' --w floors into the current .app-grid content width; a row
   // of one is a lone box. Recomputes on viewportWidth + boxes changes (both already
@@ -413,6 +470,11 @@ export default function AppGrid({
   const editing = isAdmin && editMode;
   const sortableBoxes = boxes.filter((b) => b.id !== '');
   const uncatBox = boxes.find((b) => b.id === '');
+  // AC-009 / AC-022 — the empty-box button is the admin's, and hides while the
+  // dashboard empty state shows (OQ-3). A member or kid never gets it, even if
+  // a caller passes onAddToBox.
+  const boxAdd = isAdmin && !dashboardEmpty ? onAddToBox : undefined;
+  const emptyProps = { onAddToBox: boxAdd, dashboardEmpty };
 
   const addButton = isAdmin && (
     <button
@@ -430,8 +492,8 @@ export default function AppGrid({
       {/* cap3 — "Recently opened". Hidden in edit mode (AC-008) and when the
           catalog is empty (AC-009); the component itself hides when nothing
           resolves (AC-001/AC-006). */}
-      {!editing && (svcs?.length ?? 0) > 0 && (
-        <RecentlyOpenedRow items={svcs ?? []} theme={gridTheme} onOpenIframe={openIframe} />
+      {recentMounted && (
+        <RecentlyOpenedRow items={svcs ?? []} theme={gridTheme} onOpenIframe={openIframe} onDrawn={setRecentDrawn} />
       )}
       <div
         className={`app-grid${editing ? ' is-editing' : ''}`}
@@ -444,17 +506,17 @@ export default function AppGrid({
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext items={sortableBoxes.map((b) => b.id)} strategy={rectSortingStrategy}>
                 {sortableBoxes.map((box) => (
-                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} arranging={arranging} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} sensors={sensors} onTileDragEnd={onTileDragEnd} setAnnounce={setAnnounce} />
+                  <SortableBox key={box.id} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} arranging={arranging} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} sensors={sensors} onTileDragEnd={onTileDragEnd} setAnnounce={setAnnounce} {...emptyProps} />
                 ))}
               </SortableContext>
             </DndContext>
             {uncatBox && (
-              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} arranging={arranging} lone={loneById.get(uncatBox.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} sensors={sensors} onTileDragEnd={onTileDragEnd} setAnnounce={setAnnounce} />
+              <BoxCard key="__uncat__" box={uncatBox} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} arranging={arranging} lone={loneById.get(uncatBox.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} sensors={sensors} onTileDragEnd={onTileDragEnd} setAnnounce={setAnnounce} {...emptyProps} />
             )}
           </>
         ) : (
           boxes.map((box) => (
-            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} arranging={arranging} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} />
+            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} arranging={arranging} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} {...emptyProps} />
           ))
         )}
         {addButton}
@@ -508,6 +570,147 @@ export default function AppGrid({
   );
 }
 
+// SPEC-dashboard-empty-loading AC-009 / AC-021 — an empty box's words, shared by
+// BoxCard and the skeleton (which draws them unseen to keep the same height).
+// The admin can fill the box from the Library; anyone else can only ask (POST
+// /api/library/{id}/add is admin-only). While member-empty already asks, the
+// box says only that it is empty.
+const EMPTY_BOX_BUTTON = 'Browse the App Library';
+function emptyBoxLine(isAdmin: boolean, dashboardEmpty: boolean): string {
+  if (isAdmin) return 'No apps yet.';
+  return dashboardEmpty ? 'No apps here yet.' : 'No apps here yet. Ask an admin to add some.';
+}
+
+// The flex variables that size a box (SPEC-pane-fill-reflow, SPEC-app-grid
+// §10.4), shared by BoxCard and the loading skeleton so the two can never size
+// a box differently (SPEC-dashboard-empty-loading AC-002/AC-003).
+//   --w     : the RAW configured span (drives the width selector state).
+//   --floor : boxWidthPx(--w) — the box's minimum (the admin width is a FLOOR).
+//   --grow  : app count (0 if empty) — a box that can USE extra width (more
+//             tile columns) claims proportionally more of it.
+//   --cap   : content-max — the width to show every app in one row, never below
+//             the floor. A LONE box (alone in its row, R4) lifts this to 100%; an
+//             EMPTY box keeps grow 0 + floor cap so it never balloons.
+// The ≤640px mobile behavior (full-width box, 2-col shrink) is pure CSS (D-4).
+function boxFlexStyle(span: number, floorPx: number, count: number, lone: boolean): React.CSSProperties {
+  const hasApps = count > 0;
+  return {
+    ['--w' as string]: span,
+    ['--floor' as string]: `${floorPx}px`,
+    ['--grow' as string]: hasApps ? count : 0,
+    ['--cap' as string]: lone && hasApps ? '100%' : `${Math.max(floorPx, contentMaxPx(count))}px`,
+  };
+}
+
+// SPEC-dashboard-empty-loading AC-001..AC-008 — the loading skeleton. It is
+// built from the real grid classes (.app-grid, .app-grid-box, -header, -tools,
+// .app-grid-tool) with --floor/--grow/--cap from the same helpers BoxCard uses,
+// so every density and breakpoint rule sizes it exactly as the loaded grid
+// (AC-002). With a cached shape that matches, nothing moves when the apps
+// arrive (AC-003). The shapes are aria-hidden and hold nothing focusable; one
+// polite status line speaks for them (AC-008). Motion and contrast live in
+// index.css (.app-grid-skeleton).
+function GridSkeleton({
+  shape,
+  density,
+  viewportWidth,
+  isAdmin,
+  dashboardEmpty,
+}: {
+  // The cached shape, or null when there is none (missing, bad, another user's).
+  shape: GridShape | null;
+  density: TileDensity;
+  viewportWidth: number;
+  isAdmin: boolean;
+  dashboardEmpty: boolean;
+}) {
+  // App.tsx may already know the dashboard is empty (services answered, none)
+  // while categories still load. Then the cached boxes draw empty, not full of
+  // tiles; with no cache there is nothing to guess from, and a new install has
+  // no boxes, so none draw. Otherwise: the cached shape, else the fallback.
+  const shown: GridShape = dashboardEmpty
+    ? { recent: false, boxes: (shape?.boxes ?? []).map((b) => ({ ...b, count: 0 })) }
+    : (shape ?? FALLBACK_SHAPE);
+  const contentWidth = frameContentPx(viewportWidth);
+  const floors = shown.boxes.map((b) => boxWidthPx(b.span, contentWidth));
+  const rowCounts = rowFillCounts(floors, contentWidth);
+  // An empty box draws its real line, unseen, so a line that wraps in a narrow
+  // box wraps here too. The admin's line carries a button, except while
+  // admin-empty shows; a shape whose every box is empty is taken as that case
+  // (no apps at all, OQ-3), and so is the member's short line (AC-021).
+  const looksEmpty = dashboardEmpty || shown.boxes.every((b) => b.count === 0);
+  const emptyLine = emptyBoxLine(isAdmin, looksEmpty);
+  const reserveButton = isAdmin && !looksEmpty;
+  return (
+    <div className="app-grid-skeleton" data-testid="app-grid-loading">
+      <p className="sr-only" role="status" aria-live="polite">
+        Loading dashboard…
+      </p>
+      {shown.recent && (
+        // AC-005 — the Recently opened row's height, reserved with its own classes.
+        <div className={`${CONTENT_WIDTH} recently-opened`} aria-hidden="true" data-testid="skeleton-recent">
+          <span className="recently-opened-label app-grid-skel-bar">Recently opened</span>
+          <ul className="recently-opened-list">
+            <li>
+              <span className="recently-opened-item">
+                <span className="recently-opened-icon app-grid-skel" />
+                <span className="recently-opened-name">&nbsp;</span>
+              </span>
+            </li>
+          </ul>
+        </div>
+      )}
+      <div className="app-grid" data-density={density} aria-hidden="true">
+        {shown.boxes.map((b, i) => {
+          const hasApps = b.count > 0;
+          const style = boxFlexStyle(b.span, floors[i], b.count, rowCounts[i] === 1);
+          return (
+            <section
+              key={i}
+              className={`app-grid-box${b.collapsed ? ' is-skel-collapsed' : ''}`}
+              data-testid="skeleton-box"
+              style={style}
+            >
+              <header className="app-grid-box-header">
+                <span className="app-grid-box-title app-grid-skel-bar">&nbsp;</span>
+              </header>
+              {/* AC-020 — a folded box is its header row only, at its width. */}
+              {!b.collapsed &&
+                (hasApps ? (
+                  <div className="app-grid-tools">
+                    {Array.from({ length: b.count }, (_, t) => (
+                      <div key={t} className="app-grid-tool-wrap">
+                        <div className="app-grid-tool" data-testid="skeleton-tile">
+                          <span className="app-grid-tool-icon app-grid-skel" />
+                          <span className="app-grid-tool-text">
+                            <span className="app-grid-tool-name app-grid-skel-bar">&nbsp;</span>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  // An empty box: its line, plus the admin's button reserved
+                  // (unseen) so the box keeps its loaded height (AC-009).
+                  <div className="app-grid-empty-state">
+                    <p className="app-grid-empty app-grid-skel-hidden">{emptyLine}</p>
+                    {reserveButton && (
+                      <span className="settings-ghost-btn app-grid-empty-add app-grid-skel-hidden">
+                        {EMPTY_BOX_BUTTON}
+                      </span>
+                    )}
+                  </div>
+                ))}
+            </section>
+          );
+        })}
+        {/* The admin's "+ Add box" row closes the loaded grid; reserve it. */}
+        {isAdmin && <span className="app-grid-add app-grid-skel-hidden" />}
+      </div>
+    </div>
+  );
+}
+
 // The dnd-kit sortable wiring a box needs in Edit Dashboard mode: the node ref,
 // the lifted transform, and the drag-handle grip (activator ref + listeners).
 type BoxSortable = {
@@ -543,6 +746,8 @@ function BoxCard({
   sensors,
   onTileDragEnd,
   setAnnounce,
+  onAddToBox,
+  dashboardEmpty = false,
 }: {
   box: Box;
   isAdmin: boolean;
@@ -566,8 +771,13 @@ function BoxCard({
   sensors?: ReturnType<typeof useSensors>;
   onTileDragEnd?: (e: DragEndEvent) => void;
   setAnnounce?: (msg: string) => void;
+  // SPEC-dashboard-empty-loading — set only for an admin while no dashboard
+  // empty state shows (AppGrid gates it); dashboardEmpty shortens the member line.
+  onAddToBox?: (box: { id: string; title: string }, opener: HTMLButtonElement) => void;
+  dashboardEmpty?: boolean;
 }) {
   const theme = useResolvedTheme();
+  const titleId = useId();
   // The width selector, like rename/delete, is an Edit Dashboard affordance:
   // it only appears for an admin in edit mode, and never on the synthetic
   // Uncategorized box (empty id, no real category).
@@ -578,28 +788,10 @@ function BoxCard({
   const [renameError, setRenameError] = useState('');
   const [renamingBusy, setRenamingBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  // --w stays the RAW configured width (drives the width-selector state + the
-  // legacy content calc the tests assert). SPEC-pane-fill-reflow (Phase 1) adds the
-  // grow model as three more vars that index.css turns into `flex` + `max-width`:
-  //   --floor : boxWidthPx(--w) — the box's minimum (the admin width is a FLOOR).
-  //   --grow  : app count (0 if empty) — grow weight, so a box that can USE the
-  //             extra width (more 190px columns) claims proportionally more of it.
-  //   --cap   : content-max — the width to show every app in one row, but never
-  //             below the floor (so max-width can't shrink the box under its --w).
-  //             A LONE box (alone in its row, R4) lifts this to 100% to fill the
-  //             frame; an EMPTY box keeps grow 0 + floor cap so it never balloons.
-  // The ≤640px mobile behavior (full-width box, 2-col shrink) is pure CSS (D-4).
-  // §10.4 — the floor is the span's share of the CURRENT frame, so it tracks
-  // resizes; the grow/cap model on top of it is unchanged.
+  // --w / --floor / --grow / --cap — see boxFlexStyle. §10.4: the floor is the
+  // span's share of the CURRENT frame, so it tracks resizes.
   const floorPx = boxWidthPx(box.width, frameContentPx(viewportWidth));
-  const hasApps = box.tools.length > 0;
-  const capPx = Math.max(floorPx, contentMaxPx(box.tools.length));
-  const style: React.CSSProperties = {
-    ['--w' as string]: box.width,
-    ['--floor' as string]: `${floorPx}px`,
-    ['--grow' as string]: hasApps ? box.tools.length : 0,
-    ['--cap' as string]: lone && hasApps ? '100%' : `${capPx}px`,
-  };
+  const style = boxFlexStyle(box.width, floorPx, box.tools.length, lone);
   if (sortable) {
     style.transform = CSS.Transform.toString(sortable.transform);
     style.transition = sortable.transition;
@@ -648,7 +840,9 @@ function BoxCard({
             ⠿
           </button>
         )}
-        <h2 className="app-grid-box-title" data-testid="box-title" title={box.title}>
+        {/* tabIndex -1: App.tsx moves focus here after the Library closes when
+            the added app's tile is not rendered (§3.4, AC-011). */}
+        <h2 id={titleId} className="app-grid-box-title" data-testid="box-title" title={box.title} tabIndex={-1}>
           {box.title}
         </h2>
         {canManage && (
@@ -757,9 +951,25 @@ function BoxCard({
         </div>
       )}
       {box.tools.length === 0 ? (
-        <p className="app-grid-empty" data-testid="box-empty">
-          {isAdmin ? 'No apps yet — add from the Library.' : 'No apps in this box.'}
-        </p>
+        // AC-009 / AC-021 — the admin can fill the box from the Library; anyone
+        // else can only ask (POST /api/library/{id}/add is admin-only). While
+        // member-empty already asks, the box says only that it is empty.
+        <div className="app-grid-empty-state">
+          <p className="app-grid-empty" data-testid="box-empty">
+            {emptyBoxLine(isAdmin, dashboardEmpty)}
+          </p>
+          {isAdmin && onAddToBox && (
+            <button
+              type="button"
+              className="settings-ghost-btn app-grid-empty-add"
+              data-testid="box-add-from-library"
+              aria-describedby={titleId}
+              onClick={(e) => onAddToBox({ id: box.id, title: box.title }, e.currentTarget)}
+            >
+              {EMPTY_BOX_BUTTON}
+            </button>
+          )}
+        </div>
       ) : editing && sensors && onTileDragEnd ? (
         // v28 — each box wraps its tile grid in its OWN DndContext (§5.1/§5.4), so
         // a tile drag is structurally scoped to this box: dnd-kit cannot route a
@@ -949,6 +1159,8 @@ function SortableBox({
   sensors,
   onTileDragEnd,
   setAnnounce,
+  onAddToBox,
+  dashboardEmpty = false,
 }: {
   box: Box;
   isAdmin: boolean;
@@ -969,6 +1181,8 @@ function SortableBox({
   sensors?: ReturnType<typeof useSensors>;
   onTileDragEnd?: (e: DragEndEvent) => void;
   setAnnounce?: (msg: string) => void;
+  onAddToBox?: (box: { id: string; title: string }, opener: HTMLButtonElement) => void;
+  dashboardEmpty?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: box.id });
@@ -991,6 +1205,8 @@ function SortableBox({
       sensors={sensors}
       onTileDragEnd={onTileDragEnd}
       setAnnounce={setAnnounce}
+      onAddToBox={onAddToBox}
+      dashboardEmpty={dashboardEmpty}
     />
   );
 }
@@ -1162,17 +1378,26 @@ function UptimeSparkline({ checks }: { checks?: UptimeCheck[] }) {
 // tile's behaviour per-service (clickAction: new_tab | same_tab | iframe). The
 // AC's INTENT is "behave like the main tile", so these honour clickAction rather
 // than hardcoding a new tab — hardcoding it would now DIVERGE from the tile.
+// `onDrawn` tells AppGrid whether the row shows anything, for the skeleton
+// cache (SPEC-dashboard-empty-loading AC-005); false again on unmount.
 function RecentlyOpenedRow({
   items,
   theme,
   onOpenIframe,
+  onDrawn,
 }: {
   items: Service[];
   theme: 'light' | 'dark';
   onOpenIframe: (s: Service) => void;
+  onDrawn: (drawn: boolean) => void;
 }) {
   const recent = useRecentlyOpened(items);
-  if (recent.length === 0) return null; // AC-001 / AC-006
+  const drawn = recent.length > 0;
+  useEffect(() => {
+    onDrawn(drawn);
+    return () => onDrawn(false);
+  }, [drawn, onDrawn]);
+  if (!drawn) return null; // AC-001 / AC-006
   return (
     <div className={`${CONTENT_WIDTH} recently-opened`} data-testid="recently-opened-row">
       <span className="recently-opened-label">Recently opened</span>
@@ -1310,6 +1535,9 @@ function ToolLink({
     <div
       ref={sortable?.setNodeRef}
       className={`app-grid-tool-wrap${editing ? ' is-editing' : ''}${sortable?.isDragging ? ' is-grabbed' : ''}`}
+      // SPEC-dashboard-empty-loading §3.4 — App.tsx finds the first app added
+      // from a box's Library session by this id to return focus to its tile.
+      data-service-id={service.id}
       style={
         sortable
           ? { transform: CSS.Transform.toString(sortable.transform), transition: sortable.transition }

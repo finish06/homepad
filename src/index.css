@@ -189,8 +189,9 @@
 
 /* v7 ux-redesign (specs/v7-ux-redesign.md §2–5). The gradients, soft shadows,
    status glow and accent chip are expressed as @layer component classes so the
-   JSX keeps a single readable hook each (.tile, .tile-icon, .status-dot,
-   .cat-head, .app-surface). Values are copied verbatim from the spec tokens. */
+   JSX keeps a single readable hook each (.status-dot, .app-surface). Values
+   are copied verbatim from the spec tokens. (The v7 tile and category-header
+   rules were retired with the v14 layout; #724 removed the dead selectors.) */
 @layer components {
   /* §3 Global surface, glass v2 — accent-hued ambient blobs over the base.
      v1 anchored both blobs at the top corners, so everything below the first
@@ -248,59 +249,6 @@
     .app-spinner {
       animation: none;
     }
-  }
-
-  /* §4 Service tile — radius/gradient/rest+hover shadow, hover lift. */
-  .tile {
-    border-radius: 18px;
-    border: 1px solid rgba(15, 23, 42, 0.06);
-    padding: 15px 15px 13px;
-    background: linear-gradient(180deg, #fff, #fbfcff);
-    box-shadow:
-      0 1px 2px rgba(16, 24, 40, 0.04),
-      0 8px 20px -10px rgba(16, 24, 40, 0.12);
-    transition:
-      transform 0.18s ease,
-      box-shadow 0.25s ease,
-      border-color 0.25s ease;
-  }
-  .tile:hover {
-    transform: translateY(-3px);
-    border-color: rgba(99, 102, 241, 0.45);
-    box-shadow:
-      0 1px 2px rgba(16, 24, 40, 0.04),
-      0 18px 34px -14px rgba(79, 70, 229, 0.3),
-      0 0 0 1px rgba(99, 102, 241, 0.12);
-  }
-  .dark .tile {
-    background: linear-gradient(180deg, #12161e, #0e1117);
-    border-color: rgba(255, 255, 255, 0.06);
-    /* The light shadow's near-black drops vanish on the dark canvas. Re-tune
-       for dark: a deeper black drop for separation + a faint top inner
-       highlight so the tile reads as a lifted surface, not a flat panel. */
-    box-shadow:
-      0 1px 2px rgba(0, 0, 0, 0.4),
-      0 10px 24px -12px rgba(0, 0, 0, 0.7),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  }
-
-  /* §4 Icon plate — tinted so monochrome/transparent logos read as deliberate. */
-  .tile-icon {
-    width: 46px;
-    height: 46px;
-    padding: 7px;
-    border-radius: 13px;
-    object-fit: contain;
-    background: linear-gradient(135deg, #f2f4fc, #e9edf9);
-    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
-    transition: transform 0.2s ease;
-  }
-  .tile:hover .tile-icon {
-    transform: scale(1.07);
-  }
-  .dark .tile-icon {
-    background: linear-gradient(135deg, #1b2130, #161b26);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
   }
 
   /* §4 Status dot — 9×9. Shared by the ⌘K launcher rows and the alert history
@@ -378,44 +326,6 @@
     }
   }
 
-  /* §5 Category header — muted text, accent chip (::before), hairline divider. */
-  .cat-head {
-    font-size: 0.82rem;
-    letter-spacing: 0.13em;
-    color: #475069;
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding-bottom: 0.7rem;
-    margin-bottom: 1rem;
-    border-bottom: 1px solid rgba(15, 23, 42, 0.07);
-  }
-  .cat-head::before {
-    content: '';
-    flex: none;
-    width: 15px;
-    height: 15px;
-    border-radius: 5px;
-    background: linear-gradient(135deg, #6366f1, #a855f7);
-    box-shadow: 0 3px 8px rgba(99, 102, 241, 0.45);
-  }
-  .dark .cat-head {
-    color: #9aa3b8;
-    border-color: rgba(255, 255, 255, 0.08);
-  }
-  /* #126 — below sm (640px) a collapsed category is just a one-line nav row, so
-     the desktop divider's 1rem margin + 0.7rem padding is wasted height that
-     buries app tiles below the fold. Tighten it on phones; desktop is untouched. */
-  @media (max-width: 639px) {
-    .cat-head {
-      margin-bottom: 0.25rem;
-      padding-bottom: 0.25rem;
-      /* #126 (caret fold) — the tightened header is still the collapse tap
-         target, so hold it to the 44px WCAG 2.5.5 / Apple HIG minimum on phones.
-         Desktop keeps its natural height (this query is mobile-only). */
-      min-height: 44px;
-    }
-  }
   /* #79 — app-count pill on each section header. Mirrors the house badge style
      (.settings-env-badge): muted, tabular digits so widths don't jitter. */
   .cat-count {
@@ -1159,14 +1069,6 @@
 
   /* §2 Motion — disable transforms under prefers-reduced-motion, keep opacity. */
   @media (prefers-reduced-motion: reduce) {
-    .tile,
-    .tile-icon {
-      transition: none;
-    }
-    .tile:hover,
-    .tile:hover .tile-icon {
-      transform: none;
-    }
     .user-avatar {
       transition: box-shadow 0.25s ease;
     }
@@ -1729,58 +1631,9 @@
     }
   }
 
-  /* ── v9.3 App Library (§7) — empty-dashboard CTA + browse modal. Built from
+  /* ── v9.3 App Library (§7) — the browse modal. Built from
      the same v7/v8 tokens (no new palette): launcher surfaces for the modal,
      the indigo accent for primary actions, faint/hairline greys for chrome. */
-  .dashboard-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 6px;
-    padding: 56px 20px;
-    border: 1px dashed rgba(15, 23, 42, 0.12);
-    border-radius: 16px;
-    background: rgba(99, 102, 241, 0.03);
-  }
-  .dashboard-empty-art {
-    width: 64px;
-    height: 64px;
-    margin-bottom: 8px;
-    color: #818cf8;
-  }
-  .dashboard-empty-title {
-    font-size: 17px;
-    font-weight: 650;
-    color: #0f172a;
-  }
-  .dashboard-empty-sub {
-    font-size: 13px;
-    color: #475069;
-  }
-  .dashboard-empty-cta {
-    margin-top: 12px;
-    padding: 9px 18px;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #fff;
-    background: linear-gradient(135deg, #4f46e5, #6366f1);
-  }
-  .dashboard-empty-cta:hover {
-    filter: brightness(1.05);
-  }
-  .dark .dashboard-empty {
-    border-color: rgba(255, 255, 255, 0.12);
-    background: rgba(99, 102, 241, 0.06);
-  }
-  .dark .dashboard-empty-title {
-    color: #e6e9f2;
-  }
-  .dark .dashboard-empty-sub {
-    color: #aab2c5;
-  }
-
   .library-panel {
     max-height: min(72vh, 640px);
   }
@@ -3224,130 +3077,15 @@
     }
   }
 
-  /* v14 §2B — the "Recently opened" chip rail. Anchored at the panel field's
-     left edge (x=48) with a 24px gap down to the first panel row. */
-  .recently-opened-rail {
-    margin-left: 48px;
-    margin-bottom: 24px;
-  }
-  /* B-006 — horizontal scroll on overflow, scrollbar fully hidden. */
-  .recently-opened-chips {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  .recently-opened-chips::-webkit-scrollbar {
-    display: none;
-  }
-  /* Each chip is the same glass material as a panel, one register quieter (the
-     shadow is a notch lighter so the rail reads as subordinate to the catalog). */
-  .recently-opened-chip {
-    background: rgba(255, 255, 255, 0.72);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-    transition: background 120ms ease;
-  }
-  .recently-opened-chip:hover {
-    background: rgba(255, 255, 255, 0.85);
-  }
-  .dark .recently-opened-chip {
-    background: rgba(30, 30, 40, 0.68);
-    border-color: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
-  }
-  .dark .recently-opened-chip:hover {
-    background: rgba(30, 30, 40, 0.82);
-  }
-
-  /* v14 §2A — the floating glass panel field. Fixed 190px tile slots (never
-     stretch — fixes the A-006 218px stretch defect); panels hug their content
-     and pack left→right, wrapping when the next panel won't fit the row. The
-     responsive column count (4/3/2, capped at 4 — v14.1) is computed in JS (useFieldCols) and fed
-     to each panel as --panel-cols = clamp(appCount, 1, fieldCols); at ≤1023px
-     every panel spans the full field so they stack. Left edge x=48 (A-002/A-004). */
-  .tile-field {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 16px;
-    margin-left: 48px;
-    max-width: 1392px;
-  }
-  /* Each panel's width is exactly its tile columns + inner gaps + 16px padding
-     each side, so the tiles inside are ALWAYS 190px (fixes the A-006 218px
-     stretch defect) and the panel hugs its content and never leaves a trailing
-     void. --panel-cols is set inline per panel (clamp(appCount,1,fieldCols)). */
-  .category-panel {
-    width: calc(var(--panel-cols, 1) * 190px + (var(--panel-cols, 1) - 1) * 16px + 32px);
-    box-sizing: border-box;
-    background: rgba(255, 255, 255, 0.72);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    border-radius: 22px;
-    box-shadow:
-      0 2px 8px rgba(0, 0, 0, 0.06),
-      0 8px 24px rgba(0, 0, 0, 0.04);
-    padding: 16px;
-  }
-  .dark .category-panel {
-    background: rgba(30, 30, 40, 0.68);
-    border-color: rgba(255, 255, 255, 0.08);
-    box-shadow:
-      0 2px 8px rgba(0, 0, 0, 0.32),
-      0 8px 24px rgba(0, 0, 0, 0.24);
-  }
-  /* The tile grid inside a panel: fixed 190px slots (inherits --panel-cols from
-     the panel), so tiles NEVER resize no matter how wide the panel's span is.
-     Overflow beyond the panel's column span wraps within the panel. */
-  .panel-tiles {
-    display: grid;
-    grid-template-columns: repeat(var(--panel-cols, 1), 190px);
-    gap: 16px;
-  }
-
-  /* PROD hotfix #212 — mobile overflow. Below 768px the field is 2 columns, and
-     a fixed 190px-slot panel is 2×190+16+32=428px + the 48px anchor ≈ 476px,
-     which overflows a ~390px phone: the panel is clipped and the whole PAGE
-     scrolls sideways. On mobile only we make the panel span the field and let
-     the tiles SHRINK BELOW 190px to fit. This is a deliberate, documented
-     EXCEPTION to Kare's "tiles never resize" principle — on small screens they
-     may go under 190px to avoid horizontal page overflow. Desktop (>=1024) is
-     untouched: it keeps the fixed 190px tiles and the 48px anchor above. */
-  @media (max-width: 767px) {
-    /* Drop the 48px anchor on the field and the rail; the content section's
-       px-4 already supplies a ~16px inset, and a block-level 48px margin here
-       would itself push the field past 100vw. */
-    .tile-field {
-      margin-left: 0;
-      max-width: none;
-    }
-    .recently-opened-rail {
-      margin-left: 0;
-    }
-    /* Panel fills the field and stacks (it no longer hugs a fixed 190px-derived
-       width), so it can never exceed the viewport. */
-    .category-panel {
-      width: 100%;
-    }
-    /* Fluid tiles: each column shrinks to fit but is capped at 190px so it never
-       grows past the desktop tile size. This is the shrink-below-190px
-       exception that kills the overflow. */
-    .panel-tiles {
-      grid-template-columns: repeat(var(--panel-cols, 1), minmax(0, 190px));
-    }
-  }
-
   /* ── SPEC-app-grid (Amendment A1): fixed-width tile layout ─────────────
      Content-sized glass boxes (= categories) that pack left→right with flex-wrap
      — NOT a repeat(6,1fr) page grid. Each box's --w (the raw configured width,
      1–8) drives ONLY its content width via calc(); the tile track inside is a
      fixed 190px auto-fill so a tool tile is the SAME width in every box (Caleb's
      invariant, AC-001-A1). This corrects the 1fr regression where a tile scaled
-     with box_width ÷ --w. Byte-identical box model to the v14 .category-panel
-     (index.css:1905); inherits the floating-panel glass so the two systems read
-     as one product (§6.1). */
+     with box_width ÷ --w. The box model (16px pad, 22px radius, 190px slots) was
+     taken from the retired v14 floating panel, so the product kept one glass
+     look across the switch (§6.1). */
   .app-grid {
     display: flex;
     flex-wrap: wrap;
@@ -3588,6 +3326,100 @@
   .dark .app-grid-empty {
     color: #9aa3b8;
   }
+  /* SPEC-dashboard-empty-loading AC-009 — the empty box: its line, then the
+     admin's "Browse the App Library" button under it. */
+  .app-grid-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  /* SPEC-dashboard-empty-loading AC-001..AC-008 — the loading skeleton. Its
+     boxes and tiles ARE .app-grid-box / .app-grid-tool, so every density,
+     breakpoint and reduced-transparency rule sizes and paints them exactly as
+     the loaded grid (AC-002, AC-007). This block adds only the ghost marks: a
+     fill that keeps 3:1 against the box in each mode (AC-008), static by
+     default and an opacity-only shimmer when motion is welcome (AC-007). */
+  .app-grid-skeleton {
+    --skel: #7c8396;
+  }
+  .dark .app-grid-skeleton {
+    --skel: #737a8c;
+  }
+  .app-grid-skeleton .app-grid-tool,
+  .app-grid-skeleton .recently-opened-item {
+    transition: none;
+    pointer-events: none;
+  }
+  /* Ghost tiles skip the tile's own backdrop blur (the box behind them keeps
+     its glass). A blur per tile is the costliest thing to paint, and a GPU-less
+     renderer repaints it every shimmer frame; the tile reads the same without. */
+  .app-grid-skeleton .app-grid-tool {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  /* Two classes deep, to beat `.dark .app-grid-tool-icon`'s glass fill. */
+  .app-grid-skeleton .app-grid-tool-icon.app-grid-skel,
+  .app-grid-skeleton .recently-opened-icon.app-grid-skel {
+    background: var(--skel);
+    border-color: transparent;
+    box-shadow: none;
+  }
+  /* A bar over a text line: the element keeps its real line box (so heights
+     match), the text is invisible, the ::before is the visible mark. */
+  .app-grid-skeleton .app-grid-skel-bar {
+    position: relative;
+    color: transparent;
+  }
+  .app-grid-skeleton .app-grid-skel-bar::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: calc(50% - 5px);
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--skel);
+  }
+  .app-grid-skeleton .app-grid-box-title.app-grid-skel-bar {
+    flex: 0 0 auto;
+    width: 40%;
+    min-width: 64px;
+  }
+  /* The admin's empty-box button, reserved but not drawn (AC-009). */
+  .app-grid-skeleton .app-grid-skel-hidden {
+    visibility: hidden;
+  }
+  .app-grid-skeleton .app-grid-tool-name.app-grid-skel-bar::before {
+    top: 4px;
+    left: 15%;
+    width: 70%;
+  }
+  .app-grid-skeleton [data-density='compact'] .app-grid-tool-name.app-grid-skel-bar::before,
+  .app-grid-skeleton [data-density='list'] .app-grid-tool-name.app-grid-skel-bar::before {
+    top: calc(50% - 5px);
+    left: 0;
+  }
+  /* AC-020 — a box the cache says drew folded is its header row only. */
+  .app-grid-skeleton .app-grid-box.is-skel-collapsed {
+    min-height: 0;
+  }
+  @keyframes app-grid-skel-pulse {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0.6;
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .app-grid-skeleton .app-grid-skel,
+    .app-grid-skeleton .app-grid-skel-bar::before {
+      /* Held for 0.6s: a quick load swaps the grid in before anything moves. */
+      animation: app-grid-skel-pulse 1.1s ease-in-out 0.6s infinite alternate;
+    }
+  }
   /* A1 — fixed 190px auto-fill track. On a --w-sized box this packs EXACTLY --w
      columns (Caleb's invariant), and when the box is max-width:100%-clamped below
      its natural width (D-3), the fixed 190px tiles WRAP rather than resize. Never
@@ -3605,7 +3437,7 @@
     display: flex;
     min-width: 0;
   }
-  /* A1 D-1/D-2 — the shipped vertical .tile grammar (index.css:53) at the fixed
+  /* A1 D-1/D-2 — the v7 vertical tile grammar (now retired) at the fixed
      190px slot: icon plate over a full-width, 2-line-clamped name. min-height:120
      (15 pad-top + 46 plate + 8 gap + 38 name + 13 pad-bottom) so a 1-line and a
      2-line name render at the IDENTICAL height — tiles never jump. */

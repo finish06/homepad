@@ -49,7 +49,10 @@ describe('#195 — tile name drops the distinguishing suffix under truncation', 
 
   it('A195-3 — full name stays reachable via the native title tooltip', () => {
     // Hover/long-press affordance for names too long even for two lines.
-    const i = appGrid.indexOf('className="app-grid-tool"');
+    // Anchored on the tile LINK, not the first `.app-grid-tool` in the file:
+    // the loading skeleton (SPEC-dashboard-empty-loading) draws ghost tiles with
+    // that class too, and they have no name to show.
+    const i = appGrid.indexOf('className="app-grid-tool"\n        data-testid="tool-link"');
     expect(i).toBeGreaterThan(-1);
     const around = appGrid.slice(i, i + 400);
     expect(around).toMatch(/title=\{service\.name\}/);
