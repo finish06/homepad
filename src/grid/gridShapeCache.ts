@@ -91,20 +91,6 @@ export function shapeKey(shape: GridShape): string {
   return `${shape.recent ? 1 : 0}|${shape.boxes.map((b) => `${b.span}:${b.count}:${b.collapsed ? 1 : 0}`).join(',')}`;
 }
 
-// shapeFromKey is shapeKey's inverse (for keys shapeKey made).
-export function shapeFromKey(key: string): GridShape {
-  const [recent, list] = key.split('|');
-  return {
-    recent: recent === '1',
-    boxes: list
-      ? list.split(',').map((b) => {
-          const [span, count, collapsed] = b.split(':').map(Number);
-          return { span: span as Span, count, collapsed: collapsed === 1 };
-        })
-      : [],
-  };
-}
-
 function serialize(userId: string, shape: GridShape): string {
   const entry: StoredShape = {
     v: SHAPE_VERSION,

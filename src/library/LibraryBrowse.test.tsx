@@ -109,7 +109,7 @@ describe('A16 — add from the library', () => {
     renderBrowse({ onAdded });
     await userEvent.click(await screen.findByTestId('library-add-L1'));
 
-    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L1'));
+    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L1', undefined));
     expect(onAdded).toHaveBeenCalledWith(NEW_SERVICE);
     // The row flips to the Added state and keeps an "Add again" affordance (D6).
     expect(await screen.findByTestId('library-added-L1')).toBeInTheDocument();
@@ -126,7 +126,7 @@ describe('A16 — add from the library', () => {
     renderBrowse();
     // L2 is already added; its affordance still lets you add again.
     await userEvent.click(await screen.findByTestId('library-added-L2'));
-    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L2'));
+    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L2', undefined));
   });
 });
 
@@ -388,8 +388,8 @@ describe('the target box (AC-010)', () => {
     expect(await screen.findByRole('heading', { name: 'App Library' })).toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: 'App Library' })).toBeInTheDocument();
     await u.click(await screen.findByTestId('library-add-L1'));
-    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L1'));
-    expect(vi.mocked(addFromLibrary).mock.calls[0]).toHaveLength(1);
+    await waitFor(() => expect(addFromLibrary).toHaveBeenCalledWith('L1', undefined));
+    expect(vi.mocked(addFromLibrary).mock.calls[0][1]).toBeUndefined();
   });
 
   it('with a target the heading reads "Add to {title}" and every add sends that categoryId', async () => {

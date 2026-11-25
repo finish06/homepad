@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitForElementToBeRemoved } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitForElementToBeRemoved } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
-import { authConfig, login, logout, me, register, setThemePref, type User } from '../api';
+import { authConfig, login, logout, me, register, servicesWithStatus, setThemePref, type User } from '../api';
 import { scheduleShapeWrite, SHAPE_KEY, SHAPE_WRITE_DELAY_MS } from '../grid/gridShapeCache';
 
 // AppGrid (SPEC-app-grid §2) is the dashboard layout; it has its own tests, so
@@ -481,6 +481,25 @@ describe('v7 §6 — top bar declutter + user menu', () => {
     expect(localStorage.getItem(SHAPE_KEY)).toBeNull();
     await act(() => new Promise((r) => setTimeout(r, SHAPE_WRITE_DELAY_MS + 100)));
     expect(localStorage.getItem(SHAPE_KEY)).toBeNull();
+  });
+
+  it('a session that ends on a 401 also removes the grid shape; booting never does', async () => {
+    localStorage.setItem(SHAPE_KEY, JSON.stringify({ v: 1, user: 'u1', recent: false, boxes: [] }));
+    mockedMe.mockResolvedValue(USER);
+    render(<App />);
+    await dropLoading();
+    // Signed in: the boot left this user's shape alone.
+    expect(localStorage.getItem(SHAPE_KEY)).not.toBeNull();
+    cleanup();
+    // A poll that answers 401 (removed, re-roled or reset elsewhere) drops to sign-in.
+    vi.mocked(servicesWithStatus).mockResolvedValue({ status: 401, services: [] });
+    try {
+      render(<App />);
+      expect(await screen.findByRole('button', { name: /sign in/i })).toBeInTheDocument();
+      expect(localStorage.getItem(SHAPE_KEY)).toBeNull();
+    } finally {
+      vi.mocked(servicesWithStatus).mockResolvedValue({ status: 200, services: [] });
+    }
   });
 
   it('Esc closes the menu and restores focus to the trigger (§8)', async () => {

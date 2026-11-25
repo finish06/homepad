@@ -130,6 +130,16 @@ export default function App() {
     if (user) setSsoError(undefined);
   }, [user]);
 
+  // SPEC-dashboard-empty-loading AC-019 — however a session ends (Sign out, a
+  // 401 on the next poll, "Sign out and continue" on a link screen), the grid
+  // shape it leaves is that user's: remove it. Only on a signed-in → signed-out
+  // change, never on boot (user is null before /api/me answers).
+  const hadUser = useRef(false);
+  useEffect(() => {
+    if (hadUser.current && !user) clearShapeCache();
+    hadUser.current = !!user;
+  }, [user]);
+
   useEffect(() => {
     me().then((u) => {
       setUser(u);
@@ -400,8 +410,11 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
     // before the request (so a slow or failed POST can't leave it) and again
     // after it (in case the grid wrote while the request was in flight).
     clearShapeCache();
-    await logout();
-    clearShapeCache();
+    try {
+      await logout();
+    } finally {
+      clearShapeCache();
+    }
     onLogout();
   }
 

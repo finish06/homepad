@@ -100,7 +100,7 @@ export default function LibraryBrowse({
 
   async function add(offer: LibraryOffer) {
     setBusyId(offer.id);
-    const r = targetCategory ? await addFromLibrary(offer.id, targetCategory.id) : await addFromLibrary(offer.id);
+    const r = await addFromLibrary(offer.id, targetCategory?.id);
     setBusyId(null);
     if (!r.ok || !r.service) return;
     onAdded(r.service);

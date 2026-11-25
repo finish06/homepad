@@ -45,7 +45,6 @@ import {
   FALLBACK_SHAPE,
   readShape,
   scheduleShapeWrite,
-  shapeFromKey,
   shapeKey as keyOfShape,
   shapeOf,
   type GridShape,
@@ -245,12 +244,16 @@ export default function AppGrid({
   // is not the shape the next load draws. Turning arranging off re-runs this with
   // the view shape. The cleanup cancels a pending write on a newer shape (the
   // debounce), on arranging turning on, and on unmount. The compact key is the
-  // change signal: a re-render with the same shape keeps the same key, so no write.
-  const shapeKey = loading ? '' : keyOfShape(shapeOf(boxes, showRecent));
+  // change signal: a re-render with the same shape keeps the same key, so no
+  // write; the ref hands the effect the shape that key was made from.
+  const shape = loading ? null : shapeOf(boxes, showRecent);
+  const shapeKey = shape ? keyOfShape(shape) : '';
+  const shapeRef = useRef(shape);
+  shapeRef.current = shape;
   const canWriteShape = !!userId && !editMode;
   useEffect(() => {
-    if (!canWriteShape || !userId || !shapeKey) return;
-    scheduleShapeWrite(userId, shapeFromKey(shapeKey));
+    if (!canWriteShape || !userId || !shapeKey || !shapeRef.current) return;
+    scheduleShapeWrite(userId, shapeRef.current);
     return () => cancelPendingShapeWrite();
   }, [canWriteShape, userId, shapeKey]);
 
@@ -567,6 +570,17 @@ export default function AppGrid({
   );
 }
 
+// SPEC-dashboard-empty-loading AC-009 / AC-021 — an empty box's words, shared by
+// BoxCard and the skeleton (which draws them unseen to keep the same height).
+// The admin can fill the box from the Library; anyone else can only ask (POST
+// /api/library/{id}/add is admin-only). While member-empty already asks, the
+// box says only that it is empty.
+const EMPTY_BOX_BUTTON = 'Browse the App Library';
+function emptyBoxLine(isAdmin: boolean, dashboardEmpty: boolean): string {
+  if (isAdmin) return 'No apps yet.';
+  return dashboardEmpty ? 'No apps here yet.' : 'No apps here yet. Ask an admin to add some.';
+}
+
 // The flex variables that size a box (SPEC-pane-fill-reflow, SPEC-app-grid
 // §10.4), shared by BoxCard and the loading skeleton so the two can never size
 // a box differently (SPEC-dashboard-empty-loading AC-002/AC-003).
@@ -625,11 +639,7 @@ function GridSkeleton({
   // admin-empty shows; a shape whose every box is empty is taken as that case
   // (no apps at all, OQ-3), and so is the member's short line (AC-021).
   const looksEmpty = dashboardEmpty || shown.boxes.every((b) => b.count === 0);
-  const emptyLine = isAdmin
-    ? 'No apps yet.'
-    : looksEmpty
-      ? 'No apps here yet.'
-      : 'No apps here yet. Ask an admin to add some.';
+  const emptyLine = emptyBoxLine(isAdmin, looksEmpty);
   const reserveButton = isAdmin && !looksEmpty;
   return (
     <div className="app-grid-skeleton" data-testid="app-grid-loading">
@@ -686,7 +696,7 @@ function GridSkeleton({
                     <p className="app-grid-empty app-grid-skel-hidden">{emptyLine}</p>
                     {reserveButton && (
                       <span className="settings-ghost-btn app-grid-empty-add app-grid-skel-hidden">
-                        Browse the App Library
+                        {EMPTY_BOX_BUTTON}
                       </span>
                     )}
                   </div>
@@ -946,11 +956,7 @@ function BoxCard({
         // member-empty already asks, the box says only that it is empty.
         <div className="app-grid-empty-state">
           <p className="app-grid-empty" data-testid="box-empty">
-            {isAdmin
-              ? 'No apps yet.'
-              : dashboardEmpty
-                ? 'No apps here yet.'
-                : 'No apps here yet. Ask an admin to add some.'}
+            {emptyBoxLine(isAdmin, dashboardEmpty)}
           </p>
           {isAdmin && onAddToBox && (
             <button
@@ -960,7 +966,7 @@ function BoxCard({
               aria-describedby={titleId}
               onClick={(e) => onAddToBox({ id: box.id, title: box.title }, e.currentTarget)}
             >
-              Browse the App Library
+              {EMPTY_BOX_BUTTON}
             </button>
           )}
         </div>
