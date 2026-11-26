@@ -3,6 +3,7 @@ package dbguard
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -89,7 +90,7 @@ func setUpPackageDatabase(base string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("refusing destructive test setup: cannot connect to create %s: %w", name, err)
 	}
-	if _, err := lock.Exec(ctx, `SELECT pg_advisory_lock(hashtext($1))`, "homepad-test-db:"+name); err != nil {
+	if _, err := lock.Exec(ctx, `SELECT pg_advisory_lock($1)`, lockKey(name)); err != nil {
 		lock.Close(context.Background())
 		return "", fmt.Errorf("refusing destructive test setup: waiting for another test run of %s to release database %s: %w", pkg, name, err)
 	}
@@ -161,6 +162,13 @@ func PackageDatabaseName(baseName, pkg string) string {
 		readable = readable[:maxIdent-len(tail)]
 	}
 	return readable + tail
+}
+
+// lockKey is a 64-bit advisory-lock key for a package database name, so two
+// packages never wait on each other through a hash collision.
+func lockKey(name string) int64 {
+	sum := sha256.Sum256([]byte("homepad-test-db:" + name))
+	return int64(binary.BigEndian.Uint64(sum[:8]))
 }
 
 func slugify(s string) string {

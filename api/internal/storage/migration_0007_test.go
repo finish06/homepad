@@ -53,10 +53,10 @@ func freshDB(t *testing.T, name string) (context.Context, *pgx.Conn) {
 
 	admin, err := pgx.Connect(ctx, base)
 	require.NoError(t, err, "connect to base DB")
-	// The same drop-and-create the per-package databases use (#730): a
-	// leftover from an interrupted run is dropped only if it carries the
-	// throwaway marker, and the new database gets it.
-	require.NoError(t, dbguard.RecreateDatabase(ctx, admin, name), "create temp DB %s", name)
+	// FORCE drops any lingering connections from a previous interrupted run.
+	_, _ = admin.Exec(ctx, "DROP DATABASE IF EXISTS "+name+" WITH (FORCE)")
+	_, err = admin.Exec(ctx, "CREATE DATABASE "+name)
+	require.NoError(t, err, "create temp DB %s", name)
 	require.NoError(t, admin.Close(ctx))
 
 	conn, err := pgx.Connect(ctx, withDBName(t, base, name))
