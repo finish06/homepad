@@ -230,10 +230,13 @@ go vet ./...
 make test-db                   # full suite on a throwaway Postgres
 ```
 
-`make test-db` starts Postgres, runs `go test ./... -count=1 -p 1` with
+`make test-db` starts Postgres, runs `go test ./... -count=1` with
 `DATABASE_URL` set, then removes the database. To use your own Postgres, set
-`DATABASE_URL` and run `go test ./... -count=1 -p 1`. The database name must
-end in `_test`. The tests empty every table, so they refuse any other name.
+`DATABASE_URL` and run `go test ./... -count=1`. The database name must
+end in `_test`. Each test package creates its own database next to it, named
+after the package (`homepad_internal_api_test` for `internal/api`), so the
+packages run in parallel without sharing tables (#730). The role needs
+`CREATEDB`; the compose and CI Postgres users have it. The tests empty every table, so they refuse any other name.
 The tests also check the server: a fresh database is marked as a test
 database on first use. A database that already has homepad tables but no mark
 is refused, and the error gives the one `COMMENT ON DATABASE` line that marks

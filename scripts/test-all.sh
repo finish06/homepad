@@ -82,7 +82,7 @@ else
   if [ -z "${DATABASE_URL:-}" ]; then
     skip "go test ./..." "DATABASE_URL is unset (cd api && make test-db runs it on a throwaway Postgres)"
   else
-    run "go test ./..." bash -c 'cd api && go test ./... -count=1 -p 1'
+    run "go test ./..." bash -c 'cd api && go test ./... -count=1'
   fi
 fi
 

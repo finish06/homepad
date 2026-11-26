@@ -59,7 +59,10 @@ func CheckTestDatabaseName(name string) error {
 }
 
 // RequireTestDatabase is the single accessor every destructive integration test
-// uses to obtain DATABASE_URL. It skips the test when DATABASE_URL is unset
+// uses to obtain a database DSN. It does not return DATABASE_URL itself: it
+// returns this test binary's own database on the same server (#730, see
+// packageDatabaseOnce), so packages that `go test ./...` runs in parallel never
+// share tables. It skips the test when DATABASE_URL is unset
 // (so the unit-only path stays runnable without Postgres), and FATALS — never
 // skips (#67 AC2: a skip is how a dangerous run stays invisible) — when the DSN
 // is not a throwaway test database, BEFORE the caller can Open, Migrate, or run
@@ -79,7 +82,11 @@ func RequireTestDatabase(t testing.TB) string {
 	if err := confirmOnce(dsn); err != nil {
 		t.Fatalf("%v", err)
 	}
-	return dsn
+	own, err := packageDatabaseOnce(dsn)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	return own
 }
 
 // Marker is the comment that marks a database as a throwaway test database.

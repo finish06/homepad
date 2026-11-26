@@ -84,7 +84,7 @@ with "skipped: no web changes" or "skipped: no API changes".
   fail the check, warnings don't), builds the app (`npm run build`, which also
   type-checks it) and runs the unit tests (`vitest`).
 - **API (vet, build, tests):** `go vet`, `go build` and
-  `go test ./... -count=1 -p 1` from `api/`, against a Postgres 17 service.
+  `go test ./... -count=1` from `api/`, against a Postgres 17 service.
 
 **What it changes outside the repo:** nothing. It only posts its green/red
 check on the PR.

@@ -120,7 +120,7 @@ jobs:
         run: go vet ./...
       - if: steps.changes.outputs.api == 'true'
         run: go build ./...
-      # -p 1 serializes the integration package binaries (api + storage) so they
-      # don't race on the shared Postgres (each package truncates the catalog).
+      # Default -p: each test package gets its own database on the Postgres
+      # service (internal/dbguard/pkgdb.go, #730), so packages run in parallel.
       - if: steps.changes.outputs.api == 'true'
-        run: go test ./... -count=1 -p 1
+        run: go test ./... -count=1

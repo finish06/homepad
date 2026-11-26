@@ -22,6 +22,10 @@ import (
 //  2. A file that runs CREATE DATABASE or DROP DATABASE checks the scratch
 //     name with CheckTestDatabaseName.
 //
+// RequireTestDatabase returns the package's own database on the DATABASE_URL
+// server, not DATABASE_URL itself (#730, pkgdb.go), so rule 1 is also what
+// keeps parallel packages off each other's tables.
+//
 // The paths this covers, as of 18.6.0 (SPEC-cleanup-18.6.0 §6):
 //   - internal/testsupport: NewServer, NewEnv, NewOIDCServer and their *With
 //     forms call RequireTestDatabase; truncate() re-checks (guardDestructive).
