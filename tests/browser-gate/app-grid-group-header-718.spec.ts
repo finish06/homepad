@@ -272,7 +272,13 @@ test.describe('arrange mode with a collapsed box in the saved set (AC-013, AC-01
         expect(Math.min(b.width, b.height)).toBeGreaterThanOrEqual(24);
       }
       // Box drag (keyboard path, the rearrange gate's recipe) still moves a
-      // formerly folded box.
+      // formerly folded box. The order PUT answers 204 as the server does; the
+      // catch-all's 200 would read as a failure and roll the move back.
+      let order: string[] | null = null;
+      await page.route('**/api/categories/order', (route) => {
+        order = (route.request().postDataJSON() as { order: string[] }).order;
+        return route.fulfill({ status: 204, body: '' });
+      });
       const grip = box(page, 'cat-1').getByTestId('box-drag-handle');
       await grip.focus();
       await page.keyboard.press('Space');
@@ -285,6 +291,8 @@ test.describe('arrange mode with a collapsed box in the saved set (AC-013, AC-01
       await expect
         .poll(async () => (await page.getByTestId('box-title').allTextContents())[0])
         .not.toBe('Media and home automation services');
+      await expect.poll(() => order?.[0]).not.toBe('cat-1');
+      await expect(page.getByTestId('app-grid-announce')).toContainText('moved to position');
       // The width selector still works on the formerly folded box.
       await box(page, 'cat-1').getByTestId('width-btn-12').click();
       await expect(box(page, 'cat-1').getByTestId('width-btn-12')).toHaveAttribute('aria-pressed', 'true');
