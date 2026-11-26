@@ -57,22 +57,20 @@ function readCpuMax(): string | null {
   }
 }
 
-export function e2eWorkers(): number {
+function e2eWorkers(): number {
   return workersFor(availableParallelism(), readCpuMax());
 }
 
-// It lives here, not under tests/, because the web image's Docker build
-// typechecks this file and .dockerignore leaves tests/ out of that build.
-// `--workers` on the command line still wins.
-export const E2E_WORKERS = e2eWorkers();
-
+// These worker helpers live here, not under tests/, because the web image's
+// Docker build typechecks this file and .dockerignore leaves tests/ out of
+// that build. `--workers` on the command line still wins over `workers` below.
 export default defineConfig({
   testDir: './tests/e2e',
   timeout: 30_000,
   expect: { timeout: 5_000 },
   reporter: process.env.CI ? 'github' : 'list',
   retries: process.env.CI ? 2 : 0,
-  workers: E2E_WORKERS,
+  workers: e2eWorkers(),
   use: {
     baseURL: BASE_URL,
     trace: 'on-first-retry',

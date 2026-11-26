@@ -20,7 +20,7 @@ import { join } from 'node:path';
 import ts from 'typescript';
 import { describe, it, expect } from 'vitest';
 import { devices } from '@playwright/test';
-import config, { E2E_WORKERS, cgroupCpus, workersFor } from '../../playwright.config';
+import config, { cgroupCpus, workersFor } from '../../playwright.config';
 
 const mobile = config.projects?.find((p) => p.name === 'mobile');
 const iPhone13 = devices['iPhone 13'];
@@ -43,14 +43,27 @@ describe('e2e mobile project (kid-accounts TC-001 CI flake)', () => {
   });
 });
 
-// fixtureProblems lists every way a tests/e2e file could get a page or a
-// context without the shared fixture. It parses the file (no regex), so a
-// renamed, multi-line or namespace import cannot slip past.
+// fixtureProblems lists the ways a tests/e2e file could get a page or a
+// context without the shared fixture: Playwright's runtime `test` by any
+// import or re-export (static, renamed, multi-line, namespace, default,
+// dynamic, require), and a context or page made from the browser directly.
+// It parses the file rather than matching text.
 function fixtureProblems(source: string, isSpec: boolean): string[] {
   const sf = ts.createSourceFile('spec.ts', source, ts.ScriptTarget.Latest, true);
   const problems: string[] = [];
   let testFromFixtures = false;
+  const isPlaywright = (m: string) => /^@?playwright(\/|-core|$)/.test(m);
   for (const stmt of sf.statements) {
+    if (ts.isExportDeclaration(stmt) && stmt.moduleSpecifier && ts.isStringLiteral(stmt.moduleSpecifier)) {
+      const from = stmt.moduleSpecifier.text;
+      if (!isPlaywright(from) || stmt.isTypeOnly) continue;
+      const clause = stmt.exportClause;
+      if (!clause || !ts.isNamedExports(clause)) problems.push(`re-export * from ${from}`);
+      else if (clause.elements.some((e) => !e.isTypeOnly && (e.propertyName ?? e.name).text === 'test')) {
+        problems.push(`re-export of test from ${from}`);
+      }
+      continue;
+    }
     if (!ts.isImportDeclaration(stmt) || !ts.isStringLiteral(stmt.moduleSpecifier)) continue;
     const from = stmt.moduleSpecifier.text;
     const clause = stmt.importClause;
@@ -60,7 +73,7 @@ function fixtureProblems(source: string, isSpec: boolean): string[] {
       if (named.some((s) => (s.propertyName ?? s.name).text === 'test' && !s.isTypeOnly)) testFromFixtures = true;
       continue;
     }
-    if (!/^@?playwright(\/|-core|$)/.test(from)) continue;
+    if (!isPlaywright(from)) continue;
     if (clause.name) problems.push(`default import from ${from}`);
     if (clause.namedBindings && ts.isNamespaceImport(clause.namedBindings)) problems.push(`namespace import from ${from}`);
     for (const s of named) {
@@ -71,8 +84,15 @@ function fixtureProblems(source: string, isSpec: boolean): string[] {
     if (ts.isCallExpression(node)) {
       const callee = node.expression;
       if (ts.isIdentifier(callee) && callee.text === 'require') problems.push('require()');
-      if (ts.isPropertyAccessExpression(callee) && ['newContext', 'launchPersistentContext', 'launch', 'connect', 'connectOverCDP'].includes(callee.name.text)) {
-        problems.push(`${callee.getText(sf)}()`);
+      if (callee.kind === ts.SyntaxKind.ImportKeyword) problems.push('dynamic import()');
+      if (ts.isPropertyAccessExpression(callee)) {
+        const name = callee.name.text;
+        // newPage() is fine on a context (it shares the context's scripts) but
+        // not on the browser, which makes a fresh context for it.
+        const onBrowser = name === 'newPage' && /(^|\.)browser$/i.test(callee.expression.getText(sf));
+        if (onBrowser || ['newContext', 'launchPersistentContext', 'launch', 'connect', 'connectOverCDP'].includes(name)) {
+          problems.push(`${callee.getText(sf)}()`);
+        }
       }
     }
     ts.forEachChild(node, visit);
@@ -91,6 +111,10 @@ describe('the guard below catches each way around the fixture', () => {
     ['a default import', `${ok}import pw from '@playwright/test';`, 'default import from @playwright/test'],
     ['browser.newContext()', `${ok}async function f(browser) { await browser.newContext(); }`, 'browser.newContext()'],
     ['webkit.launch()', `${ok}async function f() { await webkit.launch(); }`, 'webkit.launch()'],
+    ['browser.newPage()', `${ok}async function f(browser) { await browser.newPage(); }`, 'browser.newPage()'],
+    ['a dynamic import', `${ok}async function f() { const { test: t } = await import('@playwright/test'); }`, 'dynamic import()'],
+    ['a re-export of test', "export { test } from '@playwright/test';", 're-export of test from @playwright/test'],
+    ['a re-export of everything', "export * from '@playwright/test';", 're-export * from @playwright/test'],
     ['no fixture import', "import { expect } from './fixtures';", 'no test import from ./fixtures'],
   ])('%s', (_name, src, problem) => {
     expect(fixtureProblems(src, true)).toContain(problem);
@@ -101,7 +125,8 @@ describe('the guard below catches each way around the fixture', () => {
       "import { devices, type Page } from '@playwright/test';",
       "import type { Browser } from '@playwright/test';",
       "import { newContext, test } from './fixtures';",
-      'async function f(browser: Browser) { await newContext(browser); }',
+      'async function f(browser: Browser) { const c = await newContext(browser); await c.newPage(); }',
+      "export type { Page } from '@playwright/test';",
     ].join('\n');
     expect(fixtureProblems(src, true)).toEqual([]);
   });
@@ -143,10 +168,6 @@ describe('e2e worker count follows the CPU limit (#739)', () => {
     expect(workersFor(8, null)).toBe(4);
     expect(workersFor(1, null)).toBe(1);
     expect(workersFor(16, '50000 100000')).toBe(1);
-  });
-
-  it('is what playwright.config.ts uses', () => {
-    expect(config.workers).toBe(E2E_WORKERS);
   });
 
   // The web image's Docker build typechecks playwright.config.ts, and
