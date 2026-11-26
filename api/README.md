@@ -394,7 +394,7 @@ make test-unit     # fast subset, no database
 `make test` runs `go test ./... -count=1`. The database name in
 `DATABASE_URL` must end in `_test`; `internal/dbguard` refuses any other.
 Each test package creates and uses its own database on that server (for
-example `homepad_internal_api_test`), so packages run in parallel (#730).
+example `homepad_internal_api_<hash>_test`), so packages run in parallel (#730).
 It also checks the server: a fresh database gets a test mark on first use, and
 a database with homepad tables but no mark is refused with the SQL that marks
 it.

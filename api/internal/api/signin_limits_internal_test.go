@@ -478,19 +478,25 @@ func TestLogin_TimingMediansMatch(t *testing.T) {
 	}
 	known := storage.User{ID: "u1", Role: "user", PasswordHash: string(hash)}
 	s := &server{}
+	// The two paths are sampled in alternation, not one batch after the
+	// other: go test ./... runs other packages in parallel (#730), and a
+	// burst of CPU load during one batch skewed its median alone.
 	const n = 9
-	median := func(f func()) time.Duration {
-		ds := make([]time.Duration, n)
-		for i := range ds {
-			start := time.Now()
-			f()
-			ds[i] = time.Since(start)
-		}
+	timeIt := func(f func()) time.Duration {
+		start := time.Now()
+		f()
+		return time.Since(start)
+	}
+	us, ws := make([]time.Duration, n), make([]time.Duration, n)
+	for i := 0; i < n; i++ {
+		us[i] = timeIt(func() { s.loginPasswordOK(storage.User{}, storage.ErrNotFound, "a wrong password") })
+		ws[i] = timeIt(func() { s.loginPasswordOK(known, nil, "a wrong password") })
+	}
+	median := func(ds []time.Duration) time.Duration {
 		sort.Slice(ds, func(i, j int) bool { return ds[i] < ds[j] })
 		return ds[n/2]
 	}
-	unknown := median(func() { s.loginPasswordOK(storage.User{}, storage.ErrNotFound, "a wrong password") })
-	wrong := median(func() { s.loginPasswordOK(known, nil, "a wrong password") })
+	unknown, wrong := median(us), median(ws)
 	hi, lo := unknown, wrong
 	if lo > hi {
 		hi, lo = lo, hi

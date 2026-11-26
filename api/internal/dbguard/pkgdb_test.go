@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -14,28 +15,43 @@ import (
 // default -p does not share tables between packages.
 
 func TestPackageDatabaseName(t *testing.T) {
-	cases := []struct{ base, pkg, want string }{
-		{"homepad_test", "internal/api", "homepad_internal_api_test"},
-		{"homepad_test", "internal/storage", "homepad_internal_storage_test"},
-		{"homepad_test", "cmd/homepad-api", "homepad_cmd_homepad_api_test"},
-		{"homepad_test", ".", "homepad_root_test"},
-		{"ci_test", "internal/session", "ci_internal_session_test"},
+	hashed := regexp.MustCompile(`^[a-z0-9_]+_[0-9a-f]{8}_test$`)
+	cases := []struct{ base, pkg, prefix string }{
+		{"homepad_test", "internal/api", "homepad_internal_api_"},
+		{"homepad_test", "internal/storage", "homepad_internal_storage_"},
+		{"homepad_test", "cmd/homepad-api", "homepad_cmd_homepad_api_"},
+		{"ci_test", "internal/session", "ci_internal_session_"},
+		{"Häus_test", "internal/api", "h_us_internal_api_"},
 	}
 	for _, c := range cases {
-		if got := PackageDatabaseName(c.base, c.pkg); got != c.want {
-			t.Errorf("PackageDatabaseName(%q, %q) = %q; want %q", c.base, c.pkg, got, c.want)
+		got := PackageDatabaseName(c.base, c.pkg)
+		if !strings.HasPrefix(got, c.prefix) || !hashed.MatchString(got) {
+			t.Errorf("PackageDatabaseName(%q, %q) = %q; want %s<8 hex>_test", c.base, c.pkg, got, c.prefix)
+		}
+		if again := PackageDatabaseName(c.base, c.pkg); again != got {
+			t.Errorf("not stable: %q then %q", got, again)
 		}
 	}
-	// Two packages never share a name, and every name passes the guard.
-	if PackageDatabaseName("homepad_test", "internal/api") == PackageDatabaseName("homepad_test", "internal/storage") {
-		t.Error("two packages got the same database")
+	// Pairs that slugify alike still get different databases (review of #763):
+	// a shared name would let one run drop another's database.
+	type in struct{ base, pkg string }
+	pairs := [][2]in{
+		{{"homepad_test", "cmd/homepad-api"}, {"homepad_test", "cmd/homepad_api"}},
+		{{"homepad_test", "internal/api/v2"}, {"homepad_test", "internal/api_v2"}},
+		{{"homepad_internal_test", "api"}, {"homepad_test", "internal/api"}},
+		{{"homepad_test", "internal/api"}, {"homepad_test", "internal/storage"}},
+	}
+	for _, p := range pairs {
+		a, b := PackageDatabaseName(p[0].base, p[0].pkg), PackageDatabaseName(p[1].base, p[1].pkg)
+		if a == b {
+			t.Errorf("%v and %v share database %q", p[0], p[1], a)
+		}
 	}
 	long := PackageDatabaseName("homepad_test", strings.Repeat("very/long/package/", 8))
-	if len(long) > maxIdent {
-		t.Errorf("name %q is %d bytes; Postgres allows %d", long, len(long), maxIdent)
+	if len(long) > maxIdent || !hashed.MatchString(long) {
+		t.Errorf("name %q (%d bytes) must be ASCII and fit Postgres's %d", long, len(long), maxIdent)
 	}
-	other := PackageDatabaseName("homepad_test", strings.Repeat("very/long/package/", 8)+"x")
-	if long == other {
+	if other := PackageDatabaseName("homepad_test", strings.Repeat("very/long/package/", 8)+"x"); long == other {
 		t.Errorf("two long package paths collided on %q", long)
 	}
 	for _, n := range []string{long, PackageDatabaseName("homepad_test", "internal/api")} {

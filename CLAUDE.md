@@ -76,7 +76,7 @@ The integration tests read `DATABASE_URL`. Without it they skip, so a bare
 and the production host, and has no override. It also refuses a database that
 has homepad tables but no test mark; the error gives the SQL that marks it.
 Each test package uses its own database on that server (`homepad_test` +
-`internal/api` → `homepad_internal_api_test`), recreated on each run, so the
+`internal/api` → `homepad_internal_api_<hash>_test`), recreated on each run, so the
 default parallel `go test ./...` is safe; no `-p 1` (#730).
 
 ### Run the API and the web together

@@ -25,9 +25,12 @@ import (
 // row another package had wiped. `-p 1` hid it.
 //
 // Now RequireTestDatabase hands each test binary its own database on the
-// DATABASE_URL server, named after the package: homepad_test plus
-// internal/storage gives homepad_internal_storage_test. It is dropped and
-// created fresh, with Marker, the first time the binary asks for it.
+// DATABASE_URL server, named after the package plus a short hash of the base
+// database and package path: homepad_test plus internal/storage gives
+// homepad_internal_storage_<hash>_test. It is dropped and created fresh, with
+// Marker, the first time the binary asks for it. The hash means two different
+// (base, package) pairs never share a name, so the lock below, which lives in
+// the base database, always guards the right runs.
 //
 // The guard rules still hold. DATABASE_URL itself is checked first, by name
 // and on the server, exactly as before. The derived name ends in "_test" and
@@ -49,8 +52,8 @@ type packageDB struct {
 }
 
 var (
-	packageDBs sync.Map // base dsn → *packageDB
 	packageMu  sync.Mutex
+	packageDBs = map[string]packageDB{} // base dsn → result, once per binary
 	// lockConns keeps each advisory-lock connection reachable for the life of
 	// the binary; the lock is released when the process exits.
 	lockConns []*pgx.Conn
@@ -59,19 +62,13 @@ var (
 // packageDatabaseOnce returns the DSN of this binary's own database on the
 // base server, creating it on the first call.
 func packageDatabaseOnce(base string) (string, error) {
-	if v, ok := packageDBs.Load(base); ok {
-		p := v.(*packageDB)
-		return p.dsn, p.err
-	}
 	packageMu.Lock()
 	defer packageMu.Unlock()
-	if v, ok := packageDBs.Load(base); ok {
-		p := v.(*packageDB)
-		return p.dsn, p.err
+	p, ok := packageDBs[base]
+	if !ok {
+		p.dsn, p.err = setUpPackageDatabase(base)
+		packageDBs[base] = p
 	}
-	p := &packageDB{}
-	p.dsn, p.err = setUpPackageDatabase(base)
-	packageDBs.Store(base, p)
 	return p.dsn, p.err
 }
 
@@ -148,21 +145,22 @@ const maxIdent = 63
 
 // PackageDatabaseName derives a package's database name from the base
 // database name and the package's path inside the module:
-// ("homepad_test", "internal/api") → "homepad_internal_api_test". The result
-// always ends in "_test" and fits in a Postgres identifier.
+// ("homepad_test", "internal/api") → "homepad_internal_api_<hash>_test". The
+// readable part is lower-case ASCII; the hash covers the exact base name and
+// package path, so inputs that slugify alike (cmd/homepad-api and
+// cmd/homepad_api) still get different names. The result always ends in
+// "_test" and fits in a Postgres identifier.
 func PackageDatabaseName(baseName, pkg string) string {
-	prefix := strings.TrimSuffix(baseName, "_test")
-	slug := slugify(pkg)
-	if slug == "" {
-		slug = "root"
-	}
-	name := prefix + "_" + slug + "_test"
-	if len(name) <= maxIdent {
-		return name
-	}
-	sum := sha256.Sum256([]byte(prefix + "/" + pkg))
+	sum := sha256.Sum256([]byte(baseName + "\x00" + pkg))
 	tail := "_" + hex.EncodeToString(sum[:4]) + "_test"
-	return name[:maxIdent-len(tail)] + tail
+	readable := slugify(strings.TrimSuffix(baseName, "_test") + "_" + pkg)
+	if readable == "" {
+		readable = "pkg"
+	}
+	if len(readable) > maxIdent-len(tail) {
+		readable = readable[:maxIdent-len(tail)]
+	}
+	return readable + tail
 }
 
 func slugify(s string) string {
@@ -193,7 +191,9 @@ func testPackagePath() (string, error) {
 			return filepath.ToSlash(rel), nil
 		}
 		if filepath.Dir(dir) == dir {
-			return filepath.Base(wd), nil
+			// No go.mod (a binary built with go test -c and run elsewhere):
+			// the full directory keeps two same-named packages apart.
+			return filepath.ToSlash(wd), nil
 		}
 	}
 }
