@@ -4,7 +4,7 @@
 **Version:** 0.2.0
 **Created:** 2026-11-25
 **Author:** Claude (Caleb asked 2026-11-25 to write up M10)
-**Status:** Approved — 2026-11-25 (Caleb's answers are in §7). Not built. Kare checks the DOWN and DEGRADED shapes on a real screen during the build
+**Status:** Approved — 2026-11-25 (Caleb's answers are in §7). Shipped in 18.7.0 (#735, #740). Kare's check of the DOWN and DEGRADED shapes on a real screen is still to do
 **Supersedes (members only):** `v18-gear-edit-menu.md` A2 and D4, which show "Add apps" to every user. Since 18.0.0 adding is admin-only on the server, so members lose the item (AC-017). `v29-favorite-star-arrange-only.md` AC-005 ("Arrange apps" for everyone) is unchanged.
 **Repo:** `Code/homepad` (web app at the root; no `api/` changes)
 **Issues:** #725

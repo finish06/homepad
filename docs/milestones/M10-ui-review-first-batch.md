@@ -1,10 +1,10 @@
 # Milestone: M10 — UI review, first batch (18.7.0)
 
 **Target Maturity:** GA (maintain)
-**Status:** NOT_STARTED (specs approved 2026-11-25; ready to build)
-**Horizon:** NOW
-**Started:** TBD
-**Completed:** TBD
+**Status:** COMPLETE
+**Horizon:** DONE
+**Started:** 2026-11-25 (#735 and #736 built in parallel)
+**Completed:** 2026-11-26 (18.7.0 in production at `fd60fa7`, 14:39Z)
 **Created:** 2026-11-25, on Caleb's go, from the 2026-11-24 UI review enhancements (#717–#726). The ranking is in the review comments on each issue.
 
 ## Goal
@@ -13,13 +13,13 @@ Ship the three highest-ranked UI review items as 18.7.0. They are small polish f
 
 ## Success Criteria
 
-- [ ] #725: the seven quick wins ship, or each one is dropped with a reason in its spec ([SPEC-ui-quick-wins](../../specs/SPEC-ui-quick-wins.md))
-- [ ] #722: the dashboard loads into a skeleton at the real grid size with no reflow, and every empty state has a working action for the roles that can use it ([SPEC-dashboard-empty-loading](../../specs/SPEC-dashboard-empty-loading.md))
-- [ ] #724 (dead CSS only): the retired, unreferenced selectors are deleted. The accent decision and the `index.css` split stay in #724
-- [ ] #718: every group header shows its app count and a status bar, and groups fold and unfold. The folded state is saved per user through the existing collapse API ([SPEC-group-header-collapse](../../specs/SPEC-group-header-collapse.md))
-- [ ] The inline theme script in `index.html` is unchanged, so the CSP hash in the image and the homelab ConfigMap still matches (SPEC-cleanup-18.6.0 §7)
-- [ ] The bundle budget, overflow and centring gates, the #513 hit-area gate and the v19 contrast gates stay green
-- [ ] 18.7.0 is in production
+- [x] #725: the seven quick wins ship, or each one is dropped with a reason in its spec ([SPEC-ui-quick-wins](../../specs/SPEC-ui-quick-wins.md))
+- [x] #722: the dashboard loads into a skeleton at the real grid size with no reflow, and every empty state has a working action for the roles that can use it ([SPEC-dashboard-empty-loading](../../specs/SPEC-dashboard-empty-loading.md))
+- [x] #724 (dead CSS only): the retired, unreferenced selectors are deleted. The accent decision and the `index.css` split stay in #724
+- [x] #718: every group header shows its app count and a status bar, and groups fold and unfold. The folded state is saved per user through the existing collapse API ([SPEC-group-header-collapse](../../specs/SPEC-group-header-collapse.md))
+- [x] The inline theme script in `index.html` is unchanged, so the CSP hash in the image and the homelab ConfigMap still matches (SPEC-cleanup-18.6.0 §7)
+- [x] The bundle budget, overflow and centring gates, the #513 hit-area gate and the v19 contrast gates stay green
+- [x] 18.7.0 is in production
 
 ## Appetite
 
@@ -31,9 +31,9 @@ One cycle, about a week. #722 and #725 are small and can start together, under t
 
 | Feature | Spec | Position | Status | Cycle |
 |---------|------|----------|--------|-------|
-| UI quick wins | [SPEC-ui-quick-wins](../../specs/SPEC-ui-quick-wins.md) | SPECCED | #725 — approved 2026-11-25 | — |
-| Dashboard empty and loading states | [SPEC-dashboard-empty-loading](../../specs/SPEC-dashboard-empty-loading.md) | SPECCED | #722 + #724 dead CSS — approved 2026-11-25 | — |
-| Group header count, status bar and folding | [SPEC-group-header-collapse](../../specs/SPEC-group-header-collapse.md) | SPECCED | #718 — approved 2026-11-25; Kare checks the bar | — |
+| UI quick wins | [SPEC-ui-quick-wins](../../specs/SPEC-ui-quick-wins.md) | SHIPPED | #725 — #735, #740 (18.7.0) | — |
+| Dashboard empty and loading states | [SPEC-dashboard-empty-loading](../../specs/SPEC-dashboard-empty-loading.md) | SHIPPED | #722 + #724 dead CSS — #736 (18.7.0) | — |
+| Group header count, status bar and folding | [SPEC-group-header-collapse](../../specs/SPEC-group-header-collapse.md) | SHIPPED | #718 — #746, #753 (18.7.0) | — |
 
 ## Not in M10
 
@@ -88,8 +88,18 @@ Shared files: `src/index.css` and `src/app/App.tsx` (all three), `src/library/Li
 
 | Cycle | Features Advanced | Status | Outcome |
 |-------|-------------------|--------|---------|
-| — | — | — | Not yet started |
+| — | — | — | No ADD cycle. Three workstreams, one Opus agent per spec, merged #735, #736, #740, #746, #753; release #758 |
+
+## Left over
+
+- Kare's checks on a real screen: the DOWN and DEGRADED pip shapes (#725), the skeleton and empty-box button (#722), and the group status bar (#718). Shipped without them.
+- #745: the health panel grows as services load and shifts the page (found during #722).
+- Open question for Caleb (SPEC-group-header-collapse §10): after one failed or slow load of the saved folds, saving stays off for that visit. Should a late reply or a retry turn it back on?
+- SPEC-group-header-collapse §10 item 8: a fold made just before a restore or import reloads the grid can be lost.
+- #724 (accent A or B, the `index.css` split) and the rest of #717–#726 stay open.
 
 ## Retrospective Notes
 
-Filled in when the milestone completes.
+- Three parallel builds under one file plan (reservations, a fixed merge order, a named rebaser) all merged in a day and a half.
+- The approved spec carried a data-loss rule (§3.5: a failed load let the next fold overwrite the saved set). Code review flagged it, the builder kept it because it was approved, and it took a follow-up PR (#753) on Caleb's call. A spec rule that review calls data loss is worth escalating before merge, not after.
+- Code review on #753 went four rounds; the fourth partly asked to undo the third. Once the status is green, answering on the PR and stopping was right.

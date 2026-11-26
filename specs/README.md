@@ -1,6 +1,6 @@
 # homepad — Spec Index
 
-**Current as of:** 2026-11-25 (after 18.6.0; M10 specs added and approved)  **Maintainer:** Walt (product lead)
+**Current as of:** 2026-11-26 (18.7.0; M10 specs shipped)  **Maintainer:** Walt (product lead)
 
 This directory holds the **current, authoritative** product specs and decisions for
 homepad. Historical specs for shipped versions v2–v10 are in
@@ -33,15 +33,15 @@ homepad. Historical specs for shipped versions v2–v10 are in
 
 ---
 
-## Approved — M10, target 18.7.0 (3)
+## Shipped — 18.7.0, M10 UI review first batch (3)
 
-Written 2026-11-25 from the 2026-11-24 UI review. Caleb decided every open question the same day. Nothing is built yet.
+Written 2026-11-25 from the 2026-11-24 UI review and shipped in 18.7.0 on 2026-11-26.
 
 | File | Feature | Status |
 |---|---|---|
-| [`SPEC-ui-quick-wins.md`](./SPEC-ui-quick-wins.md) | #725: browser colour, tap "Updated" to refresh, toasts that pause and close, Gear menu arrow keys, status shapes at Large, Library grouping, sign-in polish | Approved 2026-11-25 — not built |
-| [`SPEC-dashboard-empty-loading.md`](./SPEC-dashboard-empty-loading.md) | #722: a skeleton at the real grid size while loading, empty states with an action per role; #724's dead CSS removed | Approved 2026-11-25 — not built |
-| [`SPEC-group-header-collapse.md`](./SPEC-group-header-collapse.md) | #718: app count and status bar on each group header; fold a group, saved per user through the existing collapse API | Approved 2026-11-25 — not built; Kare checks the bar during the build |
+| [`SPEC-ui-quick-wins.md`](./SPEC-ui-quick-wins.md) | #725: browser colour, tap "Updated" to refresh, toasts that pause and close, Gear menu arrow keys, status shapes at Large, Library grouping, sign-in polish | SHIPPED — 18.7.0 (#735, #740) |
+| [`SPEC-dashboard-empty-loading.md`](./SPEC-dashboard-empty-loading.md) | #722: a skeleton at the real grid size while loading, empty states with an action per role; #724's dead CSS removed | SHIPPED — 18.7.0 (#736) |
+| [`SPEC-group-header-collapse.md`](./SPEC-group-header-collapse.md) | #718: app count and status bar on each group header; fold a group, saved per user through the existing collapse API | SHIPPED — 18.7.0 (#746, #753); Kare's screen check carried |
 
 ## Shipped — 18.1.0 to 18.6.0, one repo, previews and cleanups (9)
 
