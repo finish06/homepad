@@ -1,13 +1,13 @@
 # homepad — Product Requirements Document
 
-**Version:** 0.4.1
+**Version:** 0.4.2
 **Created:** 2026-09-15
 **Updated:** 2026-11-26 (M10 closed; 18.7.0 in production)
 **Author:** Caleb Dunn
-**Status:** Adopted (retroactive — written at ADD adoption, v16.2.0 already in production; §1–5 and §7–9 updated for 18.0.0, and checked against 18.6.0 on 2026-11-25)
+**Status:** Adopted (retroactive — written at ADD adoption, v16.2.0 already in production; §1–5 and §7–9 updated for 18.0.0, checked against 18.6.0 on 2026-11-25, and the 18.7.0 UI changes added to §7 on 2026-11-26)
 
 > This PRD was generated during `/add:init` adoption of an existing, shipped
-> project. It documents what homepad *is*, now at 18.6.0, rather than proposing
+> project. It documents what homepad *is*, now at 18.7.0, rather than proposing
 > something new. The authoritative feature-level source of truth remains
 > `specs/` (61 specs, indexed in `specs/README.md`).
 
@@ -232,9 +232,9 @@ milestones name against Gitea, and sorted the 40 issues opened since 10-11 into
 M2, M3 and M9.
 
 **Refreshed 2026-11-25.** 18.1.0 to 18.6.0 shipped on 11-23 and 11-24, and
-18.6.0 is in production. M9, M3, M4 and M6 are closed, and M10 (below) is now the active milestone. Also open: M2 (#576, Joe), M7 (launch posts, Caleb) and M5 (needs a spec). Outside any milestone: #715 (preview CSP) and #691 (QA runner).
+18.6.0 was in production. M9, M3, M4 and M6 were closed, and M10 (below) became the active milestone. Also open: M2 (#576, Joe), M7 (launch posts, Caleb) and M5 (needs a spec). Outside any milestone: #715 (preview CSP) and #691 (QA runner, closed 2026-11-25).
 
-**M10 added 2026-11-25** (Caleb's go): the top three of the 2026-11-24 UI review, #725, #722 and #718, plus the dead CSS from #724, as 18.7.0. The rest of #717–#726 stays open in ranked order. M10 is the active milestone.
+**M10 added 2026-11-25** (Caleb's go): the top three of the 2026-11-24 UI review, #725, #722 and #718, plus the dead CSS from #724, as 18.7.0. The rest of #717–#726 stays open in ranked order. M10 was the active milestone until it closed on 2026-11-26.
 
 **M10 closed 2026-11-26:** 18.7.0 (#735, #736, #740, #746, #753; release #758) is in production. No milestone is active. Open: M2 (#576, Joe), M7 (launch posts, Caleb), M5 (needs a spec), #745, and the rest of the UI review (#717, #719–#721, #723, #724, #726).
 
@@ -247,7 +247,7 @@ See `specs/README.md` for the authoritative per-feature index and status. The
 canonical foundation spec is `specs/v1-launcher.md`; everything else builds on
 it.
 
-What 17.0.0 to 18.6.0 added:
+What 17.0.0 to 18.7.0 added:
 
 | Feature | Shipped | Spec |
 |---|---|---|
@@ -264,6 +264,9 @@ What 17.0.0 to 18.6.0 added:
 | A failed part of the app shows Reload and Close, not a blank page | 18.3.0 | `SPEC-ui-cleanup-18.3.0` |
 | The API calls the member role `member` (`user` accepted until 19.0.0) | 18.4.0 | `SPEC-decisions-18.4.0` |
 | A full Content-Security-Policy | 18.6.0 | `SPEC-cleanup-18.6.0` |
+| UI quick wins: theme-coloured browser chrome, tap Updated to refresh, toasts that pause and close, Gear menu arrow keys, status shapes, Library groups and Added filter, sign-in polish | 18.7.0 | `SPEC-ui-quick-wins` |
+| A dashboard skeleton at the real grid size, and empty states with an action per role | 18.7.0 | `SPEC-dashboard-empty-loading` |
+| Group headers with an app count, status bar and "N down" badge; groups fold, saved per user | 18.7.0 | `SPEC-group-header-collapse` |
 
 User docs: `docs/accounts.md`, `docs/kid-accounts.md`,
 `docs/single-sign-on.md`, `docs/backup-import.md`, `docs/widgets.md`.

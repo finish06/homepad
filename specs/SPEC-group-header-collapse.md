@@ -4,7 +4,7 @@
 **Version:** 0.4.0
 **Created:** 2026-11-25
 **Author:** Claude (Caleb asked 2026-11-25 to write up M10)
-**Status:** Approved — 2026-11-25 (Caleb's answers are in §6). Shipped in 18.7.0 (#746, #753); see §10 (as built). Kare checks the status bar during the build, since it replaces the held direction in SPEC-app-grid §10.1–10.3
+**Status:** Approved — 2026-11-25 (Caleb's answers are in §6). Shipped in 18.7.0 (#746, #753); see §10 (as built). Kare's check of the status bar on a real screen is still to do; it replaces the held direction in SPEC-app-grid §10.1–10.3
 **Repo:** `Code/homepad` (web app at the root; no `api/` changes)
 **Issues:** #718
 **Target version:** 18.7.0

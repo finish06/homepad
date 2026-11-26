@@ -22,6 +22,7 @@
 - #576: staging HTTPS ingress serves the wrong certificate. Staging is used over http. It is the last open item in M2.
 - Kare: screen checks of the pip shapes, skeleton/empty-box button and group status bar (shipped without them).
 - #745: health panel shifts the page as services load.
+- #691 (QA runner has no Go or node_modules) closed 2026-11-25; `docs/testing.md` still says QA's runner has no Go, and that a "not measured" repo gate is expected.
 - QA bots keep refiling two flakes: Go tests on a shared DB in parallel (#730…#760, 11 issues) and mobile kid-accounts TC-001 (6 issues).
 - #715: preview CSP.
 - #727: QA code-review input on ci-shared @v3.

@@ -3,7 +3,7 @@
 **Target Maturity:** GA (maintain)
 **Status:** COMPLETE
 **Horizon:** DONE
-**Started:** 2026-11-25 (#735 and #736 built in parallel)
+**Started:** 2026-11-25 (#725 and #722 built in parallel; #718 started once #722 merged, as planned)
 **Completed:** 2026-11-26 (18.7.0 in production at `fd60fa7`, 14:39Z)
 **Created:** 2026-11-25, on Caleb's go, from the 2026-11-24 UI review enhancements (#717–#726). The ranking is in the review comments on each issue.
 
@@ -100,6 +100,6 @@ Shared files: `src/index.css` and `src/app/App.tsx` (all three), `src/library/Li
 
 ## Retrospective Notes
 
-- Three parallel builds under one file plan (reservations, a fixed merge order, a named rebaser) all merged in a day and a half.
+- Three workstreams under one file plan (reservations, a fixed merge order, a named rebaser): #725 and #722 in parallel, then #718 on top of #722. All merged in a day and a half.
 - The approved spec carried a data-loss rule (§3.5: a failed load let the next fold overwrite the saved set). Code review flagged it, the builder kept it because it was approved, and it took a follow-up PR (#753) on Caleb's call. A spec rule that review calls data loss is worth escalating before merge, not after.
 - Code review on #753 went four rounds; the fourth partly asked to undo the third. Once the status is green, answering on the PR and stopping was right.
