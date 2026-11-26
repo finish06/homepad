@@ -138,6 +138,17 @@ function useViewportWidth(): number {
 const NO_IDS: ReadonlySet<string> = new Set();
 const COLLAPSE_GET_TIMEOUT_MS = 3000;
 const COLLAPSE_SAVE_FAILED = "Couldn't save. Try again.";
+const COLLAPSE_NOT_LOADED = "Couldn't load your saved groups, so folds won't be saved this time.";
+// The grid toast's kinds: how each is read, and its edge colour. A 'notice' is
+// visual only: its words go out once through the grid's announcer, after the
+// fold message (SPEC-group-header-collapse §3.5, AC-008), so it is not read
+// twice and never cuts in.
+const TOAST_KINDS = {
+  success: { live: 'polite', border: 'border-emerald-500' },
+  error: { live: 'assertive', border: 'border-red-500' },
+  notice: { live: 'off', border: 'border-amber-500' },
+} as const;
+type ToastKind = keyof typeof TOAST_KINDS;
 
 // pruneIds keeps only the ids of boxes on screen (`ids`; null = not loaded yet,
 // keep all). Returns `set` itself when nothing was dropped.
@@ -211,16 +222,36 @@ export default function AppGrid({
   // (AC-014/015). editMode is admin-only upstream, so the pencil never renders
   // for a non-admin — the modal is unreachable without the affordance.
   const [editTarget, setEditTarget] = useState<{ service: Service; opener: HTMLElement | null } | null>(null);
-  const [toast, setToast] = useState<{ msg: string; kind: 'success' | 'error' } | null>(null);
+  const [toast, setToastState] = useState<{ msg: string; kind: ToastKind } | null>(null);
+  // The toast on screen, current as soon as it is set (not a render later), so
+  // a toggle in the same batch as another toast still sees the slot taken.
+  const toastRef = useRef(toast);
+  const setToast = useCallback((next: { msg: string; kind: ToastKind } | null) => {
+    toastRef.current = next;
+    setToastState(next);
+  }, []);
+  // SPEC-group-header-collapse §3.5 — the "folds won't be saved" notice. The
+  // first fold after a failed load says it once, in the grid's announcer (the
+  // only live region for it). Its toast is visual only and never goes over
+  // another toast (the grid has one slot): it waits and shows when that one goes.
+  const notLoadedTold = useRef(false);
+  const notLoadedToastWaiting = useRef(false);
   // v23 — the service whose IframeOverlay is open (clickAction='iframe'), or null.
   const [iframeTarget, setIframeTarget] = useState<Service | null>(null);
   const openIframe = useCallback((service: Service) => setIframeTarget(service), []);
 
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(null), 3500);
+    const t = setTimeout(() => {
+      if (notLoadedToastWaiting.current) {
+        notLoadedToastWaiting.current = false;
+        setToast({ msg: COLLAPSE_NOT_LOADED, kind: 'notice' });
+      } else {
+        setToast(null);
+      }
+    }, 3500);
     return () => clearTimeout(t);
-  }, [toast]);
+  }, [toast, setToast]);
 
   // Sensors for box drag-to-reorder (Edit Dashboard). Pointer with an 8px
   // activation so a click on a width button still registers; touch with a
@@ -261,11 +292,18 @@ export default function AppGrid({
   // `collapsedReady` turns true when the GET settles (any outcome) or after
   // COLLAPSE_GET_TIMEOUT_MS, whichever is first; a later reply is ignored for
   // this mount. A kid sends no request: ready at once, nothing folded.
+  //
+  // `collapsedLoaded` is true only when the GET returned a set (empty
+  // included) in time. Without it the server's set is unknown, so toggles fold
+  // on screen but no PUT goes out for the rest of this mount: a PUT would
+  // replace the saved set with whatever this screen shows (§3.5).
   const [collapsedReady, setCollapsedReady] = useState(isKid);
   const [desired, setDesiredState] = useState<ReadonlySet<string>>(NO_IDS);
   const desiredRef = useRef<ReadonlySet<string>>(NO_IDS);
   const confirmedRef = useRef<ReadonlySet<string>>(NO_IDS);
   const putInFlight = useRef(false);
+  // A kid's set is known (always empty, §3.7), so it counts as loaded.
+  const [collapsedLoaded, setCollapsedLoaded] = useState(isKid);
   // The ids of the boxes on screen, once loaded (null before): what a set is
   // pruned to.
   const boxIdsRef = useRef<ReadonlySet<string> | null>(null);
@@ -288,6 +326,7 @@ export default function AppGrid({
       if (done) return;
       done = true;
       clearTimeout(timer);
+      if (ids) setCollapsedLoaded(true);
       if (ids && ids.length > 0) {
         const set = new Set(ids);
         confirmedRef.current = set;
@@ -345,7 +384,7 @@ export default function AppGrid({
       }
     };
     void run();
-  }, [showDesired]);
+  }, [showDesired, setToast]);
 
   const svcs = ctx ? ctx.items : ownSvcs;
   // SPEC-dashboard-empty-loading §3.2 — the ONE loading flag. The skeleton shows
@@ -388,10 +427,20 @@ export default function AppGrid({
       if (collapsing) next.add(box.id);
       else next.delete(box.id);
       showDesired(next);
-      setAnnounce(collapsing ? collapsedMessage(box) : `${box.title} expanded.`);
-      flushCollapsed();
+      const said = collapsing ? collapsedMessage(box) : `${box.title} expanded.`;
+      if (collapsedLoaded) {
+        setAnnounce(said);
+        flushCollapsed();
+      } else if (!notLoadedTold.current) {
+        notLoadedTold.current = true;
+        setAnnounce(`${said} ${COLLAPSE_NOT_LOADED}`);
+        if (toastRef.current) notLoadedToastWaiting.current = true;
+        else setToast({ msg: COLLAPSE_NOT_LOADED, kind: 'notice' });
+      } else {
+        setAnnounce(said);
+      }
     },
-    [showDesired, flushCollapsed],
+    [showDesired, flushCollapsed, collapsedLoaded, setToast],
   );
   // §3.1 / AC-006 — write the rendered shape, debounced, whenever it changes.
   // Not while loading, and not while arranging: every box then shows open, which
@@ -405,7 +454,10 @@ export default function AppGrid({
   const shapeKey = shape ? keyOfShape(shape) : '';
   const shapeRef = useRef(shape);
   shapeRef.current = shape;
-  const canWriteShape = !!userId && !editMode;
+  // §3.5 — and not after a failed or timed-out GET: the folds on screen are
+  // not the saved set, and the shape has no box ids to mix the two by. The
+  // cache keeps the last shape drawn from a real load; the next one rewrites it.
+  const canWriteShape = !!userId && !editMode && collapsedLoaded;
   useEffect(() => {
     if (!canWriteShape || !userId || !shapeKey || !shapeRef.current) return;
     scheduleShapeWrite(userId, shapeRef.current);
@@ -534,7 +586,7 @@ export default function AppGrid({
         setToast({ msg: 'Could not save the new tile order.', kind: 'error' });
       }
     },
-    [svcs, updateSvcs],
+    [svcs, updateSvcs, setToast],
   );
 
   // #241 — box (category) rename. Optimistic name swap, then reconcile to the
@@ -713,11 +765,11 @@ export default function AppGrid({
       {toast && (
         <div className="fixed bottom-4 right-4 z-[60] pointer-events-none">
           <div
-            role="status"
-            aria-live={toast.kind === 'error' ? 'assertive' : 'polite'}
+            role={TOAST_KINDS[toast.kind].live === 'off' ? undefined : 'status'}
+            aria-live={TOAST_KINDS[toast.kind].live}
             data-testid="tile-toast"
             className={`toast-item pointer-events-auto min-w-56 max-w-xs rounded border-l-4 ${
-              toast.kind === 'error' ? 'border-red-500' : 'border-emerald-500'
+              TOAST_KINDS[toast.kind].border
             } bg-white px-4 py-3 text-sm font-medium text-neutral-900 shadow-lg dark:bg-neutral-800 dark:text-neutral-100`}
           >
             {toast.msg}

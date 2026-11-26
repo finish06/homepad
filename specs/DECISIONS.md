@@ -2,6 +2,14 @@
 
 Decisions made under authority delegated by Caleb → Joe (2026-06-11). Newest on top.
 
+## 2026-11-25 — Folds are not saved after a failed load (#718): Caleb's call
+
+Caleb reversed SPEC-group-header-collapse §3.5. If the saved folded groups fail
+to load, or take longer than 3 seconds, folds still work on screen but are not
+saved for that visit, and a toast says so once. The saved set is never
+overwritten by a screen that never saw it. Before, the next fold replaced the
+whole saved set with just that one fold.
+
 ## 2026-11-25 — Members don't see "Add apps"; M10 open questions (#725, #722, #718): Caleb's call
 
 Adding from the App Library is admin-only on the server (403 for members since
