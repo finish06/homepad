@@ -72,16 +72,23 @@ export function bandWidths(
   return counts.map((n) => (n > 0 ? MIN_BAND_PX + (share * n) / apps : 0)) as [number, number, number];
 }
 
-// The status words, in the order the hidden status line reads them (AC-004).
-// They are the tile pips' words (statusLabel in AppGrid), lower-cased, so
-// UNKNOWN is never called "not monitored" and DEGRADED never "down".
-const STATUS_WORDS: readonly [ServiceStatus, string][] = [
-  ['UP', 'up'],
-  ['DOWN', 'down'],
-  ['DEGRADED', 'degraded'],
-  ['UNKNOWN', 'unknown'],
-  ['NOT_MONITORED', 'not monitored'],
-];
+// SPEC-242 §5 — the per-tile status pip's human labels (AppGrid's aria-label
+// "status: {label}" and title). NOT_MONITORED is "not monitored" (absence of
+// monitoring, not a failure — D-6); the rest are the raw state.
+export const STATUS_LABEL: Record<ServiceStatus, string> = {
+  UP: 'UP',
+  DOWN: 'DOWN',
+  DEGRADED: 'DEGRADED',
+  UNKNOWN: 'UNKNOWN',
+  NOT_MONITORED: 'not monitored',
+};
+
+// The status words, in the order the hidden status line reads them (AC-004):
+// the tile pips' labels, lower-cased, so UNKNOWN is never called "not
+// monitored" and DEGRADED never "down".
+const STATUS_WORDS: readonly [ServiceStatus, string][] = (
+  ['UP', 'DOWN', 'DEGRADED', 'UNKNOWN', 'NOT_MONITORED'] as const
+).map((s) => [s, STATUS_LABEL[s].toLowerCase()]);
 
 // statusLine — "2 up, 1 down, 1 degraded, 1 unknown, 1 not monitored". Zero
 // counts are left out; an empty box gives "". A status the client does not know

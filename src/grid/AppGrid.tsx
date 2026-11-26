@@ -51,7 +51,7 @@ import {
   shapeOf,
   type GridShape,
 } from './gridShapeCache';
-import { BAND_CLASS, bandCounts, bandWidths, countPhrase, isDown, statusLine } from '../lib/statusBands';
+import { BAND_CLASS, STATUS_LABEL, bandCounts, bandWidths, countPhrase, isDown, statusLine } from '../lib/statusBands';
 import ChunkErrorBoundary from '../ui/ChunkErrorBoundary';
 import { CONTENT_WIDTH } from '../lib/layout';
 import { useResolvedTheme } from '../theme/theme';
@@ -138,9 +138,9 @@ function useViewportWidth(): number {
 const NO_IDS: ReadonlySet<string> = new Set();
 const COLLAPSE_GET_TIMEOUT_MS = 3000;
 const COLLAPSE_SAVE_FAILED = "Couldn't save. Try again.";
-// The newest collapse PUT on this page. A new grid mount (a catalog reload
-// remounts AppGrid) waits for it before its GET.
-let lastCollapsePut: Promise<unknown> = Promise.resolve();
+// The newest run of collapse PUTs on this page (it never rejects). A new grid
+// mount (a catalog reload remounts AppGrid) lets it land before its GET.
+let lastCollapseSave: Promise<void> = Promise.resolve();
 
 // pruneIds keeps only the ids of boxes on screen (`ids`; null = not loaded yet,
 // keep all). Returns `set` itself when nothing was dropped.
@@ -287,6 +287,8 @@ export default function AppGrid({
   useEffect(() => {
     if (isKid) return;
     let done = false;
+    let asked = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const finish = (ids: string[] | null) => {
       if (done) return;
       done = true;
@@ -298,15 +300,22 @@ export default function AppGrid({
       }
       setCollapsedReady(true);
     };
-    // request() has no timeout of its own, so the grid bounds the wait here.
-    const timer = setTimeout(() => finish(null), COLLAPSE_GET_TIMEOUT_MS);
-    // Any failure, a throw included, means "all expanded".
-    // A remount (catalog reload) reads after the last mount's PUT has landed,
-    // so it never draws a set older than the one the user just saved.
-    lastCollapsePut
-      .catch(() => undefined)
-      .then(() => getCollapsedCategories())
-      .then(finish, () => finish(null));
+    const ask = () => {
+      if (done || asked) return;
+      asked = true;
+      // request() has no timeout of its own, so the grid bounds the GET here.
+      clearTimeout(timer);
+      timer = setTimeout(() => finish(null), COLLAPSE_GET_TIMEOUT_MS);
+      // Any failure, a throw included, means "all expanded".
+      Promise.resolve()
+        .then(() => getCollapsedCategories())
+        .then(finish, () => finish(null));
+    };
+    // A remount (a catalog reload) first lets the previous mount's saves land,
+    // so it never reads a set older than the one the user just saved. That
+    // wait has its own bound and does not eat into the GET's.
+    timer = setTimeout(ask, COLLAPSE_GET_TIMEOUT_MS);
+    lastCollapseSave.then(ask, ask);
     return () => {
       done = true;
       clearTimeout(timer);
@@ -318,28 +327,33 @@ export default function AppGrid({
   // moved on meanwhile, one follow-up PUT sends the newer set; a success never
   // changes the screen. On failure the screen goes back to `confirmed`, any
   // follow-up is dropped (newer toggles included) and the grid toast says so
-  // once.
-  const flushCollapsed = useCallback(async () => {
+  // once. The loop outlives an unmount, so toggles made just before a remount
+  // are still saved; only the screen updates stop.
+  const flushCollapsed = useCallback(() => {
     if (putInFlight.current) return;
     putInFlight.current = true;
-    try {
-      for (;;) {
-        const sent = desiredRef.current;
-        const put = Promise.resolve(setCollapsedCategories([...sent]));
-        lastCollapsePut = put;
-        const ok = await put;
-        if (!aliveRef.current) return;
-        if (!ok) {
-          showDesired(confirmedRef.current);
-          setToast({ msg: COLLAPSE_SAVE_FAILED, kind: 'error' });
-          return;
+    const run = async () => {
+      try {
+        for (;;) {
+          const sent = desiredRef.current;
+          const ok = await Promise.resolve()
+            .then(() => setCollapsedCategories([...sent]))
+            .catch(() => false);
+          if (!ok) {
+            if (aliveRef.current) {
+              showDesired(confirmedRef.current);
+              setToast({ msg: COLLAPSE_SAVE_FAILED, kind: 'error' });
+            }
+            return;
+          }
+          confirmedRef.current = pruneIds(sent, boxIdsRef.current);
+          if (sameIds(desiredRef.current, confirmedRef.current)) return;
         }
-        confirmedRef.current = pruneIds(sent, boxIdsRef.current);
-        if (sameIds(desiredRef.current, confirmedRef.current)) return;
+      } finally {
+        putInFlight.current = false;
       }
-    } finally {
-      putInFlight.current = false;
-    }
+    };
+    lastCollapseSave = run();
   }, [showDesired]);
 
   const svcs = ctx ? ctx.items : ownSvcs;
@@ -360,16 +374,11 @@ export default function AppGrid({
   const recentMounted = !loading && !(isAdmin && editMode) && (svcs?.length ?? 0) > 0;
   const [recentDrawn, setRecentDrawn] = useState(false);
   const showRecent = recentMounted && recentDrawn;
-  // §3.1 / AC-006 — write the rendered shape, debounced, whenever it changes.
-  // Not while loading, and not while arranging: every box then shows open, which
-  // is not the shape the next load draws. Turning arranging off re-runs this with
-  // the view shape. The cleanup cancels a pending write on a newer shape (the
-  // debounce), on arranging turning on, and on unmount. The compact key is the
-  // change signal: a re-render with the same shape keeps the same key, so no
-  // write; the ref hands the effect the shape that key was made from.
-  // §3.6 — while arranging (any user; admin editing implies it) every box shows
-  // open, and the saved set stays as it is. Uncategorized never folds.
-  const isCollapsed = (b: Box) => !editMode && b.id !== '' && desired.has(b.id);
+  // §3.4, §3.6 — a box can fold only outside arrange mode (any user; admin
+  // editing implies it), and Uncategorized never folds. While arranging every
+  // box shows open and the saved set stays as it is.
+  const foldable = (b: Box) => !editMode && b.id !== '';
+  const isCollapsed = (b: Box) => foldable(b) && desired.has(b.id);
   // §3.5 — prune both sets to the boxes on screen whenever those change (a box
   // deleted, a grid reload). Pruning alone never sends a PUT.
   const boxIdsKey = loading ? null : boxes.map((b) => b.id).join('\n');
@@ -393,7 +402,14 @@ export default function AppGrid({
     },
     [showDesired, flushCollapsed],
   );
-  // AC-018 — the real folded state reaches the skeleton cache.
+  // §3.1 / AC-006 — write the rendered shape, debounced, whenever it changes.
+  // Not while loading, and not while arranging: every box then shows open, which
+  // is not the shape the next load draws. Turning arranging off re-runs this with
+  // the view shape. The cleanup cancels a pending write on a newer shape (the
+  // debounce), on arranging turning on, and on unmount. The compact key is the
+  // change signal: a re-render with the same shape keeps the same key, so no
+  // write; the ref hands the effect the shape that key was made from.
+  // SPEC-group-header-collapse AC-018 — the real folded state goes in too.
   const shape = loading ? null : shapeOf(boxes, showRecent, isCollapsed);
   const shapeKey = shape ? keyOfShape(shape) : '';
   const shapeRef = useRef(shape);
@@ -618,7 +634,7 @@ export default function AppGrid({
   const editing = isAdmin && editMode;
   // SPEC-group-header-collapse §3.4, §3.6, §3.7 — who gets a chevron: an adult
   // outside arrange mode, on a real category box (Uncategorized has no id to save).
-  const canFold = (b: Box) => !isKid && !arranging && b.id !== '';
+  const canFold = (b: Box) => !isKid && foldable(b);
   const sortableBoxes = boxes.filter((b) => b.id !== '');
   const uncatBox = boxes.find((b) => b.id === '');
   // AC-009 / AC-022 — the empty-box button is the admin's, and hides while the
@@ -1437,16 +1453,10 @@ function SortableBox({
   );
 }
 
-// SPEC-242 §5 — the per-tile status indicator's human labels. NOT_MONITORED is
-// "not monitored" (absence of monitoring, not a failure — D-6); the rest are the
-// raw state. Drives both the aria-label ("status: {label}") and the title.
-const statusLabel: Record<ServiceStatus, string> = {
-  UP: 'UP',
-  DOWN: 'DOWN',
-  DEGRADED: 'DEGRADED',
-  UNKNOWN: 'UNKNOWN',
-  NOT_MONITORED: 'not monitored',
-};
+// SPEC-242 §5 — the per-tile status indicator's human labels, shared with the
+// box header's hidden status line (src/lib/statusBands.ts). Drives both the
+// aria-label ("status: {label}") and the title.
+const statusLabel = STATUS_LABEL;
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;

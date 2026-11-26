@@ -495,6 +495,45 @@ describe('a remount while a PUT is in flight (code review, #746)', () => {
     expect(api.getCollapsedCategories).toHaveBeenCalledTimes(1);
     expect(isOpen('c1')).toBe(false);
   });
+
+  it('toggles made before an unmount are still saved as the follow-up', async () => {
+    const put = deferred<boolean>();
+    vi.mocked(api.setCollapsedCategories).mockReturnValueOnce(put.promise);
+    const user = userEvent.setup();
+    const first = renderGrid();
+    await screen.findByTestId('app-grid');
+    await user.click(chevron('Media'));
+    await user.click(chevron('Games'));
+    first.unmount();
+    await act(async () => put.resolve(true));
+    expect(api.setCollapsedCategories).toHaveBeenCalledTimes(2);
+    expect(api.setCollapsedCategories).toHaveBeenLastCalledWith(['c1', 'c2']);
+  });
+
+  it("a slow PUT from the last mount does not use up the new mount's 3 s for its GET", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const put = deferred<boolean>();
+    vi.mocked(api.setCollapsedCategories).mockReturnValueOnce(put.promise);
+    const first = renderGrid();
+    await screen.findByTestId('app-grid');
+    await act(async () => chevron('Media').click());
+    first.unmount();
+    const get = deferred<string[] | null>();
+    vi.mocked(api.getCollapsedCategories).mockClear();
+    vi.mocked(api.getCollapsedCategories).mockReturnValue(get.promise);
+    renderGrid();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2800);
+    });
+    await act(async () => put.resolve(true));
+    expect(api.getCollapsedCategories).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2900);
+    });
+    expect(screen.getByTestId('app-grid-loading')).toBeInTheDocument();
+    await act(async () => get.resolve(['c1']));
+    expect(isOpen('c1')).toBe(false);
+  });
 });
 
 describe('kids (AC-016)', () => {
