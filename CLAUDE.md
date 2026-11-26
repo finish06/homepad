@@ -65,7 +65,7 @@ why. CI is the authoritative gate; see `docs/testing.md`.
 ```
 go build ./...                   # build
 go vet ./...                     # lint
-go test ./... -count=1 -p 1      # full suite; needs Postgres (see below)
+go test ./... -count=1           # full suite; needs Postgres (see below)
 make db-up                       # local Postgres on :5432 (database homepad_test)
 make test-db                     # full suite on a throwaway Postgres, then removes it
 ```
@@ -75,6 +75,9 @@ The integration tests read `DATABASE_URL`. Without it they skip, so a bare
 `_test` (for example `homepad_test`); `internal/dbguard` refuses any other name
 and the production host, and has no override. It also refuses a database that
 has homepad tables but no test mark; the error gives the SQL that marks it.
+Each test package uses its own database on that server (`homepad_test` +
+`internal/api` → `homepad_internal_api_<hash>_test`), recreated on each run, so the
+default parallel `go test ./...` is safe; no `-p 1` (#730).
 
 ### Run the API and the web together
 ```

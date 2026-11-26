@@ -6,7 +6,7 @@ commit (branch protection on `main`):
 | Check | Workflow | What it runs |
 |---|---|---|
 | `CI / Web (build, unit tests)` | `.gitea/workflows/ci.yml` | preview and CI shell tests, `npm run lint`, `npm run build`, `npx vitest run` |
-| `CI / API (vet, build, tests)` | `.gitea/workflows/ci.yml` | `go vet ./...`, `go build ./...`, `go test ./... -count=1 -p 1` against a throwaway Postgres |
+| `CI / API (vet, build, tests)` | `.gitea/workflows/ci.yml` | `go vet ./...`, `go build ./...`, `go test ./... -count=1` against a throwaway Postgres |
 | `Browser gate` | `.gitea/workflows/browser-gate.yml` | `npm run test:gate` (real Chromium, mocked API) — only when the PR touches a surface the suite pins; otherwise a no-op pass |
 
 Each job checks which side the PR changed and skips its steps when that side

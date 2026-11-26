@@ -13,7 +13,7 @@ test:
 		echo "  - Unit tests only (no database):        make test-unit"; \
 		exit 1; \
 	fi
-	go test ./... -count=1 -p 1
+	go test ./... -count=1
 
 # Unit tests only — skip anything that needs DATABASE_URL.
 test-unit:
@@ -25,13 +25,13 @@ test-db:
 	docker compose up -d postgres
 	@echo "waiting for postgres to become healthy..."
 	@until [ "$$(docker inspect -f '{{.State.Health.Status}}' $$(docker compose ps -q postgres) 2>/dev/null)" = "healthy" ]; do sleep 1; done
-	-DATABASE_URL=postgres://homepad:homepad@localhost:5432/homepad_test?sslmode=disable go test ./... -count=1 -p 1
+	-DATABASE_URL=postgres://homepad:homepad@localhost:5432/homepad_test?sslmode=disable go test ./... -count=1
 	docker compose down -v
 
 # Full suite assuming a Postgres is reachable via DATABASE_URL.
 test-integration: db-up
 	DATABASE_URL?=postgres://homepad:homepad@localhost:5432/homepad_test?sslmode=disable \
-		go test ./... -count=1 -p 1
+		go test ./... -count=1
 
 run:
 	go run ./cmd/homepad-api
