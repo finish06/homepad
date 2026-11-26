@@ -397,14 +397,21 @@ describe('loading and the saved set (AC-009, AC-012)', () => {
     });
   }
 
-  it('the notice is polite, so the fold announcement is not cut off', async () => {
+  it('the notice is said once, after the fold message; its toast is visual only', async () => {
     vi.mocked(api.getCollapsedCategories).mockResolvedValue(null);
     renderGrid();
     await screen.findByTestId('app-grid');
     await act(async () => chevron('Media').click());
+    expect(screen.getByTestId('app-grid-announce').textContent).toBe(
+      `Media collapsed. 6 apps: 2 up, 1 down, 1 degraded, 1 unknown, 1 not monitored. ${NOT_LOADED}`,
+    );
     const toast = screen.getByTestId('tile-toast');
-    expect(toast).toHaveAttribute('aria-live', 'polite');
+    expect(toast).toHaveAttribute('aria-live', 'off');
+    expect(toast).not.toHaveAttribute('role');
     expect(toast).toHaveClass('border-amber-500');
+    // The next fold is announced plainly: the notice is not repeated.
+    await act(async () => chevron('Games').click());
+    expect(screen.getByTestId('app-grid-announce').textContent).toBe('Games collapsed. 1 app: 1 up.');
   });
 
   // A failed tile-order save (admin arrange mode) is the other toast that can
@@ -442,7 +449,6 @@ describe('loading and the saved set (AC-009, AC-012)', () => {
       await vi.advanceTimersByTimeAsync(3600);
     });
     expect(screen.getByTestId('tile-toast').textContent).toBe(NOT_LOADED);
-    expect(screen.getByTestId('app-grid-announce').textContent).toBe(NOT_LOADED);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3600);
     });
@@ -450,27 +456,6 @@ describe('loading and the saved set (AC-009, AC-012)', () => {
     await act(async () => chevron('Media').click());
     expect(screen.queryByTestId('tile-toast')).toBeNull();
     expect(api.setCollapsedCategories).not.toHaveBeenCalled();
-  });
-
-  it('a notice cut short by another toast comes back after it', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    vi.mocked(api.getCollapsedCategories).mockResolvedValue(null);
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    const { rerender } = renderGrid({ isAdmin: true, editMode: false });
-    await screen.findByTestId('app-grid');
-    await act(async () => chevron('Media').click());
-    expect(screen.getByTestId('tile-toast').textContent).toBe(NOT_LOADED);
-    expect(screen.getByTestId('app-grid-announce').textContent).toBe(`Media collapsed. 6 apps: 2 up, 1 down, 1 degraded, 1 unknown, 1 not monitored. ${NOT_LOADED}`);
-    rerender({ isAdmin: true, editMode: true });
-    await failTileOrderSave(user);
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(3600);
-    });
-    expect(screen.getByTestId('tile-toast').textContent).toBe(NOT_LOADED);
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(3600);
-    });
-    expect(screen.queryByTestId('tile-toast')).toBeNull();
   });
 
   it('an empty saved set still counts as loaded: a toggle sends its PUT', async () => {

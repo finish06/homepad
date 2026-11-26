@@ -583,14 +583,16 @@ export async function setLayout(order: string[]): Promise<boolean> {
 // boxes (SPEC-group-header-collapse §3.5, §4). getCollapsedCategories returns
 // the category ids, or null on any failure (network, non-200, a body that does
 // not parse) so the grid renders every box open. A 200 without a `collapsed`
-// array is an empty set. Kids never call it (AppGrid gates on isKid).
+// array is null too, not an empty set: the API always sends the array, and the
+// grid saves folds only after a real load, so an unknown set must never read as
+// empty and be overwritten. Kids never call it (AppGrid gates on isKid).
 export async function getCollapsedCategories(): Promise<string[] | null> {
   const { status, res } = await request('/api/me/collapsed-categories');
   if (!res || status !== 200) return null;
   try {
     const data = (await res.json()) as { collapsed?: unknown } | null;
     const ids = data?.collapsed;
-    return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : [];
+    return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : null;
   } catch {
     return null;
   }

@@ -591,8 +591,13 @@ describe('getCollapsedCategories', () => {
     expect(fn).toHaveBeenCalledWith('/api/me/collapsed-categories', { credentials: 'include' });
   });
 
-  it('reads a 200 without a collapsed array as an empty set, and drops non-string ids', async () => {
+  it('reads a 200 without a collapsed array as unknown (null), and drops non-string ids', async () => {
+    // Unknown, not empty: the grid must not save folds over a set it never saw.
     mockFetch(JSON.stringify({}), 200);
+    await expect(getCollapsedCategories()).resolves.toBeNull();
+    mockFetch(JSON.stringify({ collapsed: null }), 200);
+    await expect(getCollapsedCategories()).resolves.toBeNull();
+    mockFetch(JSON.stringify({ collapsed: [] }), 200);
     await expect(getCollapsedCategories()).resolves.toEqual([]);
     mockFetch(JSON.stringify({ collapsed: ['c1', 7, null] }), 200);
     await expect(getCollapsedCategories()).resolves.toEqual(['c1']);
