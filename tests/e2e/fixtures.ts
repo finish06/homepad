@@ -20,7 +20,7 @@ import { test as base, expect, type Browser, type BrowserContext, type BrowserCo
 //   - the first frame of the admin dashboard alone took 3.9 s with the blur.
 // Stopping the header's 1 s clock made no real difference (18.5 s against 20 s).
 // This alone did not hold with 4 workers on 2 CPUs; the other half of the fix
-// is the worker count (tests/e2e/workers.ts).
+// is the worker count in playwright.config.ts.
 //
 // What else changes: an element with backdrop-filter is also a stacking
 // context and the containing block for its absolute and fixed descendants.

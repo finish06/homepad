@@ -13,15 +13,14 @@
 // turns backdrop-filter off in WebKit, and only specs that take `test` from
 // that file get it, so the blocks below fail a spec that gets a page or a
 // context any other way. tests/e2e/fixtures.spec.ts checks, on the built app,
-// that the style really applies. The worker count (tests/e2e/workers.ts) is
+// that the style really applies. The worker count (playwright.config.ts) is
 // the other half of #739.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import ts from 'typescript';
 import { describe, it, expect } from 'vitest';
 import { devices } from '@playwright/test';
-import config, { E2E_WORKERS } from '../../playwright.config';
-import { cgroupCpus, workersFor } from '../e2e/workers';
+import config, { E2E_WORKERS, cgroupCpus, workersFor } from '../../playwright.config';
 
 const mobile = config.projects?.find((p) => p.name === 'mobile');
 const iPhone13 = devices['iPhone 13'];
@@ -148,5 +147,17 @@ describe('e2e worker count follows the CPU limit (#739)', () => {
 
   it('is what playwright.config.ts uses', () => {
     expect(config.workers).toBe(E2E_WORKERS);
+  });
+
+  // The web image's Docker build typechecks playwright.config.ts, and
+  // .dockerignore leaves tests/ out of it. An import from tests/ broke that
+  // build on this PR's second commit.
+  it('playwright.config.ts imports nothing from tests/', () => {
+    const src = readFileSync(join(__dirname, '..', '..', 'playwright.config.ts'), 'utf8');
+    const sf = ts.createSourceFile('playwright.config.ts', src, ts.ScriptTarget.Latest, true);
+    const from = sf.statements
+      .filter(ts.isImportDeclaration)
+      .map((d) => (d.moduleSpecifier as ts.StringLiteral).text);
+    expect(from.filter((m) => m.startsWith('.'))).toEqual([]);
   });
 });
