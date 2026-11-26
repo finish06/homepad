@@ -37,7 +37,7 @@ export const BAND_CLASS: readonly [string, string, string] = [tickClass.UP, tick
 // bandOf maps any status string to its band. A status the client does not know
 // (a newer server) is gray: unobservable, never claimed up or down.
 export function bandOf(status: string): Band {
-  return Object.hasOwn(statusBand, status) ? statusBand[status as ServiceStatus] : 1;
+  return Object.prototype.hasOwnProperty.call(statusBand, status) ? statusBand[status as ServiceStatus] : 1;
 }
 
 // isDown is the health panel's "N down" rule: DOWN and DEGRADED both count
@@ -96,7 +96,7 @@ const STATUS_WORDS: readonly [ServiceStatus, string][] = (
 export function statusLine(statuses: readonly string[]): string {
   const n = new Map<string, number>();
   for (const s of statuses) {
-    const k = Object.hasOwn(STATUS_LABEL, s) ? s : 'UNKNOWN';
+    const k = Object.prototype.hasOwnProperty.call(STATUS_LABEL, s) ? s : 'UNKNOWN';
     n.set(k, (n.get(k) ?? 0) + 1);
   }
   return STATUS_WORDS.filter(([s]) => n.get(s))

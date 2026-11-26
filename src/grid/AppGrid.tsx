@@ -322,7 +322,8 @@ export default function AppGrid({
       try {
         for (;;) {
           if (!aliveRef.current) return;
-          const sent = desiredRef.current;
+          // Only ids of boxes on screen go out (§3.5).
+          const sent = pruneIds(desiredRef.current, boxIdsRef.current);
           const ok = await Promise.resolve()
             .then(() => setCollapsedCategories([...sent]))
             .catch(() => false);
@@ -335,8 +336,8 @@ export default function AppGrid({
           }
           const ids = boxIdsRef.current;
           confirmedRef.current = pruneIds(sent, ids);
-          // Compared pruned on both sides, so an id that is no longer on
-          // screen can never keep the loop sending.
+          // Boxes may have changed while the PUT was out, so both sides are
+          // pruned again; an id no longer on screen can't keep the loop going.
           if (sameIds(pruneIds(desiredRef.current, ids), confirmedRef.current)) return;
         }
       } finally {
