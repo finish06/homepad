@@ -2,6 +2,24 @@
   "pending": [],
   "versions": [
     {
+      "version": "18.7.0",
+      "date": "2026-11-26",
+      "changes": [
+        {
+          "type": "feature",
+          "text": "Each group header shows how many apps it holds, a small status bar, and how many are down. You can fold a group away, and Homepad remembers it for your account."
+        },
+        {
+          "type": "enhancement",
+          "text": "The dashboard loads into its real shape instead of a spinner, and an empty dashboard or box tells you how to add apps."
+        },
+        {
+          "type": "enhancement",
+          "text": "Smaller fixes: tap Updated to refresh, notices you can pause and close, arrow keys in the gear menu, shapes as well as colours for down and degraded apps, groups and an Added filter in the App Library, and a show-password button when signing in."
+        }
+      ]
+    },
+    {
       "version": "18.6.0",
       "date": "2026-11-24",
       "changes": [
