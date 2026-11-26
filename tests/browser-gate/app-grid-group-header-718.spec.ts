@@ -48,13 +48,13 @@ const SERVICES = [
 
 // The server's collapse sets, per user, with the real contract: GET returns the
 // set, PUT replaces it and answers 204 with no body.
-type Server = { sets: Record<string, string[]>; puts: string[][]; user: string };
+type Server = { sets: Record<string, string[]>; puts: string[][]; user: string; getFails: boolean };
 
 async function setup(
   page: Page,
   opts: { width?: number; density?: 'large' | 'compact' | 'list'; role?: 'member' | 'admin'; sets?: Record<string, string[]> } = {},
 ): Promise<Server> {
-  const server: Server = { sets: { u1: [], u2: [], ...opts.sets }, puts: [], user: 'u1' };
+  const server: Server = { sets: { u1: [], u2: [], ...opts.sets }, puts: [], user: 'u1', getFails: false };
   await page.setViewportSize({ width: opts.width ?? 1440, height: 900 });
   await mockApi(page, SERVICES, CATEGORIES, opts.role ?? 'member', opts.density ?? 'large');
   await page.route('**/api/me', (route) =>
@@ -70,6 +70,7 @@ async function setup(
       server.sets[server.user] = ids.filter((id) => CATEGORIES.some((c) => c.id === id));
       return route.fulfill({ status: 204, body: '' });
     }
+    if (server.getFails) return route.fulfill({ status: 500, body: '' });
     return route.fulfill({ json: { collapsed: server.sets[server.user] ?? [] } });
   });
   return server;
@@ -108,6 +109,33 @@ test.describe('saved per user (AC-011)', () => {
     await expect(box(page, 'cat-2').getByTestId('box-tools')).toHaveCount(1);
     expect(server.sets.u1).toEqual(['cat-2']);
     expect(server.puts).toHaveLength(1);
+  });
+
+  // §3.5 (Caleb, 2026-11-25): a failed GET leaves the saved set unknown, so
+  // folds that mount are not saved and the server's set is never overwritten.
+  test('after a failed GET, a fold shows but is not saved; the next load restores the saved set', async ({ page }) => {
+    const server = await setup(page, { sets: { u1: ['cat-1'] } });
+    server.getFails = true;
+    await page.goto('/');
+    await expect(page.getByTestId('app-grid')).toBeVisible();
+    await expect(box(page, 'cat-1').getByTestId('box-tools')).toHaveCount(1);
+    const games = box(page, 'cat-2').getByRole('button', { name: 'Games apps' });
+    await games.click();
+    await expect(games).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('tile-toast')).toHaveText(
+      "Couldn't load your saved groups, so folds won't be saved this time.",
+    );
+    await games.click();
+    await expect(games).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByTestId('tile-toast')).toHaveCount(1);
+
+    server.getFails = false;
+    await page.reload();
+    await expect(page.getByTestId('app-grid')).toBeVisible();
+    await expect(box(page, 'cat-1').getByTestId('box-tools')).toHaveCount(0);
+    await expect(box(page, 'cat-2').getByTestId('box-tools')).toHaveCount(1);
+    expect(server.puts).toEqual([]);
+    expect(server.sets.u1).toEqual(['cat-1']);
   });
 });
 

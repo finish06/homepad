@@ -138,6 +138,7 @@ function useViewportWidth(): number {
 const NO_IDS: ReadonlySet<string> = new Set();
 const COLLAPSE_GET_TIMEOUT_MS = 3000;
 const COLLAPSE_SAVE_FAILED = "Couldn't save. Try again.";
+const COLLAPSE_NOT_LOADED = "Couldn't load your saved groups, so folds won't be saved this time.";
 
 // pruneIds keeps only the ids of boxes on screen (`ids`; null = not loaded yet,
 // keep all). Returns `set` itself when nothing was dropped.
@@ -261,11 +262,18 @@ export default function AppGrid({
   // `collapsedReady` turns true when the GET settles (any outcome) or after
   // COLLAPSE_GET_TIMEOUT_MS, whichever is first; a later reply is ignored for
   // this mount. A kid sends no request: ready at once, nothing folded.
+  //
+  // `collapsedLoaded` is true only when the GET returned a set (empty
+  // included) in time. Without it the server's set is unknown, so toggles fold
+  // on screen but no PUT goes out for the rest of this mount: a PUT would
+  // replace the saved set with whatever this screen shows (§3.5).
   const [collapsedReady, setCollapsedReady] = useState(isKid);
   const [desired, setDesiredState] = useState<ReadonlySet<string>>(NO_IDS);
   const desiredRef = useRef<ReadonlySet<string>>(NO_IDS);
   const confirmedRef = useRef<ReadonlySet<string>>(NO_IDS);
   const putInFlight = useRef(false);
+  const collapsedLoaded = useRef(false);
+  const notLoadedTold = useRef(false);
   // The ids of the boxes on screen, once loaded (null before): what a set is
   // pruned to.
   const boxIdsRef = useRef<ReadonlySet<string> | null>(null);
@@ -288,6 +296,7 @@ export default function AppGrid({
       if (done) return;
       done = true;
       clearTimeout(timer);
+      if (ids) collapsedLoaded.current = true;
       if (ids && ids.length > 0) {
         const set = new Set(ids);
         confirmedRef.current = set;
@@ -389,7 +398,12 @@ export default function AppGrid({
       else next.delete(box.id);
       showDesired(next);
       setAnnounce(collapsing ? collapsedMessage(box) : `${box.title} expanded.`);
-      flushCollapsed();
+      if (collapsedLoaded.current) {
+        flushCollapsed();
+      } else if (!notLoadedTold.current) {
+        notLoadedTold.current = true;
+        setToast({ msg: COLLAPSE_NOT_LOADED, kind: 'error' });
+      }
     },
     [showDesired, flushCollapsed],
   );

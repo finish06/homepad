@@ -27,6 +27,8 @@ vi.mock('../api', () => ({
   setCollapsedCategories: vi.fn(),
 }));
 
+const NOT_LOADED = "Couldn't load your saved groups, so folds won't be saved this time.";
+
 const cat = (id: string, name: string, sortIndex = 0): Category => ({ id, name, sortIndex, gridWidth: 6 });
 
 let sid = 0;
@@ -344,9 +346,65 @@ describe('loading and the saved set (AC-009, AC-012)', () => {
     expect(['c1', 'c2', 'c3'].every(isOpen)).toBe(true);
     await act(async () => get.resolve(['c1', 'c2']));
     expect(['c1', 'c2', 'c3'].every(isOpen)).toBe(true);
-    // A toggle now sends the on-screen set, not the late server set.
+    // The set never loaded, so a toggle folds on screen but sends no PUT: the
+    // saved set on the server is never overwritten (§3.5).
     await act(async () => chevron('Games').click());
+    expect(isOpen('c2')).toBe(false);
+    expect(api.setCollapsedCategories).not.toHaveBeenCalled();
+    expect(screen.getByTestId('tile-toast').textContent).toBe(NOT_LOADED);
+  });
+
+  // Caleb, 2026-11-25: after a failed or timed-out GET, folds are not saved,
+  // so the saved set is never overwritten. One toast per mount says so.
+  for (const [label, arrange] of [
+    ['a failed GET', () => vi.mocked(api.getCollapsedCategories).mockResolvedValue(null)],
+    ['a GET that rejects', () => vi.mocked(api.getCollapsedCategories).mockRejectedValue(new Error('boom'))],
+    [
+      'a GET held past 3 s',
+      () => vi.mocked(api.getCollapsedCategories).mockReturnValue(deferred<string[] | null>().promise),
+    ],
+  ] as const) {
+    it(`after ${label}, toggles fold on screen, send no PUT and toast once`, async () => {
+      vi.useFakeTimers();
+      arrange();
+      renderGrid();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3100);
+      });
+      expect(screen.getByTestId('app-grid')).toBeInTheDocument();
+      expect(screen.queryByTestId('tile-toast')).toBeNull();
+      const announce = screen.getByTestId('app-grid-announce');
+      await act(async () => chevron('Media').click());
+      expect(isOpen('c1')).toBe(false);
+      expect(announce.textContent).toMatch(/^Media collapsed\./);
+      expect(screen.getAllByTestId('tile-toast')).toHaveLength(1);
+      expect(screen.getByTestId('tile-toast').textContent).toBe(NOT_LOADED);
+      // Let the toast go, then toggle twice more: no second toast, no PUT.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4000);
+      });
+      expect(screen.queryByTestId('tile-toast')).toBeNull();
+      await act(async () => chevron('Games').click());
+      await act(async () => chevron('Media').click());
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      expect(isOpen('c1')).toBe(true);
+      expect(isOpen('c2')).toBe(false);
+      expect(announce.textContent).toBe('Media expanded.');
+      expect(screen.queryByTestId('tile-toast')).toBeNull();
+      expect(api.setCollapsedCategories).not.toHaveBeenCalled();
+    });
+  }
+
+  it('an empty saved set still counts as loaded: a toggle sends its PUT', async () => {
+    vi.mocked(api.getCollapsedCategories).mockResolvedValue([]);
+    const user = userEvent.setup();
+    renderGrid();
+    await screen.findByTestId('app-grid');
+    await user.click(chevron('Games'));
     expect(api.setCollapsedCategories).toHaveBeenCalledWith(['c2']);
+    expect(screen.queryByTestId('tile-toast')).toBeNull();
   });
 
   it('ignores ids that match no box, with no error', async () => {
