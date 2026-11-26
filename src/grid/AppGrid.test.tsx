@@ -299,7 +299,8 @@ describe('empty box copy and the Library button (AC-009, AC-021, AC-022)', () =>
     expect(within(mediaBox()).getByTestId('box-empty')).toHaveTextContent(
       /^No apps here yet\. Ask an admin to add some\.$/,
     );
-    expect(within(mediaBox()).queryByRole('button')).toBeNull();
+    // The header's fold chevron (SPEC-group-header-collapse) is the box's only button.
+    expect(within(mediaBox()).queryAllByRole('button').map((b) => b.dataset.testid)).toEqual(['box-chevron']);
   });
 
   it('kid (any non-admin, large tiles): the same line and no button', async () => {
@@ -308,7 +309,8 @@ describe('empty box copy and the Library button (AC-009, AC-021, AC-022)', () =>
     expect(within(mediaBox()).getByTestId('box-empty')).toHaveTextContent(
       'No apps here yet. Ask an admin to add some.',
     );
-    expect(within(mediaBox()).queryByRole('button')).toBeNull();
+    // The header's fold chevron (SPEC-group-header-collapse) is the box's only button.
+    expect(within(mediaBox()).queryAllByRole('button').map((b) => b.dataset.testid)).toEqual(['box-chevron']);
   });
 
   it('member while member-empty shows: only "No apps here yet." (AC-021)', async () => {

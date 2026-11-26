@@ -579,6 +579,31 @@ export async function setLayout(order: string[]): Promise<boolean> {
   return boolRequest('/api/layout', 204, { method: 'PUT', json: { order } });
 }
 
+// v5 collapsible categories — the signed-in adult's set of folded App Grid
+// boxes (SPEC-group-header-collapse §3.5, §4). getCollapsedCategories returns
+// the category ids, or null on any failure (network, non-200, a body that does
+// not parse) so the grid renders every box open. A 200 without a `collapsed`
+// array is an empty set. Kids never call it (AppGrid gates on isKid).
+export async function getCollapsedCategories(): Promise<string[] | null> {
+  const { status, res } = await request('/api/me/collapsed-categories');
+  if (!res || status !== 200) return null;
+  try {
+    const data = (await res.json()) as { collapsed?: unknown } | null;
+    const ids = data?.collapsed;
+    return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return null;
+  }
+}
+
+// setCollapsedCategories replaces the whole set (PUT, 204, no body). True on
+// any 2xx; false on a network failure or any other status (a kid's 403
+// included), so the caller can put the screen back to the last accepted set.
+export async function setCollapsedCategories(ids: string[]): Promise<boolean> {
+  const { status } = await request('/api/me/collapsed-categories', { method: 'PUT', json: { collapsed: ids } });
+  return status >= 200 && status < 300;
+}
+
 // listLibrary browses the App Library — every offer in sort_index order, each
 // tagged with the caller's `added` hint (A9). Any authenticated user; a non-200
 // (or network failure) yields [] so the browse surface shows the empty state

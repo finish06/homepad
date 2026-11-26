@@ -12,6 +12,7 @@ import {
   deleteLibraryApp,
   deleteService,
   fetchIcon,
+  getCollapsedCategories,
   listLibrary,
   login,
   logout,
@@ -20,6 +21,7 @@ import {
   renameCategory,
   services,
   setCategoryOrder,
+  setCollapsedCategories,
   setFavorite,
   setLayout,
   setLibraryOrder,
@@ -581,6 +583,57 @@ describe('setHealthBarPref', () => {
 
 // ── v5 collapsible categories (per-user collapse set) ────────────────────────
 
+// SPEC-group-header-collapse §3.5 — the web client for the v5 routes.
+describe('getCollapsedCategories', () => {
+  it('GETs /api/me/collapsed-categories and returns the ids on 200', async () => {
+    const fn = mockFetch(JSON.stringify({ collapsed: ['c1', 'c2'] }), 200);
+    await expect(getCollapsedCategories()).resolves.toEqual(['c1', 'c2']);
+    expect(fn).toHaveBeenCalledWith('/api/me/collapsed-categories', { credentials: 'include' });
+  });
+
+  it('reads a 200 without a collapsed array as an empty set, and drops non-string ids', async () => {
+    mockFetch(JSON.stringify({}), 200);
+    await expect(getCollapsedCategories()).resolves.toEqual([]);
+    mockFetch(JSON.stringify({ collapsed: ['c1', 7, null] }), 200);
+    await expect(getCollapsedCategories()).resolves.toEqual(['c1']);
+  });
+
+  it('returns null on a non-200, a bad body or a network failure', async () => {
+    mockFetch(null, 401);
+    await expect(getCollapsedCategories()).resolves.toBeNull();
+    mockFetch('<html>', 200);
+    await expect(getCollapsedCategories()).resolves.toBeNull();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
+    await expect(getCollapsedCategories()).resolves.toBeNull();
+  });
+});
+
+describe('setCollapsedCategories', () => {
+  it('PUTs the whole set and returns true on 204', async () => {
+    const fn = mockFetch(null, 204);
+    await expect(setCollapsedCategories(['c2', 'c1'])).resolves.toBe(true);
+    const [url, opts] = fn.mock.calls[0];
+    expect(url).toBe('/api/me/collapsed-categories');
+    expect(opts).toMatchObject({ method: 'PUT', credentials: 'include' });
+    expect(JSON.parse(opts!.body as string)).toEqual({ collapsed: ['c2', 'c1'] });
+  });
+
+  it('sends an empty set as []', async () => {
+    const fn = mockFetch(null, 204);
+    await setCollapsedCategories([]);
+    expect(JSON.parse(fn.mock.calls[0][1]!.body as string)).toEqual({ collapsed: [] });
+  });
+
+  it("returns false on any non-2xx (a kid's 403 included) and on a network failure", async () => {
+    mockFetch('bad json', 400);
+    await expect(setCollapsedCategories(['c1'])).resolves.toBe(false);
+    mockFetch(null, 403);
+    await expect(setCollapsedCategories(['c1'])).resolves.toBe(false);
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
+    await expect(setCollapsedCategories(['c1'])).resolves.toBe(false);
+  });
+});
+
 describe('setLayout', () => {
   it('PUTs /api/layout with the order and returns true on 204', async () => {
     const fn = mockFetch(null, 204);
@@ -849,8 +902,6 @@ describe('setThemePref (v3)', () => {
     await expect(setThemePref('light')).resolves.toBe(false);
   });
 });
-
-// ── v5 collapsible categories (per-user collapse set) ────────────────────────
 
 // v9.3 App Library client (§7.2/§7.3) — browse + add-from-library for any user,
 // CRUD for admins. URL + body + status-mapping assertions, same shape as the
