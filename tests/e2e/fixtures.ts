@@ -1,7 +1,8 @@
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, type Browser, type BrowserContext, type BrowserContextOptions } from '@playwright/test';
 
-// Every tests/e2e spec imports `test` and `expect` from here, not from
-// '@playwright/test' (tests/infra/e2e-mobile-project.test.ts enforces it).
+// Every tests/e2e spec takes `test` from here, not from '@playwright/test', and
+// makes any extra context with newContext() below, not browser.newContext().
+// tests/infra/e2e-mobile-project.test.ts enforces both.
 //
 // #739: in WebKit (the `mobile` project) every page gets a stylesheet that
 // turns backdrop-filter off. The CI and QA runners have no GPU, so WebKit
@@ -19,11 +20,16 @@ import { test as base, expect } from '@playwright/test';
 //   - the first frame of the admin dashboard alone took 3.9 s with the blur.
 // Stopping the header's 1 s clock made no real difference (18.5 s against 20 s).
 // This alone did not hold with 4 workers on 2 CPUs; the other half of the fix
-// is the worker count in playwright.config.ts.
+// is the worker count (tests/e2e/workers.ts).
 //
-// No e2e spec checks pixels or the glass, so this changes how the page is
-// painted, not what it does. Desktop Chromium keeps the real styles. A
-// context a spec makes itself with browser.newContext() does not get this.
+// What else changes: an element with backdrop-filter is also a stacking
+// context and the containing block for its absolute and fixed descendants.
+// Without it, those descendants are placed and stacked against an ancestor
+// instead. tests/e2e/fixtures.spec.ts checks, with the real styles, that on the
+// screens these specs use the only such descendants are .sr-only text and none
+// sets a z-index, so the layout and hit targets the tests see are the same.
+// No e2e spec checks pixels or the glass. Desktop Chromium keeps the real
+// styles.
 const NO_BACKDROP_FILTER =
   '*, *::before, *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }';
 
@@ -35,7 +41,9 @@ function addNoBackdropFilter(css: string) {
     (document.head ?? document.documentElement).appendChild(style);
   };
   // Init scripts run before the document has an <html> element. Add the style
-  // as soon as there is one, so even the first paint has no blur.
+  // as soon as there is one. A MutationObserver callback is a microtask, and
+  // microtasks run before the browser's next chance to render, so the style is
+  // in place before the first frame (fixtures.spec.ts checks this).
   if (document.documentElement) {
     add();
     return;
@@ -48,10 +56,20 @@ function addNoBackdropFilter(css: string) {
   observer.observe(document, { childList: true });
 }
 
+async function prepare(context: BrowserContext, browserName: string): Promise<BrowserContext> {
+  if (browserName === 'webkit') await context.addInitScript(addNoBackdropFilter, NO_BACKDROP_FILTER);
+  return context;
+}
+
+// newContext — use this instead of browser.newContext(), so a context a spec
+// makes itself is painted the same way as the `page` fixture's.
+export async function newContext(browser: Browser, options?: BrowserContextOptions): Promise<BrowserContext> {
+  return prepare(await browser.newContext(options), browser.browserType().name());
+}
+
 export const test = base.extend({
   context: async ({ context, browserName }, provide) => {
-    if (browserName === 'webkit') await context.addInitScript(addNoBackdropFilter, NO_BACKDROP_FILTER);
-    await provide(context);
+    await provide(await prepare(context, browserName));
   },
 });
 

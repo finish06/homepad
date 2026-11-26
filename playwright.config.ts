@@ -1,5 +1,5 @@
-import { availableParallelism } from 'node:os';
 import { defineConfig, devices } from '@playwright/test';
+import { e2eWorkers } from './tests/e2e/workers';
 
 // The tests/e2e suite runs against the BUILT app served by `vite preview`, not
 // the dev server.
@@ -19,13 +19,10 @@ import { defineConfig, devices } from '@playwright/test';
 const PORT = 4174;
 const BASE_URL = `http://localhost:${PORT}`;
 
-// #739: half the CPUs this process may use, the same share as Playwright's
-// default. The default counts os.cpus(), which in a container is every core on
-// the host, not the container's CPU limit. A 2-CPU job on an 8-core host got
-// 4 workers, so 4 browsers shared 2 CPUs and the WebKit tests ran out of time.
-// availableParallelism() follows the cgroup limit (it said 2 in that job).
+// #739: half the CPUs this job may use, not half the host's cores
+// (Playwright's default). The reasons are in tests/e2e/workers.ts.
 // `--workers` on the command line still wins.
-export const E2E_WORKERS = Math.max(1, Math.floor(availableParallelism() / 2));
+export const E2E_WORKERS = e2eWorkers();
 
 export default defineConfig({
   testDir: './tests/e2e',

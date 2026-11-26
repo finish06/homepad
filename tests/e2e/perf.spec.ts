@@ -1,5 +1,5 @@
 import { type Browser, type Page } from '@playwright/test';
-import { test, expect } from './fixtures';
+import { newContext, test, expect } from './fixtures';
 
 // What this spec is, and — more importantly — what it is NOT.
 //
@@ -113,7 +113,7 @@ async function notBuiltReason(page: Page): Promise<string | null> {
 // Reloading one page would measure a warm cache and quietly drift away from the
 // thing being claimed.
 async function sample(browser: Browser): Promise<Sample> {
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const ctx = await newContext(browser, { viewport: { width: 1440, height: 900 } });
   try {
     const page = await ctx.newPage();
     await mockApi(page);
