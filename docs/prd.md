@@ -1,13 +1,13 @@
 # homepad — Product Requirements Document
 
-**Version:** 0.4.1
+**Version:** 0.4.2
 **Created:** 2026-09-15
-**Updated:** 2026-11-25 (M10 added; M9, M3, M4 and M6 closed)
+**Updated:** 2026-11-26 (M10 closed; 18.7.0 in production)
 **Author:** Caleb Dunn
-**Status:** Adopted (retroactive — written at ADD adoption, v16.2.0 already in production; §1–5 and §7–9 updated for 18.0.0, and checked against 18.6.0 on 2026-11-25)
+**Status:** Adopted (retroactive — written at ADD adoption, v16.2.0 already in production; §1–5 and §7–9 updated for 18.0.0, checked against 18.6.0 on 2026-11-25, and the 18.7.0 UI changes added to §7 on 2026-11-26)
 
 > This PRD was generated during `/add:init` adoption of an existing, shipped
-> project. It documents what homepad *is*, now at 18.6.0, rather than proposing
+> project. It documents what homepad *is*, now at 18.7.0, rather than proposing
 > something new. The authoritative feature-level source of truth remains
 > `specs/` (61 specs, indexed in `specs/README.md`).
 
@@ -214,10 +214,10 @@ status and detail.
 
 | Horizon | Milestone | Goal | Status |
 |---|---|---|---|
-| **Now** | [M10 — UI review, first batch (18.7.0)](milestones/M10-ui-review-first-batch.md) | UI quick wins (#725), dashboard empty and loading states (#722), group header count, status and folding (#718) | NOT_STARTED (specs approved 2026-11-25; active milestone) |
 | **Now** | [M2 — QA pipeline reliability](milestones/M2-qa-pipeline-reliability.md) | One reviewer per PR, a per-PR preview for QA (replaced the shared staging slot), a QA browser env that fails only for real | IN_PROGRESS |
 | **Now** | [M7 — Growth: install funnel + launch](milestones/M7-growth-install-funnel.md) | Organic growth plus the launch posts. The 3× by 11-12 target was missed (accepted by Caleb 11-07) | IN_PROGRESS (funnel done; launch waits on Caleb) |
 | **Later** | [M5 — Non-admin arrange](milestones/M5-non-admin-arrange.md) | Per-user tile drag for non-admins (v29 §3.3) — needs a spec first | NOT_STARTED |
+| **Done** | [M10 — UI review, first batch (18.7.0)](milestones/M10-ui-review-first-batch.md) | UI quick wins (#725), dashboard empty and loading states (#722), group header count, status and folding (#718) | COMPLETE (2026-11-26 — 18.7.0 in production; Kare's screen checks carried) |
 | **Done** | [M9 — 18.0.1: release follow-ups](milestones/M9-18-0-1-follow-ups.md) | Fix what QA found on the 18.0.0 release, and clean up the spec and doc drift from 17.x–18.0 | COMPLETE (2026-11-25 — 31 issues closed, most in 18.0.1, the last in 18.5.0. Two production checks for Caleb carried) |
 | **Done** | [M4 — Accessibility debt](milestones/M4-accessibility-debt.md) | AA everywhere, starting with the dark-mode login (#379) | COMPLETE (2026-11-25 — 9 issues closed: 6 fixed or built in 18.3.0, 18.4.0 and 18.6.0, 3 already fixed or obsolete. #729 added a dark-mode login gate) |
 | **Done** | [M6 — Layout & design evolution](milestones/M6-layout-design-evolution.md) | Kare-led layout and visual decisions | COMPLETE (2026-11-25 — 7 issues closed; #352, #403 and #346 decided by Caleb, no build) |
@@ -232,9 +232,11 @@ milestones name against Gitea, and sorted the 40 issues opened since 10-11 into
 M2, M3 and M9.
 
 **Refreshed 2026-11-25.** 18.1.0 to 18.6.0 shipped on 11-23 and 11-24, and
-18.6.0 is in production. M9, M3, M4 and M6 are closed, and M10 (below) is now the active milestone. Also open: M2 (#576, Joe), M7 (launch posts, Caleb) and M5 (needs a spec). Outside any milestone: #715 (preview CSP) and #691 (QA runner).
+18.6.0 was in production. M9, M3, M4 and M6 were closed, and M10 (below) became the active milestone. Also open: M2 (#576, Joe), M7 (launch posts, Caleb) and M5 (needs a spec). Outside any milestone: #715 (preview CSP) and #691 (QA runner, closed 2026-11-25).
 
-**M10 added 2026-11-25** (Caleb's go): the top three of the 2026-11-24 UI review, #725, #722 and #718, plus the dead CSS from #724, as 18.7.0. The rest of #717–#726 stays open in ranked order. M10 is the active milestone.
+**M10 added 2026-11-25** (Caleb's go): the top three of the 2026-11-24 UI review, #725, #722 and #718, plus the dead CSS from #724, as 18.7.0. The rest of #717–#726 stays open in ranked order. M10 was the active milestone until it closed on 2026-11-26.
+
+**M10 closed 2026-11-26:** 18.7.0 (#735, #736, #740, #746, #753; release #758) is in production. No milestone is active. Open: M2 (#576, Joe), M7 (launch posts, Caleb), M5 (needs a spec), #745, and the rest of the UI review (#717, #719–#721, #723, #724, #726).
 
 **Decisions are folded into milestones**, not held in a separate queue (Caleb,
 2026-10-11): #368 #172 #295 #449 #200 → M1; #487 → M2; #488 #477 → M4; #403 → M6.
@@ -245,7 +247,7 @@ See `specs/README.md` for the authoritative per-feature index and status. The
 canonical foundation spec is `specs/v1-launcher.md`; everything else builds on
 it.
 
-What 17.0.0 to 18.6.0 added:
+What 17.0.0 to 18.7.0 added:
 
 | Feature | Shipped | Spec |
 |---|---|---|
@@ -262,6 +264,9 @@ What 17.0.0 to 18.6.0 added:
 | A failed part of the app shows Reload and Close, not a blank page | 18.3.0 | `SPEC-ui-cleanup-18.3.0` |
 | The API calls the member role `member` (`user` accepted until 19.0.0) | 18.4.0 | `SPEC-decisions-18.4.0` |
 | A full Content-Security-Policy | 18.6.0 | `SPEC-cleanup-18.6.0` |
+| UI quick wins: theme-coloured browser chrome, tap Updated to refresh, toasts that pause and close, Gear menu arrow keys, status shapes, Library groups and Added filter, sign-in polish | 18.7.0 | `SPEC-ui-quick-wins` |
+| A dashboard skeleton at the real grid size, and empty states with an action per role | 18.7.0 | `SPEC-dashboard-empty-loading` |
+| Group headers with an app count, status bar and "N down" badge; groups fold, saved per user | 18.7.0 | `SPEC-group-header-collapse` |
 
 User docs: `docs/accounts.md`, `docs/kid-accounts.md`,
 `docs/single-sign-on.md`, `docs/backup-import.md`, `docs/widgets.md`.
@@ -337,3 +342,4 @@ User docs: `docs/accounts.md`, `docs/kid-accounts.md`,
 | 2026-11-25 | 0.3.3 | roadmap | M4 and M6 COMPLETE. M4: #262, #263, #513 and #376 fixed in 18.3.0; #379, #187 and #375 already fixed or obsolete; #488 (18.4.0) and #477 (18.6.0) decided by Caleb and built. #729 adds a dark-mode login contrast gate (#379). M6: #192, #269, #206 and #348 already done; #352, #403 and #346 decided by Caleb, no build. Both → Done |
 | 2026-11-25 | 0.4.0 | roadmap | M10 (UI review, first batch: #725, #722, #718 and #724's dead CSS, target 18.7.0) added to Now as the active milestone. Three draft specs: SPEC-ui-quick-wins, SPEC-dashboard-empty-loading, SPEC-group-header-collapse |
 | 2026-11-25 | 0.4.1 | Caleb Dunn | M10 specs approved: every recommended answer taken. Members no longer see "Add apps" (specs/DECISIONS.md) |
+| 2026-11-26 | 0.4.2 | roadmap | M10 COMPLETE: 18.7.0 in production (`fd60fa7`). #753 reversed SPEC-group-header-collapse §3.5 on Caleb's call: a failed load no longer lets a fold overwrite the saved set. M10 Now → Done; no milestone active |

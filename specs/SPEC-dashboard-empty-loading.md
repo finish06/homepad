@@ -4,7 +4,7 @@
 **Version:** 0.5.0
 **Created:** 2026-11-25
 **Author:** Claude (Caleb asked 2026-11-25 to write up M10)
-**Status:** Approved — 2026-11-25 (Caleb's answers are in §3). Built for 18.7.0 (#722); see §8 for the build notes
+**Status:** Approved — 2026-11-25 (Caleb's answers are in §3). Shipped in 18.7.0 (#736); see §8 for the build notes
 **Repo:** `Code/homepad` (web app at the root; no `api/` changes)
 **Issues:** #722, #724 (dead CSS only)
 **Target version:** 18.7.0

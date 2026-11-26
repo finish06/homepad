@@ -42,7 +42,7 @@ Production deploys and merges to the default branch always require human approva
 
 ## Currently Active Spec
 
-- M10 (UI review, first batch, target 18.7.0) is active: `docs/milestones/M10-ui-review-first-batch.md`. Its three specs are approved (2026-11-25) and ready to build: `specs/SPEC-ui-quick-wins.md`, `specs/SPEC-dashboard-empty-loading.md`, `specs/SPEC-group-header-collapse.md`.
+- No milestone is active. M10 (UI review, first batch) shipped as 18.7.0 on 2026-11-26: `docs/milestones/M10-ui-review-first-batch.md`. Next candidates are in the PRD roadmap (`docs/prd.md` §6).
 
 ## Pointers
 

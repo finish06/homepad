@@ -169,7 +169,7 @@
     "archival_max_severity": "medium"
   },
   "planning": {
-    "current_milestone": "M10-ui-review-first-batch",
+    "current_milestone": null,
     "current_cycle": null,
     "wip_limit": 5,
     "parallel_agents": 5,
