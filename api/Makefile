@@ -30,7 +30,7 @@ test-db:
 
 # Full suite assuming a Postgres is reachable via DATABASE_URL.
 test-integration: db-up
-	DATABASE_URL?=postgres://homepad:homepad@localhost:5432/homepad_test?sslmode=disable \
+	DATABASE_URL="$${DATABASE_URL:-postgres://homepad:homepad@localhost:5432/homepad_test?sslmode=disable}" \
 		go test ./... -count=1
 
 run:
