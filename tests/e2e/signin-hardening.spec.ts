@@ -1,4 +1,5 @@
-import { test, expect, type Page, type Route } from '@playwright/test';
+import { type Page, type Route } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 // SPEC-signin-hardening — end to end against the BUILT app (vite preview),
 // with the homepad-api contract mocked here. Runs on both projects in

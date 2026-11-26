@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { mockHousehold } from '../browser-gate/householdMocks';
 
 // SPEC-household-basics — end to end against the BUILT app (vite preview), with

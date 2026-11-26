@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { mockApi, makeStatusTiles } from '../browser-gate/mockApi';
 import { mockServerSettings, AUTHORIZE_URL, type ServerSettingsOpts } from '../browser-gate/serverSettingsMocks';
 

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { INFO_OFF, INFO_ON, mockWidgets } from '../browser-gate/widgetMocks';
 
 // SPEC-status-widgets — the user test cases that run against the built app
