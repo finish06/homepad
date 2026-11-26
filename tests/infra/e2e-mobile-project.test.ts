@@ -20,7 +20,7 @@ import { join } from 'node:path';
 import ts from 'typescript';
 import { describe, it, expect } from 'vitest';
 import { devices } from '@playwright/test';
-import config, { cgroupCpus, workersFor } from '../../playwright.config';
+import config, { cgroupCpus, cgroupDirs, workersFor } from '../../playwright.config';
 
 const mobile = config.projects?.find((p) => p.name === 'mobile');
 const iPhone13 = devices['iPhone 13'];
@@ -159,15 +159,32 @@ describe('e2e worker count follows the CPU limit (#739)', () => {
     expect(cgroupCpus('garbage')).toBeNull();
   });
 
-  it('halves the smaller of the CPU limit and availableParallelism(), at least 1', () => {
+  it('halves the tightest of the CPU limits and availableParallelism(), at least 1', () => {
     // The 8-core host, 2-CPU job from #739, where Node 20 still reports 8.
-    expect(workersFor(8, '200000 100000')).toBe(1);
-    expect(workersFor(2, '200000 100000')).toBe(1);
-    expect(workersFor(8, '400000 100000')).toBe(2);
-    expect(workersFor(8, 'max 100000')).toBe(4);
-    expect(workersFor(8, null)).toBe(4);
-    expect(workersFor(1, null)).toBe(1);
-    expect(workersFor(16, '50000 100000')).toBe(1);
+    expect(workersFor(8, ['200000 100000'])).toBe(1);
+    expect(workersFor(2, ['200000 100000'])).toBe(1);
+    expect(workersFor(8, ['400000 100000'])).toBe(2);
+    expect(workersFor(8, ['max 100000'])).toBe(4);
+    expect(workersFor(8, [null])).toBe(4);
+    expect(workersFor(8, [])).toBe(4);
+    expect(workersFor(1, [null])).toBe(1);
+    expect(workersFor(16, ['50000 100000'])).toBe(1);
+    // No private cgroup namespace: the root says no limit, the job's own
+    // cgroup further down says 2 CPUs.
+    expect(workersFor(8, ['max 100000', null, '200000 100000'])).toBe(1);
+  });
+
+  it('looks in the process cgroup and every parent', () => {
+    expect(cgroupDirs('0::/\n')).toEqual(['/sys/fs/cgroup']);
+    expect(cgroupDirs('0::/kubepods/pod1/abc\n')).toEqual([
+      '/sys/fs/cgroup',
+      '/sys/fs/cgroup/kubepods',
+      '/sys/fs/cgroup/kubepods/pod1',
+      '/sys/fs/cgroup/kubepods/pod1/abc',
+    ]);
+    // cgroup v1 lines only, or no file: just the root.
+    expect(cgroupDirs('12:cpu,cpuacct:/docker/abc\n')).toEqual(['/sys/fs/cgroup']);
+    expect(cgroupDirs(null)).toEqual(['/sys/fs/cgroup']);
   });
 
   // The web image's Docker build typechecks playwright.config.ts, and

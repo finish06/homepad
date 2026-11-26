@@ -68,7 +68,10 @@ async function placedByGlass(page: Page): Promise<string[]> {
     };
     const out: string[] = [];
     for (const el of document.querySelectorAll('body *')) {
-      if (el.classList.contains('sr-only')) continue;
+      // Visually hidden text (1x1, clipped) has nothing to place or click.
+      // Only while it stays that small: a skip link that grows on focus counts.
+      const box = el.getBoundingClientRect();
+      if (el.classList.contains('sr-only') && box.width <= 1 && box.height <= 1) continue;
       const s = getComputedStyle(el);
       const placed = s.position === 'absolute' || s.position === 'fixed';
       const stacked = s.position !== 'static' && s.zIndex !== 'auto';

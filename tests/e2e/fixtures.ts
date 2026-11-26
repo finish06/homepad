@@ -14,13 +14,15 @@ import { test as base, expect, type Browser, type BrowserContext, type BrowserCo
 // and under full-suite load it ran out of time at whichever step was next
 // (a click, a check, or the kid board still empty after the reload).
 //
-// Measured in the Playwright Linux image with 2 CPUs and 2 workers:
+// Measured in the Playwright Linux image with 2 CPUs, running only TC-001
+// with 2 workers (to isolate the blur's cost, not the suite's setting):
 //   - with the blur, TC-001 took 19 to 29 s, and 4 of 30 runs failed;
 //   - without it, the same run took about 11 s, and 0 of 30 failed;
 //   - the first frame of the admin dashboard alone took 3.9 s with the blur.
 // Stopping the header's 1 s clock made no real difference (18.5 s against 20 s).
-// This alone did not hold with 4 workers on 2 CPUs; the other half of the fix
-// is the worker count in playwright.config.ts.
+// This alone did not hold for the full suite with 4 workers on 2 CPUs; the
+// other half of the fix is the worker count in playwright.config.ts, which
+// gives 1 worker there (its own comment has those numbers).
 //
 // What else changes: an element with backdrop-filter is also a stacking
 // context and the containing block for its absolute and fixed descendants.
