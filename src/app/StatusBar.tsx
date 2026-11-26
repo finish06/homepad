@@ -15,7 +15,7 @@ import { safeHref } from '../lib/safeUrl';
 import { useServicesContext } from '../services';
 import type { Service, ServiceStatus } from '../api';
 import { CONTENT_WIDTH } from '../lib/layout';
-import { bandOf, isDown, tickClass } from '../lib/statusBands';
+import { BAND_CLASS, bandOf, isDown } from '../lib/statusBands';
 
 // Which chip's popover is open (if any).
 type PeekStatus = 'UP' | 'DOWN_DEGRADED' | 'NOT_MONITORED';
@@ -44,7 +44,7 @@ const PEEK_META: Record<PeekStatus, { testId: string; label: string; match: (s: 
   },
 };
 
-// Meter banding (SPEC-v24 §3.2): tickClass colours a tick, bandOf orders
+// Meter banding (SPEC-v24 §3.2): BAND_CLASS[bandOf(status)] colours a tick and bandOf orders
 // ticks into the green / gray / red bands, healthy-first; within a band, layout
 // order is preserved (§3.4). Shared with the App Grid box header's status bar
 // (SPEC-group-header-collapse AC-003), so the two never band a status apart.
@@ -402,7 +402,7 @@ export default function StatusBar({
                         key={s.id}
                         data-tick
                         data-status={s.status}
-                        className={`health-tick ${tickClass[s.status] ?? 'health-tick-idle'}`}
+                        className={`health-tick ${BAND_CLASS[bandOf(s.status)]}`}
                       />
                     ))}
                 </div>

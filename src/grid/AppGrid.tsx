@@ -389,7 +389,7 @@ export default function AppGrid({
       else next.delete(box.id);
       showDesired(next);
       setAnnounce(collapsing ? collapsedMessage(box) : `${box.title} expanded.`);
-      void flushCollapsed();
+      flushCollapsed();
     },
     [showDesired, flushCollapsed],
   );
