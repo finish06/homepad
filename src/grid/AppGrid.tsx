@@ -139,6 +139,15 @@ const NO_IDS: ReadonlySet<string> = new Set();
 const COLLAPSE_GET_TIMEOUT_MS = 3000;
 const COLLAPSE_SAVE_FAILED = "Couldn't save. Try again.";
 const COLLAPSE_NOT_LOADED = "Couldn't load your saved groups, so folds won't be saved this time.";
+// The grid toast's kinds: how loudly each is read, and its edge colour.
+// 'notice' tells without interrupting (the fold announcement in the same tick
+// must still be heard, SPEC-group-header-collapse AC-008).
+const TOAST_KINDS = {
+  success: { live: 'polite', border: 'border-emerald-500' },
+  error: { live: 'assertive', border: 'border-red-500' },
+  notice: { live: 'polite', border: 'border-amber-500' },
+} as const;
+type ToastKind = keyof typeof TOAST_KINDS;
 
 // pruneIds keeps only the ids of boxes on screen (`ids`; null = not loaded yet,
 // keep all). Returns `set` itself when nothing was dropped.
@@ -212,26 +221,38 @@ export default function AppGrid({
   // (AC-014/015). editMode is admin-only upstream, so the pencil never renders
   // for a non-admin — the modal is unreachable without the affordance.
   const [editTarget, setEditTarget] = useState<{ service: Service; opener: HTMLElement | null } | null>(null);
-  // 'notice' is polite and amber: it tells, it doesn't interrupt (the fold
-  // announcement in the same tick must still be heard, AC-008).
-  const [toast, setToast] = useState<{ msg: string; kind: 'success' | 'error' | 'notice' } | null>(null);
+  const [toast, setToast] = useState<{ msg: string; kind: ToastKind } | null>(null);
   const toastRef = useRef(toast);
   toastRef.current = toast;
   // SPEC-group-header-collapse §3.5 — the "folds won't be saved" notice shows
-  // once per mount: it counts as told only when it stayed up its full time, so
-  // a toast that replaced it doesn't swallow it.
+  // once per mount. It never goes over another toast (the grid has one slot):
+  // it waits (`pending`) and shows when that toast goes. It counts as told only
+  // once it has stayed up its full time; a toast that replaces it first puts it
+  // back in the wait.
   const notLoadedTold = useRef(false);
+  const notLoadedPending = useRef(false);
   // v23 — the service whose IframeOverlay is open (clickAction='iframe'), or null.
   const [iframeTarget, setIframeTarget] = useState<Service | null>(null);
   const openIframe = useCallback((service: Service) => setIframeTarget(service), []);
 
   useEffect(() => {
     if (!toast) return;
+    let shown = false;
     const t = setTimeout(() => {
-      if (toast.msg === COLLAPSE_NOT_LOADED) notLoadedTold.current = true;
-      setToast(null);
+      shown = true;
+      if (toast.kind === 'notice') notLoadedTold.current = true;
+      if (notLoadedPending.current && !notLoadedTold.current) {
+        notLoadedPending.current = false;
+        setToast({ msg: COLLAPSE_NOT_LOADED, kind: 'notice' });
+        setAnnounce(COLLAPSE_NOT_LOADED);
+      } else {
+        setToast(null);
+      }
     }, 3500);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      if (!shown && toast.kind === 'notice') notLoadedPending.current = true;
+    };
   }, [toast]);
 
   // Sensors for box drag-to-reorder (Edit Dashboard). Pointer with an 8px
@@ -283,7 +304,8 @@ export default function AppGrid({
   const desiredRef = useRef<ReadonlySet<string>>(NO_IDS);
   const confirmedRef = useRef<ReadonlySet<string>>(NO_IDS);
   const putInFlight = useRef(false);
-  const [collapsedLoaded, setCollapsedLoaded] = useState(false);
+  // A kid's set is known (always empty, §3.7), so it counts as loaded.
+  const [collapsedLoaded, setCollapsedLoaded] = useState(isKid);
   // The ids of the boxes on screen, once loaded (null before): what a set is
   // pruned to.
   const boxIdsRef = useRef<ReadonlySet<string> | null>(null);
@@ -407,13 +429,18 @@ export default function AppGrid({
       if (collapsing) next.add(box.id);
       else next.delete(box.id);
       showDesired(next);
-      setAnnounce(collapsing ? collapsedMessage(box) : `${box.title} expanded.`);
+      const said = collapsing ? collapsedMessage(box) : `${box.title} expanded.`;
       if (collapsedLoaded) {
+        setAnnounce(said);
         flushCollapsed();
-      } else if (!notLoadedTold.current && !toastRef.current) {
-        // Never over another toast (the grid has one slot): a later toggle
-        // shows it once the slot is free.
+      } else if (!notLoadedTold.current && !notLoadedPending.current && !toastRef.current) {
+        // The toast's live region mounts already filled, which some screen
+        // readers skip, so the always-mounted announcer says it too.
+        setAnnounce(`${said} ${COLLAPSE_NOT_LOADED}`);
         setToast({ msg: COLLAPSE_NOT_LOADED, kind: 'notice' });
+      } else {
+        setAnnounce(said);
+        if (!notLoadedTold.current && toastRef.current) notLoadedPending.current = true;
       }
     },
     [showDesired, flushCollapsed, collapsedLoaded],
@@ -426,14 +453,16 @@ export default function AppGrid({
   // change signal: a re-render with the same shape keeps the same key, so no
   // write; the ref hands the effect the shape that key was made from.
   // SPEC-group-header-collapse AC-018 — the real folded state goes in too.
-  const shape = loading ? null : shapeOf(boxes, showRecent, isCollapsed);
+  // §3.5 — after a failed or timed-out GET the on-screen folds are not saved,
+  // so they never go in; each box keeps the folded flag the cache already had
+  // at its place (the best guess at the saved set), while widths, counts and
+  // the Recently opened row stay current.
+  const cachedFolded = (b: Box) => cachedShape?.boxes[boxes.indexOf(b)]?.collapsed ?? false;
+  const shape = loading ? null : shapeOf(boxes, showRecent, collapsedLoaded ? isCollapsed : cachedFolded);
   const shapeKey = shape ? keyOfShape(shape) : '';
   const shapeRef = useRef(shape);
   shapeRef.current = shape;
-  // §3.5 — nor after a failed or timed-out GET: those folds are not saved, so
-  // caching them would draw the next skeleton folded where the saved set is
-  // open. The last good shape stays in the cache instead.
-  const canWriteShape = !!userId && !editMode && (isKid || collapsedLoaded);
+  const canWriteShape = !!userId && !editMode;
   useEffect(() => {
     if (!canWriteShape || !userId || !shapeKey || !shapeRef.current) return;
     scheduleShapeWrite(userId, shapeRef.current);
@@ -742,14 +771,10 @@ export default function AppGrid({
         <div className="fixed bottom-4 right-4 z-[60] pointer-events-none">
           <div
             role="status"
-            aria-live={toast.kind === 'error' ? 'assertive' : 'polite'}
+            aria-live={TOAST_KINDS[toast.kind].live}
             data-testid="tile-toast"
             className={`toast-item pointer-events-auto min-w-56 max-w-xs rounded border-l-4 ${
-              toast.kind === 'error'
-                ? 'border-red-500'
-                : toast.kind === 'notice'
-                  ? 'border-amber-500'
-                  : 'border-emerald-500'
+              TOAST_KINDS[toast.kind].border
             } bg-white px-4 py-3 text-sm font-medium text-neutral-900 shadow-lg dark:bg-neutral-800 dark:text-neutral-100`}
           >
             {toast.msg}

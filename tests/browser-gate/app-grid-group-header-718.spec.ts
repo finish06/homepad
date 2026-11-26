@@ -143,7 +143,9 @@ test.describe('saved per user (AC-011)', () => {
     await expect(games).toHaveAttribute('aria-expanded', 'true');
     await games.click();
     await expect(games).toHaveAttribute('aria-expanded', 'false');
-    await page.waitForTimeout(300);
+    // The toast would come in the same render as this announcement, which
+    // carries the notice only when the notice shows.
+    await expect(page.getByTestId('app-grid-announce')).toHaveText('Games collapsed. 1 app: 1 up.');
     await expect(page.getByTestId('tile-toast')).toHaveCount(0);
 
     server.getFails = false;
@@ -171,7 +173,14 @@ test.describe('saved per user (AC-011)', () => {
     );
     // The late set is not applied either: Media stays open.
     await expect(box(page, 'cat-1').getByTestId('box-tools')).toHaveCount(1);
-    await page.waitForTimeout(300);
+
+    // A reload is the real check that nothing went out: by then any PUT has
+    // landed, and the saved set must still be the one from before.
+    server.getDelayMs = 0;
+    await page.reload();
+    await expect(page.getByTestId('app-grid')).toBeVisible();
+    await expect(box(page, 'cat-1').getByTestId('box-tools')).toHaveCount(0);
+    await expect(box(page, 'cat-2').getByTestId('box-tools')).toHaveCount(1);
     expect(server.puts).toEqual([]);
     expect(server.sets.u1).toEqual(['cat-1']);
   });

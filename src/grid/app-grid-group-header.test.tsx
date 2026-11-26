@@ -407,41 +407,70 @@ describe('loading and the saved set (AC-009, AC-012)', () => {
     expect(toast).toHaveClass('border-amber-500');
   });
 
-  it('the notice never replaces another toast; it shows once the slot is free', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    vi.mocked(api.getCollapsedCategories).mockResolvedValue(null);
+  // A failed tile-order save (admin arrange mode) is the other toast that can
+  // take the grid's one slot. jsdom has no layout; the keyboard sensor needs
+  // rects in document order to find the next tile (as AppGrid.tiledrag.test.tsx).
+  async function failTileOrderSave(user: ReturnType<typeof userEvent.setup>) {
     vi.mocked(api.setLayout).mockResolvedValue(false);
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    // jsdom has no layout; the keyboard sensor needs rects in document order to
-    // find the next tile (as AppGrid.tiledrag.test.tsx does).
     const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
       this: HTMLElement,
     ) {
       const top = Array.from(this.ownerDocument.querySelectorAll('*')).indexOf(this) * 10;
       return { x: 0, y: top, top, left: 0, right: 100, bottom: top + 10, width: 100, height: 10, toJSON() {} } as DOMRect;
     });
-    const { rerender } = renderGrid({ isAdmin: true, editMode: true });
-    await screen.findByTestId('app-grid');
-    // A failed tile-order save puts its error in the one toast slot.
-    const grip = screen.getByRole('button', { name: 'Reorder Plex' });
-    grip.focus();
+    screen.getByRole('button', { name: 'Reorder Plex' }).focus();
     await user.keyboard('{ }');
     await user.keyboard('{ArrowDown}');
     await user.keyboard('{ }');
     await waitFor(() => expect(screen.getByTestId('tile-toast').textContent).toBe('Could not save the new tile order.'));
     rect.mockRestore();
+  }
+
+  it('the notice never replaces another toast; it waits and shows when that one goes', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(api.getCollapsedCategories).mockResolvedValue(null);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const { rerender } = renderGrid({ isAdmin: true, editMode: true });
+    await screen.findByTestId('app-grid');
+    await failTileOrderSave(user);
     rerender({ isAdmin: true, editMode: false });
     await act(async () => chevron('Media').click());
     expect(isOpen('c1')).toBe(false);
     expect(screen.getByTestId('tile-toast').textContent).toBe('Could not save the new tile order.');
+    // One fold only: when the error goes, the notice takes the slot by itself.
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(4000);
+      await vi.advanceTimersByTimeAsync(3600);
+    });
+    expect(screen.getByTestId('tile-toast').textContent).toBe(NOT_LOADED);
+    expect(screen.getByTestId('app-grid-announce').textContent).toBe(NOT_LOADED);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3600);
     });
     expect(screen.queryByTestId('tile-toast')).toBeNull();
-    // Not told yet, so the next toggle shows it.
+    await act(async () => chevron('Media').click());
+    expect(screen.queryByTestId('tile-toast')).toBeNull();
+    expect(api.setCollapsedCategories).not.toHaveBeenCalled();
+  });
+
+  it('a notice cut short by another toast comes back after it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(api.getCollapsedCategories).mockResolvedValue(null);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const { rerender } = renderGrid({ isAdmin: true, editMode: false });
+    await screen.findByTestId('app-grid');
     await act(async () => chevron('Media').click());
     expect(screen.getByTestId('tile-toast').textContent).toBe(NOT_LOADED);
-    expect(api.setCollapsedCategories).not.toHaveBeenCalled();
+    expect(screen.getByTestId('app-grid-announce').textContent).toBe(`Media collapsed. 6 apps: 2 up, 1 down, 1 degraded, 1 unknown, 1 not monitored. ${NOT_LOADED}`);
+    rerender({ isAdmin: true, editMode: true });
+    await failTileOrderSave(user);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3600);
+    });
+    expect(screen.getByTestId('tile-toast').textContent).toBe(NOT_LOADED);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3600);
+    });
+    expect(screen.queryByTestId('tile-toast')).toBeNull();
   });
 
   it('an empty saved set still counts as loaded: a toggle sends its PUT', async () => {
