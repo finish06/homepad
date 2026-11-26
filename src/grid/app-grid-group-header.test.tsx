@@ -476,6 +476,27 @@ describe('saving (AC-010)', () => {
   });
 });
 
+describe('a remount while a PUT is in flight (code review, #746)', () => {
+  it("the new mount's GET waits for the old mount's PUT, so it reads the saved set", async () => {
+    const put = deferred<boolean>();
+    vi.mocked(api.setCollapsedCategories).mockReturnValueOnce(put.promise);
+    const user = userEvent.setup();
+    const first = renderGrid();
+    await screen.findByTestId('app-grid');
+    await user.click(chevron('Media'));
+    first.unmount();
+    vi.mocked(api.getCollapsedCategories).mockClear();
+    vi.mocked(api.getCollapsedCategories).mockResolvedValue(['c1']);
+    renderGrid();
+    await act(async () => {});
+    expect(api.getCollapsedCategories).not.toHaveBeenCalled();
+    await act(async () => put.resolve(true));
+    await screen.findByTestId('app-grid');
+    expect(api.getCollapsedCategories).toHaveBeenCalledTimes(1);
+    expect(isOpen('c1')).toBe(false);
+  });
+});
+
 describe('kids (AC-016)', () => {
   it('a kid sees pill, bar and badge, no chevron, and the grid makes no collapse request', async () => {
     renderGrid({ isKid: true });

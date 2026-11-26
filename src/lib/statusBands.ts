@@ -30,8 +30,9 @@ export const tickClass: Record<ServiceStatus, string> = {
   NOT_MONITORED: 'health-tick-idle',
 };
 
-// The class for each band, in band order. Same tokens as tickClass.
-export const BAND_CLASS: readonly [string, string, string] = ['health-tick-up', 'health-tick-idle', 'health-tick-down'];
+// The class for each band, in band order, taken from tickClass so the two can
+// never drift.
+export const BAND_CLASS: readonly [string, string, string] = [tickClass.UP, tickClass.UNKNOWN, tickClass.DOWN];
 
 // bandOf maps any status string to its band. A status the client does not know
 // (a newer server) is gray: unobservable, never claimed up or down.

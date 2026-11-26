@@ -138,6 +138,9 @@ function useViewportWidth(): number {
 const NO_IDS: ReadonlySet<string> = new Set();
 const COLLAPSE_GET_TIMEOUT_MS = 3000;
 const COLLAPSE_SAVE_FAILED = "Couldn't save. Try again.";
+// The newest collapse PUT on this page. A new grid mount (a catalog reload
+// remounts AppGrid) waits for it before its GET.
+let lastCollapsePut: Promise<unknown> = Promise.resolve();
 
 // pruneIds keeps only the ids of boxes on screen (`ids`; null = not loaded yet,
 // keep all). Returns `set` itself when nothing was dropped.
@@ -298,7 +301,10 @@ export default function AppGrid({
     // request() has no timeout of its own, so the grid bounds the wait here.
     const timer = setTimeout(() => finish(null), COLLAPSE_GET_TIMEOUT_MS);
     // Any failure, a throw included, means "all expanded".
-    Promise.resolve()
+    // A remount (catalog reload) reads after the last mount's PUT has landed,
+    // so it never draws a set older than the one the user just saved.
+    lastCollapsePut
+      .catch(() => undefined)
       .then(() => getCollapsedCategories())
       .then(finish, () => finish(null));
     return () => {
@@ -319,7 +325,9 @@ export default function AppGrid({
     try {
       for (;;) {
         const sent = desiredRef.current;
-        const ok = await setCollapsedCategories([...sent]);
+        const put = Promise.resolve(setCollapsedCategories([...sent]));
+        lastCollapsePut = put;
+        const ok = await put;
         if (!aliveRef.current) return;
         if (!ok) {
           showDesired(confirmedRef.current);
@@ -1048,7 +1056,7 @@ function BoxCard({
           />
         )}
       </header>
-      {canManage && renaming && !collapsed && (
+      {canManage && renaming && (
         // Rename editor (kept below the header so the h2 box-title stays present).
         <div className="app-grid-box-rename">
           <input
@@ -1090,7 +1098,7 @@ function BoxCard({
           )}
         </div>
       )}
-      {canManage && confirming && !collapsed && (
+      {canManage && confirming && (
         // In-place delete confirm (apps fall back to Uncategorized, none deleted).
         <div
           className="app-grid-box-confirm"
