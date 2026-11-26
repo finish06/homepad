@@ -24,6 +24,10 @@ vi.mock('../api', () => ({
   setFavorite: vi.fn(),
   renameCategory: vi.fn(),
   deleteCategory: vi.fn(),
+  // An empty saved fold set that loads: the skeleton shape is written only once
+  // the saved set has loaded (SPEC-group-header-collapse §3.5).
+  getCollapsedCategories: vi.fn(async () => []),
+  setCollapsedCategories: vi.fn(async () => true),
 }));
 
 // v23 — stub the real IframeOverlay so ToolLink's routing is tested in isolation

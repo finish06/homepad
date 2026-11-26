@@ -212,14 +212,25 @@ export default function AppGrid({
   // (AC-014/015). editMode is admin-only upstream, so the pencil never renders
   // for a non-admin — the modal is unreachable without the affordance.
   const [editTarget, setEditTarget] = useState<{ service: Service; opener: HTMLElement | null } | null>(null);
-  const [toast, setToast] = useState<{ msg: string; kind: 'success' | 'error' } | null>(null);
+  // 'notice' is polite and amber: it tells, it doesn't interrupt (the fold
+  // announcement in the same tick must still be heard, AC-008).
+  const [toast, setToast] = useState<{ msg: string; kind: 'success' | 'error' | 'notice' } | null>(null);
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+  // SPEC-group-header-collapse §3.5 — the "folds won't be saved" notice shows
+  // once per mount: it counts as told only when it stayed up its full time, so
+  // a toast that replaced it doesn't swallow it.
+  const notLoadedTold = useRef(false);
   // v23 — the service whose IframeOverlay is open (clickAction='iframe'), or null.
   const [iframeTarget, setIframeTarget] = useState<Service | null>(null);
   const openIframe = useCallback((service: Service) => setIframeTarget(service), []);
 
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(null), 3500);
+    const t = setTimeout(() => {
+      if (toast.msg === COLLAPSE_NOT_LOADED) notLoadedTold.current = true;
+      setToast(null);
+    }, 3500);
     return () => clearTimeout(t);
   }, [toast]);
 
@@ -272,8 +283,7 @@ export default function AppGrid({
   const desiredRef = useRef<ReadonlySet<string>>(NO_IDS);
   const confirmedRef = useRef<ReadonlySet<string>>(NO_IDS);
   const putInFlight = useRef(false);
-  const collapsedLoaded = useRef(false);
-  const notLoadedTold = useRef(false);
+  const [collapsedLoaded, setCollapsedLoaded] = useState(false);
   // The ids of the boxes on screen, once loaded (null before): what a set is
   // pruned to.
   const boxIdsRef = useRef<ReadonlySet<string> | null>(null);
@@ -296,7 +306,7 @@ export default function AppGrid({
       if (done) return;
       done = true;
       clearTimeout(timer);
-      if (ids) collapsedLoaded.current = true;
+      if (ids) setCollapsedLoaded(true);
       if (ids && ids.length > 0) {
         const set = new Set(ids);
         confirmedRef.current = set;
@@ -398,14 +408,15 @@ export default function AppGrid({
       else next.delete(box.id);
       showDesired(next);
       setAnnounce(collapsing ? collapsedMessage(box) : `${box.title} expanded.`);
-      if (collapsedLoaded.current) {
+      if (collapsedLoaded) {
         flushCollapsed();
-      } else if (!notLoadedTold.current) {
-        notLoadedTold.current = true;
-        setToast({ msg: COLLAPSE_NOT_LOADED, kind: 'error' });
+      } else if (!notLoadedTold.current && !toastRef.current) {
+        // Never over another toast (the grid has one slot): a later toggle
+        // shows it once the slot is free.
+        setToast({ msg: COLLAPSE_NOT_LOADED, kind: 'notice' });
       }
     },
-    [showDesired, flushCollapsed],
+    [showDesired, flushCollapsed, collapsedLoaded],
   );
   // §3.1 / AC-006 — write the rendered shape, debounced, whenever it changes.
   // Not while loading, and not while arranging: every box then shows open, which
@@ -419,7 +430,10 @@ export default function AppGrid({
   const shapeKey = shape ? keyOfShape(shape) : '';
   const shapeRef = useRef(shape);
   shapeRef.current = shape;
-  const canWriteShape = !!userId && !editMode;
+  // §3.5 — nor after a failed or timed-out GET: those folds are not saved, so
+  // caching them would draw the next skeleton folded where the saved set is
+  // open. The last good shape stays in the cache instead.
+  const canWriteShape = !!userId && !editMode && (isKid || collapsedLoaded);
   useEffect(() => {
     if (!canWriteShape || !userId || !shapeKey || !shapeRef.current) return;
     scheduleShapeWrite(userId, shapeRef.current);
@@ -731,7 +745,11 @@ export default function AppGrid({
             aria-live={toast.kind === 'error' ? 'assertive' : 'polite'}
             data-testid="tile-toast"
             className={`toast-item pointer-events-auto min-w-56 max-w-xs rounded border-l-4 ${
-              toast.kind === 'error' ? 'border-red-500' : 'border-emerald-500'
+              toast.kind === 'error'
+                ? 'border-red-500'
+                : toast.kind === 'notice'
+                  ? 'border-amber-500'
+                  : 'border-emerald-500'
             } bg-white px-4 py-3 text-sm font-medium text-neutral-900 shadow-lg dark:bg-neutral-800 dark:text-neutral-100`}
           >
             {toast.msg}

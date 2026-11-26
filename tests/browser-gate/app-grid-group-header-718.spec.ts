@@ -48,13 +48,20 @@ const SERVICES = [
 
 // The server's collapse sets, per user, with the real contract: GET returns the
 // set, PUT replaces it and answers 204 with no body.
-type Server = { sets: Record<string, string[]>; puts: string[][]; user: string; getFails: boolean };
+type Server = {
+  sets: Record<string, string[]>;
+  puts: string[][];
+  user: string;
+  getFails: boolean;
+  getDelayMs: number;
+  lateRepliesSent: number;
+};
 
 async function setup(
   page: Page,
   opts: { width?: number; density?: 'large' | 'compact' | 'list'; role?: 'member' | 'admin'; sets?: Record<string, string[]> } = {},
 ): Promise<Server> {
-  const server: Server = { sets: { u1: [], u2: [], ...opts.sets }, puts: [], user: 'u1', getFails: false };
+  const server: Server = { sets: { u1: [], u2: [], ...opts.sets }, puts: [], user: 'u1', getFails: false, getDelayMs: 0, lateRepliesSent: 0 };
   await page.setViewportSize({ width: opts.width ?? 1440, height: 900 });
   await mockApi(page, SERVICES, CATEGORIES, opts.role ?? 'member', opts.density ?? 'large');
   await page.route('**/api/me', (route) =>
@@ -71,6 +78,11 @@ async function setup(
       return route.fulfill({ status: 204, body: '' });
     }
     if (server.getFails) return route.fulfill({ status: 500, body: '' });
+    if (server.getDelayMs) {
+      // Past the grid's 3 s wait: the reply lands late, with the real set.
+      await new Promise((r) => setTimeout(r, server.getDelayMs));
+      server.lateRepliesSent += 1;
+    }
     return route.fulfill({ json: { collapsed: server.sets[server.user] ?? [] } });
   });
   return server;
@@ -125,15 +137,41 @@ test.describe('saved per user (AC-011)', () => {
     await expect(page.getByTestId('tile-toast')).toHaveText(
       "Couldn't load your saved groups, so folds won't be saved this time.",
     );
+    // Once it has gone, more toggles never bring it back this visit.
+    await expect(page.getByTestId('tile-toast')).toHaveCount(0, { timeout: 6000 });
     await games.click();
     await expect(games).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.getByTestId('tile-toast')).toHaveCount(1);
+    await games.click();
+    await expect(games).toHaveAttribute('aria-expanded', 'false');
+    await page.waitForTimeout(300);
+    await expect(page.getByTestId('tile-toast')).toHaveCount(0);
 
     server.getFails = false;
     await page.reload();
     await expect(page.getByTestId('app-grid')).toBeVisible();
     await expect(box(page, 'cat-1').getByTestId('box-tools')).toHaveCount(0);
     await expect(box(page, 'cat-2').getByTestId('box-tools')).toHaveCount(1);
+    expect(server.puts).toEqual([]);
+    expect(server.sets.u1).toEqual(['cat-1']);
+  });
+
+  test('after a GET past 3 s, its late reply does not turn saving back on', async ({ page }) => {
+    const server = await setup(page, { sets: { u1: ['cat-1'] } });
+    server.getDelayMs = 4000;
+    await page.goto('/');
+    await expect(page.getByTestId('app-grid')).toBeVisible({ timeout: 6000 });
+    await expect(box(page, 'cat-1').getByTestId('box-tools')).toHaveCount(1);
+    await expect.poll(() => server.lateRepliesSent, { timeout: 6000 }).toBe(1);
+    await page.waitForTimeout(300);
+    const games = box(page, 'cat-2').getByRole('button', { name: 'Games apps' });
+    await games.click();
+    await expect(games).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('tile-toast')).toHaveText(
+      "Couldn't load your saved groups, so folds won't be saved this time.",
+    );
+    // The late set is not applied either: Media stays open.
+    await expect(box(page, 'cat-1').getByTestId('box-tools')).toHaveCount(1);
+    await page.waitForTimeout(300);
     expect(server.puts).toEqual([]);
     expect(server.sets.u1).toEqual(['cat-1']);
   });

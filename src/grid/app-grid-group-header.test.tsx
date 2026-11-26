@@ -397,6 +397,53 @@ describe('loading and the saved set (AC-009, AC-012)', () => {
     });
   }
 
+  it('the notice is polite, so the fold announcement is not cut off', async () => {
+    vi.mocked(api.getCollapsedCategories).mockResolvedValue(null);
+    renderGrid();
+    await screen.findByTestId('app-grid');
+    await act(async () => chevron('Media').click());
+    const toast = screen.getByTestId('tile-toast');
+    expect(toast).toHaveAttribute('aria-live', 'polite');
+    expect(toast).toHaveClass('border-amber-500');
+  });
+
+  it('the notice never replaces another toast; it shows once the slot is free', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(api.getCollapsedCategories).mockResolvedValue(null);
+    vi.mocked(api.setLayout).mockResolvedValue(false);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    // jsdom has no layout; the keyboard sensor needs rects in document order to
+    // find the next tile (as AppGrid.tiledrag.test.tsx does).
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const top = Array.from(this.ownerDocument.querySelectorAll('*')).indexOf(this) * 10;
+      return { x: 0, y: top, top, left: 0, right: 100, bottom: top + 10, width: 100, height: 10, toJSON() {} } as DOMRect;
+    });
+    const { rerender } = renderGrid({ isAdmin: true, editMode: true });
+    await screen.findByTestId('app-grid');
+    // A failed tile-order save puts its error in the one toast slot.
+    const grip = screen.getByRole('button', { name: 'Reorder Plex' });
+    grip.focus();
+    await user.keyboard('{ }');
+    await user.keyboard('{ArrowDown}');
+    await user.keyboard('{ }');
+    await waitFor(() => expect(screen.getByTestId('tile-toast').textContent).toBe('Could not save the new tile order.'));
+    rect.mockRestore();
+    rerender({ isAdmin: true, editMode: false });
+    await act(async () => chevron('Media').click());
+    expect(isOpen('c1')).toBe(false);
+    expect(screen.getByTestId('tile-toast').textContent).toBe('Could not save the new tile order.');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+    expect(screen.queryByTestId('tile-toast')).toBeNull();
+    // Not told yet, so the next toggle shows it.
+    await act(async () => chevron('Media').click());
+    expect(screen.getByTestId('tile-toast').textContent).toBe(NOT_LOADED);
+    expect(api.setCollapsedCategories).not.toHaveBeenCalled();
+  });
+
   it('an empty saved set still counts as loaded: a toggle sends its PUT', async () => {
     vi.mocked(api.getCollapsedCategories).mockResolvedValue([]);
     const user = userEvent.setup();
@@ -629,6 +676,29 @@ describe('the skeleton cache gets the real collapsed flag (AC-018)', () => {
     });
     // Every box shows open while arranging; the cache keeps the view shape.
     expect(stored()!.boxes.map((b) => b.collapsed)).toEqual([true, true, false, false]);
+  });
+
+  it('after a failed GET, unsaved folds never reach the cache; the last good shape stays', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(api.getCollapsedCategories).mockResolvedValue(['c2']);
+    const first = renderGrid({ userId: 'u1' });
+    await screen.findByTestId('app-grid');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600);
+    });
+    const good = localStorage.getItem(SHAPE_KEY);
+    expect(stored()!.boxes.map((b) => b.collapsed)).toEqual([false, true, false, false]);
+    first.unmount();
+
+    vi.mocked(api.getCollapsedCategories).mockResolvedValue(null);
+    renderGrid({ userId: 'u1' });
+    await screen.findByTestId('app-grid');
+    await act(async () => chevron('Media').click());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(isOpen('c1')).toBe(false);
+    expect(localStorage.getItem(SHAPE_KEY)).toBe(good);
   });
 });
 
