@@ -496,7 +496,7 @@ describe('a remount while a PUT is in flight (code review, #746)', () => {
     expect(isOpen('c1')).toBe(false);
   });
 
-  it('toggles made before an unmount are still saved as the follow-up', async () => {
+  it('an unmounted grid sends no follow-up (after a sign-out it must not PUT under the next session)', async () => {
     const put = deferred<boolean>();
     vi.mocked(api.setCollapsedCategories).mockReturnValueOnce(put.promise);
     const user = userEvent.setup();
@@ -506,8 +506,29 @@ describe('a remount while a PUT is in flight (code review, #746)', () => {
     await user.click(chevron('Games'));
     first.unmount();
     await act(async () => put.resolve(true));
+    expect(api.setCollapsedCategories).toHaveBeenCalledTimes(1);
+  });
+
+  it("a new mount's PUT waits behind an older mount's, so it can never land first", async () => {
+    const old = deferred<boolean>();
+    vi.mocked(api.setCollapsedCategories).mockReturnValueOnce(old.promise);
+    const user = userEvent.setup();
+    const first = renderGrid();
+    await screen.findByTestId('app-grid');
+    await user.click(chevron('Media'));
+    first.unmount();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderGrid();
+    // The old PUT hangs past the remount's 3 s wait; the GET goes ahead.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3100);
+    });
+    await screen.findByTestId('app-grid');
+    await act(async () => chevron('Games').click());
+    expect(api.setCollapsedCategories).toHaveBeenCalledTimes(1);
+    await act(async () => old.resolve(true));
     expect(api.setCollapsedCategories).toHaveBeenCalledTimes(2);
-    expect(api.setCollapsedCategories).toHaveBeenLastCalledWith(['c1', 'c2']);
+    expect(api.setCollapsedCategories).toHaveBeenLastCalledWith(['c2']);
   });
 
   it("a slow PUT from the last mount does not use up the new mount's 3 s for its GET", async () => {

@@ -327,14 +327,17 @@ export default function AppGrid({
   // moved on meanwhile, one follow-up PUT sends the newer set; a success never
   // changes the screen. On failure the screen goes back to `confirmed`, any
   // follow-up is dropped (newer toggles included) and the grid toast says so
-  // once. The loop outlives an unmount, so toggles made just before a remount
-  // are still saved; only the screen updates stop.
+  // once. Every PUT on the page goes through one queue (lastCollapseSave), so
+  // a remounted grid's PUT can never land before an older mount's. An
+  // unmounted grid sends nothing more: after a sign-out its queued set must
+  // never go out under the next user's session.
   const flushCollapsed = useCallback(() => {
     if (putInFlight.current) return;
     putInFlight.current = true;
     const run = async () => {
       try {
         for (;;) {
+          if (!aliveRef.current) return;
           const sent = desiredRef.current;
           const ok = await Promise.resolve()
             .then(() => setCollapsedCategories([...sent]))
@@ -346,14 +349,17 @@ export default function AppGrid({
             }
             return;
           }
-          confirmedRef.current = pruneIds(sent, boxIdsRef.current);
-          if (sameIds(desiredRef.current, confirmedRef.current)) return;
+          const ids = boxIdsRef.current;
+          confirmedRef.current = pruneIds(sent, ids);
+          // Compared pruned on both sides, so an id that is no longer on
+          // screen can never keep the loop sending.
+          if (sameIds(pruneIds(desiredRef.current, ids), confirmedRef.current)) return;
         }
       } finally {
         putInFlight.current = false;
       }
     };
-    lastCollapseSave = run();
+    lastCollapseSave = lastCollapseSave.then(run);
   }, [showDesired]);
 
   const svcs = ctx ? ctx.items : ownSvcs;
@@ -1453,11 +1459,6 @@ function SortableBox({
   );
 }
 
-// SPEC-242 §5 — the per-tile status indicator's human labels, shared with the
-// box header's hidden status line (src/lib/statusBands.ts). Drives both the
-// aria-label ("status: {label}") and the title.
-const statusLabel = STATUS_LABEL;
-
 function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 }
@@ -1792,8 +1793,8 @@ function ToolLink({
         data-status={service.status}
         data-pulsing={pulsing ? 'true' : 'false'}
         role="img"
-        title={statusLabel[service.status] ?? service.status}
-        aria-label={`status: ${statusLabel[service.status] ?? service.status}`}
+        title={STATUS_LABEL[service.status] ?? service.status}
+        aria-label={`status: ${STATUS_LABEL[service.status] ?? service.status}`}
       />
       <a
         className="app-grid-tool"

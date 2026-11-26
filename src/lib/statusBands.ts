@@ -96,7 +96,7 @@ const STATUS_WORDS: readonly [ServiceStatus, string][] = (
 export function statusLine(statuses: readonly string[]): string {
   const n = new Map<string, number>();
   for (const s of statuses) {
-    const k = STATUS_WORDS.some(([st]) => st === s) ? s : 'UNKNOWN';
+    const k = Object.hasOwn(STATUS_LABEL, s) ? s : 'UNKNOWN';
     n.set(k, (n.get(k) ?? 0) + 1);
   }
   return STATUS_WORDS.filter(([s]) => n.get(s))
