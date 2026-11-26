@@ -25,9 +25,11 @@ import {
   categories as fetchCategories,
   createCategory,
   deleteCategory,
+  getCollapsedCategories,
   renameCategory,
   saveCategoryWidth,
   setCategoryOrder,
+  setCollapsedCategories,
   setFavorite,
   setLayout,
   services as fetchServices,
@@ -49,6 +51,7 @@ import {
   shapeOf,
   type GridShape,
 } from './gridShapeCache';
+import { BAND_CLASS, STATUS_LABEL, bandCounts, bandWidths, countPhrase, isDown, statusLine } from '../lib/statusBands';
 import ChunkErrorBoundary from '../ui/ChunkErrorBoundary';
 import { CONTENT_WIDTH } from '../lib/layout';
 import { useResolvedTheme } from '../theme/theme';
@@ -131,6 +134,30 @@ function useViewportWidth(): number {
   return vw;
 }
 
+// SPEC-group-header-collapse §3.5 — the collapse set's helpers.
+const NO_IDS: ReadonlySet<string> = new Set();
+const COLLAPSE_GET_TIMEOUT_MS = 3000;
+const COLLAPSE_SAVE_FAILED = "Couldn't save. Try again.";
+
+// pruneIds keeps only the ids of boxes on screen (`ids`; null = not loaded yet,
+// keep all). Returns `set` itself when nothing was dropped.
+function pruneIds(set: ReadonlySet<string>, ids: ReadonlySet<string> | null): ReadonlySet<string> {
+  if (!ids) return set;
+  const kept = [...set].filter((id) => ids.has(id));
+  return kept.length === set.size ? set : new Set(kept);
+}
+
+function sameIds(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  return a.size === b.size && [...a].every((id) => b.has(id));
+}
+
+// §3.4 — what the live region says when a box folds.
+function collapsedMessage(box: Box): string {
+  const n = box.tools.length;
+  if (n === 0) return `${box.title} collapsed. 0 apps.`;
+  return `${box.title} collapsed. ${countPhrase(n)}: ${statusLine(box.tools.map((t) => t.status))}.`;
+}
+
 export default function AppGrid({
   isAdmin,
   editMode = false,
@@ -139,6 +166,7 @@ export default function AppGrid({
   userId,
   onAddToBox,
   dashboardEmpty = false,
+  isKid = false,
 }: {
   isAdmin: boolean;
   editMode?: boolean;
@@ -161,6 +189,9 @@ export default function AppGrid({
   // it is, the admin's box buttons hide (OQ-3) and the member's box line drops
   // its "Ask an admin" (AC-021). AppGrid never works this out itself.
   dashboardEmpty?: boolean;
+  // SPEC-group-header-collapse §3.5, §3.7 — a kid sees the header's pill, bar
+  // and badge but no chevron, and the grid makes no collapse request for a kid.
+  isKid?: boolean;
 }) {
   // Services come from the shared provider (the SAME array the launcher + live
   // poll use — §3/A12); AppGrid self-fetches only when rendered without a
@@ -222,11 +253,106 @@ export default function AppGrid({
     };
   }, [ctx]);
 
+  // SPEC-group-header-collapse §3.5 — the folded boxes, saved per user through
+  // GET/PUT /api/me/collapsed-categories. Two sets: `confirmed` is the last set
+  // the server accepted; `desired` is what the screen shows. Refs hold the live
+  // values for the PUT loop; `desired` state re-renders the grid.
+  //
+  // `collapsedReady` turns true when the GET settles (any outcome) or after
+  // COLLAPSE_GET_TIMEOUT_MS, whichever is first; a later reply is ignored for
+  // this mount. A kid sends no request: ready at once, nothing folded.
+  const [collapsedReady, setCollapsedReady] = useState(isKid);
+  const [desired, setDesiredState] = useState<ReadonlySet<string>>(NO_IDS);
+  const desiredRef = useRef<ReadonlySet<string>>(NO_IDS);
+  const confirmedRef = useRef<ReadonlySet<string>>(NO_IDS);
+  const putInFlight = useRef(false);
+  // The ids of the boxes on screen, once loaded (null before): what a set is
+  // pruned to.
+  const boxIdsRef = useRef<ReadonlySet<string> | null>(null);
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
+  const showDesired = useCallback((next: ReadonlySet<string>) => {
+    desiredRef.current = next;
+    setDesiredState(next);
+  }, []);
+
+  useEffect(() => {
+    if (isKid) return;
+    let done = false;
+    const finish = (ids: string[] | null) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      if (ids && ids.length > 0) {
+        const set = new Set(ids);
+        confirmedRef.current = set;
+        showDesired(set);
+      }
+      setCollapsedReady(true);
+    };
+    // request() has no timeout of its own, so the grid bounds the wait here.
+    const timer = setTimeout(() => finish(null), COLLAPSE_GET_TIMEOUT_MS);
+    // In parallel with the categories fetch. Any failure, a throw included,
+    // means "all expanded".
+    Promise.resolve()
+      .then(() => getCollapsedCategories())
+      .then(finish, () => finish(null));
+    return () => {
+      done = true;
+      clearTimeout(timer);
+    };
+  }, [isKid, showDesired]);
+
+  // One PUT at a time, always the whole `desired` set. On success `confirmed`
+  // becomes the sent set (pruned to the boxes on screen) and, if the screen has
+  // moved on meanwhile, one follow-up PUT sends the newer set; a success never
+  // changes the screen. On failure the screen goes back to `confirmed`, any
+  // follow-up is dropped (newer toggles included) and the grid toast says so
+  // once. An unmounted grid sends nothing more: after a sign-out its queued
+  // set must never go out under the next user's session.
+  const flushCollapsed = useCallback(() => {
+    if (putInFlight.current) return;
+    putInFlight.current = true;
+    const run = async () => {
+      try {
+        for (;;) {
+          if (!aliveRef.current) return;
+          // Only ids of boxes on screen go out (§3.5).
+          const sent = pruneIds(desiredRef.current, boxIdsRef.current);
+          const ok = await Promise.resolve()
+            .then(() => setCollapsedCategories([...sent]))
+            .catch(() => false);
+          if (!ok) {
+            if (aliveRef.current) {
+              showDesired(confirmedRef.current);
+              setToast({ msg: COLLAPSE_SAVE_FAILED, kind: 'error' });
+            }
+            return;
+          }
+          const ids = boxIdsRef.current;
+          confirmedRef.current = pruneIds(sent, ids);
+          // Boxes may have changed while the PUT was out, so both sides are
+          // pruned again; an id no longer on screen can't keep the loop going.
+          if (sameIds(pruneIds(desiredRef.current, ids), confirmedRef.current)) return;
+        }
+      } finally {
+        putInFlight.current = false;
+      }
+    };
+    void run();
+  }, [showDesired]);
+
   const svcs = ctx ? ctx.items : ownSvcs;
   // SPEC-dashboard-empty-loading §3.2 — the ONE loading flag. The skeleton shows
-  // exactly while it is true; SPEC-group-header-collapse widens it with
-  // `|| !collapsedReady`. Nothing else may add a second loading state.
-  const loading = !catsLoaded || svcs === null;
+  // exactly while it is true. SPEC-group-header-collapse §3.5 widens it with
+  // `!collapsedReady`, so a folded box never draws open first. Nothing else may
+  // add a second loading state.
+  const loading = !catsLoaded || svcs === null || !collapsedReady;
 
   // §3.1 — the skeleton draws the last shape this device showed this user, read
   // once on mount; another user's, a bad or a missing entry draws the fallback.
@@ -239,6 +365,34 @@ export default function AppGrid({
   const recentMounted = !loading && !(isAdmin && editMode) && (svcs?.length ?? 0) > 0;
   const [recentDrawn, setRecentDrawn] = useState(false);
   const showRecent = recentMounted && recentDrawn;
+  // §3.4, §3.6 — a box can fold only outside arrange mode (any user; admin
+  // editing implies it), and Uncategorized never folds. While arranging every
+  // box shows open and the saved set stays as it is.
+  const foldable = (b: Box) => !editMode && b.id !== '';
+  const isCollapsed = (b: Box) => foldable(b) && desired.has(b.id);
+  // §3.5 — prune both sets to the boxes on screen whenever those change (a box
+  // deleted, a grid reload). Pruning alone never sends a PUT.
+  const boxIdsKey = loading ? null : boxes.map((b) => b.id).join('\n');
+  useEffect(() => {
+    if (boxIdsKey === null) return;
+    const ids = new Set(boxIdsKey.split('\n'));
+    boxIdsRef.current = ids;
+    confirmedRef.current = pruneIds(confirmedRef.current, ids);
+    const next = pruneIds(desiredRef.current, ids);
+    if (next !== desiredRef.current) showDesired(next);
+  }, [boxIdsKey, showDesired]);
+  const toggleCollapsed = useCallback(
+    (box: Box) => {
+      const next = new Set(desiredRef.current);
+      const collapsing = !next.has(box.id);
+      if (collapsing) next.add(box.id);
+      else next.delete(box.id);
+      showDesired(next);
+      setAnnounce(collapsing ? collapsedMessage(box) : `${box.title} expanded.`);
+      flushCollapsed();
+    },
+    [showDesired, flushCollapsed],
+  );
   // §3.1 / AC-006 — write the rendered shape, debounced, whenever it changes.
   // Not while loading, and not while arranging: every box then shows open, which
   // is not the shape the next load draws. Turning arranging off re-runs this with
@@ -246,7 +400,8 @@ export default function AppGrid({
   // debounce), on arranging turning on, and on unmount. The compact key is the
   // change signal: a re-render with the same shape keeps the same key, so no
   // write; the ref hands the effect the shape that key was made from.
-  const shape = loading ? null : shapeOf(boxes, showRecent);
+  // SPEC-group-header-collapse AC-018 — the real folded state goes in too.
+  const shape = loading ? null : shapeOf(boxes, showRecent, isCollapsed);
   const shapeKey = shape ? keyOfShape(shape) : '';
   const shapeRef = useRef(shape);
   shapeRef.current = shape;
@@ -468,6 +623,9 @@ export default function AppGrid({
   // controls would offer a drag that silently 403s on save.
   const arranging = editMode;
   const editing = isAdmin && editMode;
+  // SPEC-group-header-collapse §3.4, §3.6, §3.7 — who gets a chevron: an adult
+  // outside arrange mode, on a real category box (Uncategorized has no id to save).
+  const canFold = (b: Box) => !isKid && foldable(b);
   const sortableBoxes = boxes.filter((b) => b.id !== '');
   const uncatBox = boxes.find((b) => b.id === '');
   // AC-009 / AC-022 — the empty-box button is the admin's, and hides while the
@@ -516,7 +674,7 @@ export default function AppGrid({
           </>
         ) : (
           boxes.map((box) => (
-            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} arranging={arranging} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} {...emptyProps} />
+            <BoxCard key={box.id || '__uncat__'} box={box} isAdmin={isAdmin} viewportWidth={viewportWidth} editing={editing} arranging={arranging} lone={loneById.get(box.id) ?? false} onWidth={changeWidth} onToggleFavorite={onToggleFavorite} onEdit={openEdit} onOpenIframe={openIframe} onRename={onRenameBox} onDelete={onDeleteBox} showUptimeDisplay={showUptimeDisplay} density={density} collapsed={isCollapsed(box)} onToggleCollapse={canFold(box) ? toggleCollapsed : undefined} {...emptyProps} />
           ))
         )}
         {addButton}
@@ -748,6 +906,8 @@ function BoxCard({
   setAnnounce,
   onAddToBox,
   dashboardEmpty = false,
+  collapsed = false,
+  onToggleCollapse,
 }: {
   box: Box;
   isAdmin: boolean;
@@ -775,9 +935,15 @@ function BoxCard({
   // empty state shows (AppGrid gates it); dashboardEmpty shortens the member line.
   onAddToBox?: (box: { id: string; title: string }, opener: HTMLButtonElement) => void;
   dashboardEmpty?: boolean;
+  // SPEC-group-header-collapse — whether the box draws folded, and the chevron's
+  // handler. AppGrid passes the handler only when a chevron belongs here (an
+  // adult outside arrange mode, a real category box).
+  collapsed?: boolean;
+  onToggleCollapse?: (box: Box) => void;
 }) {
   const theme = useResolvedTheme();
   const titleId = useId();
+  const bodyId = useId();
   // The width selector, like rename/delete, is an Edit Dashboard affordance:
   // it only appears for an admin in edit mode, and never on the synthetic
   // Uncategorized box (empty id, no real category).
@@ -815,12 +981,16 @@ function BoxCard({
   return (
     <section
       ref={sortable?.setNodeRef}
-      className={`app-grid-box${sortable?.isDragging ? ' is-grabbed' : ''}`}
+      className={`app-grid-box${sortable?.isDragging ? ' is-grabbed' : ''}${collapsed ? ' is-collapsed' : ''}`}
       data-testid="app-grid-box"
       data-box-id={box.id}
       style={style}
     >
       <header className="app-grid-box-header">
+        {/* §3.1 — one group that never wraps: grip, chevron, title, pill, badge
+            and bar. The edit controls after it drop to their own line when the
+            box is narrow; the metadata never wraps into them. */}
+        <div className="app-grid-box-meta">
         {sortable && (
           // The sole drag origin (a real <button>, keyboard-operable). #35 gate:
           // it lives inside the sortable subtree but must never contest a pixel
@@ -840,11 +1010,30 @@ function BoxCard({
             ⠿
           </button>
         )}
+        {onToggleCollapse && (
+          // §3.4 — a real button, the same element in both states so focus
+          // stays on it. Its name does not change; aria-expanded carries state.
+          <button
+            type="button"
+            className="app-grid-box-chevron"
+            data-testid="box-chevron"
+            aria-expanded={!collapsed}
+            aria-controls={bodyId}
+            aria-label={`${box.title} apps`}
+            onClick={() => onToggleCollapse(box)}
+          >
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+              <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
         {/* tabIndex -1: App.tsx moves focus here after the Library closes when
             the added app's tile is not rendered (§3.4, AC-011). */}
         <h2 id={titleId} className="app-grid-box-title" data-testid="box-title" title={box.title} tabIndex={-1}>
           {box.title}
         </h2>
+        <BoxStatusMeta tools={box.tools} />
+        </div>
         {canManage && (
           <div className="app-grid-box-actions">
             <button
@@ -950,7 +1139,11 @@ function BoxCard({
           </div>
         </div>
       )}
-      {box.tools.length === 0 ? (
+      {/* SPEC-group-header-collapse §3.4 — the chevron's aria-controls target,
+          always rendered so the id always exists; `hidden` and empty while the
+          box is folded. display: contents, so the box lays out as before. */}
+      <div id={bodyId} className="app-grid-box-body" hidden={collapsed || undefined}>
+      {collapsed ? null : box.tools.length === 0 ? (
         // AC-009 / AC-021 — the admin can fill the box from the Library; anyone
         // else can only ask (POST /api/library/{id}/add is admin-only). While
         // member-empty already asks, the box says only that it is empty.
@@ -997,7 +1190,47 @@ function BoxCard({
           ))}
         </div>
       )}
+      </div>
     </section>
+  );
+}
+
+// SPEC-group-header-collapse §3.2, §3.3 — the header's count pill, "N down"
+// badge, hidden status line and status bar. Status colours are the health
+// meter's (src/lib/statusBands.ts), never the service or category hue (#352).
+// The pill reads as the count phrase; the badge and the bar are aria-hidden,
+// and the hidden line gives the exact split in the tile pips' words, so "2 down"
+// is never heard for one DOWN and one DEGRADED app. They follow the live poll;
+// changes are not announced.
+function BoxStatusMeta({ tools }: { tools: Service[] }) {
+  const n = tools.length;
+  const statuses = tools.map((t) => t.status);
+  const down = statuses.filter(isDown).length;
+  const widths = bandWidths(bandCounts(statuses));
+  return (
+    <>
+      <span className="cat-count app-grid-box-count" data-testid="box-count">
+        <span aria-hidden="true">{n}</span>
+        <span className="sr-only">{countPhrase(n)}</span>
+      </span>
+      {n > 0 && (
+        <span className="sr-only" data-testid="box-status-line">
+          {statusLine(statuses)}
+        </span>
+      )}
+      {down > 0 && (
+        <span className="app-grid-box-down" data-testid="box-down-badge" aria-hidden="true">
+          {down} down
+        </span>
+      )}
+      {n > 0 && (
+        <span className="app-grid-box-bar" data-testid="box-status-bar" aria-hidden="true">
+          {widths.map((w, band) =>
+            w > 0 ? <span key={band} className={`app-grid-box-bar-seg ${BAND_CLASS[band]}`} style={{ width: `${w}px` }} /> : null,
+          )}
+        </span>
+      )}
+    </>
   );
 }
 
@@ -1210,17 +1443,6 @@ function SortableBox({
     />
   );
 }
-
-// SPEC-242 §5 — the per-tile status indicator's human labels. NOT_MONITORED is
-// "not monitored" (absence of monitoring, not a failure — D-6); the rest are the
-// raw state. Drives both the aria-label ("status: {label}") and the title.
-const statusLabel: Record<ServiceStatus, string> = {
-  UP: 'UP',
-  DOWN: 'DOWN',
-  DEGRADED: 'DEGRADED',
-  UNKNOWN: 'UNKNOWN',
-  NOT_MONITORED: 'not monitored',
-};
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -1556,8 +1778,8 @@ function ToolLink({
         data-status={service.status}
         data-pulsing={pulsing ? 'true' : 'false'}
         role="img"
-        title={statusLabel[service.status] ?? service.status}
-        aria-label={`status: ${statusLabel[service.status] ?? service.status}`}
+        title={STATUS_LABEL[service.status] ?? service.status}
+        aria-label={`status: ${STATUS_LABEL[service.status] ?? service.status}`}
       />
       <a
         className="app-grid-tool"

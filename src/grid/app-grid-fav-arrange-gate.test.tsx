@@ -28,6 +28,8 @@ vi.mock('../api', () => ({
   deleteCategory: vi.fn(),
   setFavorite: vi.fn(),
   setLayout: vi.fn(),
+  getCollapsedCategories: vi.fn(),
+  setCollapsedCategories: vi.fn(),
 }));
 
 const cat = (id: string, name: string): Category => ({
@@ -62,6 +64,8 @@ beforeEach(() => {
   vi.mocked(api.setFavorite).mockResolvedValue(true);
   vi.mocked(api.saveCategoryWidth).mockResolvedValue(true);
   vi.mocked(api.setLayout).mockResolvedValue(true);
+  vi.mocked(api.getCollapsedCategories).mockResolvedValue([]);
+  vi.mocked(api.setCollapsedCategories).mockResolvedValue(true);
 });
 
 afterEach(() => vi.clearAllMocks());
@@ -172,4 +176,25 @@ describe('v29 — arrange mode grants a non-admin no shared-catalog power (AC-00
     await renderGrid({ isAdmin: true, editMode: true });
     expect(screen.queryAllByTestId('tile-edit').length).toBeGreaterThan(0);
   });
+});
+
+// SPEC-group-header-collapse AC-013 — a box the user folded opens while
+// arranging, so its ★ (and, for an admin, its pencil) stays reachable.
+describe('arrange mode opens a folded box (SPEC-group-header-collapse AC-013)', () => {
+  for (const isAdmin of [false, true]) {
+    it(`${isAdmin ? 'admin' : 'member'}: the ★ in a folded box is reachable in arrange mode; nothing is saved`, async () => {
+      vi.mocked(api.getCollapsedCategories).mockResolvedValue(['c1']);
+      const user = userEvent.setup();
+      const { rerender } = render(<AppGrid isAdmin={isAdmin} editMode={false} showUptimeDisplay={false} />);
+      await screen.findByTestId('app-grid');
+      expect(screen.queryByText('Plain App')).toBeNull();
+      rerender(<AppGrid isAdmin={isAdmin} editMode showUptimeDisplay={false} />);
+      await user.click(within(tileFor('Plain App')).getByTestId('tile-favorite'));
+      expect(api.setFavorite).toHaveBeenCalledWith('plain', true);
+      expect(within(tileFor('Plain App')).queryAllByTestId('tile-edit')).toHaveLength(isAdmin ? 1 : 0);
+      rerender(<AppGrid isAdmin={isAdmin} editMode={false} showUptimeDisplay={false} />);
+      expect(screen.queryByText('Plain App')).toBeNull();
+      expect(api.setCollapsedCategories).not.toHaveBeenCalled();
+    });
+  }
 });

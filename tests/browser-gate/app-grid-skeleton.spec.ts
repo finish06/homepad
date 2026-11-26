@@ -344,6 +344,79 @@ test.describe('dashboard skeleton — the fallback (AC-004, AC-019)', () => {
   });
 });
 
+// SPEC-group-header-collapse AC-018 — the real folded state reaches the cache,
+// and a returning visit draws that box header-only, so nothing moves when the
+// grid (and the saved set) arrive.
+test.describe('dashboard skeleton — a folded box (SPEC-group-header-collapse AC-018)', () => {
+  async function withFoldedSet(page: Page) {
+    let release: (() => void) | null = null;
+    let held: Promise<void> | null = null;
+    // Registered after setup's mocks, so it wins: the 3-app box is folded.
+    await page.route('**/api/me/collapsed-categories', async (route) => {
+      if (held) await held;
+      await route.fulfill({ json: { collapsed: ['cat-2'] } });
+    });
+    return {
+      hold() {
+        held = new Promise<void>((r) => (release = r));
+      },
+      release() {
+        release?.();
+        held = null;
+      },
+    };
+  }
+  const storedFolds = (page: Page) =>
+    page.evaluate((k) => {
+      const raw = localStorage.getItem(k);
+      return raw ? (JSON.parse(raw) as { boxes: { collapsed: boolean }[] }).boxes.map((b) => b.collapsed) : null;
+    }, SHAPE_KEY);
+
+  test('while the saved set loads, the folded box is header-only and the swap shifts nothing (page level)', async ({
+    page,
+  }) => {
+    await setup(page, { width: 1440 });
+    const set = await withFoldedSet(page);
+    await firstVisit(page);
+    await expect.poll(() => storedFolds(page)).toEqual([false, true, false]);
+    // Hold only the set: services land first, so the health panel has its
+    // loaded height before the skeleton is measured, and the swap below is the
+    // collapse wait alone.
+    set.hold();
+    const services = page.waitForResponse('**/api/services');
+    await page.reload();
+    await services;
+    await expect(page.getByTestId('app-grid-loading')).toBeVisible();
+    await frames(page);
+    await page.waitForTimeout(100);
+    const skeleton = await snap(page, SKELETON);
+    expect(skeleton.boxes[1].tile).toBeNull();
+    const base = await page.evaluate(() => (window as unknown as { __cls: number }).__cls);
+    set.release();
+    await expect(page.getByTestId('app-grid')).toBeVisible();
+    await frames(page);
+    await page.waitForTimeout(200);
+    const real = await snap(page, REAL);
+    const cls = (await page.evaluate(() => (window as unknown as { __cls: number }).__cls)) - base;
+    expect(real.boxes[1].tile).toBeNull();
+    expect(cls).toBeLessThan(0.01);
+    expectSameGrid(skeleton, real, (s, i) => s.boxes[i].y);
+    expect(Math.abs(skeleton.footerTop - real.footerTop)).toBeLessThanOrEqual(1);
+  });
+
+  for (const density of ['large', 'compact', 'list'] as const) {
+    test(`with services held too, the grid does not move inside its section at ${density} (AC-018)`, async ({ page }) => {
+      const api = await setup(page, { width: 1440, density });
+      await withFoldedSet(page);
+      await firstVisit(page);
+      await expect.poll(() => storedFolds(page)).toEqual([false, true, false]);
+      const { skeleton, real } = await returningVisit(page, api);
+      expect(skeleton.boxes[1].tile).toBeNull();
+      expectSameGrid(skeleton, real, relY);
+    });
+  }
+});
+
 test.describe('dashboard skeleton — motion, transparency, contrast (AC-007, AC-008)', () => {
   test('reduced motion: nothing under the skeleton animates', async ({ page }) => {
     const api = await setup(page, { width: 1440 });

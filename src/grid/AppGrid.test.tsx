@@ -299,15 +299,17 @@ describe('empty box copy and the Library button (AC-009, AC-021, AC-022)', () =>
     expect(within(mediaBox()).getByTestId('box-empty')).toHaveTextContent(
       /^No apps here yet\. Ask an admin to add some\.$/,
     );
-    expect(within(mediaBox()).queryByRole('button')).toBeNull();
+    // The header's fold chevron (SPEC-group-header-collapse) is the box's only button.
+    expect(within(mediaBox()).queryAllByRole('button').map((b) => b.dataset.testid)).toEqual(['box-chevron']);
   });
 
   it('kid (any non-admin, large tiles): the same line and no button', async () => {
-    render(<AppGrid isAdmin={false} density="large" dashboardEmpty={false} />);
+    render(<AppGrid isAdmin={false} isKid density="large" dashboardEmpty={false} />);
     await screen.findByTestId('app-grid');
     expect(within(mediaBox()).getByTestId('box-empty')).toHaveTextContent(
       'No apps here yet. Ask an admin to add some.',
     );
+    // A kid has no fold chevron either (SPEC-group-header-collapse §3.7).
     expect(within(mediaBox()).queryByRole('button')).toBeNull();
   });
 

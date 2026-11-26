@@ -39,10 +39,18 @@ for (const [label, w, h] of [
 ] as const) {
   test.describe(`kid board — ${label}`, () => {
     test('renders only the kid shell: tiles by section, no admin or edit affordances', async ({ page }) => {
+      // SPEC-group-header-collapse AC-016 — a kid's grid sends no collapse
+      // request at all, GET or PUT, and has no chevron; it keeps the pill.
+      const collapseCalls: string[] = [];
+      page.on('request', (r) => {
+        if (new URL(r.url()).pathname === '/api/me/collapsed-categories') collapseCalls.push(r.method());
+      });
       await openBoard(page, w, h);
       await expect(page.getByTestId('tool-link')).toHaveCount(MAYA_APPS.length);
       await expect(page.getByTestId('box-title')).toHaveText(['Media', 'Photos']);
-      for (const id of ['settings-gear', 'alert-bell', 'status-bar', 'tile-edit', 'add-box', 'width-selector']) {
+      await expect(page.getByTestId('box-count')).toHaveCount(2);
+      expect(collapseCalls, 'a kid grid made a collapse request').toEqual([]);
+      for (const id of ['settings-gear', 'alert-bell', 'status-bar', 'tile-edit', 'add-box', 'width-selector', 'box-chevron']) {
         await expect(page.getByTestId(id), `${id} must not render for a kid`).toHaveCount(0);
       }
       await expect(page.getByTestId('app-grid')).toHaveAttribute('data-density', 'large');

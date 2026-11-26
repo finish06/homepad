@@ -10,8 +10,8 @@ import { SPANS, type Box, type Span } from './appGridLayout';
 //   span      the box's width (3, 4, 6 or 12)
 //   count     the EXACT number of apps the user sees in it — not capped, since
 //             --grow and --cap use the full count
-//   collapsed whether the box drew folded (SPEC-group-header-collapse; always
-//             false until #718 ships)
+//   collapsed whether the box drew folded (SPEC-group-header-collapse AC-018;
+//             AppGrid passes the real flag, never written while arranging)
 //   recent    whether the Recently opened row drew
 
 export const SHAPE_KEY = 'homepad.gridShape';
@@ -69,7 +69,8 @@ export function readShape(userId: string | undefined): GridShape | null {
 }
 
 // shapeOf turns the boxes AppGrid renders into the cached form, in render order.
-// `isCollapsed` is #718's hook; until then every box is written open.
+// `isCollapsed` says whether a box drew folded (SPEC-group-header-collapse);
+// without it every box is written open.
 export function shapeOf(
   boxes: Box[],
   recent: boolean,

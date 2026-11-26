@@ -3190,6 +3190,143 @@
   .dark .app-grid-box-title {
     color: #f5f5f5;
   }
+  /* SPEC-group-header-collapse §3.1 — the header's metadata: grip (arrange),
+     chevron, title, count pill, "N down" badge and status bar, in one group
+     that never wraps. Only the title shrinks (ellipsis). The edit controls are
+     the header's next items, so at narrow widths they drop to their own line
+     (the header keeps flex-wrap) and never split this group. Nothing here may
+     be taller than the title's line, so the header height, and with it the
+     skeleton's header-only box, does not change. */
+  .app-grid-box-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .app-grid-box-meta .app-grid-box-title {
+    flex: 0 1 auto;
+  }
+  .app-grid-box-meta > :not(.app-grid-box-title) {
+    flex-shrink: 0;
+  }
+  /* §3.4 — the chevron. 24×24 hit area at Compact and List, 44×44 at Large and
+     on touch; negative margins (like the box grip) keep the row height. */
+  .app-grid-box-chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin: 0 -4px 0 -6px;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #475569;
+    cursor: pointer;
+    transition: color 120ms ease, background 120ms ease;
+  }
+  [data-density='large'] .app-grid-box-chevron {
+    width: 44px;
+    height: 44px;
+    margin: -10px -8px -10px -16px;
+  }
+  @media (pointer: coarse) {
+    .app-grid-box-chevron {
+      width: 44px;
+      height: 44px;
+      margin: -10px -8px -10px -16px;
+    }
+  }
+  .app-grid-box-chevron:hover {
+    color: #0f172a;
+    background: rgba(15, 23, 42, 0.05);
+  }
+  .app-grid-box-chevron:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #6366f1;
+  }
+  .app-grid-box-chevron svg {
+    transition: transform 150ms ease;
+  }
+  /* Points down when open, right when folded. */
+  .app-grid-box-chevron[aria-expanded='false'] svg {
+    transform: rotate(-90deg);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-grid-box-chevron svg {
+      transition: none;
+    }
+  }
+  .dark .app-grid-box-chevron {
+    color: #cbd5e1;
+  }
+  .dark .app-grid-box-chevron:hover {
+    color: #f5f5f5;
+    background: rgba(255, 255, 255, 0.06);
+  }
+  /* §3.2 — the pill is .cat-count; one shade darker in light mode so it keeps
+     4.5:1 on the translucent box (AC-017). */
+  :root:not(.dark) .app-grid-box-count {
+    color: #475569;
+  }
+  /* §3.3 — "N down": a red dot plus the words. The words carry the meaning, in
+     the body text colour on a faint red wash (red text on it is under 4.5:1 in
+     light mode, AC-017); the dot repeats it in the meter's red. */
+  .app-grid-box-down {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 1px 7px 1px 6px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    color: var(--v-txt);
+    background: color-mix(in srgb, var(--v-down) 12%, transparent);
+  }
+  .app-grid-box-down::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--v-down);
+  }
+  /* §3.2 — the status bar: 64×5px, up to three bands in meter order, widths
+     set inline (src/lib/statusBands.ts bandWidths, always 64px in all). The
+     band colours are the meter's .health-tick-* classes; the gray band takes
+     --v-unknown here, because the meter's --v-tick-idle is too faint to keep
+     3:1 against the box (AC-017) and a box that is all gray must still show. */
+  .app-grid-box-bar {
+    display: flex;
+    width: 64px;
+    height: 5px;
+    margin-left: auto;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .app-grid-box-bar-seg {
+    flex: 0 0 auto;
+    height: 100%;
+  }
+  .app-grid-box-bar .health-tick-idle {
+    background: var(--v-unknown);
+  }
+  /* §3.4 — the folded box: its header row only, at its width. The body wrapper
+     (the chevron's aria-controls target) lays out as if absent while open. */
+  .app-grid-box.is-collapsed {
+    min-height: 0;
+  }
+  .app-grid-box-body {
+    display: contents;
+  }
+  .app-grid-box-body[hidden] {
+    display: none;
+  }
   /* Edit Dashboard — the box drag grip. A ≥44px hit target (§6.3 touch), the sole
      drag origin; grab cursor + touch-none so a drag doesn't fight page scroll. */
   .app-grid-box-grip {

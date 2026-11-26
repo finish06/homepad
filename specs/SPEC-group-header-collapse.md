@@ -4,7 +4,7 @@
 **Version:** 0.4.0
 **Created:** 2026-11-25
 **Author:** Claude (Caleb asked 2026-11-25 to write up M10)
-**Status:** Approved — 2026-11-25 (Caleb's answers are in §6). Not built. Kare checks the status bar during the build, since it replaces the held direction in SPEC-app-grid §10.1–10.3
+**Status:** Approved — 2026-11-25 (Caleb's answers are in §6). Built 2026-11-25; see §10 (as built). Kare checks the status bar during the build, since it replaces the held direction in SPEC-app-grid §10.1–10.3
 **Repo:** `Code/homepad` (web app at the root; no `api/` changes)
 **Issues:** #718
 **Target version:** 18.7.0
@@ -200,3 +200,17 @@ Gates: `npm run lint`, `npm run build`, `npx vitest run`, `npm run test:gate`, `
 ## 9. Build order
 
 Build after SPEC-dashboard-empty-loading (#722). This spec widens #722's loading predicate and fills its cache's `collapsed` field, so it needs both to exist. Both change `src/grid/AppGrid.tsx`, `src/index.css` and the `<AppGrid>` element in `src/app/App.tsx` (this spec adds `isKid`); see the file plan in `docs/milestones/M10-ui-review-first-batch.md`.
+
+## 10. As built (2026-11-25)
+
+Small calls made while building. The PR lists them under "Spec deviations".
+
+1. **The bar's gray band uses `--v-unknown`, not the meter's `--v-tick-idle`.** The meter's idle gray is far under 3:1 against the box, so it fails AC-017, and an all-gray bar (OQ-4) would barely show. `--v-unknown` is the existing token the tile pips use for UNKNOWN, so no new colour (it measures about 4.5:1 in light mode). Green and red are the meter's tokens unchanged (light: about 3.2:1 and 4.5:1).
+2. **The "N down" words are the body text colour on a faint red wash, after a red dot.** Red text (`--v-down`) on the box measured 3.4:1 in light mode, under AC-017's 4.5:1. The words carry the meaning (§3.3); the dot and the wash repeat it in the meter's red.
+3. **The pill is one shade darker in light mode inside the header** (`#475569` instead of `.cat-count`'s `#64748b`, which is about 4.2:1 on the translucent box). Dark mode keeps `.cat-count` as it is.
+4. **Chevron hit area on touch.** `pointer: coarse` gets 44×44 at every density (§3.4: "at Large and on touch"). The browser gate's project has touch on, so it checks 24×24 at Compact and List in a mouse-only context.
+5. **The box grip moved inside the metadata group**, so at narrow widths it can never wrap away from the title. Its size, margins and drag wiring are unchanged; the rearrange and #513 gates pass unchanged.
+6. **AC-014 with a collapsed box.** The existing gates (`fav-edit-hit-areas-513`, `app-grid-rearrange`, `app-grid-box-manage`, `AppGrid.tiledrag.test.tsx`) run unchanged against their own mocks, whose saved set is empty. The collapsed-set case (two boxes folded, then arrange mode: ★, pencil and box grip answer at their centre, the width selector works, no PUT) is in `tests/browser-gate/app-grid-group-header-718.spec.ts` at all three densities.
+7. **AC-018's layout-shift sum** is measured at page level for the collapse wait itself: services load first, the saved set is held, and the swap from skeleton to grid shifts under 0.01. With services held too, an adult's health panel grows on load (SPEC-dashboard-empty-loading §8.1), so that case checks the grid inside its own section, as #722 does.
+8. **An unmounted grid sends no more PUTs** (code review on #746). After a sign-out, a queued set must never go out under the next user's session. AppGrid also remounts on a catalog reload (a restore or an import), and its GET runs in parallel with the categories fetch, as §3.5 says. So a toggle made in the moment before such a reload can be lost, or the reload can read the set from just before a PUT that is still in flight. Code review tried ordering across mounts with a page-wide queue; it added a hung-request failure mode and up to 6 s of skeleton, so it was taken out. The edge needs a restore or import while a fold is saving.
+9. **Kept as decided:** after a failed or timed-out GET, the next toggle's PUT replaces the server's set with the on-screen one (§3.5). Code review flagged it as data loss. It stays because it is the approved rule: the saved set then matches what the user saw.

@@ -574,6 +574,8 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
                 userId={user.id}
                 onAddToBox={(box, opener) => openBrowse({ ...box, opener })}
                 dashboardEmpty={dashboardEmpty}
+                // SPEC-group-header-collapse §3.7 — no chevron, no collapse request.
+                isKid={isKid}
               />
             </>
           )}

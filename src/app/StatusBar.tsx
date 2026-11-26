@@ -15,6 +15,7 @@ import { safeHref } from '../lib/safeUrl';
 import { useServicesContext } from '../services';
 import type { Service, ServiceStatus } from '../api';
 import { CONTENT_WIDTH } from '../lib/layout';
+import { BAND_CLASS, bandOf, isDown } from '../lib/statusBands';
 
 // Which chip's popover is open (if any).
 type PeekStatus = 'UP' | 'DOWN_DEGRADED' | 'NOT_MONITORED';
@@ -34,7 +35,7 @@ const PEEK_META: Record<PeekStatus, { testId: string; label: string; match: (s: 
   DOWN_DEGRADED: {
     testId: 'status-bar-down',
     label: 'DOWN',
-    match: (s) => s.status === 'DOWN' || s.status === 'DEGRADED',
+    match: (s) => isDown(s.status),
   },
   NOT_MONITORED: {
     testId: 'status-bar-not-monitored',
@@ -43,29 +44,10 @@ const PEEK_META: Record<PeekStatus, { testId: string; label: string; match: (s: 
   },
 };
 
-// Meter-tick color class per status (accent-independent, semantic only). Three
-// colors only — the meter is a distribution view (like the chips + v16 popover),
-// so DEGRADED reads red, not amber (SPEC-v24 §8.B; amber is reserved for the LED
-// and the per-tile dot). This keeps the meter to exactly its three bands.
-const tickClass: Record<ServiceStatus, string> = {
-  UP: 'health-tick-up',
-  DOWN: 'health-tick-down',
-  DEGRADED: 'health-tick-down',
-  UNKNOWN: 'health-tick-idle',
-  NOT_MONITORED: 'health-tick-idle',
-};
-
-// Status → meter band (SPEC-v24 §3.2): 0 GREEN (UP), 1 GRAY (NOT_MONITORED +
-// UNKNOWN — unobservable, not known-down), 2 RED (DOWN + DEGRADED). Ticks are
-// grouped into these contiguous bands, healthy-first, so the distribution reads
-// at a glance; within a band, layout order is preserved (§3.4).
-const statusBand: Record<ServiceStatus, number> = {
-  UP: 0,
-  NOT_MONITORED: 1,
-  UNKNOWN: 1,
-  DOWN: 2,
-  DEGRADED: 2,
-};
+// Meter banding (SPEC-v24 §3.2): BAND_CLASS[bandOf(status)] colours a tick and bandOf orders
+// ticks into the green / gray / red bands, healthy-first; within a band, layout
+// order is preserved (§3.4). Shared with the App Grid box header's status bar
+// (SPEC-group-header-collapse AC-003), so the two never band a status apart.
 
 // SPEC-v24 §12.2, AC-V24-NM3b — where "Connect a status source" sends people.
 // OQ-4 resolved the CTA's target to documentation rather than an in-app setup
@@ -414,13 +396,13 @@ export default function StatusBar({
                 >
                   {(items ?? [])
                     .map((s, i) => ({ s, i }))
-                    .sort((a, b) => statusBand[a.s.status] - statusBand[b.s.status] || a.i - b.i)
+                    .sort((a, b) => bandOf(a.s.status) - bandOf(b.s.status) || a.i - b.i)
                     .map(({ s }) => (
                       <span
                         key={s.id}
                         data-tick
                         data-status={s.status}
-                        className={`health-tick ${tickClass[s.status] ?? 'health-tick-idle'}`}
+                        className={`health-tick ${BAND_CLASS[bandOf(s.status)]}`}
                       />
                     ))}
                 </div>
