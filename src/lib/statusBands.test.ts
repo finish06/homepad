@@ -31,6 +31,8 @@ describe('band mapping (AC-003)', () => {
     expect(bandOf('DEGRADED')).toBe(2);
     expect(bandOf('UNKNOWN')).toBe(1);
     expect(bandOf('SOMETHING_NEW')).toBe(1);
+    expect(bandOf('constructor')).toBe(1);
+    expect(isDown('constructor')).toBe(false);
   });
 
   it('counts DOWN and DEGRADED as down, nothing else', () => {

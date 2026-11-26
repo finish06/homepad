@@ -596,12 +596,11 @@ export async function getCollapsedCategories(): Promise<string[] | null> {
   }
 }
 
-// setCollapsedCategories replaces the whole set (PUT, 204, no body). True on
-// any 2xx; false on a network failure or any other status (a kid's 403
-// included), so the caller can put the screen back to the last accepted set.
+// setCollapsedCategories replaces the whole set (PUT, 204, no body). False on
+// a network failure or any other status (a kid's 403 included), so the caller
+// can put the screen back to the last accepted set.
 export async function setCollapsedCategories(ids: string[]): Promise<boolean> {
-  const { status } = await request('/api/me/collapsed-categories', { method: 'PUT', json: { collapsed: ids } });
-  return status >= 200 && status < 300;
+  return boolRequest('/api/me/collapsed-categories', 204, { method: 'PUT', json: { collapsed: ids } });
 }
 
 // listLibrary browses the App Library — every offer in sort_index order, each

@@ -37,13 +37,13 @@ export const BAND_CLASS: readonly [string, string, string] = [tickClass.UP, tick
 // bandOf maps any status string to its band. A status the client does not know
 // (a newer server) is gray: unobservable, never claimed up or down.
 export function bandOf(status: string): Band {
-  return statusBand[status as ServiceStatus] ?? 1;
+  return Object.hasOwn(statusBand, status) ? statusBand[status as ServiceStatus] : 1;
 }
 
 // isDown is the health panel's "N down" rule: DOWN and DEGRADED both count
 // (StatusBar's down chip, SPEC-group-header-collapse §3.3).
 export function isDown(status: string): boolean {
-  return status === 'DOWN' || status === 'DEGRADED';
+  return bandOf(status) === 2;
 }
 
 // bandCounts counts apps per band: [green, gray, red].

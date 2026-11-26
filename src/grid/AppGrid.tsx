@@ -138,9 +138,6 @@ function useViewportWidth(): number {
 const NO_IDS: ReadonlySet<string> = new Set();
 const COLLAPSE_GET_TIMEOUT_MS = 3000;
 const COLLAPSE_SAVE_FAILED = "Couldn't save. Try again.";
-// The newest run of collapse PUTs on this page (it never rejects). A new grid
-// mount (a catalog reload remounts AppGrid) lets it land before its GET.
-let lastCollapseSave: Promise<void> = Promise.resolve();
 
 // pruneIds keeps only the ids of boxes on screen (`ids`; null = not loaded yet,
 // keep all). Returns `set` itself when nothing was dropped.
@@ -287,8 +284,6 @@ export default function AppGrid({
   useEffect(() => {
     if (isKid) return;
     let done = false;
-    let asked = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
     const finish = (ids: string[] | null) => {
       if (done) return;
       done = true;
@@ -300,22 +295,13 @@ export default function AppGrid({
       }
       setCollapsedReady(true);
     };
-    const ask = () => {
-      if (done || asked) return;
-      asked = true;
-      // request() has no timeout of its own, so the grid bounds the GET here.
-      clearTimeout(timer);
-      timer = setTimeout(() => finish(null), COLLAPSE_GET_TIMEOUT_MS);
-      // Any failure, a throw included, means "all expanded".
-      Promise.resolve()
-        .then(() => getCollapsedCategories())
-        .then(finish, () => finish(null));
-    };
-    // A remount (a catalog reload) first lets the previous mount's saves land,
-    // so it never reads a set older than the one the user just saved. That
-    // wait has its own bound and does not eat into the GET's.
-    timer = setTimeout(ask, COLLAPSE_GET_TIMEOUT_MS);
-    lastCollapseSave.then(ask, ask);
+    // request() has no timeout of its own, so the grid bounds the wait here.
+    const timer = setTimeout(() => finish(null), COLLAPSE_GET_TIMEOUT_MS);
+    // In parallel with the categories fetch. Any failure, a throw included,
+    // means "all expanded".
+    Promise.resolve()
+      .then(() => getCollapsedCategories())
+      .then(finish, () => finish(null));
     return () => {
       done = true;
       clearTimeout(timer);
@@ -327,10 +313,8 @@ export default function AppGrid({
   // moved on meanwhile, one follow-up PUT sends the newer set; a success never
   // changes the screen. On failure the screen goes back to `confirmed`, any
   // follow-up is dropped (newer toggles included) and the grid toast says so
-  // once. Every PUT on the page goes through one queue (lastCollapseSave), so
-  // a remounted grid's PUT can never land before an older mount's. An
-  // unmounted grid sends nothing more: after a sign-out its queued set must
-  // never go out under the next user's session.
+  // once. An unmounted grid sends nothing more: after a sign-out its queued
+  // set must never go out under the next user's session.
   const flushCollapsed = useCallback(() => {
     if (putInFlight.current) return;
     putInFlight.current = true;
@@ -359,7 +343,7 @@ export default function AppGrid({
         putInFlight.current = false;
       }
     };
-    lastCollapseSave = lastCollapseSave.then(run);
+    void run();
   }, [showDesired]);
 
   const svcs = ctx ? ctx.items : ownSvcs;

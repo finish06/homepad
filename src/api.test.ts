@@ -624,7 +624,9 @@ describe('setCollapsedCategories', () => {
     expect(JSON.parse(fn.mock.calls[0][1]!.body as string)).toEqual({ collapsed: [] });
   });
 
-  it("returns false on any non-2xx (a kid's 403 included) and on a network failure", async () => {
+  it("returns false on anything but 204 (a kid's 403 included) and on a network failure", async () => {
+    mockFetch(null, 200);
+    await expect(setCollapsedCategories(['c1'])).resolves.toBe(false);
     mockFetch('bad json', 400);
     await expect(setCollapsedCategories(['c1'])).resolves.toBe(false);
     mockFetch(null, 403);
