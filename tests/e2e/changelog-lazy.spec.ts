@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { test, expect, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 // The changelog overlay (and src/changelog.json inside it) is a lazy chunk.
 // tests/infra/bundle-budget.test.ts proves the chunk exists in dist/; this

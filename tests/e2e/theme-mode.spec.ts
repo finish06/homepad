@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 // AC v3 (WEB) — the System / Light / Dark theme control. The backend
 // (GET/PATCH /api/me {themePref}) is already done + tested in homepad-api; this

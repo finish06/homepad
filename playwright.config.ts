@@ -1,3 +1,4 @@
+import { availableParallelism } from 'node:os';
 import { defineConfig, devices } from '@playwright/test';
 
 // The tests/e2e suite runs against the BUILT app served by `vite preview`, not
@@ -18,12 +19,21 @@ import { defineConfig, devices } from '@playwright/test';
 const PORT = 4174;
 const BASE_URL = `http://localhost:${PORT}`;
 
+// #739: half the CPUs this process may use, the same share as Playwright's
+// default. The default counts os.cpus(), which in a container is every core on
+// the host, not the container's CPU limit. A 2-CPU job on an 8-core host got
+// 4 workers, so 4 browsers shared 2 CPUs and the WebKit tests ran out of time.
+// availableParallelism() follows the cgroup limit (it said 2 in that job).
+// `--workers` on the command line still wins.
+export const E2E_WORKERS = Math.max(1, Math.floor(availableParallelism() / 2));
+
 export default defineConfig({
   testDir: './tests/e2e',
   timeout: 30_000,
   expect: { timeout: 5_000 },
   reporter: process.env.CI ? 'github' : 'list',
   retries: process.env.CI ? 2 : 0,
+  workers: E2E_WORKERS,
   use: {
     baseURL: BASE_URL,
     trace: 'on-first-retry',
@@ -48,6 +58,10 @@ export default defineConfig({
       // animating); removing backdrop-filter did. Nothing in this suite reads
       // devicePixelRatio or compares pixels, so 1x tests the same behaviour.
       // Pinned by tests/infra/e2e-mobile-project.test.ts.
+      //
+      // #739: 1x was not enough under full-suite load, so tests/e2e/fixtures.ts
+      // also turns backdrop-filter off in WebKit. The reasons and numbers are
+      // in that file.
       name: 'mobile',
       use: { ...devices['iPhone 13'], deviceScaleFactor: 1 },
     },

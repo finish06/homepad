@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { mockPasswords } from '../browser-gate/passwordMocks';
 
 // SPEC-password-reset-link — end to end against the BUILT app (vite preview),

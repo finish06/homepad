@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { WIDGET_ADDRESS, WIDGET_KEY, WIDGET_USERNAME, INFO_ON, mockWidgets } from '../browser-gate/widgetMocks';

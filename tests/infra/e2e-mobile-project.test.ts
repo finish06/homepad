@@ -8,9 +8,18 @@
 //
 // The test also pins the rest of the device so the fix cannot drift into
 // "not really a phone any more": same CSS viewport, touch, mobile and WebKit.
+//
+// #739: 1x was not enough under full-suite load. tests/e2e/fixtures.ts also
+// turns backdrop-filter off in WebKit, and only specs that take `test` from
+// that file get it. The last block below fails a spec that imports `test` from
+// '@playwright/test' instead. tests/e2e/fixtures.spec.ts checks, on the built
+// app, that the style really applies.
+import { readdirSync, readFileSync } from 'node:fs';
+import { availableParallelism } from 'node:os';
+import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { devices } from '@playwright/test';
-import config from '../../playwright.config';
+import config, { E2E_WORKERS } from '../../playwright.config';
 
 const mobile = config.projects?.find((p) => p.name === 'mobile');
 const iPhone13 = devices['iPhone 13'];
@@ -30,5 +39,40 @@ describe('e2e mobile project (kid-accounts TC-001 CI flake)', () => {
     expect(mobile?.use?.hasTouch).toBe(true);
     expect(mobile?.use?.userAgent).toBe(iPhone13.userAgent);
     expect(mobile?.use?.defaultBrowserType).toBe('webkit');
+  });
+});
+
+describe('e2e specs use the shared fixture (#739)', () => {
+  const dir = join(__dirname, '..', 'e2e');
+  const specs = readdirSync(dir).filter((f) => f.endsWith('.spec.ts'));
+
+  it('finds the specs', () => {
+    expect(specs.length).toBeGreaterThan(5);
+  });
+
+  it.each(specs)('%s takes test and expect from ./fixtures', (file) => {
+    const src = readFileSync(join(dir, file), 'utf8');
+    expect(src).toMatch(/^import \{ test, expect \} from '\.\/fixtures';$/m);
+    // Types from '@playwright/test' are fine; the runtime `test` is not.
+    const direct = [...src.matchAll(/^import \{([^}]*)\} from '@playwright\/test';$/gm)].flatMap((m) =>
+      m[1].split(',').map((x) => x.trim()),
+    );
+    expect(direct.filter((name) => name && !name.startsWith('type '))).toEqual([]);
+  });
+
+  it('the fixture turns backdrop-filter off in WebKit only', () => {
+    const src = readFileSync(join(dir, 'fixtures.ts'), 'utf8');
+    expect(src).toContain("browserName === 'webkit'");
+    expect(src).toMatch(/backdrop-filter: none !important/);
+  });
+});
+
+// #739: Playwright's default worker count reads os.cpus(), which in a
+// container is the host's cores, not the CPU limit. The config sizes the pool
+// from availableParallelism() (which follows the limit) instead.
+describe('e2e worker count follows the CPU limit (#739)', () => {
+  it('is half of availableParallelism(), at least 1', () => {
+    expect(E2E_WORKERS).toBe(Math.max(1, Math.floor(availableParallelism() / 2)));
+    expect(config.workers).toBe(E2E_WORKERS);
   });
 });
