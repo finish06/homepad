@@ -7,6 +7,23 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [18.7.0] — 2026-11-26 — UI review, first batch
+
+**Upgrading.** No database or config changes. 18.7.0 includes 18.6.0.
+
+- **Group headers:** every group shows its app count, a status bar in the health meter's colours, and an "N down" badge. Adults can fold a group; the folded groups are saved per user through the existing collapse API, so they follow you across devices and into backups. Kids see the count, bar and badge but can't fold. Every group shows open while arranging. If the saved folds fail to load, folding still works on screen but isn't saved that visit, so the saved set is never overwritten (#718, #746, #753).
+- **Loading and empty states:** the dashboard loads into a skeleton at the real grid size, drawn from the last layout this device showed you, so nothing jumps. An empty dashboard and an empty box now say what to do, with a button to the App Library for the people who can add apps (#722, #736).
+- **Quick wins (#725, #735, #740):**
+  - The browser's address bar and native controls follow the theme.
+  - Tap "Updated Xs ago" to refresh now.
+  - Notices pause while you hover or focus them, have a close button, and status changes link to the app.
+  - The gear menu supports the arrow keys, like the user menu.
+  - Down and degraded apps differ by shape as well as colour.
+  - The App Library is grouped by category and has an Added filter.
+  - Sign-in has a show-password button and a Caps Lock hint, and errors are read out at once.
+  - Members no longer see "Add apps", since they can't add apps.
+- **Cleanup:** unused styles from the old tile design are gone (#724, dead CSS only).
+
 ## [18.6.0] — 2026-11-24 — Content-Security-Policy
 
 **Upgrading.** No database changes. If you put your own nginx config in front of Homepad, add the `Content-Security-Policy` line from `nginx-security-headers.conf` to it. Homepad works without it, but isn't protected. 18.6.0 includes 18.5.0.
