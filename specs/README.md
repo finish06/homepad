@@ -1,12 +1,12 @@
 # homepad — Spec Index
 
-**Current as of:** 2026-11-26 (18.7.0; M10 specs shipped)  **Maintainer:** Walt (product lead)
+**Current as of:** 2026-11-27 (18.7.0; M10 specs shipped; one draft)  **Maintainer:** Walt (product lead)
 
 This directory holds the **current, authoritative** product specs and decisions for
 homepad. Historical specs for shipped versions v2–v10 are in
 [`specs/archive/`](./archive/).
 
-**Spec count.** "N specs" in `CLAUDE.md` and `docs/prd.md` means the feature specs indexed below: the top-level `specs/*.md` files other than `README.md`, `DECISIONS.md` and `test-plan-v1.md`. Count them with `ls specs/*.md | grep -v -e README -e DECISIONS -e test-plan-v1 | wc -l`. Subfolders (`specs/archive/`, `specs/ux/`) are not counted. On 2026-11-25 it is 61, and the section counts in the headings below add up to it (3 + 9 + 9 + 39 + 0 + 1).
+**Spec count.** "N specs" in `CLAUDE.md` and `docs/prd.md` means the feature specs indexed below: the top-level `specs/*.md` files other than `README.md`, `DECISIONS.md` and `test-plan-v1.md`. Count them with `ls specs/*.md | grep -v -e README -e DECISIONS -e test-plan-v1 | wc -l`. Subfolders (`specs/archive/`, `specs/ux/`) are not counted. On 2026-11-27 it is 62, and the section counts in the headings below add up to it (1 + 3 + 9 + 9 + 39 + 0 + 1).
 
 **Not counted:** [`DECISIONS.md`](./DECISIONS.md) is the decision record. [`test-plan-v1.md`](./test-plan-v1.md) is the AC-to-test methodology reference, not a feature spec.
 
@@ -32,6 +32,12 @@ homepad. Historical specs for shipped versions v2–v10 are in
 > `CHANGELOG.md`, the release PRs and the code at 18.6.0 (`5475545`).
 
 ---
+
+## Approved — not built yet (1)
+
+| File | Feature | Status |
+|---|---|---|
+| [`SPEC-health-widget.md`](./SPEC-health-widget.md) | Health becomes the third widget beside clock and weather: a household on/off, one per-user list of hidden widgets (replaces `showHealthBar` and `showWidgets`, kept until 19.0.0), one widget area that keeps its space while loading (#745) | Approved — 2026-11-27. Caleb took all §12 answers; Kare to sign off the look |
 
 ## Shipped — 18.7.0, M10 UI review first batch (3)
 
