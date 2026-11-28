@@ -807,15 +807,22 @@ func planPeople(p *Plan, o *ops, st *storage.TransferState, ppl *People, curApps
 	}
 	prefsOf := func(cur storage.TransferPerson, f Prefs) storage.TransferPersonRow {
 		r := storage.TransferPersonRow{ThemePref: cur.ThemePref, DensityPref: cur.DensityPref,
-			ShowHealthBar: cur.ShowHealthBar, ShowUptimeDisplay: cur.ShowUptimeDisplay}
+			HiddenWidgets: storage.NormalizeHiddenWidgets(cur.HiddenWidgets), ShowUptimeDisplay: cur.ShowUptimeDisplay}
 		if f.Theme != nil {
 			r.ThemePref = *f.Theme
 		}
 		if f.Density != nil {
 			r.DensityPref = *f.Density
 		}
-		if f.ShowHealthBar != nil {
-			r.ShowHealthBar = *f.ShowHealthBar
+		// SPEC-health-widget AC-013 — a file with the list sets it (unknown
+		// keys dropped; Decode counted them). An older file's showHealthBar
+		// maps as migration 0026 does and leaves clock, weather and tiles
+		// alone.
+		switch {
+		case f.HiddenWidgets != nil:
+			r.HiddenWidgets = storage.NormalizeHiddenWidgets(*f.HiddenWidgets)
+		case f.ShowHealthBar != nil:
+			r.HiddenWidgets = storage.ApplyLegacyShowHealthBar(cur.Role, r.HiddenWidgets, *f.ShowHealthBar)
 		}
 		if f.ShowUptimeDisplay != nil {
 			r.ShowUptimeDisplay = *f.ShowUptimeDisplay
@@ -824,7 +831,8 @@ func planPeople(p *Plan, o *ops, st *storage.TransferState, ppl *People, curApps
 	}
 	samePrefs := func(cur storage.TransferPerson, r storage.TransferPersonRow) bool {
 		return cur.ThemePref == r.ThemePref && cur.DensityPref == r.DensityPref &&
-			cur.ShowHealthBar == r.ShowHealthBar && cur.ShowUptimeDisplay == r.ShowUptimeDisplay
+			slices.Equal(storage.NormalizeHiddenWidgets(cur.HiddenWidgets), r.HiddenWidgets) &&
+			cur.ShowUptimeDisplay == r.ShowUptimeDisplay
 	}
 	addedFavs := func(have []string, want []string) []string {
 		h := map[string]bool{}
@@ -954,8 +962,10 @@ func planPeople(p *Plan, o *ops, st *storage.TransferState, ppl *People, curApps
 			if color == "" {
 				color = "blue"
 			}
-			base := storage.TransferPerson{ThemePref: "system", DensityPref: "large", ShowHealthBar: false,
-				ShowUptimeDisplay: settings.ShowUptimeDisplay}
+			// A new kid starts as insertKid makes one: health hidden
+			// (SPEC-health-widget AC-014).
+			base := storage.TransferPerson{Role: storage.RoleKid, ThemePref: "system", DensityPref: "large",
+				HiddenWidgets: []string{storage.WidgetHealth}, ShowUptimeDisplay: settings.ShowUptimeDisplay}
 			row := prefsOf(base, k.Prefs)
 			row.AvatarColor = &color
 			it.Action = ActionCreate

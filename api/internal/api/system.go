@@ -58,6 +58,10 @@ func (s *server) handlePatchSystemSettings(w http.ResponseWriter, r *http.Reques
 	var in struct {
 		ShowUptimeDisplay *bool `json:"showUptimeDisplay"`
 		StatusDegradedMs  *int  `json:"statusDegradedMs"`
+		// HealthEnabled is saved by the widget half below. It is typed here
+		// too, so a non-boolean is a 400 like the other switches on this
+		// route (SPEC-health-widget AC-010), not the widget half's 422.
+		HealthEnabled *bool `json:"healthEnabled"`
 	}
 	if err := json.Unmarshal(raw, &in); err != nil {
 		http.Error(w, "invalid JSON body", http.StatusBadRequest)

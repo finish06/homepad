@@ -114,8 +114,8 @@ func (s *Store) CreateKidWithLimit(ctx context.Context, name, avatarColor string
 func insertKid(ctx context.Context, q rowQuerier, name, avatarColor string) (User, error) {
 	u, err := scanUser(q.QueryRow(ctx,
 		`INSERT INTO users (email, password_hash, role, display_name, avatar_color,
-		                    show_health_bar, density_pref, show_uptime_display)
-		 VALUES (NULL, NULL, 'kid', $1, $2, FALSE, 'large',
+		                    show_health_bar, hidden_widgets, density_pref, show_uptime_display)
+		 VALUES (NULL, NULL, 'kid', $1, $2, FALSE, '{health}', 'large',
 		         COALESCE((SELECT show_uptime_display FROM system_settings WHERE id = 1), TRUE))
 		 RETURNING `+userColumns,
 		name, avatarColor))

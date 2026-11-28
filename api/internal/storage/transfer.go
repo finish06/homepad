@@ -94,7 +94,7 @@ type TransferPerson struct {
 	AvatarColor       string // "" when unset
 	ThemePref         string
 	DensityPref       string
-	ShowHealthBar     bool
+	HiddenWidgets     []string // in WidgetKeys order (SPEC-health-widget)
 	ShowUptimeDisplay bool
 	Favorites         []string // service ids in the shared catalog
 	Order             []string // service ids, saved layout order
@@ -143,7 +143,7 @@ type TransferPersonRow struct {
 	AvatarColor       *string // nil = NULL
 	ThemePref         string
 	DensityPref       string
-	ShowHealthBar     bool
+	HiddenWidgets     []string // the whole list; SetPerson normalizes it
 	ShowUptimeDisplay bool
 }
 
@@ -267,9 +267,9 @@ func loadTransferPeople(ctx context.Context, q querier, st *TransferState, appId
 		}
 		idx[u.ID] = len(st.People)
 		st.People = append(st.People, TransferPerson{ID: u.ID, Role: u.Role, Email: u.Email, DisplayName: u.DisplayName,
-			AvatarColor: u.AvatarColor, ThemePref: u.ThemePref, DensityPref: u.DensityPref, ShowHealthBar: u.ShowHealthBar,
-			ShowUptimeDisplay: u.ShowUptimeDisplay,
-			Favorites:         []string{}, Order: []string{}, Collapsed: []string{}, Allowed: []string{}})
+			AvatarColor: u.AvatarColor, ThemePref: u.ThemePref, DensityPref: u.DensityPref,
+			HiddenWidgets: NormalizeHiddenWidgets(u.HiddenWidgets), ShowUptimeDisplay: u.ShowUptimeDisplay,
+			Favorites: []string{}, Order: []string{}, Collapsed: []string{}, Allowed: []string{}})
 		return nil
 	})
 	if err != nil {
@@ -504,12 +504,20 @@ func (t *TransferTx) CreateKid(ctx context.Context, name, avatarColor string) (s
 }
 
 // SetPerson sets a person's appearance and avatar; an adult's display name
-// too (a kid keeps its name).
+// too (a kid keeps its name). The widget list also writes show_health_bar
+// and show_widgets, worked out from it, in the same UPDATE
+// (SPEC-health-widget AC-005); show_health_bar's meaning depends on the role.
 func (t *TransferTx) SetPerson(ctx context.Context, id string, p TransferPersonRow) error {
-	return t.exec1(ctx, "set person", `UPDATE users SET theme_pref = $2, density_pref = $3, show_health_bar = $4,
-		show_uptime_display = $5, avatar_color = $6,
-		display_name = CASE WHEN role = 'kid' THEN display_name ELSE $7 END
-		WHERE id = $1`, id, p.ThemePref, p.DensityPref, p.ShowHealthBar, p.ShowUptimeDisplay, p.AvatarColor, p.DisplayName)
+	hidden := NormalizeHiddenWidgets(p.HiddenWidgets)
+	return t.exec1(ctx, "set person", `UPDATE users SET theme_pref = $2, density_pref = $3,
+		hidden_widgets = $4,
+		show_health_bar = CASE WHEN role = 'kid' THEN $5::boolean ELSE $6::boolean END,
+		show_widgets = $7,
+		show_uptime_display = $8, avatar_color = $9,
+		display_name = CASE WHEN role = 'kid' THEN display_name ELSE $10 END
+		WHERE id = $1`, id, p.ThemePref, p.DensityPref, hidden,
+		LegacyShowHealthBar(RoleKid, hidden), LegacyShowHealthBar("admin", hidden), LegacyShowWidgets(hidden),
+		p.ShowUptimeDisplay, p.AvatarColor, p.DisplayName)
 }
 
 func (t *TransferTx) AddFavorites(ctx context.Context, userID string, appIDs []string) error {

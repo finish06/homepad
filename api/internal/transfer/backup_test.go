@@ -58,11 +58,11 @@ func populatedState() *storage.TransferState {
 		Settings: storage.SystemSettings{ShowUptimeDisplay: false, StatusDegradedMs: &degraded},
 		People: []storage.TransferPerson{
 			{ID: "0b7f6c0e-0000-4c1e-9d1a-00000000000a", Role: "admin", Email: "admin@example.com", ThemePref: "dark", DensityPref: "compact",
-				ShowHealthBar: true, ShowUptimeDisplay: true, Favorites: []string{sonarr, jelly}, Order: []string{sonarr, jelly, router}, Collapsed: []string{network}},
+				HiddenWidgets: []string{}, ShowUptimeDisplay: true, Favorites: []string{sonarr, jelly}, Order: []string{sonarr, jelly, router}, Collapsed: []string{network}},
 			{ID: "0b7f6c0e-0000-4c1e-9d1a-00000000000b", Role: "user", Email: "alex@example.com", DisplayName: "Alex", AvatarColor: "green",
-				ThemePref: "light", DensityPref: "list", ShowUptimeDisplay: true},
+				ThemePref: "light", DensityPref: "list", HiddenWidgets: []string{"healthDetails"}, ShowUptimeDisplay: true},
 			{ID: "0b7f6c0e-0000-4c1e-9d1a-00000000000c", Role: "kid", DisplayName: "Maya", AvatarColor: "teal", ThemePref: "light",
-				DensityPref: "large", ShowUptimeDisplay: true, Allowed: []string{sonarr, jelly}, Favorites: []string{jelly}},
+				DensityPref: "large", HiddenWidgets: []string{"health"}, ShowUptimeDisplay: true, Allowed: []string{sonarr, jelly}, Favorites: []string{jelly}},
 		},
 	}
 }
@@ -156,7 +156,8 @@ func TestBackup_IncludesPeople(t *testing.T) {
 	assert.Equal(t, "admin@example.com", a.Email)
 	assert.Nil(t, a.DisplayName)
 	assert.Nil(t, a.AvatarColor)
-	assert.Equal(t, transfer.Prefs{Theme: strp("dark"), Density: strp("compact"), ShowHealthBar: boolp(true), ShowUptimeDisplay: boolp(true)}, a.Prefs)
+	assert.Equal(t, transfer.Prefs{Theme: strp("dark"), Density: strp("compact"), ShowHealthBar: boolp(true), ShowUptimeDisplay: boolp(true),
+		HiddenWidgets: &[]string{}}, a.Prefs)
 	assert.Equal(t, []string{"jellyfin", "sonarr"}, a.Favorites, "favorites by slug, sorted")
 	assert.Equal(t, []string{"sonarr", "jellyfin", "router"}, a.Order, "order kept")
 	assert.Equal(t, []string{"Network"}, a.CollapsedSections)

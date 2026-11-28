@@ -112,10 +112,16 @@ type People struct {
 // Prefs are a person's appearance settings. Pointers, so a hand-edited file
 // that leaves one out leaves that setting alone.
 type Prefs struct {
-	Theme             *string `json:"theme"`
-	Density           *string `json:"density"`
-	ShowHealthBar     *bool   `json:"showHealthBar"`
-	ShowUptimeDisplay *bool   `json:"showUptimeDisplay"`
+	Theme   *string `json:"theme"`
+	Density *string `json:"density"`
+	// ShowHealthBar is still written, worked out from HiddenWidgets, so an
+	// 18.7 server can restore the file (SPEC-health-widget AC-012). A file
+	// with HiddenWidgets ignores it on restore.
+	ShowHealthBar     *bool `json:"showHealthBar"`
+	ShowUptimeDisplay *bool `json:"showUptimeDisplay"`
+	// HiddenWidgets is the person's list of hidden widgets
+	// (SPEC-health-widget AC-012). Absent from every file before 18.8.
+	HiddenWidgets *[]string `json:"hiddenWidgets,omitempty"`
 }
 
 // Adult is matched by email on restore and never created.
@@ -224,8 +230,10 @@ func BuildFile(st *storage.TransferState, includePeople bool, version string, no
 		return strings.ToLower(people[i].Email+people[i].DisplayName) < strings.ToLower(people[j].Email+people[j].DisplayName)
 	})
 	for _, p := range people {
+		hidden := storage.NormalizeHiddenWidgets(p.HiddenWidgets)
 		prefs := Prefs{Theme: strPtr(p.ThemePref), Density: strPtr(p.DensityPref),
-			ShowHealthBar: boolPtr(p.ShowHealthBar), ShowUptimeDisplay: boolPtr(p.ShowUptimeDisplay)}
+			ShowHealthBar: boolPtr(storage.LegacyShowHealthBar(p.Role, hidden)), ShowUptimeDisplay: boolPtr(p.ShowUptimeDisplay),
+			HiddenWidgets: &hidden}
 		if p.Role == storage.RoleKid {
 			f.People.Kids = append(f.People.Kids, Kid{
 				Name: p.DisplayName, AvatarColor: optional(p.AvatarColor), Prefs: prefs,
@@ -368,7 +376,34 @@ func DecodeBackup(body []byte) (*Decoded, *Error) {
 			return nil, tooMany(c.things, c.got, c.max_)
 		}
 	}
-	return &Decoded{File: &f, UnknownFields: unknown}, nil
+	return &Decoded{File: &f, UnknownFields: unknown + unknownWidgetKeys(f.People)}, nil
+}
+
+// unknownWidgetKeys counts the keys in people's hiddenWidgets this version
+// doesn't know. A restore drops them and warns with the unknown fields
+// (SPEC-health-widget AC-013); it never refuses the file for them.
+func unknownWidgetKeys(p *People) int {
+	if p == nil {
+		return 0
+	}
+	n := 0
+	count := func(pr Prefs) {
+		if pr.HiddenWidgets == nil {
+			return
+		}
+		for _, k := range *pr.HiddenWidgets {
+			if !storage.IsWidgetKey(k) {
+				n++
+			}
+		}
+	}
+	for _, a := range p.Adults {
+		count(a.Prefs)
+	}
+	for _, k := range p.Kids {
+		count(k.Prefs)
+	}
+	return n
 }
 
 func kidCount(p *People) int {
@@ -415,7 +450,7 @@ func (s *shape) unknown(v any) int {
 }
 
 var (
-	prefsShape = obj(map[string]*shape{"theme": nil, "density": nil, "showHealthBar": nil, "showUptimeDisplay": nil})
+	prefsShape = obj(map[string]*shape{"theme": nil, "density": nil, "showHealthBar": nil, "showUptimeDisplay": nil, "hiddenWidgets": nil})
 	iconShape  = obj(map[string]*shape{"png": nil, "sha256": nil})
 	fileShape  = obj(map[string]*shape{
 		"format": nil, "schemaVersion": nil, "exportedAt": nil, "homepadVersion": nil, "includesPeople": nil,
