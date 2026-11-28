@@ -203,6 +203,11 @@ describe('SPEC-ui-quick-wins — password field polish', () => {
     expect(field()).toHaveFocus();
     expect(field().selectionStart).toBe(3);
     expect(field().selectionEnd).toBe(3);
+    // The toggle puts the caret back once more on the next frame (Chrome
+    // resets it after a `type` change). Let that frame pass before moving the
+    // caret, as a person would: under CI load the frame could otherwise land
+    // after the move below and put the caret back to 3.
+    await act(() => new Promise<void>((r) => requestAnimationFrame(() => r())));
     // Keyboard path: Tab to the toggle, press it; focus comes back to the field.
     field().setSelectionRange(5, 5);
     await user.tab();
