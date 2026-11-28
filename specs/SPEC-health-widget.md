@@ -119,6 +119,7 @@ ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS health_enabled BOOLEAN NOT 
 - `insertKid` creates kids with `hidden_widgets = '{health}'` (and still `show_health_bar = FALSE`). New adults start with `'{}'`.
 - **The old columns stay and are kept in step until 19.0.0.** Every write to `hidden_widgets` also writes `show_health_bar` and `show_widgets` from it (§4.3). So rolling back to an 18.7.x image, by digest, shows each person what they chose. 19.0.0 drops both columns.
 - The down migration drops `hidden_widgets` and `health_enabled`. The old columns still hold the choices, so nothing is lost.
+- **Day-zero change (Caleb, 2026-11-28).** The copy into `hidden_widgets` runs once, at upgrade. If prod is rolled back to 18.7.x and someone changes these settings there, rolling forward to 18.8.0 keeps the list it had and ignores those changes. Kids created during the rollback have no `health` key, so they see Health. This is accepted, not fixed: no re-sync on boot. The 18.8.0 CHANGELOG **Upgrading** note must say it.
 
 ### 4.3 API contract
 

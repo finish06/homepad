@@ -11,6 +11,10 @@
 - M10 built in three workstreams and shipped as 18.7.0. #753 reversed SPEC-group-header-collapse §3.5 (a failed load no longer lets a fold overwrite the saved set).
 - #729 closed M9, M3, M4 and M6 in the docs, brought the PRD, specs index, spec `Status:` lines and docs up to 18.6.0, and added a dark-mode login contrast gate (#379).
 
+## For the 18.8.0 release
+- SPEC-health-widget is merged (#769, #770, #779), not released. Kare's sign-off on the look is still open.
+- **Day-zero change (Caleb, 2026-11-28):** the CHANGELOG **Upgrading** note must say that the widget settings are copied once, at upgrade. If prod rolls back to 18.7.x and someone changes widget settings there, 18.8.0 ignores those changes, and kids created during the rollback see Health. This is accepted; there is no re-sync. Details are in SPEC-health-widget §4.
+
 ## Needs Caleb
 - After a failed or slow saved-folds load, should a late reply or a retry turn fold saving back on? (SPEC-group-header-collapse §10)
 - #724 accent: option A or B.
