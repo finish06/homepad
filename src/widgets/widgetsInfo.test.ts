@@ -99,7 +99,7 @@ describe('useWidgetsInfo household', () => {
     stub(() => new Promise<Response>(() => {}));
     const { result } = renderHook(() => useWidgetsInfo());
     expect(result.current[0]).toBeNull();
-    expect(result.current[2]).toEqual({ clock: true, weather: true, health: false });
+    expect(result.current[2]).toEqual({ clock: true, weather: true, health: false, hour12: null });
     expect(result.current[3]).toBe(false);
   });
 
@@ -113,8 +113,14 @@ describe('useWidgetsInfo household', () => {
   it('writes the cache after a good read', async () => {
     stub(async () => new Response(JSON.stringify({ ...GOOD, health: { enabled: false } }), { status: 200 }));
     const { result } = renderHook(() => useWidgetsInfo());
-    await waitFor(() => expect(result.current[2]).toEqual({ clock: true, weather: false, health: false }));
-    expect(JSON.parse(localStorage.getItem(HOUSEHOLD_KEY)!)).toEqual({ v: 1, clock: true, weather: false, health: false });
+    await waitFor(() => expect(result.current[2]).toEqual({ clock: true, weather: false, health: false, hour12: null }));
+    expect(JSON.parse(localStorage.getItem(HOUSEHOLD_KEY)!)).toEqual({
+      v: 1,
+      clock: true,
+      weather: false,
+      health: false,
+      hour12: null,
+    });
   });
 
   it('info with no health key (an older API) counts as health on', async () => {
@@ -135,7 +141,7 @@ describe('useWidgetsInfo household', () => {
     const { result } = renderHook(() => useWidgetsInfo());
     await waitFor(() => expect(fn).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 0));
-    expect(result.current[2]).toEqual({ clock: true, weather: false, health: true });
+    expect(result.current[2]).toEqual({ clock: true, weather: false, health: true, hour12: null });
   });
 
   it('a malformed or old-version cache, or a storage throw, falls back to the defaults', () => {
@@ -148,6 +154,13 @@ describe('useWidgetsInfo household', () => {
     });
     expect(loadHousehold()).toEqual(DEFAULT_HOUSEHOLD);
     spy.mockRestore();
+  });
+
+  it("caches the clock's 12/24-hour choice with the switches", async () => {
+    stub(async () => new Response(JSON.stringify({ ...GOOD, clock: { enabled: true, hour12: true } }), { status: 200 }));
+    const { result } = renderHook(() => useWidgetsInfo());
+    await waitFor(() => expect(result.current[2].hour12).toBe(true));
+    expect(loadHousehold().hour12).toBe(true);
   });
 
   it('only a cached false hides health', () => {

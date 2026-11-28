@@ -33,11 +33,11 @@ homepad. Historical specs for shipped versions v2–v10 are in
 
 ---
 
-## Approved — not built yet (1)
+## Built — not released yet (1)
 
 | File | Feature | Status |
 |---|---|---|
-| [`SPEC-health-widget.md`](./SPEC-health-widget.md) | Health becomes the third widget beside clock and weather: a household on/off, one per-user list of hidden widgets (replaces `showHealthBar` and `showWidgets`, kept until 19.0.0), one widget area that keeps its space while loading (#745) | Approved — 2026-11-27. Caleb took all §12 answers; Kare to sign off the look |
+| [`SPEC-health-widget.md`](./SPEC-health-widget.md) | Health becomes the third widget beside clock and weather: a household on/off, one per-user list of hidden widgets (replaces `showHealthBar` and `showWidgets`, kept until 19.0.0), one widget area that keeps its space while loading (#745) | BUILT, not released — #769, #770 and the Kare follow-up (#771, #772). Kare's sign-off on the look still open |
 
 ## Shipped — 18.7.0, M10 UI review first batch (3)
 

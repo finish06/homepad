@@ -3,7 +3,7 @@ import { test, expect } from './fixtures';
 import { INFO_OFF, INFO_ON, mockWidgets } from './widgetMocks';
 
 // SPEC-health-widget — the widget area in a real browser, where jsdom can't
-// see layout: AC-023 (one row at 1024px and up, health below under that, no
+// see layout: AC-023 (one row at 1440px and up, health below under that, no
 // horizontal scroll), AC-024 (#745: no layout shift from first paint to
 // loaded when the caches match) and AC-026 (reduced motion and transparency).
 
@@ -48,7 +48,9 @@ test.describe('layout (AC-023)', () => {
     });
   }
 
-  for (const width of [800, 390]) {
+  // Kare, #772: one row only from 1440px; below that health is too narrow
+  // beside the clock and weather.
+  for (const width of [1100, 800, 390]) {
     test(`${width}: clock and weather share the first row, health is full width below`, async ({ page }) => {
       await open(page, width);
       await expect(page.getByTestId('glance-time')).toBeVisible();
@@ -187,6 +189,38 @@ test.describe('no layout shift on load (AC-024)', () => {
             expect(cls).toBeLessThan(0.01);
           });
         }
+
+  // #771 — how the loading and the loaded copy wrap depends on the font. Sweep
+  // the phone widths, where the text sits nearest a wrap, so a different
+  // font's metrics can't hide a height change: the health card is as tall
+  // loading as loaded at every width.
+  for (const details of [true, false]) {
+    test(`the health card holds its height across phone widths, details ${details ? 'on' : 'off'} (#771)`, async ({
+      page,
+    }) => {
+      await mockWidgets(page, { density: 'compact', info: INFO_OFF, hiddenWidgets: details ? [] : ['healthDetails'] });
+      let held: Promise<void> | null = null;
+      let release = () => {};
+      await page.route('**/api/services', async (route) => {
+        if (held) await held;
+        await route.fallback();
+      });
+      const off: string[] = [];
+      for (let width = 320; width <= 480; width += 8) {
+        await page.setViewportSize({ width, height: 900 });
+        held = new Promise<void>((r) => (release = r));
+        await page.goto('/');
+        await expect(page.getByTestId('health-headline')).toHaveText('Checking services…');
+        const loading = (await boxOf(page, 'widget-health'))!.h;
+        release();
+        held = null;
+        await expect(page.getByTestId('health-headline')).toHaveText('All systems operational');
+        const loaded = (await boxOf(page, 'widget-health'))!.h;
+        if (Math.abs(loading - loaded) > 0.5) off.push(`${width}px: ${loading} → ${loaded}`);
+      }
+      expect(off).toEqual([]);
+    });
+  }
 });
 
 test.describe('motion and transparency (AC-026)', () => {

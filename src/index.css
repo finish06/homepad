@@ -433,9 +433,9 @@
   /* ===== SPEC-health-widget §4.5 — the widget area =====
      Clock, weather and health in one row of glass cards above the grid. Every
      card is one `.widget` frame, the glass the health panel had (v15 §4.2).
-     Layout (a proposal for Kare, OQ-3): at 1024px and up one row, clock and
-     weather at a fixed width, health takes the rest; below that clock and
-     weather share the first row and health is full width under them. Without
+     Layout (Kare, OQ-3, #772): at 1440px and up one row, clock and weather at
+     a fixed width, health takes the rest; below that clock and weather share
+     the first row and health is full width under them. Without
      health, clock and weather share the row. The clock and weather slots have
      a fixed minimum height, so they are the right size before their lazy
      chunk arrives (#745). The frame sets no maximum, so health can grow. */
@@ -471,7 +471,7 @@
     flex: 1 1 100%;
     container-type: inline-size;
   }
-  @media (min-width: 1024px) {
+  @media (min-width: 1440px) {
     .widget-area[data-health='on'] .widget--clock {
       flex: 0 0 220px;
     }
@@ -504,8 +504,7 @@
       padding: 20px;
     }
   }
-  /* Beside the clock and weather at 1024–1279px the card is narrower than the
-     two columns need, so it stacks there too. */
+  /* Should the card ever be narrower than its two columns need, it stacks. */
   @container (max-width: 640px) {
     .health {
       grid-template-columns: 1fr;
@@ -650,6 +649,23 @@
     grid-column: 2;
     font-size: 13px;
     color: var(--v-muted);
+  }
+  /* SPEC-health-widget §4.5 (#771) — the headline and subline hold the
+     height of their data-reserve text, drawn hidden in the same grid cell. */
+  .health-headline[data-reserve],
+  .health-subline[data-reserve] {
+    display: grid;
+  }
+  .health-headline[data-reserve] > span:first-child,
+  .health-subline[data-reserve] > span:first-child,
+  .health-headline[data-reserve]::after,
+  .health-subline[data-reserve]::after {
+    grid-area: 1 / 1;
+  }
+  .health-headline[data-reserve]::after,
+  .health-subline[data-reserve]::after {
+    content: attr(data-reserve);
+    visibility: hidden;
   }
   /* SPEC-health-widget §4.5 — with the details hidden, the counts sit on a
      line of their own under the subline. The " · " before them is for screen

@@ -125,9 +125,17 @@ function Weather({ w }: { w: WidgetsInfo['weather'] }) {
 }
 
 // One lazy module, two bodies: `part` picks the one a slot draws. The clock
-// draws before the info read arrives (the device's 12/24-hour choice until
-// then); the weather needs the read.
-export default function GlanceStrip({ info, part }: { info: WidgetsInfo | null; part: 'clock' | 'weather' }) {
-  if (part === 'clock') return <Clock hour12={info?.clock.hour12 ?? null} />;
+// draws before the info read arrives, with the cached 12/24-hour choice until
+// then; the weather needs the read.
+export default function GlanceStrip({
+  info,
+  hour12 = null,
+  part,
+}: {
+  info: WidgetsInfo | null;
+  hour12?: boolean | null;
+  part: 'clock' | 'weather';
+}) {
+  if (part === 'clock') return <Clock hour12={info ? info.clock.hour12 : hour12} />;
   return info ? <Weather w={info.weather} /> : null;
 }

@@ -81,11 +81,13 @@ export function useHiddenWidgetsPref(account: HiddenWidgetsAccount): [WidgetKey[
   // The live value, readable synchronously from the setter, so the PATCH is
   // never sent from inside a state updater (StrictMode runs those twice).
   const ref = useRef(hidden);
-  // What the server is known to hold, which a failed save goes back to, and
-  // the number of the latest save: only the latest one may roll back, so an
-  // older save failing after a newer one landed can't undo it.
+  // What the server is known to hold, which a failed save goes back to. Saves
+  // go out one after another (queue), so the server applies them in the order
+  // they were made; only when the last one has answered does the screen
+  // settle, on the newest list if it was saved, else on what the server holds.
   const stored = useRef(hidden);
   const latest = useRef(0);
+  const queue = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     if (serverKey === null) return;
@@ -108,21 +110,18 @@ export function useHiddenWidgetsPref(account: HiddenWidgetsAccount): [WidgetKey[
       };
       // Optimistic: the widget and the switch move at once.
       apply(next);
-      void (async () => {
+      queue.current = queue.current.then(async () => {
         let ok: boolean;
         try {
           ok = await saveHiddenWidgets(next);
         } catch {
           ok = false;
         }
-        if (ok) {
-          stored.current = next;
-          return;
-        }
-        // AC-017 — a refusal or a network error puts back what the server
-        // still holds, unless a newer save has been made since.
-        if (seq === latest.current) apply(stored.current);
-      })();
+        if (ok) stored.current = next;
+        // AC-017 — once the last save has answered, a refusal or a network
+        // error puts back what the server holds.
+        if (seq === latest.current && !ok) apply(stored.current);
+      });
     },
     [account.id],
   );
