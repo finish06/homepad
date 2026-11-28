@@ -7,6 +7,18 @@ is the canonical app version and the one the footer version badge renders. The
 "v7…v16" names are milestone/feature **codenames**, not version numbers; where a
 codename maps to a release it is noted in the heading.
 
+## [18.8.0] — 2026-11-28 — Health as a widget
+
+**Upgrading.** One database migration (`0026_hidden_widgets`) runs on API boot. It copies each person's current choices into the new widget list, so nobody's dashboard changes. 18.8.0 includes 18.7.0.
+
+**Day-zero change: the copy runs once.** If you roll back to 18.7.x and change widget settings there, 18.8.0 ignores those changes when you roll forward again. Kids created while on 18.7.x will see Health. Rolling back itself is safe: 18.8.0 keeps the old settings in step, so 18.7.x shows each person what they chose.
+
+- **Health is now a widget** next to the clock and weather. They share one card style and one area, and on wide screens (1440px and up) they sit on one row. Health's space is held while services load, so the page no longer jumps (#745).
+- **Admins can turn Health off for the household** in Admin → Widgets. It is on by default. Status toasts, the alert bell, tile dots and group status bars still work with it off.
+- **Each person picks their own widgets** in My settings → Widgets: Clock, Weather, Health, "Counts and meter" and "Numbers on tiles". This replaces the "Show status bar" and "Show widgets" switches. Kids keep their defaults.
+- **API:** `GET/PATCH /api/me` has `hiddenWidgets`, and the widget info has `health`. `showHealthBar` and `showWidgets` still work, with a deprecation warning, until 19.0.0. Backups write the new list and the old fields, and old backups still import.
+- **Tests:** API test packages each get their own database, so `go test ./...` runs in parallel (#730). The kid-accounts mobile test no longer races (#739).
+
 ## [18.7.0] — 2026-11-26 — UI review, first batch
 
 **Upgrading.** No database or config changes. 18.7.0 includes 18.6.0.
