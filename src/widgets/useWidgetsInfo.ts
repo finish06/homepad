@@ -49,11 +49,16 @@ export function householdOf(info: WidgetsInfo): Household {
   return { clock: info.clock.enabled, weather: info.weather.enabled, health: info.health?.enabled !== false };
 }
 
-export function useWidgetsInfo(): [WidgetsInfo | null, () => void, Household] {
+// The fourth value is whether a read has answered yet (good or not): until it
+// has, the widget area holds the weather card's space; after a failed first
+// read it drops the empty card rather than keep it for the session.
+export function useWidgetsInfo(): [WidgetsInfo | null, () => void, Household, boolean] {
   const [info, setInfo] = useState<WidgetsInfo | null>(null);
   const [household, setHousehold] = useState<Household>(loadHousehold);
+  const [answered, setAnswered] = useState(false);
   const reload = useCallback(() => {
     void fetchWidgetsInfo().then((i) => {
+      setAnswered(true);
       // A failed or malformed read (null) keeps the last good value, from this
       // session or the cache, so a dropped request never hides health.
       if (!i) return;
@@ -72,5 +77,5 @@ export function useWidgetsInfo(): [WidgetsInfo | null, () => void, Household] {
     }, INFO_POLL_MS);
     return () => clearInterval(id);
   }, [reload]);
-  return [info, reload, household];
+  return [info, reload, household, answered];
 }

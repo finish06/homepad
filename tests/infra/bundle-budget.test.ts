@@ -147,10 +147,10 @@ import { describe, expect, inject, it } from 'vitest';
 //
 // SPEC-health-widget, re-measured 2026-11-27 against gitea/main 7b61625, same
 // method:
-//   entry JS    96,741 →  96,846 B gzip (+105): WidgetArea, visibleWidgets,
+//   entry JS    96,741 →  96,949 B gzip (+208): WidgetArea, visibleWidgets,
 //              the hidden-widgets pref and the household cache, less the two
 //              prefs they replace
-//   entry CSS   20,471 →  20,420 B gzip (−51): the .widget frame and
+//   entry CSS   20,471 →  20,426 B gzip (−45): the .widget frame and
 //              slot sizes, paid for by moving the clock/weather body styles to
 //              the lazy GlanceStrip chunk (src/app/glance.css) and the
 //              settings switch rules to widget-admin.css, and dropping two

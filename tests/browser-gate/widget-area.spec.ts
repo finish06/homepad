@@ -94,6 +94,30 @@ test.describe('layout (AC-023)', () => {
     expect(gap).toBeLessThanOrEqual(1);
   });
 
+  // The health card's glass is a stacking context; the quick-peek popover
+  // must still sit over the grid below it, not under the app boxes.
+  test('the quick-peek popover opens over the grid', async ({ page }) => {
+    await open(page, 1440);
+    await page.getByTestId('status-bar-up').click();
+    const popover = page.getByTestId('status-peek-popover');
+    await expect(popover).toBeVisible();
+    // Every row of the popover is on top, at its left, middle and right,
+    // including where it crosses a tile.
+    const covered = await popover.evaluate((pop) =>
+      Array.from(pop.querySelectorAll('a')).flatMap((el) => {
+        const r = el.getBoundingClientRect();
+        return [0.1, 0.5, 0.9]
+          .map((f) => document.elementFromPoint(r.left + r.width * f, r.top + r.height / 2))
+          .filter((top) => !top || !el.contains(top))
+          .map((top) => `${el.textContent}: ${top?.className ?? 'nothing'}`);
+      }),
+    );
+    expect(covered).toEqual([]);
+    const grid = (await boxOf(page, 'app-grid'))!;
+    const pop = (await popover.boundingBox())!;
+    expect(pop.y + pop.height).toBeGreaterThan(grid.y);
+  });
+
   test('390, details hidden: the verdict-only card, counts on their own line', async ({ page }) => {
     await open(page, 390, { hiddenWidgets: ['healthDetails'] });
     await expect(page.getByTestId('health-subline')).toContainText('6 online');

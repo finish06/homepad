@@ -100,6 +100,14 @@ describe('useWidgetsInfo household', () => {
     const { result } = renderHook(() => useWidgetsInfo());
     expect(result.current[0]).toBeNull();
     expect(result.current[2]).toEqual({ clock: true, weather: true, health: false });
+    expect(result.current[3]).toBe(false);
+  });
+
+  it('says when a read has answered, even a failed one', async () => {
+    stub(async () => new Response('', { status: 500 }));
+    const { result } = renderHook(() => useWidgetsInfo());
+    await waitFor(() => expect(result.current[3]).toBe(true));
+    expect(result.current[0]).toBeNull();
   });
 
   it('writes the cache after a good read', async () => {

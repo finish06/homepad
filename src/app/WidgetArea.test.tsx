@@ -92,6 +92,11 @@ describe('WidgetArea (AC-023)', () => {
     expect(slotIds(container)).toEqual(['widget-clock', 'widget-health']);
   });
 
+  it('a first info read that failed drops the empty weather card; the clock stays', () => {
+    const { container } = render(<WidgetArea visible={ALL} info={null} infoAnswered canRetry />);
+    expect(slotIds(container)).toEqual(['widget-clock', 'widget-health']);
+  });
+
   it('passes the person’s details choice and the kid rule through to health', () => {
     setItems([svc('UP', 'a')]);
     render(<WidgetArea visible={{ ...ALL, clock: false, weather: false, healthDetails: false }} info={null} canRetry={false} />);

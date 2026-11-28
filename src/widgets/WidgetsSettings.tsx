@@ -351,7 +351,8 @@ export default function WidgetsSettings({ onChanged }: { onChanged?: () => void 
   );
 }
 
-function Switch({
+// The settings pill switch, shared with My settings → Widgets.
+export function Switch({
   labelId,
   describedBy,
   testId,

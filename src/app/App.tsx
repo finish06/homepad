@@ -245,7 +245,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // A kid's list comes from the account and has no switches; a kid never
   // sees tile numbers (Q3 a).
   const [hiddenWidgets, setHiddenWidgets] = useHiddenWidgetsPref(user);
-  const [widgetsInfo, reloadWidgetsInfo, household] = useWidgetsInfo();
+  const [widgetsInfo, reloadWidgetsInfo, household, widgetsInfoAnswered] = useWidgetsInfo();
   const visible = visibleWidgets(household, hiddenWidgets, user.role);
   // Library browse + add-custom-app remain (service management, not layout),
   // lifted here so the header Gear can trigger them and their result flows into
@@ -472,7 +472,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             are created with it hidden and cannot change it). When it does
             render, it counts the served list, which is already only that kid's
             apps, and offers no re-poll (kid-forbidden). */}
-        <WidgetArea visible={visible} info={widgetsInfo} canRetry={!isKid} />
+        <WidgetArea visible={visible} info={widgetsInfo} infoAnswered={widgetsInfoAnswered} canRetry={!isKid} />
 
         <section className={`${CONTENT_WIDTH} py-6`}>
           {/* v19 §4.5 / #277 — the shared-catalog edit warning. editMode is

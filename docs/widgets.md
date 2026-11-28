@@ -107,7 +107,8 @@ Clock, Weather, Health, Health's **Counts and meter**, and **Numbers on
 tiles**. Hiding one never changes what anyone else sees. A widget that is off
 for everyone shows its switch greyed out, with the person's own choice kept
 for when it comes back. Kids have no widget settings: they see the clock and
-weather the household has on, no health, and no numbers on tiles.
+weather the household has on and no numbers on tiles. New kids don't see
+health; a kid whose account had the health panel on before 18.8 keeps it.
 
 ## What leaves your network
 

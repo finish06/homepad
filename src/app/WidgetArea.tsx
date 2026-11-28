@@ -21,10 +21,11 @@ import type { WidgetsInfo } from '../widgets/widgetsInfo';
 const GlanceStrip = lazy(() => import('./GlanceStrip'));
 
 // The weather body draws only with a reading. While it is loading (or before
-// the info read, when the cache says weather is on) its slot is reserved; an
-// error drops the slot, since viewers never see a weather error.
-function weatherSlot(info: WidgetsInfo | null): boolean {
-  if (!info) return true;
+// the first info read answers, when the cache says weather is on) its slot is
+// reserved; an error, or a first read that failed, drops the slot, since
+// viewers never see a weather error.
+function weatherSlot(info: WidgetsInfo | null, infoAnswered: boolean): boolean {
+  if (!info) return !infoAnswered;
   const w = info.weather;
   if (w.state === 'loading') return true;
   return (w.state === 'ok' || w.state === 'stale') && typeof w.temp === 'number';
@@ -33,14 +34,17 @@ function weatherSlot(info: WidgetsInfo | null): boolean {
 export default function WidgetArea({
   visible,
   info,
+  infoAnswered = false,
   canRetry,
 }: {
   visible: Visible;
   info: WidgetsInfo | null;
+  // Whether /api/widgets/info has answered yet, good or not.
+  infoAnswered?: boolean;
   canRetry: boolean;
 }) {
   const clock = visible.clock;
-  const weather = visible.weather && weatherSlot(info);
+  const weather = visible.weather && weatherSlot(info, infoAnswered);
   const healthOn = visible.health;
   // AC-023 — with nothing visible the area renders no element, so there is
   // no empty card and no gap above the grid.

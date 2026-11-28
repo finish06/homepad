@@ -53,6 +53,9 @@ export function loadCached(userId: string, role: string): WidgetKey[] {
       const v = JSON.parse(raw) as { v?: number; user?: string; hidden?: unknown };
       if (v?.v === 1 && v.user === userId && Array.isArray(v.hidden)) return normalizeHidden(v.hidden);
     }
+    // The old keys were per device, not per person. A kid never reads them:
+    // on a shared device they may be an adult's choice.
+    if (role === 'kid') return legacyHidden(role);
     return legacyHidden(role, readOldKey(OLD_HEALTH_BAR_KEY), readOldKey(OLD_SHOW_WIDGETS_KEY));
   } catch {
     return legacyHidden(role);
@@ -78,20 +81,26 @@ export function useHiddenWidgetsPref(account: HiddenWidgetsAccount): [WidgetKey[
   // The live value, readable synchronously from the setter, so the PATCH is
   // never sent from inside a state updater (StrictMode runs those twice).
   const ref = useRef(hidden);
+  // What the server is known to hold, which a failed save goes back to, and
+  // the number of the latest save: only the latest one may roll back, so an
+  // older save failing after a newer one landed can't undo it.
+  const stored = useRef(hidden);
+  const latest = useRef(0);
 
   useEffect(() => {
     if (serverKey === null) return;
     const list = normalizeHidden(serverKey ? serverKey.split(',') : []);
     ref.current = list;
+    stored.current = list;
     setHidden((cur) => (same(cur, list) ? cur : list));
     cache(account.id, list);
   }, [serverKey, account.id]);
 
   const set = useCallback(
     (nextRaw: readonly string[]) => {
-      const prev = ref.current;
       const next = normalizeHidden(nextRaw);
-      if (same(prev, next)) return;
+      if (same(ref.current, next)) return;
+      const seq = ++latest.current;
       const apply = (v: WidgetKey[]) => {
         ref.current = v;
         setHidden(v);
@@ -106,9 +115,13 @@ export function useHiddenWidgetsPref(account: HiddenWidgetsAccount): [WidgetKey[
         } catch {
           ok = false;
         }
+        if (ok) {
+          stored.current = next;
+          return;
+        }
         // AC-017 — a refusal or a network error puts back what the server
-        // still holds.
-        if (!ok) apply(prev);
+        // still holds, unless a newer save has been made since.
+        if (seq === latest.current) apply(stored.current);
       })();
     },
     [account.id],

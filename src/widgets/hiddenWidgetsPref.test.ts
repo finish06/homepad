@@ -64,6 +64,11 @@ describe('first paint (AC-016)', () => {
     expect(localStorage.getItem('homepad:show-widgets')).toBeNull();
   });
 
+  it("a kid never seeds from the old per-device keys (they may be an adult's)", () => {
+    localStorage.setItem('homepad:show-health-bar', 'true');
+    expect(loadCached('k1', 'kid')).toEqual(['health']);
+  });
+
   it('a malformed cache falls back to the defaults', () => {
     localStorage.setItem(CACHE_KEY, '{nope');
     expect(loadCached('u1', 'member')).toEqual([]);
@@ -122,6 +127,29 @@ describe('saving (AC-017)', () => {
     act(() => result.current[1](['health']));
     await waitFor(() => expect(result.current[0]).toEqual([]));
     expect(cached().hidden).toEqual([]);
+  });
+
+  it('an older save failing after a newer one landed changes nothing', async () => {
+    let failFirst: (ok: boolean) => void = () => {};
+    mockSave
+      .mockImplementationOnce(() => new Promise<boolean>((r) => (failFirst = r)))
+      .mockResolvedValueOnce(true);
+    const { result } = renderHook(() => useHiddenWidgetsPref(member({ hiddenWidgets: [] })));
+    act(() => result.current[1](['clock']));
+    act(() => result.current[1](['clock', 'weather']));
+    await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(2));
+    await act(async () => failFirst(false));
+    expect(result.current[0]).toEqual(['clock', 'weather']);
+    expect(cached().hidden).toEqual(['clock', 'weather']);
+  });
+
+  it('a failed save goes back to what the server last stored, not to the screen before', async () => {
+    const { result } = renderHook(() => useHiddenWidgetsPref(member({ hiddenWidgets: [] })));
+    act(() => result.current[1](['clock']));
+    await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1));
+    mockSave.mockResolvedValueOnce(false);
+    act(() => result.current[1](['clock', 'tiles']));
+    await waitFor(() => expect(result.current[0]).toEqual(['clock']));
   });
 
   it('the same list sends nothing', () => {

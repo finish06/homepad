@@ -4,7 +4,7 @@ import TileDensityToggle from '../grid/TileDensityToggle';
 import AccountsSection from '../accounts/AccountsSection';
 import ChangePassword from './ChangePassword';
 import BackupSection from './backup/BackupSection';
-import WidgetsSettings from '../widgets/WidgetsSettings';
+import WidgetsSettings, { Switch } from '../widgets/WidgetsSettings';
 import type { TileDensity } from '../grid/tileDensity';
 import { visibleWidgets, type Household, type WidgetKey } from '../widgets/visibleWidgets';
 import SystemSettings from './SystemSettings';
@@ -356,7 +356,11 @@ function WidgetPrefs({
   const shown = visibleWidgets(household, hidden, role);
   const toggle = (k: WidgetKey) => onSet(hidden.includes(k) ? hidden.filter((h) => h !== k) : [...hidden, k]);
   return (
-    <section data-testid="settings-widget-prefs" aria-labelledby="settings-widget-prefs-h" className="settings-section">
+    <section
+      data-testid="settings-widget-prefs"
+      aria-labelledby="settings-widget-prefs-h"
+      className="settings-section widget-prefs"
+    >
       <h3 id="settings-widget-prefs-h" className="settings-section-title">
         Widgets
       </h3>
@@ -379,19 +383,14 @@ function WidgetPrefs({
                 )}
               </dt>
               <dd>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={!hidden.includes(key)}
-                  aria-labelledby={labelId}
-                  aria-describedby={householdOff ? helpId : undefined}
+                <Switch
+                  labelId={labelId}
+                  describedBy={householdOff ? helpId : undefined}
+                  testId={testId}
+                  on={!hidden.includes(key)}
                   disabled={disabled}
-                  className="settings-switch"
-                  data-testid={testId}
                   onClick={() => toggle(key)}
-                >
-                  <span className="settings-switch-thumb" aria-hidden="true" />
-                </button>
+                />
               </dd>
             </div>
           );

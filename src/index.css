@@ -462,7 +462,12 @@
     min-height: 84px;
     padding: 14px 24px;
   }
+  /* The frame's backdrop-filter makes it a stacking context, so the quick-peek
+     popover's z-30 counts only inside it. Lifting the card keeps the popover
+     over the grid below (and under the sticky header, z-20). */
   .widget--health {
+    position: relative;
+    z-index: 1;
     flex: 1 1 100%;
     container-type: inline-size;
   }
