@@ -472,7 +472,13 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
             are created with it hidden and cannot change it). When it does
             render, it counts the served list, which is already only that kid's
             apps, and offers no re-poll (kid-forbidden). */}
-        <WidgetArea visible={visible} info={widgetsInfo} infoAnswered={widgetsInfoAnswered} canRetry={!isKid} />
+        <WidgetArea
+          visible={visible}
+          info={widgetsInfo}
+          infoAnswered={widgetsInfoAnswered}
+          hour12={household.hour12}
+          canRetry={!isKid}
+        />
 
         <section className={`${CONTENT_WIDTH} py-6`}>
           {/* v19 §4.5 / #277 — the shared-catalog edit warning. editMode is

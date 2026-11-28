@@ -29,6 +29,7 @@ export function loadHousehold(): Household {
       weather: v.weather === true,
       // Only a cached false hides health; anything else keeps it (AC-018).
       health: v.health !== false,
+      hour12: typeof v.hour12 === 'boolean' ? v.hour12 : null,
     };
   } catch {
     return DEFAULT_HOUSEHOLD;
@@ -46,7 +47,12 @@ function saveHousehold(h: Household) {
 // householdOf reads the three switches from a good info read. An info with no
 // health key comes from an older API, which has no way to turn health off.
 export function householdOf(info: WidgetsInfo): Household {
-  return { clock: info.clock.enabled, weather: info.weather.enabled, health: info.health?.enabled !== false };
+  return {
+    clock: info.clock.enabled,
+    weather: info.weather.enabled,
+    health: info.health?.enabled !== false,
+    hour12: info.clock.hour12 ?? null,
+  };
 }
 
 // The fourth value is whether a read has answered yet (good or not): until it
@@ -65,7 +71,9 @@ export function useWidgetsInfo(): [WidgetsInfo | null, () => void, Household, bo
       setInfo(i);
       const h = householdOf(i);
       setHousehold((cur) =>
-        cur.clock === h.clock && cur.weather === h.weather && cur.health === h.health ? cur : h,
+        cur.clock === h.clock && cur.weather === h.weather && cur.health === h.health && cur.hour12 === h.hour12
+          ? cur
+          : h,
       );
       saveHousehold(h);
     });

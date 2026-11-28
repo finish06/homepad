@@ -57,6 +57,11 @@ const PEEK_META: Record<PeekStatus, { testId: string; label: string; match: (s: 
 // flow; this is the setup page in the public repo, so it works from any install.
 const MONITORING_DOCS_URL = 'https://github.com/finish06/homepad/blob/main/docs/monitoring.md';
 
+// SPEC-health-widget (#771) — the longest common loaded headline and subline,
+// held by the verdict's text cells in every state (see the JSX).
+const HEADLINE_RESERVE = '00 services need attention';
+const SUBLINE_RESERVE = '000 services across 00 groups · 000 monitored';
+
 // §4.2 stale thresholds (§5.3): freshness label → amber past 5 min, red past 15.
 function staleness(ageMs: number): 'fresh' | 'amber' | 'red' {
   if (ageMs > 15 * 60 * 1000) return 'red';
@@ -85,7 +90,7 @@ function formatAgo(ageMs: number): string {
 // shell passes false: the stale verdict still reports, but offers no action
 // that could only 403.
 export default function StatusBar({
-  showDetails: showHealthBar = true,
+  showDetails = true,
   canRetry = true,
 }: { showDetails?: boolean; canRetry?: boolean } = {}) {
   const ctx = useServicesContext();
@@ -213,7 +218,7 @@ export default function StatusBar({
   let subline: string;
   if (loading) {
     headline = 'Checking services…';
-    subline = 'Reading the latest status from every service.';
+    subline = 'Reading the latest status…';
   } else if (empty) {
     headline = 'No services yet';
     subline = 'Add your first service to get started';
@@ -242,7 +247,7 @@ export default function StatusBar({
   // AC-003 — the preference gates exactly this block (chips + meter + legend).
   // Falsy means the block is UNMOUNTED, not visually hidden: the chips are real
   // buttons, so they must leave the a11y tree rather than linger in it (AC-015).
-  const showMetrics = !loading && !empty && showHealthBar;
+  const showMetrics = !loading && !empty && showDetails;
 
   // Quick-peek chips (v14). Down chip carries down+degraded; its number takes the
   // severity color when >0 (AC-V15-017). Rendered only when their count > 0.
@@ -268,7 +273,7 @@ export default function StatusBar({
   // subline above them can't wrap differently once they arrive; while services
   // load that line is held empty.
   let counts: string | null = null;
-  if (!showHealthBar && !loading && !empty) {
+  if (!showDetails && !loading && !empty) {
     const parts = [`${up} online`];
     if (attention > 0) parts.push(`${attention} down`);
     if (notMonitored > 0) parts.push(`${notMonitored} not monitored`);
@@ -296,18 +301,25 @@ export default function StatusBar({
               data-severity={severity}
               aria-hidden="true"
             />
-            <h2 data-testid="health-headline" className="health-headline">
-              {headline}
+            {/* SPEC-health-widget §4.5 (#745, #771) — the headline and the
+                subline each hold the height of a typical loaded line
+                (data-reserve, drawn hidden by CSS in the same grid cell), so
+                how a font wraps "Checking services…" against "All systems
+                operational" can't move the page when services arrive. The
+                reserve is a pseudo-element: it is not in the text or the
+                a11y tree. */}
+            <h2 data-testid="health-headline" className="health-headline" data-reserve={HEADLINE_RESERVE}>
+              <span>{headline}</span>
             </h2>
-            <p data-testid="health-subline" className="health-subline">
-              {subline}
+            <p data-testid="health-subline" className="health-subline" data-reserve={SUBLINE_RESERVE}>
+              <span>{subline}</span>
               {counts && (
                 <span className="health-subline-counts">
                   <span className="sr-only"> · </span>
                   {counts}
                 </span>
               )}
-              {!showHealthBar && loading && (
+              {!showDetails && loading && (
                 <span className="health-subline-counts health-reserve" aria-hidden="true">
                   0 online
                 </span>
@@ -318,7 +330,7 @@ export default function StatusBar({
                 hidden the stamp would vanish with it, and "when was this last
                 read" is exactly what must survive. Re-home it on the verdict
                 while hidden; the visible layout is untouched. */}
-            {!showHealthBar && ageMs != null && (
+            {!showDetails && ageMs != null && (
               <span
                 data-testid="health-updated"
                 className="health-updated health-updated--verdict"
@@ -329,7 +341,7 @@ export default function StatusBar({
             )}
             {/* SPEC-health-widget §4.5 (#745) — while services load, hold the
                 stamp's row so the loaded verdict-only panel is the same height. */}
-            {!showHealthBar && loading && (
+            {!showDetails && loading && (
               <span className="health-updated health-updated--verdict health-reserve" aria-hidden="true">
                 just now
               </span>
@@ -386,7 +398,7 @@ export default function StatusBar({
               details area is held at its loaded size and left empty: the same
               chip, meter and legend boxes, invisible and out of the a11y tree.
               No spinner, no shimmer (AC-025). */}
-          {loading && showHealthBar && (
+          {loading && showDetails && (
             <div className="health-metrics health-reserve" data-testid="health-reserve" aria-hidden="true">
               <div className="health-chips">
                 <span className="health-chip">

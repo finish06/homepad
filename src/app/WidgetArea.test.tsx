@@ -92,6 +92,14 @@ describe('WidgetArea (AC-023)', () => {
     expect(slotIds(container)).toEqual(['widget-clock', 'widget-health']);
   });
 
+  it("before the info read, the clock uses the cached 12/24-hour choice", async () => {
+    render(<WidgetArea visible={{ ...ALL, weather: false }} info={null} hour12 canRetry />);
+    expect(await screen.findByTestId('glance-time')).toHaveTextContent(/AM|PM/);
+    cleanup();
+    render(<WidgetArea visible={{ ...ALL, weather: false }} info={null} hour12={false} canRetry />);
+    expect(await screen.findByTestId('glance-time')).not.toHaveTextContent(/AM|PM/);
+  });
+
   it('a first info read that failed drops the empty weather card; the clock stays', () => {
     const { container } = render(<WidgetArea visible={ALL} info={null} infoAnswered canRetry />);
     expect(slotIds(container)).toEqual(['widget-clock', 'widget-health']);
@@ -131,6 +139,17 @@ describe('loading holds its space (AC-025, #745)', () => {
     const held = container.querySelector('.health-updated--verdict.health-reserve');
     expect(held).not.toBeNull();
     expect(held).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it("the verdict's text cells hold a loaded line's height, outside the text and the a11y tree (#771)", () => {
+    setItems(null);
+    render(<WidgetArea visible={{ ...ALL, clock: false, weather: false }} info={null} canRetry />);
+    const headline = screen.getByTestId('health-headline');
+    const subline = screen.getByTestId('health-subline');
+    expect(headline).toHaveAttribute('data-reserve');
+    expect(subline).toHaveAttribute('data-reserve');
+    expect(headline.textContent).toBe('Checking services…');
+    expect(subline.textContent).toBe('Reading the latest status…');
   });
 
   it('no spinner or shimmer anywhere in the area', () => {

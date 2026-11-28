@@ -1,10 +1,10 @@
 # Spec: Health as a widget
 
 **Spec ID:** SPEC-health-widget
-**Version:** 0.2.0
+**Version:** 0.3.0
 **Created:** 2026-11-27
 **Author:** Claude (Caleb asked 2026-11-27: "The health bar is another widget. How can we migrate the health bar to be like another widget?")
-**Status:** Approved — Caleb approved the design and took every recommended answer in §12 on 2026-11-27. Kare's sign-off on the look (§4.5, OQ-3) is still to do.
+**Status:** Built, not released — API, migration and backups in #769 (7b61625), web in #770 (f7abfb3), Kare's first review fixes in the follow-up PR (#771, #772). Ships in the next release. Caleb approved the design and took every §12 answer on 2026-11-27. Kare's sign-off on the look (§4.5, OQ-3) is still open.
 **Repo:** `Code/homepad` (web app at the root and the API in `api/`)
 **Issues:** #745 (health panel grows on load and moves the page). #720 (health panel as a triage surface) is out of scope; §11 says how this spec leaves room for it.
 **Target version:** 18.8.0 (minor: additive API, old fields kept until 19.0.0)
@@ -156,10 +156,10 @@ ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS health_enabled BOOLEAN NOT 
 `src/app/WidgetArea.tsx` (new, entry chunk) replaces the strip-then-panel block at `App.tsx:474-490`. It sits in `CONTENT_WIDTH`, above the grid section.
 
 - **Order:** clock, weather, health. Each widget is a slot with the same frame (`.widget`, a glass card using the `.health` tokens) and its own `data-testid` (`widget-clock`, `widget-weather`, `widget-health`).
-- **Layout (proposal for Kare, OQ-3):** at 1024px and wider, one row: clock and weather take their content width, health takes the rest. From 721 to 1023px, clock and weather share the first row and health is full width below. At 720px and below, the same, with today's narrow rules (short date, no place, no high/low). With health hidden or off, clock and weather share the row. With only health, it is full width. With nothing on, the area renders nothing and leaves no gap.
+- **Layout (OQ-3; Kare's review of #770, #772):** at 1440px and wider, one row: clock and weather at a fixed width (220px and 300px), health takes the rest. Below 1440px, clock and weather share the first row and health is full width below (at 1024–1439px health is too narrow beside them). At 720px and below, the same, with today's narrow rules (short date, no place, no high/low). With health hidden or off, clock and weather share the row. With only health, it is full width. With nothing on, the area renders nothing and leaves no gap.
 - **Clock and weather stay lazy.** `GlanceStrip.tsx` becomes the lazy module that exports the clock and weather bodies. Their slots are in the entry chunk with fixed minimum heights, so the slot is the right size before the chunk arrives. A failed chunk keeps the silent boundary, and the slot collapses only after the failure.
 - **Health stays in the entry chunk.** `StatusBar` becomes the health widget's body. It keeps its `data-testid="status-bar"`, `role="status"`, every `health-*` test id, the quick-peek popover and its positioning. `canRetry={!isKid}` stays.
-- **Reserved space (#745).** While services load, the health slot has the height of its loaded "operational" state for this person: with details if `healthDetails` is not hidden, without if it is. The "Checking services…" verdict draws inside that height, and the details area is held empty (no spinner, no shimmer). Weather's slot is reserved while its state is `loading`. States that add a row only when there is news (STALE with Retry, not monitored with "Connect a status source", "No services yet") may still grow; that is new information, not a load jump.
+- **Reserved space (#745).** While services load, the health slot has the height of its loaded "operational" state for this person: with details if `healthDetails` is not hidden, without if it is. The "Checking services…" verdict draws inside that height, and the details area is held empty (no spinner, no shimmer). The headline and subline each hold the height of a typical loaded line in every state, so how a font wraps the loading and the loaded copy can't change the card's height (#771). With details hidden, the counts sit on their own line under the subline. Weather's slot is reserved while its state is `loading`. States that add a row only when there is news (STALE with Retry, not monitored with "Connect a status source", "No services yet") may still grow; that is new information, not a load jump.
 - **No second loading state for the grid.** The App Grid's one `loading` predicate (SPEC-dashboard-empty-loading §3.2) and its skeleton don't change. The widget area reserves its own space; it doesn't wait for, or hold, the grid.
 
 ### 4.6 Settings
@@ -377,8 +377,8 @@ All four answered: Caleb took every recommended answer on 2026-11-27 ("Yep. Go")
 | Role | Who | Status |
 |------|-----|--------|
 | Product | Caleb | Approved 2026-11-27 — took all §12 answers |
-| Design | Kare | Pending — §4.5 layout and the `.widget` frame (OQ-3) |
-| Implementation | — | Ready; §4.5 look waits on Kare |
+| Design | Kare | Pending — reviewed #770 on 2026-11-27: the shared frame and the settings are right; asked for #771 (reserve) and #772 (one row from 1440), fixed in the follow-up. Sign-off still to do |
+| Implementation | Claude | Built 2026-11-27 — #769, #770 and the follow-up; not released |
 
 ## 14. Revision history
 
@@ -386,3 +386,4 @@ All four answered: Caleb took every recommended answer on 2026-11-27 ("Yep. Go")
 |------|---------|--------|---------|
 | 2026-11-27 | 0.1.0 | Claude | First draft from Caleb's direction of 2026-11-27. |
 | 2026-11-27 | 0.2.0 | Claude | Approved: Caleb took all four §12 answers. |
+| 2026-11-27 | 0.3.0 | Claude | Built (#769, #770). §4.5: one row from 1440px (Kare, #772); the verdict holds a loaded line's height (#771); counts on their own line with details hidden. |

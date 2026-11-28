@@ -129,18 +129,32 @@ describe('saving (AC-017)', () => {
     expect(cached().hidden).toEqual([]);
   });
 
-  it('an older save failing after a newer one landed changes nothing', async () => {
-    let failFirst: (ok: boolean) => void = () => {};
+  it('saves go out one after another, in the order they were made', async () => {
+    let answerFirst: (ok: boolean) => void = () => {};
     mockSave
-      .mockImplementationOnce(() => new Promise<boolean>((r) => (failFirst = r)))
+      .mockImplementationOnce(() => new Promise<boolean>((r) => (answerFirst = r)))
       .mockResolvedValueOnce(true);
     const { result } = renderHook(() => useHiddenWidgetsPref(member({ hiddenWidgets: [] })));
     act(() => result.current[1](['clock']));
     act(() => result.current[1](['clock', 'weather']));
+    await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1));
+    // The second waits for the first, so the server can't apply them out of order.
+    await act(async () => answerFirst(false));
     await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(2));
-    await act(async () => failFirst(false));
+    expect(mockSave).toHaveBeenLastCalledWith(['clock', 'weather']);
+    // An older save failing while a newer one is still to come changes nothing.
     expect(result.current[0]).toEqual(['clock', 'weather']);
     expect(cached().hidden).toEqual(['clock', 'weather']);
+  });
+
+  it('when the newest save fails after an older one landed, the screen shows the older one', async () => {
+    mockSave.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    const { result } = renderHook(() => useHiddenWidgetsPref(member({ hiddenWidgets: [] })));
+    act(() => result.current[1](['clock']));
+    act(() => result.current[1](['clock', 'weather']));
+    await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current[0]).toEqual(['clock']));
+    expect(cached().hidden).toEqual(['clock']);
   });
 
   it('a failed save goes back to what the server last stored, not to the screen before', async () => {

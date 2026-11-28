@@ -9,8 +9,10 @@
 export const WIDGET_KEYS = ['clock', 'weather', 'health', 'healthDetails', 'tiles'] as const;
 export type WidgetKey = (typeof WIDGET_KEYS)[number];
 
-// The household's on/off switches (Admin → Widgets).
-export type Household = { clock: boolean; weather: boolean; health: boolean };
+// The household's on/off switches (Admin → Widgets). hour12 is the clock's
+// 12/24-hour choice, cached with them so the first paint draws the clock the
+// way the loaded page will (null = the device's choice).
+export type Household = { clock: boolean; weather: boolean; health: boolean; hour12?: boolean | null };
 
 export type Visible = Record<WidgetKey, boolean>;
 

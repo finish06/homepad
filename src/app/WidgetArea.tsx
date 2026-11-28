@@ -16,8 +16,8 @@ import type { WidgetsInfo } from '../widgets/widgetsInfo';
 // heights, so a slot has its size before its chunk arrives (#745). A failed
 // chunk keeps the silent boundary; the slot collapses only after the failure.
 //
-// The layout (one row at 1024px and up, health below from 721 to 1023px) is
-// a proposal for Kare to sign off (OQ-3); it lives in index.css.
+// The layout (one row at 1440px and up, health below the clock and weather
+// under that; Kare, OQ-3, #772) lives in index.css.
 const GlanceStrip = lazy(() => import('./GlanceStrip'));
 
 // The weather body draws only with a reading. While it is loading (or before
@@ -35,10 +35,13 @@ export default function WidgetArea({
   visible,
   info,
   infoAnswered = false,
+  hour12 = null,
   canRetry,
 }: {
   visible: Visible;
   info: WidgetsInfo | null;
+  // The cached 12/24-hour choice, for the clock before the info read lands.
+  hour12?: boolean | null;
   // Whether /api/widgets/info has answered yet, good or not.
   infoAnswered?: boolean;
   canRetry: boolean;
@@ -57,7 +60,7 @@ export default function WidgetArea({
           <ChunkErrorBoundary silent>
             <div className="widget widget--clock" data-testid="widget-clock">
               <Suspense fallback={null}>
-                <GlanceStrip info={info} part="clock" />
+                <GlanceStrip info={info} hour12={hour12} part="clock" />
               </Suspense>
             </div>
           </ChunkErrorBoundary>
