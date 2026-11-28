@@ -19,6 +19,7 @@ export const MEMBER_USER = {
   displayName: 'Alex',
   avatarColor: '',
   densityPref: 'compact',
+  hiddenWidgets: [] as string[],
   showHealthBar: true,
 };
 

@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import type { WeatherCondition, WidgetsInfo } from '../widgets/widgetsInfo';
+import './glance.css';
 
-// SPEC-status-widgets §2.1 / UX §4 — the glance strip: the clock on the left,
-// the weather on the right (or on the left when it is alone). A lazy chunk:
-// Home renders it only while the clock or the weather is on. Its styles are in
-// index.css, because it paints with the dashboard.
+// SPEC-status-widgets §2.1 / UX §4 — the clock and the weather bodies.
+// SPEC-health-widget §4.5 — each now draws inside its own `.widget` slot in
+// the widget area (WidgetArea.tsx, entry chunk), which reserves the slot's
+// size before this lazy chunk arrives. The slots' styles are in index.css,
+// because they paint with the dashboard; the bodies' own styles are in
+// glance.css and load with this chunk.
 
 // AC-027 — the clock is the browser's: the viewer's time zone, no network, and
 // one update on each minute boundary (no seconds shown, so none rendered).
@@ -121,11 +124,10 @@ function Weather({ w }: { w: WidgetsInfo['weather'] }) {
   );
 }
 
-export default function GlanceStrip({ info }: { info: WidgetsInfo }) {
-  return (
-    <div className="glance-strip" data-testid="glance-strip">
-      {info.clock.enabled && <Clock hour12={info.clock.hour12} />}
-      {info.weather.enabled && <Weather w={info.weather} />}
-    </div>
-  );
+// One lazy module, two bodies: `part` picks the one a slot draws. The clock
+// draws before the info read arrives (the device's 12/24-hour choice until
+// then); the weather needs the read.
+export default function GlanceStrip({ info, part }: { info: WidgetsInfo | null; part: 'clock' | 'weather' }) {
+  if (part === 'clock') return <Clock hour12={info?.clock.hour12 ?? null} />;
+  return info ? <Weather w={info.weather} /> : null;
 }

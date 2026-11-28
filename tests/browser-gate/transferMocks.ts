@@ -47,7 +47,7 @@ export const BACKUP_FILE = JSON.stringify(
       },
     ],
     library: [],
-    people: { adults: [], kids: [{ name: 'Sam', avatarColor: 'green', prefs: { theme: 'light', density: 'large', showHealthBar: false, showUptimeDisplay: true }, allowedApps: ['jellyfin'], favorites: [] }] },
+    people: { adults: [], kids: [{ name: 'Sam', avatarColor: 'green', prefs: { theme: 'light', density: 'large', showHealthBar: false, showUptimeDisplay: true, hiddenWidgets: ['health'] }, allowedApps: ['jellyfin'], favorites: [] }] },
   },
   null,
   2,

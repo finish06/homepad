@@ -1,5 +1,5 @@
 // SPEC-status-widgets §7.3 — the session read of the info widgets (clock,
-// weather, web search), plus the one small fetch helper the widget modules
+// weather, health, web search), plus the one small fetch helper the widget modules
 // share. Kept apart from ../api on purpose: many suites replace ../api with a
 // factory mock, and a module those mocks don't know about must not break them.
 
@@ -19,6 +19,9 @@ export type WidgetsInfo = {
     condition?: WeatherCondition;
     isDay?: boolean;
   };
+  // SPEC-health-widget §4.3 — the household switch for health. Optional: an
+  // 18.7 API sends none, and then health counts as on (AC-018).
+  health?: { enabled: boolean };
   // `kids` is present for an admin session only (the kid web-search switch).
   search: { enabled: boolean; name: string; url: string; kids?: boolean };
 };
@@ -56,7 +59,8 @@ export async function fetchWidgetsInfo(): Promise<WidgetsInfo | null> {
   return d as WidgetsInfo;
 }
 
-// saveShowWidgets — PATCH /api/me {showWidgets}; true on 200.
-export async function saveShowWidgets(show: boolean): Promise<boolean> {
-  return (await call('/api/me', 'PATCH', { showWidgets: show })).status === 200;
+// saveHiddenWidgets — PATCH /api/me {hiddenWidgets}, the whole list
+// (SPEC-health-widget §4.3); true on 200.
+export async function saveHiddenWidgets(hidden: readonly string[]): Promise<boolean> {
+  return (await call('/api/me', 'PATCH', { hiddenWidgets: hidden })).status === 200;
 }

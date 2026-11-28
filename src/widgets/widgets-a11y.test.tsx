@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
-import GlanceStrip from '../app/GlanceStrip';
+import GlanceBody from '../app/GlanceStrip';
 import WidgetSection, { useWidgetEditor } from './WidgetSection';
 import WidgetsSettings from './WidgetsSettings';
 import CommandLauncher from '../launcher/CommandLauncher';
@@ -14,6 +14,17 @@ import { LauncherProvider } from '../launcher/launcher';
 import { fetchWidgetsInfo, type WidgetsInfo } from './widgetsInfo';
 import { geocode, getWidget, testWidget, widgetKinds } from './widgetAdminApi';
 import type { Service } from '../api';
+
+// SPEC-health-widget §4.5 — the clock and weather bodies now draw in their
+// own widget slots. This wrapper puts the two side by side, as the strip did.
+function GlanceStrip({ info }: { info: WidgetsInfo }) {
+  return (
+    <div data-testid="glance-strip">
+      {info.clock.enabled && <GlanceBody info={info} part="clock" />}
+      {info.weather.enabled && <GlanceBody info={info} part="weather" />}
+    </div>
+  );
+}
 
 expect.extend(toHaveNoViolations);
 

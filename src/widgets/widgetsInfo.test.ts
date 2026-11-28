@@ -2,9 +2,14 @@
 // isn't the documented shape (an older backend's SPA fallback), reads as "all
 // off": the strip never shows an error, and ⌘K never offers a broken row.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { call, fetchWidgetsInfo, saveShowWidgets } from './widgetsInfo';
+import { renderHook, waitFor } from '@testing-library/react';
+import { call, fetchWidgetsInfo, saveHiddenWidgets } from './widgetsInfo';
+import { DEFAULT_HOUSEHOLD, HOUSEHOLD_KEY, loadHousehold, useWidgetsInfo } from './useWidgetsInfo';
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  localStorage.clear();
+});
 
 const stub = (impl: () => Promise<Response>) => {
   const fn = vi.fn(impl);
@@ -64,11 +69,89 @@ describe('call', () => {
   });
 });
 
-describe('saveShowWidgets', () => {
-  it('true only on 200', async () => {
-    stub(async () => new Response('{}', { status: 200 }));
-    expect(await saveShowWidgets(false)).toBe(true);
-    stub(async () => new Response('', { status: 403 }));
-    expect(await saveShowWidgets(false)).toBe(false);
+describe('saveHiddenWidgets', () => {
+  it('PATCHes the whole list; true only on 200', async () => {
+    const fn = stub(async () => new Response('{}', { status: 200 }));
+    expect(await saveHiddenWidgets(['clock', 'tiles'])).toBe(true);
+    expect(fn).toHaveBeenCalledWith('/api/me', {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"hiddenWidgets":["clock","tiles"]}',
+    });
+    stub(async () => new Response('', { status: 400 }));
+    expect(await saveHiddenWidgets([])).toBe(false);
+  });
+});
+
+// SPEC-health-widget AC-018 — the household cache, and health never hidden
+// by a read that failed.
+describe('useWidgetsInfo household', () => {
+  const cache = (v: unknown) => localStorage.setItem(HOUSEHOLD_KEY, JSON.stringify(v));
+
+  it('with no cache: clock off, weather off, health on', () => {
+    expect(DEFAULT_HOUSEHOLD).toEqual({ clock: false, weather: false, health: true });
+    expect(loadHousehold()).toEqual(DEFAULT_HOUSEHOLD);
+  });
+
+  it('starts from the cache, before the read answers', () => {
+    cache({ v: 1, clock: true, weather: true, health: false });
+    stub(() => new Promise<Response>(() => {}));
+    const { result } = renderHook(() => useWidgetsInfo());
+    expect(result.current[0]).toBeNull();
+    expect(result.current[2]).toEqual({ clock: true, weather: true, health: false });
+    expect(result.current[3]).toBe(false);
+  });
+
+  it('says when a read has answered, even a failed one', async () => {
+    stub(async () => new Response('', { status: 500 }));
+    const { result } = renderHook(() => useWidgetsInfo());
+    await waitFor(() => expect(result.current[3]).toBe(true));
+    expect(result.current[0]).toBeNull();
+  });
+
+  it('writes the cache after a good read', async () => {
+    stub(async () => new Response(JSON.stringify({ ...GOOD, health: { enabled: false } }), { status: 200 }));
+    const { result } = renderHook(() => useWidgetsInfo());
+    await waitFor(() => expect(result.current[2]).toEqual({ clock: true, weather: false, health: false }));
+    expect(JSON.parse(localStorage.getItem(HOUSEHOLD_KEY)!)).toEqual({ v: 1, clock: true, weather: false, health: false });
+  });
+
+  it('info with no health key (an older API) counts as health on', async () => {
+    cache({ v: 1, clock: false, weather: false, health: false });
+    stub(async () => new Response(JSON.stringify(GOOD), { status: 200 }));
+    const { result } = renderHook(() => useWidgetsInfo());
+    await waitFor(() => expect(result.current[0]).not.toBeNull());
+    expect(result.current[2].health).toBe(true);
+  });
+
+  it.each([
+    ['a 500', async () => new Response('', { status: 500 })],
+    ['a malformed body', async () => new Response('{"health":{"enabled":false}}', { status: 200 })],
+    ['a network failure', async () => Promise.reject(new TypeError('offline'))],
+  ])('%s never hides health and keeps the cached flags', async (_name, impl) => {
+    cache({ v: 1, clock: true, weather: false, health: true });
+    const fn = stub(impl as () => Promise<Response>);
+    const { result } = renderHook(() => useWidgetsInfo());
+    await waitFor(() => expect(fn).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(result.current[2]).toEqual({ clock: true, weather: false, health: true });
+  });
+
+  it('a malformed or old-version cache, or a storage throw, falls back to the defaults', () => {
+    localStorage.setItem(HOUSEHOLD_KEY, '{nope');
+    expect(loadHousehold()).toEqual(DEFAULT_HOUSEHOLD);
+    cache({ v: 2, clock: true, weather: true, health: false });
+    expect(loadHousehold()).toEqual(DEFAULT_HOUSEHOLD);
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('private mode');
+    });
+    expect(loadHousehold()).toEqual(DEFAULT_HOUSEHOLD);
+    spy.mockRestore();
+  });
+
+  it('only a cached false hides health', () => {
+    cache({ v: 1, clock: true, weather: true });
+    expect(loadHousehold().health).toBe(true);
   });
 });

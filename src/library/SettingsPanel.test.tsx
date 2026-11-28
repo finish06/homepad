@@ -55,10 +55,10 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
       showUptimeDisplay={props.showUptimeDisplay ?? true}
       onSaveSettings={props.onSaveSettings ?? vi.fn().mockResolvedValue(undefined)}
       scope={props.scope ?? 'admin'}
-      showHealthBar={props.showHealthBar ?? true}
+      hiddenWidgets={props.hiddenWidgets ?? []}
+      onSetHiddenWidgets={props.onSetHiddenWidgets ?? vi.fn()}
       showUptimeDisplayPref={props.showUptimeDisplayPref ?? true}
       onSetUptimeDisplay={props.onSetUptimeDisplay ?? vi.fn()}
-      onSetHealthBar={props.onSetHealthBar ?? vi.fn()}
       density="compact"
       onSetDensity={vi.fn()}
       onClose={props.onClose ?? vi.fn()}
@@ -310,23 +310,25 @@ describe('SPEC-health-bar-visibility-toggle — personal scope', () => {
   });
 
   it('AC-002 — the control is a boolean whose ON state means visible', async () => {
-    renderPanel({ scope: 'personal', isAdmin: false, showHealthBar: true });
+    // SPEC-health-widget §4.6 — the switch is now "Counts and meter", under
+    // Health; on still means visible.
+    renderPanel({ scope: 'personal', isAdmin: false, hiddenWidgets: [] });
     const toggle = await screen.findByTestId('setting-health-bar');
     expect(toggle).toHaveAttribute('role', 'switch');
     expect(toggle).toHaveAttribute('aria-checked', 'true');
-    expect(toggle).toHaveAccessibleName(/status bar/i);
+    expect(toggle).toHaveAccessibleName(/counts and meter/i);
   });
 
   it('AC-002 — reflects a stored false', async () => {
-    renderPanel({ scope: 'personal', isAdmin: false, showHealthBar: false });
+    renderPanel({ scope: 'personal', isAdmin: false, hiddenWidgets: ['healthDetails'] });
     expect(await screen.findByTestId('setting-health-bar')).toHaveAttribute('aria-checked', 'false');
   });
 
   it('AC-002 — toggling asks the owner to persist the inverse', async () => {
-    const onSetHealthBar = vi.fn();
-    renderPanel({ scope: 'personal', isAdmin: false, showHealthBar: true, onSetHealthBar });
+    const onSetHiddenWidgets = vi.fn();
+    renderPanel({ scope: 'personal', isAdmin: false, hiddenWidgets: [], onSetHiddenWidgets });
     await userEvent.click(await screen.findByTestId('setting-health-bar'));
-    expect(onSetHealthBar).toHaveBeenCalledWith(false);
+    expect(onSetHiddenWidgets).toHaveBeenCalledWith(['healthDetails']);
   });
 
   it('personal scope shows NO admin sections, even for an admin', async () => {

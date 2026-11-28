@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import StatusBar from './StatusBar';
+import WidgetArea from './WidgetArea';
 import { useServicesContext } from '../services';
 import { CONTENT_WIDTH } from '../lib/layout';
 import type { Service, ServiceStatus } from '../api';
@@ -62,19 +63,27 @@ describe('StatusBar chips (health panel)', () => {
   // directly). Named for the observed symptom: edges don't line up with the grid.
   it('health card wrapper adds no horizontal inset beyond the shared frame (#386)', () => {
     setItems([svc('UP', 'u1')]);
-    render(<StatusBar />);
+    // SPEC-health-widget §4.5 — the health body draws in the widget area,
+    // which holds the shared CONTENT_WIDTH frame (and the top spacing).
+    const { container } = render(
+      <WidgetArea
+        visible={{ clock: false, weather: false, health: true, healthDetails: true, tiles: true }}
+        info={null}
+        canRetry
+      />,
+    );
 
     const wrapper = screen.getByTestId('status-bar');
     // No horizontal-padding utility on the wrapper — its only inset is the
     // shared CONTENT_WIDTH frame, identical to the header + app grid.
-    const horizPad = [...wrapper.classList].filter((c) => /^(px|pl|pr)-/.test(c));
-    expect(horizPad).toEqual([]);
-    // Structural spacing classes are preserved.
+    for (const el of [wrapper, screen.getByTestId('status-bar-content'), screen.getByTestId('widget-health')]) {
+      expect([...el.classList].filter((c) => /^(px|pl|pr)-/.test(c))).toEqual([]);
+    }
+    // The popover still positions against the wrapper.
     expect(wrapper).toHaveClass('relative');
-    expect(wrapper).toHaveClass('pt-3');
-    // The inner content frame is the shared CONTENT_WIDTH (single source of inset).
+    // The area's frame is the shared CONTENT_WIDTH (single source of inset).
     for (const cls of CONTENT_WIDTH.split(' ')) {
-      expect(screen.getByTestId('status-bar-content')).toHaveClass(cls);
+      expect(container.firstElementChild).toHaveClass(cls);
     }
   });
 
@@ -309,7 +318,7 @@ describe('SPEC-health-bar-visibility-toggle — bar visibility', () => {
 
   it('AC-003 — hiding the bar keeps the verdict: LED, headline and subline all remain', () => {
     setItems(fleet());
-    render(<StatusBar showHealthBar={false} />);
+    render(<StatusBar showDetails={false} />);
     expect(screen.getByTestId('health-led')).toBeInTheDocument();
     expect(screen.getByTestId('health-headline')).toBeInTheDocument();
     expect(screen.getByTestId('health-subline')).toBeInTheDocument();
@@ -317,7 +326,7 @@ describe('SPEC-health-bar-visibility-toggle — bar visibility', () => {
 
   it('AC-004/AC-015 — the distribution block is UNMOUNTED, not merely hidden', () => {
     setItems(fleet());
-    const { container } = render(<StatusBar showHealthBar={false} />);
+    const { container } = render(<StatusBar showDetails={false} />);
     // Absent from the DOM entirely: a display:none / visibility:hidden element
     // would still be found here, and the bands are focusable, so they must
     // leave the a11y tree rather than linger in it.
@@ -329,7 +338,7 @@ describe('SPEC-health-bar-visibility-toggle — bar visibility', () => {
 
   it('AC-016 — the counts the bar carried survive in the subline', () => {
     setItems(fleet());
-    render(<StatusBar showHealthBar={false} />);
+    render(<StatusBar showDetails={false} />);
     const subline = screen.getByTestId('health-subline').textContent ?? '';
     expect(subline).toMatch(/2 online/);
     expect(subline).toMatch(/1 down/);
@@ -338,7 +347,7 @@ describe('SPEC-health-bar-visibility-toggle — bar visibility', () => {
 
   it('AC-016 — the subline is NOT rewritten while the bar is visible', () => {
     setItems(fleet());
-    render(<StatusBar showHealthBar={true} />);
+    render(<StatusBar showDetails={true} />);
     const subline = screen.getByTestId('health-subline').textContent ?? '';
     // The bar is on screen carrying the breakdown, so the subline keeps its
     // existing wording — this preference must not change the default view.
@@ -348,7 +357,7 @@ describe('SPEC-health-bar-visibility-toggle — bar visibility', () => {
 
   it('AC-013 — hiding the bar does not disturb the verdict the fleet reports', () => {
     setItems(fleet());
-    render(<StatusBar showHealthBar={false} />);
+    render(<StatusBar showDetails={false} />);
     // One DOWN service: the LED and headline must still raise it. A display
     // preference may never conceal an outage.
     expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'attention');
@@ -375,7 +384,7 @@ describe('SPEC-health-bar-visibility-toggle — AC-013 refresh cycle untouched',
 
   it('the STALE verdict and "Retry now" still render with the bar hidden', () => {
     staleCtx(vi.fn(async () => 'refreshed' as const));
-    render(<StatusBar showHealthBar={false} />);
+    render(<StatusBar showDetails={false} />);
     expect(screen.getByTestId('health-led')).toHaveAttribute('data-variant', 'stale');
     expect(screen.getByTestId('health-retry')).toHaveTextContent('Retry now');
   });
@@ -383,14 +392,14 @@ describe('SPEC-health-bar-visibility-toggle — AC-013 refresh cycle untouched',
   it('clicking Retry still re-polls exactly once with the bar hidden', async () => {
     const refresh = vi.fn(async () => 'refreshed' as const);
     staleCtx(refresh);
-    render(<StatusBar showHealthBar={false} />);
+    render(<StatusBar showDetails={false} />);
     await userEvent.click(screen.getByTestId('health-retry'));
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
   it('the freshness label survives — hiding the distribution never hides "when"', () => {
     staleCtx(vi.fn(async () => 'refreshed' as const));
-    render(<StatusBar showHealthBar={false} />);
+    render(<StatusBar showDetails={false} />);
     expect(screen.getByTestId('health-updated')).toBeInTheDocument();
   });
 });

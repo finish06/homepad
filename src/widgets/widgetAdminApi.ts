@@ -54,6 +54,8 @@ export type TestResult =
 export type Place = { name: string; region: string; country: string; lat: number; lon: number };
 
 export type WidgetSettings = {
+  // SPEC-health-widget — the household switch for health, on by default.
+  healthEnabled: boolean;
   clockEnabled: boolean;
   clockHour12: boolean | null;
   weatherEnabled: boolean;

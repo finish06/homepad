@@ -11,6 +11,7 @@ import { resolve } from 'node:path';
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import StatusBar from './StatusBar';
+import WidgetArea from './WidgetArea';
 import { CONTENT_WIDTH } from '../lib/layout';
 import { useServicesContext } from '../services';
 import type { Service, ServiceStatus } from '../api';
@@ -124,13 +125,23 @@ describe('StatusBar alignment (#196)', () => {
   });
 
   it('constrains the inner content to the shared width and left-aligns it — AC-008', () => {
+    // SPEC-health-widget §4.5 — the widget area holds the shared width now;
+    // the health body inside it adds no second one.
     setItems([svc('UP', 'u1'), svc('NOT_MONITORED', 'n1')]);
-    render(<StatusBar />);
+    const { container } = render(
+      <WidgetArea
+        visible={{ clock: false, weather: false, health: true, healthDetails: true, tiles: true }}
+        info={null}
+        canRetry
+      />,
+    );
     const bar = screen.getByTestId('status-bar');
     const inner = bar.querySelector('[data-testid="status-bar-content"]');
     expect(inner).not.toBeNull();
-    expect(inner!.className).toContain('max-w-[max(1536px,92vw)]');
-    expect(inner!.className).toContain('mx-auto');
+    expect(inner!.className).not.toContain('max-w-');
+    const frame = container.firstElementChild as HTMLElement;
+    expect(frame.className).toContain('max-w-[max(1536px,92vw)]');
+    expect(frame.className).toContain('mx-auto');
     // Left-edge alignment with the grid/header requires left-aligned content,
     // not centered — otherwise the panel floats mid-container at 2560px.
     expect(bar.className).not.toContain('text-center');

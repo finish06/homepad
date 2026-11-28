@@ -41,8 +41,6 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
       scope={props.scope ?? 'personal'}
       showUptimeDisplay={true}
       onSaveSettings={vi.fn().mockResolvedValue(undefined)}
-      showHealthBar={true}
-      onSetHealthBar={vi.fn()}
       showUptimeDisplayPref={true}
       onSetUptimeDisplay={vi.fn()}
       density={props.density ?? 'compact'}
@@ -65,13 +63,15 @@ describe('My settings — tile density (AC-001, AC-005)', () => {
     expect(within(personal).getByTestId('density-toggle')).toBeTruthy();
   });
 
-  it('AC-001 — sits BELOW the two existing preference rows', async () => {
+  // SPEC-health-widget §4.6 — "Show status bar" left this list for the
+  // Widgets group, so the density sits below the one remaining switch row.
+  it('AC-001 — sits BELOW the existing preference row', async () => {
     renderPanel();
     const personal = await screen.findByTestId('settings-personal');
     const order = Array.from(
       personal.querySelectorAll('[data-testid="setting-health-bar"], [data-testid="setting-uptime-display"], [data-testid="density-toggle"]'),
     ).map((el) => el.getAttribute('data-testid'));
-    expect(order).toEqual(['setting-health-bar', 'setting-uptime-display', 'density-toggle']);
+    expect(order).toEqual(['setting-uptime-display', 'density-toggle']);
   });
 
   it('AC-005 — it is a radiogroup, not a switch, and names itself', async () => {

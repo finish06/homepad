@@ -1117,10 +1117,8 @@ describe('SettingsPanel — leaving with held sign-in changes, and telling the a
         showUptimeDisplay
         onSaveSettings={vi.fn().mockResolvedValue(undefined)}
         scope="admin"
-        showHealthBar
         showUptimeDisplayPref
         onSetUptimeDisplay={vi.fn()}
-        onSetHealthBar={vi.fn()}
         density="compact"
         onSetDensity={vi.fn()}
         onClose={onClose}

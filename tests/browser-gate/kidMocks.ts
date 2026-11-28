@@ -51,6 +51,7 @@ export const ADMIN_USER = {
   displayName: 'Caleb',
   avatarColor: 'blue',
   densityPref: 'compact',
+  hiddenWidgets: [] as string[],
   showHealthBar: true,
 };
 
@@ -66,6 +67,8 @@ export function kidUser(name = 'Maya', avatarColor = 'teal', id = 'k-maya') {
     displayName: name,
     avatarColor,
     densityPref: 'large',
+    // SPEC-health-widget AC-004 — a new kid hides health.
+    hiddenWidgets: ['health'] as string[],
     showHealthBar: false,
     showUptimeDisplay: true,
   };

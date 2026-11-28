@@ -17,7 +17,7 @@ import { setUptimeDisplayPref } from '../api';
 // FOR NEW ACCOUNTS, applied once by the server at account creation — not a live
 // override. Nothing here reads it.
 //
-// As with healthBarPref (and unlike tileDensity, which is fire-and-forget), a
+// As with hiddenWidgetsPref (and unlike tileDensity, which is fire-and-forget), a
 // failed write ROLLS BACK: AC-022 follows the setFavorite/setLayout shape.
 
 export const DEFAULT_SHOW_UPTIME_DISPLAY = true;

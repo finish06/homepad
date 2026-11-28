@@ -22,12 +22,14 @@ const mSave = vi.mocked(saveWidgetSettings);
 const DDG = 'https://duckduckgo.com/?q={query}';
 
 const INFO: WidgetsInfo = {
+  health: { enabled: true },
   clock: { enabled: false, hour12: null },
   weather: { enabled: false, state: 'loading', asOf: null, place: '', units: 'c' },
   search: { enabled: false, name: 'DuckDuckGo', url: DDG, kids: false },
 };
 
 const SAVED: WidgetSettings = {
+  healthEnabled: true,
   clockEnabled: false,
   clockHour12: null,
   weatherEnabled: false,
@@ -65,6 +67,48 @@ describe('the section', () => {
     mInfo.mockResolvedValue(null);
     render(<WidgetsSettings />);
     expect(await screen.findByText('Couldn’t load the widget settings.')).toBeInTheDocument();
+  });
+});
+
+// SPEC-health-widget AC-027 — Health is the first row: on by default, saves
+// healthEnabled on change and reloads the widget info, like Clock.
+describe('Health', () => {
+  it('comes first, on by default, with its help line', async () => {
+    const { section } = await setup();
+    const switches = within(section).getAllByRole('switch');
+    expect(switches[0]).toHaveAccessibleName('Health');
+    expect(switches[0]).toHaveAttribute('aria-checked', 'true');
+    expect(switches[0]).toHaveAccessibleDescription(
+      'The status summary above your apps. Turning it off hides it for everyone.',
+    );
+  });
+
+  it('saves on change and tells the dashboard', async () => {
+    const { section, user, onChanged } = await setup();
+    const sw = within(section).getByRole('switch', { name: 'Health' });
+    await user.click(sw);
+    expect(mSave).toHaveBeenCalledWith({ healthEnabled: false });
+    await waitFor(() => expect(sw).toHaveAttribute('aria-checked', 'false'));
+    expect(onChanged).toHaveBeenCalled();
+  });
+
+  it('rolls back a failed save', async () => {
+    const { section, user } = await setup();
+    mSave.mockResolvedValueOnce(null);
+    const sw = within(section).getByRole('switch', { name: 'Health' });
+    await user.click(sw);
+    await waitFor(() => expect(sw).toHaveAttribute('aria-checked', 'true'));
+  });
+
+  it('reads as on from an older API with no health block, and shows a stored off', async () => {
+    const { health: _drop, ...older } = INFO;
+    const first = await setup(older as WidgetsInfo);
+    expect(within(first.section).getByRole('switch', { name: 'Health' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('shows a stored off', async () => {
+    const { section } = await setup({ ...INFO, health: { enabled: false } });
+    expect(within(section).getByRole('switch', { name: 'Health' })).toHaveAttribute('aria-checked', 'false');
   });
 });
 

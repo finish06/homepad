@@ -15,10 +15,12 @@ import { mockApi, makeStatusTiles } from './mockApi';
 
 // Seed the device cache before boot so the first paint already has the
 // preference (AC-011) — the same trick tile-density.spec.ts uses for density.
+// SPEC-health-widget — the cache is now the person's hidden-widgets list
+// (mockApi's user is u1); "Counts and meter" off is `healthDetails`.
 async function setBarPref(page: Page, show: boolean) {
   await page.addInitScript(
-    (v) => localStorage.setItem('homepad:show-health-bar', v),
-    show ? 'true' : 'false',
+    (hidden) => localStorage.setItem('homepad:hidden-widgets', JSON.stringify({ v: 1, user: 'u1', hidden })),
+    show ? [] : ['healthDetails'],
   );
 }
 

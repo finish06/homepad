@@ -83,9 +83,17 @@ Coming in a later release:
   (read-only). Proxmox uses a self-signed certificate unless you added your
   own, so tick **Allow self-signed certificate** for port 8006.
 
-## Clock, weather and web search
+## Health, clock, weather and web search
 
-All three start **off**. Turn them on in **Admin Panel → Widgets**.
+Health, the clock and the weather sit together above your apps, each in its
+own card. Turn each on or off for everyone in **Admin Panel → Widgets**.
+
+- **Health:** the status summary: is everything up, how many apps are down,
+  and how fresh the status is. It starts **on**. Turning it off hides it for
+  everyone, but status still shows on the tiles, in the alert bell and in the
+  pop-up alerts.
+
+The clock, the weather and web search start **off**.
 
 - **Clock:** the device's 12/24-hour choice, or pick one.
 - **Weather:** search for your town and pick it. Choose °C or °F. Homepad
@@ -94,8 +102,13 @@ All three start **off**. Turn them on in **Admin Panel → Widgets**.
   your own `https://` address with `{query}` where the search words go. Kids
   get it only if you tick **Kids can search the web**.
 
-Each viewer can hide the numbers and the strip for themselves in
-**My settings → Show widgets**.
+Each person can hide any of them for themselves in **My settings → Widgets**:
+Clock, Weather, Health, Health's **Counts and meter**, and **Numbers on
+tiles**. Hiding one never changes what anyone else sees. A widget that is off
+for everyone shows its switch greyed out, with the person's own choice kept
+for when it comes back. Kids have no widget settings: they see the clock and
+weather the household has on and no numbers on tiles. New kids don't see
+health; a kid whose account had the health panel on before 18.8 keeps it.
 
 ## What leaves your network
 
@@ -107,8 +120,8 @@ Only the weather. When it's on, the API server calls Open-Meteo:
 
 The browser never calls Open-Meteo. Weather data is by
 [Open-Meteo.com](https://open-meteo.com/), under
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The strip always
-shows an "Open-Meteo" credit link, as the licence asks. Open-Meteo's free tier
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The weather card
+always shows an "Open-Meteo" credit link, as the licence asks. Open-Meteo's free tier
 is for non-commercial use.
 
 App widgets (Jellyfin, Sonarr, Radarr) talk only to the addresses you give

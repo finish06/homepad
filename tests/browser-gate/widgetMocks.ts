@@ -4,7 +4,10 @@ import { settingsBody } from '../../src/test/serverSettingsFixture';
 // SPEC-status-widgets — a mocked homepad-api for the widget surfaces, shared by
 // tests/browser-gate and tests/e2e. It mirrors the contract the API PR ships:
 //   - GET /api/services carries `widget` (typed numbers only), never for a kid;
-//   - GET /api/widgets/info is the session read of clock, weather and search;
+//   - GET /api/widgets/info is the session read of clock, weather, health
+//     (SPEC-health-widget) and search;
+//   - GET /api/me carries hiddenWidgets (and the old showHealthBar /
+//     showWidgets worked out from it, as the API does until 19.0.0);
 //   - the admin routes carry the widget's address and username, and NEVER its
 //     key (write-only, AC-003) — `hasSecret` only.
 //
@@ -76,6 +79,7 @@ export function widgetCatalog() {
 }
 
 export const INFO_ON = {
+  health: { enabled: true },
   clock: { enabled: true, hour12: false },
   weather: {
     enabled: true,
@@ -93,6 +97,7 @@ export const INFO_ON = {
 };
 
 export const INFO_OFF = {
+  health: { enabled: true },
   clock: { enabled: false, hour12: null },
   weather: { enabled: false, state: 'loading', asOf: null, place: '', units: 'c' },
   search: { enabled: false, name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q={query}' },
@@ -146,9 +151,14 @@ export async function mockWidgets(
     role?: Role;
     density?: 'large' | 'compact' | 'list';
     info?: typeof INFO_ON | typeof INFO_OFF;
-    showWidgets?: boolean;
+    // SPEC-health-widget — the person's hidden list. Defaults: a kid hides
+    // health, an adult hides nothing.
+    hiddenWidgets?: string[];
     // The Jellyfin tile's saved widget, as the admin GET returns it.
     savedWidget?: boolean;
+    // Another page's mock whose household settings this page reads, so one
+    // test can drive the admin and a member as one household.
+    household?: WidgetMock;
   } = {},
 ): Promise<WidgetMock> {
   const role = opts.role ?? 'member';
@@ -175,18 +185,24 @@ export async function mockWidgets(
     await page.addInitScript((d) => localStorage.setItem('homepad:tile-density', d), opts.density);
   }
 
-  const user =
+  let hidden = opts.hiddenWidgets ?? (role === 'kid' ? ['health'] : []);
+  const base =
     role === 'kid'
-      ? { id: 'k-maya', email: '', role: 'kid', themePref: 'light', name: 'Maya', displayName: 'Maya', densityPref: 'large', showHealthBar: false }
+      ? { id: 'k-maya', email: '', role: 'kid', themePref: 'light', name: 'Maya', displayName: 'Maya', densityPref: 'large' }
       : {
           id: role === 'admin' ? 'u-admin' : 'u-nani',
           email: role === 'admin' ? 'admin@example.com' : 'nani@example.com',
           role,
           themePref: 'light',
           densityPref: opts.density ?? 'compact',
-          showHealthBar: true,
-          showWidgets: opts.showWidgets ?? true,
         };
+  // The old fields, worked out from the list the way the API does (§4.3).
+  const userView = () => ({
+    ...base,
+    hiddenWidgets: hidden,
+    showHealthBar: !hidden.includes(role === 'kid' ? 'health' : 'healthDetails'),
+    showWidgets: !(hidden.includes('clock') && hidden.includes('weather') && hidden.includes('tiles')),
+  });
 
   const reply = (route: Route, path: string, body: unknown, status = 200) => {
     const text = body === undefined ? '' : JSON.stringify(body);
@@ -200,8 +216,12 @@ export async function mockWidgets(
     const method = req.method();
     const widgetMatch = path.match(/^\/api\/services\/([^/]+)\/widget(\/test)?$/);
 
-    if (path === '/api/me' && method === 'GET') return reply(route, path, user);
-    if (path === '/api/me' && method === 'PATCH') return reply(route, path, { ...user, ...(req.postDataJSON() as object) });
+    if (path === '/api/me' && method === 'GET') return reply(route, path, userView());
+    if (path === '/api/me' && method === 'PATCH') {
+      const body = req.postDataJSON() as { hiddenWidgets?: string[] };
+      if (Array.isArray(body.hiddenWidgets)) hidden = body.hiddenWidgets;
+      return reply(route, path, { ...userView(), ...body, hiddenWidgets: hidden });
+    }
     if (path === '/api/auth/config') return reply(route, path, { oidcEnabled: false });
     if (path === '/api/system/config') return reply(route, path, { showUptimeDisplay: true, statusDegradedMs: 1000 });
     if (path === '/api/services') {
@@ -219,8 +239,9 @@ export async function mockWidgets(
     if (path === '/api/categories') return reply(route, path, { categories });
     if (path === '/api/me/collapsed-categories') return reply(route, path, { collapsed: [] });
     if (path === '/api/widgets/info') {
-      const search = role === 'admin' ? { ...state.info.search, kids: false } : state.info.search;
-      return reply(route, path, { ...state.info, search });
+      const info = (opts.household ?? state).info;
+      const search = role === 'admin' ? { ...info.search, kids: false } : info.search;
+      return reply(route, path, { ...info, search });
     }
     if (path === '/api/admin/widgets/kinds') return reply(route, path, KINDS);
     if (widgetMatch && widgetMatch[2]) {
@@ -271,6 +292,7 @@ export async function mockWidgets(
       state.settings.push(patch);
       const cur = state.info;
       const next = {
+        health: { enabled: (patch.healthEnabled as boolean | undefined) ?? cur.health.enabled },
         clock: {
           enabled: (patch.clockEnabled as boolean | undefined) ?? cur.clock.enabled,
           hour12: 'clockHour12' in patch ? (patch.clockHour12 as boolean | null) : cur.clock.hour12,
@@ -292,6 +314,7 @@ export async function mockWidgets(
         showUptimeDisplay: true,
         statusDegradedMs: 1000,
         widgets: {
+          healthEnabled: next.health.enabled,
           clockEnabled: next.clock.enabled,
           clockHour12: next.clock.hour12,
           weatherEnabled: next.weather.enabled,

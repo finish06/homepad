@@ -52,8 +52,6 @@ function renderPanel(props: Partial<React.ComponentProps<typeof SettingsPanel>> 
       initialSection={props.initialSection}
       showUptimeDisplay
       onSaveSettings={vi.fn().mockResolvedValue(undefined)}
-      showHealthBar
-      onSetHealthBar={vi.fn()}
       showUptimeDisplayPref
       onSetUptimeDisplay={vi.fn()}
       density="compact"

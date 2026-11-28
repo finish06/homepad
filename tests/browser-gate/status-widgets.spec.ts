@@ -111,15 +111,20 @@ test.describe('the tile widget line (AC-007…AC-009)', () => {
   });
 });
 
-test.describe('the glance strip (UX §4)', () => {
+// SPEC-health-widget §4.5 — the clock and the weather now draw in their own
+// widget cards (the strip is gone); what each drops as the screen narrows is
+// unchanged.
+test.describe('the clock and weather cards (UX §4)', () => {
   async function strip(page: Page, width: number, height = 900) {
     await page.setViewportSize({ width, height });
     await mockWidgets(page, { density: 'compact', info: INFO_ON });
     await page.goto('/');
-    const s = page.getByTestId('glance-strip');
-    await expect(s).toBeVisible();
-    const box = await s.boundingBox();
-    expect(box!.height).toBeGreaterThanOrEqual(44);
+    const s = page.getByTestId('widget-area');
+    await expect(s.getByTestId('glance-time')).toBeVisible();
+    for (const id of ['widget-clock', 'widget-weather']) {
+      const box = await s.getByTestId(id).boundingBox();
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+    }
     return s;
   }
 
@@ -145,21 +150,21 @@ test.describe('the glance strip (UX §4)', () => {
     await expect(s.getByText(/H 9°/)).toBeVisible();
   });
 
-  test('390: time and temperature only, plus the credit, on one row', async ({ page }) => {
+  test('390: time and temperature only, plus the credit, in two cards on one row', async ({ page }) => {
     const s = await strip(page, 390, 844);
     await expect(s.getByTestId('glance-time')).toBeVisible();
     await expect(s.getByTestId('glance-temp')).toBeVisible();
     await expect(s.getByTestId('glance-date-short')).toBeHidden();
     await expect(s.getByText(/H 9°/)).toBeHidden();
     await expect(s.getByRole('link', { name: 'Open-Meteo' })).toBeVisible();
-    const t = await s.getByTestId('glance-time').boundingBox();
-    const c = await s.getByRole('link', { name: 'Open-Meteo' }).boundingBox();
-    expect(Math.abs(t!.y + t!.height / 2 - (c!.y + c!.height / 2))).toBeLessThan(16);
+    const clock = await s.getByTestId('widget-clock').boundingBox();
+    const weather = await s.getByTestId('widget-weather').boundingBox();
+    expect(Math.abs(clock!.y - weather!.y)).toBeLessThanOrEqual(1);
     const sw = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(sw).toBeLessThanOrEqual(390);
   });
 
-  test('no strip, no request to Open-Meteo from the browser', async ({ page }) => {
+  test('no request to Open-Meteo from the browser', async ({ page }) => {
     const external: string[] = [];
     page.on('request', (r) => {
       if (/open-meteo/.test(r.url())) external.push(r.url());
@@ -169,11 +174,14 @@ test.describe('the glance strip (UX §4)', () => {
   });
 });
 
-test('kid board at 1180×820: the strip shows, tiles carry no numbers (TC-007)', async ({ page }) => {
+test('kid board at 1180×820: the clock and weather show, tiles carry no numbers (TC-007)', async ({ page }) => {
   await page.setViewportSize({ width: 1180, height: 820 });
   await mockWidgets(page, { role: 'kid', info: INFO_ON });
   await page.goto('/');
-  await expect(page.getByTestId('glance-strip')).toBeVisible();
+  await expect(page.getByTestId('widget-clock')).toBeVisible();
+  await expect(page.getByTestId('widget-weather')).toBeVisible();
+  // SPEC-health-widget AC-021 — a new kid's list hides health.
+  await expect(page.getByTestId('widget-health')).toHaveCount(0);
   await expect(page.getByTestId('tool-link')).toHaveCount(6);
   await expect(page.getByTestId('tile-widget')).toHaveCount(0);
   await expect(page.getByText('this week')).toHaveCount(0);

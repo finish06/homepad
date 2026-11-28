@@ -38,10 +38,10 @@ async function setup(
 ) {
   await page.setViewportSize({ width: opts.width, height: 900 });
   await mockApi(page, FIXTURE.services, FIXTURE.categories, 'member', opts.density ?? 'large');
-  // The health panel's chips and meter mount only once services load (StatusBar,
-  // not this spec), which moves everything below it. The page-level checks run
-  // with it hidden; one case below runs with it on and measures the grid inside
-  // its own section. See the spec's AC-003 note.
+  // SPEC-health-widget §4.5 (#745) — the health widget now holds its loaded
+  // height while services load, so the adult cases below are page-level too
+  // (closing SPEC-dashboard-empty-loading §8.1). The account here is an 18.7
+  // shape (showHealthBar, no hiddenWidgets), which the app maps itself.
   await page.route('**/api/me', (route) =>
     route.fulfill({
       json: opts.kid
@@ -180,17 +180,20 @@ test.describe('dashboard skeleton — geometry (AC-002, AC-003, AC-005)', () => 
       expect(Math.abs(skeleton.footerTop - real.footerTop)).toBeLessThanOrEqual(1);
     });
 
-    test(`a matching cache: an adult's grid does not move inside its section at ${width}px (AC-003)`, async ({
-      page,
-    }) => {
-      const api = await setup(page, { width, healthBar: true });
-      await firstVisit(page);
-      const { skeleton, real } = await returningVisit(page, api);
-      expectSameGrid(skeleton, real, relY);
-      // … and the grid ends where it did: the footer holds relative to the section.
-      const below = (x: Snap) => x.footerTop - x.sectionTop;
-      expect(Math.abs(below(skeleton) - below(real))).toBeLessThanOrEqual(1);
-    });
+    // SPEC-health-widget AC-024 — with the health widget's space held, an
+    // adult's page doesn't move either, with or without its details.
+    for (const healthBar of [true, false]) {
+      test(`a matching cache: an adult's page loads with no layout shift at ${width}px, details ${healthBar ? 'on' : 'off'} (AC-003, page level)`, async ({
+        page,
+      }) => {
+        const api = await setup(page, { width, healthBar });
+        await firstVisit(page);
+        const { skeleton, real, cls } = await returningVisit(page, api);
+        expect(cls).toBeLessThan(0.01);
+        expectSameGrid(skeleton, real, (s, i) => s.boxes[i].y);
+        expect(Math.abs(skeleton.footerTop - real.footerTop)).toBeLessThanOrEqual(1);
+      });
+    }
   }
 
   // The admin's empty box carries the Browse the App Library button; the

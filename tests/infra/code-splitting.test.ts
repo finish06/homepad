@@ -59,10 +59,13 @@ describe('code-splitting — on-demand overlays are lazy chunks', () => {
     expect(importers).toEqual(['app/ChangelogOverlay.tsx']);
   });
 
-  // SPEC-status-widgets — the glance strip (clock, weather, its icons) renders
-  // only when an admin turned one on, so it is a lazy chunk too.
-  it('App.tsx lazy-loads the glance strip', () => {
-    const src = read('app/App.tsx');
+  // SPEC-status-widgets — the clock and weather bodies (and their icons)
+  // render only when an admin turned one on, so they are a lazy chunk too.
+  // SPEC-health-widget §4.5 — the widget area (entry) loads them; health
+  // (StatusBar) stays in the entry with it.
+  it('WidgetArea.tsx lazy-loads the clock and weather bodies', () => {
+    const src = read('app/WidgetArea.tsx');
+    expect(src).toMatch(/^import StatusBar from '\.\/StatusBar';$/m);
     expect(src).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(['"][./a-z]*\/GlanceStrip['"]\)\s*\)/i);
     expect(src).not.toMatch(/^import GlanceStrip from/m);
   });
