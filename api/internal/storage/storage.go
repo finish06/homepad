@@ -65,7 +65,13 @@ type User struct {
 	AvatarColor string
 	// ShowWidgets is the per-user "Show widgets" switch (SPEC-status-widgets
 	// AC-031): tile widget lines and the glance strip. NOT NULL DEFAULT TRUE.
+	// Deprecated: kept in step with HiddenWidgets until 19.0.0
+	// (SPEC-health-widget §4.2), so a rolled-back image still reads it.
 	ShowWidgets bool
+	// HiddenWidgets is the person's list of hidden widgets and widget parts,
+	// in WidgetKeys order (SPEC-health-widget, migration 0026). It replaces
+	// ShowHealthBar and ShowWidgets.
+	HiddenWidgets []string
 }
 
 // userColumns is the one SELECT list every User read uses. email and
@@ -73,14 +79,16 @@ type User struct {
 // "": a kid reads back with no email and an empty hash, which bcrypt can never
 // match.
 const userColumns = `id, COALESCE(email, ''), COALESCE(password_hash, ''), role, theme_pref, density_pref,
-	show_health_bar, show_uptime_display, COALESCE(display_name, ''), COALESCE(avatar_color, ''), show_widgets`
+	show_health_bar, show_uptime_display, COALESCE(display_name, ''), COALESCE(avatar_color, ''), show_widgets,
+	hidden_widgets`
 
 // scanUser scans a row selected with userColumns first; extra receives any
 // columns selected after them.
 func scanUser(row pgx.Row, extra ...any) (User, error) {
 	var u User
 	dest := append([]any{&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.ThemePref, &u.DensityPref,
-		&u.ShowHealthBar, &u.ShowUptimeDisplay, &u.DisplayName, &u.AvatarColor, &u.ShowWidgets}, extra...)
+		&u.ShowHealthBar, &u.ShowUptimeDisplay, &u.DisplayName, &u.AvatarColor, &u.ShowWidgets,
+		&u.HiddenWidgets}, extra...)
 	err := row.Scan(dest...)
 	return u, err
 }
@@ -319,26 +327,70 @@ func (s *Store) UserByID(ctx context.Context, id string) (User, error) {
 type UserPrefs struct {
 	ThemePref         *string
 	DensityPref       *string
-	ShowHealthBar     *bool
 	ShowUptimeDisplay *bool
-	ShowWidgets       *bool
+	// HiddenWidgets replaces the whole list (SPEC-health-widget §4.3). The
+	// handler validates the keys; the store normalizes the order.
+	HiddenWidgets *[]string
+	// ShowHealthBar and ShowWidgets are the deprecated switches, kept until
+	// 19.0.0. Each changes the list: showHealthBar adds or removes
+	// healthDetails (an adult) or health (a kid), and showWidgets adds or
+	// removes all of clock, weather and tiles.
+	ShowHealthBar *bool
+	ShowWidgets   *bool
+}
+
+func (p UserPrefs) touchesWidgets() bool {
+	return p.HiddenWidgets != nil || p.ShowHealthBar != nil || p.ShowWidgets != nil
 }
 
 // SetUserPrefs writes every given preference of one user in a single UPDATE,
 // so either all of them are saved or none is (#665). The handler validates
 // the values first; the column CHECKs are the backstop. Only userID's row is
 // written. Returns the updated user, or ErrNotFound when userID names no user.
+//
+// A change to the widget list also writes show_health_bar and show_widgets,
+// worked out from the new list, in the same UPDATE (SPEC-health-widget
+// AC-005), so rolling back to an 18.7 image shows each person what they
+// chose. The row is locked while the list is worked out, so two changes at
+// once never lose one.
 func (s *Store) SetUserPrefs(ctx context.Context, userID string, p UserPrefs) (User, error) {
-	u, err := scanUser(s.pool.QueryRow(ctx,
-		`UPDATE users SET
-		   theme_pref          = COALESCE($2::text, theme_pref),
-		   density_pref        = COALESCE($3::text, density_pref),
-		   show_health_bar     = COALESCE($4::boolean, show_health_bar),
-		   show_uptime_display = COALESCE($5::boolean, show_uptime_display),
-		   show_widgets        = COALESCE($6::boolean, show_widgets)
-		 WHERE id = $1
-		 RETURNING `+userColumns,
-		userID, p.ThemePref, p.DensityPref, p.ShowHealthBar, p.ShowUptimeDisplay, p.ShowWidgets))
+	var u User
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var hidden, showBar, showWidgets any // nil = leave alone
+		if p.touchesWidgets() {
+			var role string
+			var cur []string
+			err := tx.QueryRow(ctx, `SELECT role, hidden_widgets FROM users WHERE id = $1 FOR UPDATE`, userID).Scan(&role, &cur)
+			if err != nil {
+				return err
+			}
+			next := cur
+			if p.HiddenWidgets != nil {
+				next = *p.HiddenWidgets
+			}
+			if p.ShowHealthBar != nil {
+				next = ApplyLegacyShowHealthBar(role, next, *p.ShowHealthBar)
+			}
+			if p.ShowWidgets != nil {
+				next = ApplyLegacyShowWidgets(next, *p.ShowWidgets)
+			}
+			list := NormalizeHiddenWidgets(next)
+			hidden, showBar, showWidgets = list, LegacyShowHealthBar(role, list), LegacyShowWidgets(list)
+		}
+		var err error
+		u, err = scanUser(tx.QueryRow(ctx,
+			`UPDATE users SET
+			   theme_pref          = COALESCE($2::text, theme_pref),
+			   density_pref        = COALESCE($3::text, density_pref),
+			   show_health_bar     = COALESCE($4::boolean, show_health_bar),
+			   show_uptime_display = COALESCE($5::boolean, show_uptime_display),
+			   show_widgets        = COALESCE($6::boolean, show_widgets),
+			   hidden_widgets      = COALESCE($7::text[], hidden_widgets)
+			 WHERE id = $1
+			 RETURNING `+userColumns,
+			userID, p.ThemePref, p.DensityPref, showBar, p.ShowUptimeDisplay, showWidgets, hidden))
+		return err
+	})
 	if isNoRowsOrBadID(err) {
 		return User{}, ErrNotFound
 	}

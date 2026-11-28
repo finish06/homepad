@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/finish06/homepad-api/blob/main/docs/schema/homepad-backup-v2.json",
   "title": "Homepad backup, schema version 2",
-  "description": "The file GET /api/admin/export writes from Homepad 18.0.0 on (SPEC-backup-import §3, SPEC-household-catalog-owner Q5). Version 2 has the same keys as version 1, plus the optional iframeSameOrigin on each app (Homepad 18.0.0). Homepad 18.0.0 reads both; Homepad 17.x refuses version 2 as a file from a newer Homepad. It holds no database ids, password hashes, sessions, OIDC config, env config or the Gatus URL. References use app slugs, section names, adult emails and kid names.",
+  "description": "The file GET /api/admin/export writes from Homepad 18.0.0 on (SPEC-backup-import §3, SPEC-household-catalog-owner Q5). Version 2 has the same keys as version 1, plus the optional iframeSameOrigin on each app (Homepad 18.0.0) and the optional hiddenWidgets in each person's prefs (Homepad 18.8.0). Homepad 18.0.0 reads both; Homepad 17.x refuses version 2 as a file from a newer Homepad. It holds no database ids, password hashes, sessions, OIDC config, env config or the Gatus URL. References use app slugs, section names, adult emails and kid names.",
   "type": "object",
   "required": ["format", "schemaVersion", "exportedAt", "homepadVersion", "includesPeople", "settings", "sections", "apps", "library"],
   "additionalProperties": false,
@@ -110,7 +110,12 @@
         "theme": { "enum": ["system", "light", "dark"] },
         "density": { "enum": ["large", "compact", "list"] },
         "showHealthBar": { "type": "boolean" },
-        "showUptimeDisplay": { "type": "boolean" }
+        "showUptimeDisplay": { "type": "boolean" },
+        "hiddenWidgets": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The widgets and widget parts this person hides: clock, weather, health, healthDetails, tiles (SPEC-health-widget, Homepad 18.8.0). Optional: a file without it maps showHealthBar false to healthDetails for an adult and health for a kid, and leaves the rest alone. A restore drops keys it doesn't know, with a warning."
+        }
       }
     },
     "avatarColor": { "enum": [null, "blue", "teal", "green", "yellow", "orange", "red", "pink", "purple"] },

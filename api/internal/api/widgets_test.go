@@ -824,3 +824,48 @@ func TestWidgets_ServicesNeverWaitOnAnUpstream(t *testing.T) {
 	close(release)
 	<-done
 }
+
+// SPEC-health-widget AC-010 — health's household switch: on by default, in
+// /api/widgets/info for every session (kids too), saved by an admin's
+// PATCH /api/admin/settings {healthEnabled} and echoed in `widgets`.
+func TestWidgets_HealthHouseholdSwitch(t *testing.T) {
+	env := testsupport.NewEnv(t)
+	c := &calls{t: t, base: env.URL}
+	_, kidTok := env.SeedKid(t, "Ava")
+
+	healthOf := func(tok string) any {
+		code, b := c.do(http.MethodGet, "/api/widgets/info", tok, nil)
+		require.Equal(t, http.StatusOK, code)
+		return decodeMap(t, b)["health"]
+	}
+	for _, tok := range []string{"admin-session", "non-admin-session", kidTok} {
+		assert.Equal(t, map[string]any{"enabled": true}, healthOf(tok), "on by default")
+	}
+
+	code, b := c.do(http.MethodPatch, "/api/admin/settings", "admin-session", map[string]any{"healthEnabled": false})
+	require.Equal(t, http.StatusOK, code, string(b))
+	ws := decodeMap(t, b)["widgets"].(map[string]any)
+	assert.Equal(t, false, ws["healthEnabled"])
+	for _, tok := range []string{"admin-session", "non-admin-session", kidTok} {
+		assert.Equal(t, map[string]any{"enabled": false}, healthOf(tok))
+	}
+
+	// Another widget's change keeps it; it echoes with every widget save.
+	code, b = c.do(http.MethodPatch, "/api/admin/settings", "admin-session", map[string]any{"clockEnabled": true})
+	require.Equal(t, http.StatusOK, code)
+	assert.Equal(t, false, decodeMap(t, b)["widgets"].(map[string]any)["healthEnabled"], "an omitted field keeps its value")
+
+	code, _ = c.do(http.MethodPatch, "/api/admin/settings", "non-admin-session", map[string]any{"healthEnabled": true})
+	assert.Equal(t, http.StatusForbidden, code, "admin only")
+	code, _ = c.do(http.MethodPatch, "/api/admin/settings", kidTok, map[string]any{"healthEnabled": true})
+	assert.Equal(t, http.StatusForbidden, code, "admin only")
+	for _, bad := range []any{"yes", 1, []any{true}} {
+		code, _ = c.do(http.MethodPatch, "/api/admin/settings", "admin-session", map[string]any{"healthEnabled": bad})
+		assert.Equal(t, http.StatusBadRequest, code, "non-boolean %v", bad)
+	}
+	assert.Equal(t, map[string]any{"enabled": false}, healthOf("non-admin-session"), "no bad request wrote anything")
+
+	code, _ = c.do(http.MethodPatch, "/api/admin/settings", "admin-session", map[string]any{"healthEnabled": true})
+	require.Equal(t, http.StatusOK, code)
+	assert.Equal(t, map[string]any{"enabled": true}, healthOf(kidTok))
+}

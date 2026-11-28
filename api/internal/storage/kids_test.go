@@ -121,6 +121,7 @@ func TestCreateKid_DefaultsAndNullCredentials(t *testing.T) {
 	assert.Equal(t, name, kid.DisplayName)
 	assert.Equal(t, "teal", kid.AvatarColor)
 	assert.False(t, kid.ShowHealthBar, "AC-019: the kid health bar is off by default")
+	assert.Equal(t, []string{"health"}, kid.HiddenWidgets, "SPEC-health-widget AC-004: a new kid hides health")
 	assert.Equal(t, "large", kid.DensityPref, "UX K-3: kids default to the large density")
 	assert.Equal(t, "", kid.Email)
 	assert.Equal(t, "", kid.PasswordHash)

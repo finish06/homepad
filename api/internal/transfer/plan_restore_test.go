@@ -83,10 +83,20 @@ func TestRestore_OntoAFreshInstall(t *testing.T) {
 	}
 	assert.Equal(t, wantApps, out.Apps, "every field and every icon")
 	assert.Equal(t, want.Library, out.Library)
-	assert.Equal(t, want.People.Kids, out.People.Kids)
+	// The v1 file has no hiddenWidgets; the export writes it, mapped from
+	// showHealthBar as migration 0026 maps it (SPEC-health-widget AC-013):
+	// Alex (true) hides nothing, Maya the kid (false) hides health.
+	wantKids := append([]transfer.Kid(nil), want.People.Kids...)
+	require.Len(t, wantKids, 1)
+	require.False(t, *wantKids[0].Prefs.ShowHealthBar)
+	wantKids[0].Prefs.HiddenWidgets = &[]string{"health"}
+	assert.Equal(t, wantKids, out.People.Kids)
 	gotAlex := *outAdult(t, out, "alex@example.com")
 	gotAlex.Email = "alex@example.com"
-	assert.Equal(t, want.People.Adults[0], gotAlex)
+	wantAlex := want.People.Adults[0]
+	require.True(t, *wantAlex.Prefs.ShowHealthBar)
+	wantAlex.Prefs.HiddenWidgets = &[]string{}
+	assert.Equal(t, wantAlex, gotAlex)
 	assert.Nil(t, outAdultOrNil(out, "sam@example.com"), "restore never creates an adult")
 
 	g := appBySlug(after, "grafana")

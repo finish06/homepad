@@ -125,6 +125,9 @@ func (s *Store) EnabledWidgets(ctx context.Context) ([]Widget, error) {
 // system_settings singleton (migration 0020). It is read and written apart
 // from the cap6 settings, so neither write clobbers the other.
 type WidgetSettings struct {
+	// HealthEnabled is the household switch for the health widget
+	// (SPEC-health-widget, migration 0026). On by default.
+	HealthEnabled    bool
 	ClockEnabled     bool
 	ClockHour12      *bool // nil = the device's choice
 	WeatherEnabled   bool
@@ -141,16 +144,18 @@ type WidgetSettings struct {
 const DefaultWebSearchURL = "https://duckduckgo.com/?q={query}"
 
 func defaultWidgetSettings() WidgetSettings {
-	return WidgetSettings{WeatherUnits: "c", WebSearchURL: DefaultWebSearchURL}
+	return WidgetSettings{HealthEnabled: true, WeatherUnits: "c", WebSearchURL: DefaultWebSearchURL}
 }
 
 const widgetSettingsColumns = `clock_enabled, clock_hour12, weather_enabled, weather_place,
-	weather_lat::float8, weather_lon::float8, weather_units, web_search_enabled, web_search_url, kid_web_search`
+	weather_lat::float8, weather_lon::float8, weather_units, web_search_enabled, web_search_url, kid_web_search,
+	health_enabled`
 
 func scanWidgetSettings(row pgx.Row) (WidgetSettings, error) {
 	var ws WidgetSettings
 	err := row.Scan(&ws.ClockEnabled, &ws.ClockHour12, &ws.WeatherEnabled, &ws.WeatherPlace,
-		&ws.WeatherLat, &ws.WeatherLon, &ws.WeatherUnits, &ws.WebSearchEnabled, &ws.WebSearchURL, &ws.KidWebSearch)
+		&ws.WeatherLat, &ws.WeatherLon, &ws.WeatherUnits, &ws.WebSearchEnabled, &ws.WebSearchURL, &ws.KidWebSearch,
+		&ws.HealthEnabled)
 	return ws, err
 }
 
@@ -170,31 +175,25 @@ func (s *Store) WidgetSettings(ctx context.Context) (WidgetSettings, error) {
 func (s *Store) UpsertWidgetSettings(ctx context.Context, in WidgetSettings) (WidgetSettings, error) {
 	return scanWidgetSettings(s.pool.QueryRow(ctx,
 		`INSERT INTO system_settings (id, clock_enabled, clock_hour12, weather_enabled, weather_place,
-		    weather_lat, weather_lon, weather_units, web_search_enabled, web_search_url, kid_web_search, updated_at)
-		 VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
+		    weather_lat, weather_lon, weather_units, web_search_enabled, web_search_url, kid_web_search,
+		    health_enabled, updated_at)
+		 VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
 		 ON CONFLICT (id) DO UPDATE SET
 		   clock_enabled = EXCLUDED.clock_enabled, clock_hour12 = EXCLUDED.clock_hour12,
 		   weather_enabled = EXCLUDED.weather_enabled, weather_place = EXCLUDED.weather_place,
 		   weather_lat = EXCLUDED.weather_lat, weather_lon = EXCLUDED.weather_lon,
 		   weather_units = EXCLUDED.weather_units, web_search_enabled = EXCLUDED.web_search_enabled,
 		   web_search_url = EXCLUDED.web_search_url, kid_web_search = EXCLUDED.kid_web_search,
-		   updated_at = now()
+		   health_enabled = EXCLUDED.health_enabled, updated_at = now()
 		 RETURNING `+widgetSettingsColumns,
 		in.ClockEnabled, in.ClockHour12, in.WeatherEnabled, in.WeatherPlace, in.WeatherLat, in.WeatherLon,
-		in.WeatherUnits, in.WebSearchEnabled, in.WebSearchURL, in.KidWebSearch))
+		in.WeatherUnits, in.WebSearchEnabled, in.WebSearchURL, in.KidWebSearch, in.HealthEnabled))
 }
 
-// SetShowWidgets updates one user's "Show widgets" switch (AC-031).
+// SetShowWidgets is the deprecated "Show widgets" switch (AC-031): it adds
+// or removes all of clock, weather and tiles in the user's list, and keeps
+// show_widgets in step (SPEC-health-widget §4.3).
 func (s *Store) SetShowWidgets(ctx context.Context, userID string, show bool) error {
-	tag, err := s.pool.Exec(ctx, `UPDATE users SET show_widgets = $2 WHERE id = $1`, userID, show)
-	if isNoRowsOrBadID(err) {
-		return ErrNotFound
-	}
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return ErrNotFound
-	}
-	return nil
+	_, err := s.SetUserPrefs(ctx, userID, UserPrefs{ShowWidgets: &show})
+	return err
 }

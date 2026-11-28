@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -57,9 +58,12 @@ type userView struct {
 	// DensityPref is the v16 tile density (large|compact|list), per user (OQ-9).
 	DensityPref string `json:"densityPref"`
 	// ShowHealthBar is the per-user visibility of the health panel's
-	// distribution bar (SPEC-health-bar-visibility-toggle). Not a pointer —
-	// the column is NOT NULL, so it always has a value to report.
+	// distribution bar (SPEC-health-bar-visibility-toggle). Deprecated, kept
+	// until 19.0.0: worked out from HiddenWidgets (SPEC-health-widget §4.3).
 	ShowHealthBar bool `json:"showHealthBar"`
+	// HiddenWidgets is the person's list of hidden widgets and widget parts,
+	// in the fixed key order (SPEC-health-widget §4.3). Never null.
+	HiddenWidgets []string `json:"hiddenWidgets"`
 	// ShowUptimeDisplay is the per-user visibility of the per-tile uptime
 	// sparkline (cap6 v2). Not a pointer — the column is NOT NULL.
 	ShowUptimeDisplay bool `json:"showUptimeDisplay"`
@@ -72,7 +76,8 @@ type userView struct {
 	// AvatarColor is the account's avatar color (an accent id), "" when unset.
 	AvatarColor string `json:"avatarColor"`
 	// ShowWidgets is the per-user "Show widgets" switch (SPEC-status-widgets
-	// AC-031). Not a pointer — the column is NOT NULL DEFAULT TRUE.
+	// AC-031). Deprecated, kept until 19.0.0: false only when clock, weather
+	// and tiles are all in HiddenWidgets (SPEC-health-widget §4.3).
 	ShowWidgets bool `json:"showWidgets"`
 	// HasPassword is true for an adult who signs in with a password: false
 	// for kids and for accounts that only use single sign-on
@@ -82,10 +87,47 @@ type userView struct {
 }
 
 func newUserView(u storage.User) userView {
+	hidden := storage.NormalizeHiddenWidgets(u.HiddenWidgets)
 	return userView{ID: u.ID, Email: u.Email, Role: apiRole(u.Role), ThemePref: u.ThemePref, DensityPref: u.DensityPref,
-		ShowHealthBar: u.ShowHealthBar, ShowUptimeDisplay: u.ShowUptimeDisplay, Name: u.DisplayName,
-		DisplayName: u.DisplayName, AvatarColor: u.AvatarColor, ShowWidgets: u.ShowWidgets,
+		ShowHealthBar: storage.LegacyShowHealthBar(u.Role, hidden), HiddenWidgets: hidden,
+		ShowUptimeDisplay: u.ShowUptimeDisplay, Name: u.DisplayName,
+		DisplayName: u.DisplayName, AvatarColor: u.AvatarColor, ShowWidgets: storage.LegacyShowWidgets(hidden),
 		HasPassword: u.HasLocalPassword()}
+}
+
+// legacyWidgetsWarning goes on a response to a PATCH /api/me that used
+// showHealthBar or showWidgets (SPEC-health-widget §4.3).
+const legacyWidgetsWarning = `299 - "showHealthBar and showWidgets are deprecated; use hiddenWidgets. They go away in 19.0.0."`
+
+// parseHiddenWidgets checks a PATCH body's hiddenWidgets: an array of at most
+// MaxHiddenWidgets known keys, no duplicates. Order doesn't matter. The
+// message says what is wrong; nothing has been written.
+func parseHiddenWidgets(raw json.RawMessage) ([]string, string) {
+	const shape = "hiddenWidgets must be an array of widget keys"
+	var items []json.RawMessage
+	if string(raw) == "null" || json.Unmarshal(raw, &items) != nil {
+		return nil, shape
+	}
+	if len(items) > storage.MaxHiddenWidgets {
+		return nil, fmt.Sprintf("hiddenWidgets may hold at most %d entries", storage.MaxHiddenWidgets)
+	}
+	seen := map[string]bool{}
+	out := make([]string, 0, len(items))
+	for _, it := range items {
+		var k string
+		if json.Unmarshal(it, &k) != nil {
+			return nil, shape
+		}
+		if !storage.IsWidgetKey(k) {
+			return nil, fmt.Sprintf("hiddenWidgets: unknown widget %q", k)
+		}
+		if seen[k] {
+			return nil, fmt.Sprintf("hiddenWidgets: %q is listed twice", k)
+		}
+		seen[k] = true
+		out = append(out, k)
+	}
+	return out, ""
 }
 
 func (s *server) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -247,8 +289,9 @@ func (s *server) handleMe(w http.ResponseWriter, r *http.Request) {
 }
 
 // handlePatchMe updates the current user's own account fields: themePref (v3,
-// system|light|dark), densityPref (v16, large|compact|list) and showHealthBar
-// (SPEC-health-bar-visibility-toggle, boolean). PATCH semantics
+// system|light|dark), densityPref (v16, large|compact|list), showUptimeDisplay
+// and hiddenWidgets (SPEC-health-widget, the whole list), plus the deprecated
+// showHealthBar and showWidgets, which change the list. PATCH semantics
 // — only the fields present in the body are validated and written; a body with
 // neither is a 400. Session-gated: 401 if not logged in. An unknown value → 400,
 // leaving the stored value unchanged. It writes only the current user's row —
@@ -266,11 +309,12 @@ func (s *server) handlePatchMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		ThemePref         *string `json:"themePref"`
-		DensityPref       *string `json:"densityPref"`
-		ShowHealthBar     *bool   `json:"showHealthBar"`
-		ShowUptimeDisplay *bool   `json:"showUptimeDisplay"`
-		ShowWidgets       *bool   `json:"showWidgets"`
+		ThemePref         *string         `json:"themePref"`
+		DensityPref       *string         `json:"densityPref"`
+		ShowHealthBar     *bool           `json:"showHealthBar"`
+		ShowUptimeDisplay *bool           `json:"showUptimeDisplay"`
+		ShowWidgets       *bool           `json:"showWidgets"`
+		HiddenWidgets     json.RawMessage `json:"hiddenWidgets"`
 	}
 	if err := json.Unmarshal(raw, &body); err != nil {
 		http.Error(w, "invalid JSON body", http.StatusBadRequest)
@@ -292,10 +336,27 @@ func (s *server) handlePatchMe(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if body.ThemePref == nil && body.DensityPref == nil && body.ShowHealthBar == nil &&
-		body.ShowUptimeDisplay == nil && body.ShowWidgets == nil {
-		http.Error(w, "body must include themePref, densityPref, showHealthBar, showUptimeDisplay or showWidgets", http.StatusBadRequest)
+	hasHidden := body.HiddenWidgets != nil
+	legacy := body.ShowHealthBar != nil || body.ShowWidgets != nil
+	if body.ThemePref == nil && body.DensityPref == nil && !legacy &&
+		body.ShowUptimeDisplay == nil && !hasHidden {
+		http.Error(w, "body must include themePref, densityPref, showUptimeDisplay or hiddenWidgets", http.StatusBadRequest)
 		return
+	}
+	// SPEC-health-widget §4.3 — the list and the old switches together would
+	// leave the result a guess.
+	if hasHidden && legacy {
+		http.Error(w, "send hiddenWidgets or the old fields, not both", http.StatusBadRequest)
+		return
+	}
+	var hidden *[]string
+	if hasHidden {
+		list, msg := parseHiddenWidgets(body.HiddenWidgets)
+		if msg != "" {
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
+		hidden = &list
 	}
 	// Validate everything before writing anything, so a bad field cannot
 	// half-apply a request.
@@ -317,10 +378,14 @@ func (s *server) handlePatchMe(w http.ResponseWriter, r *http.Request) {
 		ShowHealthBar:     body.ShowHealthBar,
 		ShowUptimeDisplay: body.ShowUptimeDisplay,
 		ShowWidgets:       body.ShowWidgets,
+		HiddenWidgets:     hidden,
 	})
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
+	}
+	if legacy {
+		w.Header().Set("Warning", legacyWidgetsWarning)
 	}
 	writeJSON(w, http.StatusOK, newUserView(u))
 }

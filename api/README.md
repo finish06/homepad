@@ -157,7 +157,7 @@ up to 1 MB, at most 1,000 apps, 200 sections, 1,000 offers and 100 kids.
 Status widgets (SPEC-status-widgets §7):
 
 ```
-GET    /api/widgets/info                        clock, weather, web search (any session, kids too)
+GET    /api/widgets/info                        clock, weather, health, web search (any session, kids too)
 GET    /api/admin/widgets/kinds                 (admin) {secretKeySet, kinds: [...]}
 GET    /api/services/{id}/widget                (admin) config; the key is only `hasSecret`
 PUT    /api/services/{id}/widget                (admin) {kind, address, secret?, fields, intervalS, …}
@@ -168,8 +168,25 @@ GET    /api/admin/geocode?q=                    (admin) place search for the wea
 
 `GET /api/services` carries `widget: {kind, state, asOf, fields}` on a service
 with an enabled widget, for adults only. `PATCH /api/admin/settings` takes the
-clock, weather and web search settings and echoes them in a `widgets` block;
-`GET`/`PATCH /api/me` carry `showWidgets`.
+health (`healthEnabled`, default on), clock, weather and web search settings
+and echoes them in a `widgets` block; `/api/widgets/info` carries
+`health: {enabled}`.
+
+Each person hides widgets for themselves (SPEC-health-widget, migration
+`0026`). `GET /api/me` carries `hiddenWidgets`, a list of `clock`, `weather`,
+`health`, `healthDetails` (the health widget's counts and meter) and `tiles`
+(the numbers on tiles), always in that order. `PATCH /api/me {hiddenWidgets}`
+replaces the whole list; an unknown key, a duplicate, a non-string or more than
+16 entries is a 400. Kids can't change it (403); a new kid starts with
+`["health"]`.
+
+`showHealthBar` and `showWidgets` are deprecated and go away in 19.0.0. Until
+then `GET /api/me` works them out from the list, and `PATCH /api/me` still
+takes them, with a `Warning: 299` header: `showHealthBar` adds or removes
+`healthDetails`, `showWidgets` all of `clock`, `weather` and `tiles`. A body
+with both `hiddenWidgets` and an old field is a 400. Every write keeps the old
+`show_health_bar` / `show_widgets` columns in step, so an older image rolled
+back to still shows each person what they chose.
 
 Kid names are 1–40 characters and unique among kids (case-insensitive);
 `avatarColor` is one of the frontend accent ids (`blue`, `teal`, `green`,

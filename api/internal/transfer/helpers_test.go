@@ -204,7 +204,7 @@ func (m *memWriter) CreateKid(_ context.Context, name, color string) (string, er
 	id := m.id("kid")
 	m.log("CreateKid %s", name)
 	m.st.People = append(m.st.People, storage.TransferPerson{ID: id, Role: "kid", DisplayName: name, AvatarColor: color,
-		ThemePref: "system", DensityPref: "large", ShowHealthBar: false, ShowUptimeDisplay: true,
+		ThemePref: "system", DensityPref: "large", HiddenWidgets: []string{"health"}, ShowUptimeDisplay: true,
 		Favorites: []string{}, Order: []string{}, Collapsed: []string{}, Allowed: []string{}})
 	return id, nil
 }
@@ -234,7 +234,7 @@ func (m *memWriter) SetPerson(_ context.Context, id string, p storage.TransferPe
 	if p.AvatarColor != nil {
 		x.AvatarColor = *p.AvatarColor
 	}
-	x.ThemePref, x.DensityPref, x.ShowHealthBar, x.ShowUptimeDisplay = p.ThemePref, p.DensityPref, p.ShowHealthBar, p.ShowUptimeDisplay
+	x.ThemePref, x.DensityPref, x.HiddenWidgets, x.ShowUptimeDisplay = p.ThemePref, p.DensityPref, storage.NormalizeHiddenWidgets(p.HiddenWidgets), p.ShowUptimeDisplay
 	return nil
 }
 
@@ -338,7 +338,7 @@ func freshState() *storage.TransferState {
 
 func adult(id, email string) storage.TransferPerson {
 	return storage.TransferPerson{ID: id, Role: "admin", Email: email, ThemePref: "system", DensityPref: "compact",
-		ShowHealthBar: true, ShowUptimeDisplay: true,
+		HiddenWidgets: []string{}, ShowUptimeDisplay: true,
 		Favorites: []string{}, Order: []string{}, Collapsed: []string{}, Allowed: []string{}}
 }
 

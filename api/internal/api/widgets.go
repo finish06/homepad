@@ -524,9 +524,11 @@ func searchName(raw string) string {
 	return host
 }
 
-// handleWidgetsInfo serves the glance strip and the ⌘K web search config.
-// It needs a session and holds no catalog data, so kids read it too
-// (catalog-free, AC-029). Stored coordinates are never returned.
+// handleWidgetsInfo serves the widget area (clock, weather, health) and the
+// ⌘K web search config. It needs a session and holds no catalog data, so kids
+// read it too (catalog-free, AC-029); kids need health's household switch to
+// know whether health exists (SPEC-health-widget §4.3). Stored coordinates
+// are never returned.
 func (s *server) handleWidgetsInfo(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.currentUser(w, r)
 	if !ok {
@@ -560,6 +562,7 @@ func (s *server) handleWidgetsInfo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"clock":   map[string]any{"enabled": ws.ClockEnabled, "hour12": ws.ClockHour12},
 		"weather": weather,
+		"health":  map[string]any{"enabled": ws.HealthEnabled},
 		"search":  search,
 	})
 }
@@ -589,6 +592,7 @@ func (o *optionalBool) UnmarshalJSON(b []byte) error {
 // widgetSettingsPatch is the widget half of PATCH /api/admin/settings. Every
 // field is optional; only present ones change.
 type widgetSettingsPatch struct {
+	HealthEnabled    *bool        `json:"healthEnabled"`
 	ClockEnabled     *bool        `json:"clockEnabled"`
 	ClockHour12      optionalBool `json:"clockHour12"`
 	WeatherEnabled   *bool        `json:"weatherEnabled"`
@@ -602,7 +606,7 @@ type widgetSettingsPatch struct {
 }
 
 func (p widgetSettingsPatch) any() bool {
-	return p.ClockEnabled != nil || p.ClockHour12.Set || p.WeatherEnabled != nil || p.WeatherPlace != nil ||
+	return p.HealthEnabled != nil || p.ClockEnabled != nil || p.ClockHour12.Set || p.WeatherEnabled != nil || p.WeatherPlace != nil ||
 		p.WeatherLat != nil || p.WeatherLon != nil || p.WeatherUnits != nil || p.WebSearchEnabled != nil ||
 		p.WebSearchURL != nil || p.KidWebSearch != nil
 }
@@ -610,6 +614,9 @@ func (p widgetSettingsPatch) any() bool {
 // apply merges the patch over cur and validates the result.
 func (p widgetSettingsPatch) apply(cur storage.WidgetSettings) (storage.WidgetSettings, *fieldError) {
 	next := cur
+	if p.HealthEnabled != nil {
+		next.HealthEnabled = *p.HealthEnabled
+	}
 	if p.ClockEnabled != nil {
 		next.ClockEnabled = *p.ClockEnabled
 	}
@@ -671,6 +678,7 @@ func (p widgetSettingsPatch) apply(cur storage.WidgetSettings) (storage.WidgetSe
 // widgetSettingsView is the `widgets` block of the PATCH response (admin
 // only). The coordinates are not echoed; the place name says what was chosen.
 type widgetSettingsView struct {
+	HealthEnabled    bool   `json:"healthEnabled"`
 	ClockEnabled     bool   `json:"clockEnabled"`
 	ClockHour12      *bool  `json:"clockHour12"`
 	WeatherEnabled   bool   `json:"weatherEnabled"`
@@ -683,7 +691,7 @@ type widgetSettingsView struct {
 
 func toWidgetSettingsView(ws storage.WidgetSettings) widgetSettingsView {
 	return widgetSettingsView{
-		ClockEnabled: ws.ClockEnabled, ClockHour12: ws.ClockHour12, WeatherEnabled: ws.WeatherEnabled,
+		HealthEnabled: ws.HealthEnabled, ClockEnabled: ws.ClockEnabled, ClockHour12: ws.ClockHour12, WeatherEnabled: ws.WeatherEnabled,
 		WeatherPlace: ws.WeatherPlace, WeatherUnits: ws.WeatherUnits, WebSearchEnabled: ws.WebSearchEnabled,
 		WebSearchURL: ws.WebSearchURL, KidWebSearch: ws.KidWebSearch,
 	}
