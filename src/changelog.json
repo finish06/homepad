@@ -2,6 +2,20 @@
   "pending": [],
   "versions": [
     {
+      "version": "18.8.0",
+      "date": "2026-11-28",
+      "changes": [
+        {
+          "type": "feature",
+          "text": "Health is now a widget next to the clock and weather. They share one look, and the page no longer jumps while status loads."
+        },
+        {
+          "type": "feature",
+          "text": "Choose your own widgets in My settings: clock, weather, health, its counts and meter, and the numbers on tiles. Admins can turn Health off for everyone."
+        }
+      ]
+    },
+    {
       "version": "18.7.0",
       "date": "2026-11-26",
       "changes": [
