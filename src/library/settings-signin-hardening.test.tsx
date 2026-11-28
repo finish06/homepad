@@ -45,10 +45,8 @@ async function system() {
       showUptimeDisplay
       onSaveSettings={vi.fn().mockResolvedValue(undefined)}
       scope="admin"
-      showHealthBar
       showUptimeDisplayPref
       onSetUptimeDisplay={vi.fn()}
-      onSetHealthBar={vi.fn()}
       density="compact"
       onSetDensity={vi.fn()}
       onClose={vi.fn()}

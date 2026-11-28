@@ -1,3 +1,7 @@
+// SPEC-health-widget — the health widget's body. WidgetArea draws it in the
+// third widget slot (the `.widget` frame); everything below is unchanged
+// except the reserved loading height (#745) and the prop name `showDetails`.
+//
 // v15 — Health summary panel (design spec §4.2). Rebuilds v14's count-strip
 // StatusBar into a glass verdict panel: a status LED + a loud headline
 // ("All systems operational" / "N services need attention" / "Checking…" /
@@ -14,7 +18,6 @@ import { useEffect, useRef, useState } from 'react';
 import { safeHref } from '../lib/safeUrl';
 import { useServicesContext } from '../services';
 import type { Service, ServiceStatus } from '../api';
-import { CONTENT_WIDTH } from '../lib/layout';
 import { BAND_CLASS, bandOf, isDown } from '../lib/statusBands';
 
 // Which chip's popover is open (if any).
@@ -70,11 +73,11 @@ function formatAgo(ageMs: number): string {
   return `updated ${Math.floor(m / 60)}h ago`;
 }
 
-// SPEC-health-bar-visibility-toggle — `showHealthBar` is the per-user
-// preference, seeded by App from the account's showHealthBar (the same way
-// densityPref reaches the grid). It hides the DISTRIBUTION block and nothing
-// else: the verdict (LED, headline, subline) and the freshness label always
-// render, so a display preference can never conceal an outage (AC-003/AC-013).
+// SPEC-health-bar-visibility-toggle / SPEC-health-widget — `showDetails` is
+// whether this person sees the counts and meter (their list doesn't hide
+// `healthDetails`). It hides the DISTRIBUTION block and nothing else: the
+// verdict (LED, headline, subline) and the freshness label always render
+// (AC-003/AC-013). Hiding the whole widget is WidgetArea's job, not this one's.
 // Defaults to true so an omitted prop keeps today's behaviour (AC-001).
 //
 // SPEC-kid-accounts — `canRetry` (default true) gates "Retry now". The re-poll
@@ -82,9 +85,9 @@ function formatAgo(ageMs: number): string {
 // shell passes false: the stale verdict still reports, but offers no action
 // that could only 403.
 export default function StatusBar({
-  showHealthBar = true,
+  showDetails: showHealthBar = true,
   canRetry = true,
-}: { showHealthBar?: boolean; canRetry?: boolean } = {}) {
+}: { showDetails?: boolean; canRetry?: boolean } = {}) {
   const ctx = useServicesContext();
   const [peek, setPeek] = useState<PeekStatus | null>(null);
   // SPEC-v24 §12.2 — "Not now" on the NOT MONITORED state. Deliberately component
@@ -260,11 +263,16 @@ export default function StatusBar({
   // conditions as the chips above, so the two can never disagree about what is
   // worth reporting. Untouched while the bar is visible: this preference must
   // not change the default view for anyone.
+  //
+  // SPEC-health-widget §4.5 (#745) — the counts get a line of their own, so the
+  // subline above them can't wrap differently once they arrive; while services
+  // load that line is held empty.
+  let counts: string | null = null;
   if (!showHealthBar && !loading && !empty) {
     const parts = [`${up} online`];
     if (attention > 0) parts.push(`${attention} down`);
     if (notMonitored > 0) parts.push(`${notMonitored} not monitored`);
-    subline = `${subline} · ${parts.join(' · ')}`;
+    counts = parts.join(' · ');
   }
 
   // If a poll empties the open bucket, drop its stale popover.
@@ -274,11 +282,12 @@ export default function StatusBar({
     : [];
 
   return (
-    <div data-testid="status-bar" role="status" aria-label="Service status summary" className="relative pt-3">
-      {/* Content stays constrained to the shared width so the panel's left edge
-          aligns with the header wordmark and the grid below (#196 intent kept). */}
-      <div data-testid="status-bar-content" className={CONTENT_WIDTH}>
-        <div className="health glass" data-variant={variant} data-severity={severity}>
+    <div data-testid="status-bar" role="status" aria-label="Service status summary" className="relative">
+      {/* SPEC-health-widget — the widget area holds the shared width now, so
+          the panel's left edge still aligns with the header wordmark and the
+          grid below (#196); this wrapper no longer adds its own. */}
+      <div data-testid="status-bar-content">
+        <div className="health" data-variant={variant} data-severity={severity}>
           <div className="health-verdict">
             <span
               data-testid="health-led"
@@ -292,6 +301,17 @@ export default function StatusBar({
             </h2>
             <p data-testid="health-subline" className="health-subline">
               {subline}
+              {counts && (
+                <span className="health-subline-counts">
+                  <span className="sr-only"> · </span>
+                  {counts}
+                </span>
+              )}
+              {!showHealthBar && loading && (
+                <span className="health-subline-counts health-reserve" aria-hidden="true">
+                  0 online
+                </span>
+              )}
             </p>
             {/* AC-003 / OQ-3 — the freshness stamp normally rides in the legend
                 row, which lives inside the distribution block. With that block
@@ -305,6 +325,13 @@ export default function StatusBar({
                 data-stale={staleness(ageMs)}
               >
                 {formatAgo(ageMs)}
+              </span>
+            )}
+            {/* SPEC-health-widget §4.5 (#745) — while services load, hold the
+                stamp's row so the loaded verdict-only panel is the same height. */}
+            {!showHealthBar && loading && (
+              <span className="health-updated health-updated--verdict health-reserve" aria-hidden="true">
+                just now
               </span>
             )}
             {stale && canRetry && (
@@ -354,6 +381,34 @@ export default function StatusBar({
               </div>
             )}
           </div>
+
+          {/* SPEC-health-widget §4.5 (#745) — while services load, the
+              details area is held at its loaded size and left empty: the same
+              chip, meter and legend boxes, invisible and out of the a11y tree.
+              No spinner, no shimmer (AC-025). */}
+          {loading && showHealthBar && (
+            <div className="health-metrics health-reserve" data-testid="health-reserve" aria-hidden="true">
+              <div className="health-chips">
+                <span className="health-chip">
+                  <span className="health-chip-n">0</span>
+                  <span className="health-chip-label">UP</span>
+                </span>
+              </div>
+              <div className="health-meter" />
+              <div className="health-legend">
+                <span className="health-legend-item">
+                  <span className="health-legend-sw" /> Online
+                </span>
+                <span className="health-legend-item">
+                  <span className="health-legend-sw" /> Offline
+                </span>
+                <span className="health-legend-item">
+                  <span className="health-legend-sw" /> Not monitored
+                </span>
+                <span className="health-updated">just now</span>
+              </div>
+            </div>
+          )}
 
           {showMetrics && (
             <div className="health-metrics">

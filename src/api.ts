@@ -34,9 +34,11 @@ export type User = {
   role: Role;
   themePref: ThemePref;
   densityPref?: 'large' | 'compact' | 'list';
-  // SPEC-health-bar-visibility-toggle — per-user visibility of the health
-  // panel's distribution bar. Optional so an older backend that omits the
-  // field still type-checks and falls back to the default (AC-012).
+  // SPEC-health-widget §4.3 — the widgets and widget parts this person hides:
+  // clock, weather, health, healthDetails, tiles. Optional: an 18.7 API sends
+  // none, and the app then reads the two old fields below.
+  hiddenWidgets?: string[];
+  /** @deprecated SPEC-health-widget — read hiddenWidgets; goes away in 19.0.0. */
   showHealthBar?: boolean;
   // cap6 v2 — per-user visibility of the per-tile uptime sparkline. Optional so
   // an older backend that omits the field still type-checks and falls back.
@@ -47,8 +49,7 @@ export type User = {
   // when unset. Both optional so an older backend still type-checks.
   displayName?: string;
   avatarColor?: string;
-  // SPEC-status-widgets AC-031 — per-user "Show widgets" (on by default).
-  // Optional so an older backend that omits it reads as on.
+  /** @deprecated SPEC-health-widget — read hiddenWidgets; goes away in 19.0.0. */
   showWidgets?: boolean;
   // SPEC-password-reset-link AC-020 — an adult who signs in with a password.
   // False for kids and SSO-only accounts; absent (an older API) reads as false.
@@ -675,16 +676,6 @@ export async function setLibraryOrder(order: string[]): Promise<boolean> {
 // the device instead of reverting, because per-device still works.
 export async function setDensityPref(pref: 'large' | 'compact' | 'list'): Promise<boolean> {
   return boolRequest('/api/me', 200, { method: 'PATCH', json: { densityPref: pref } });
-}
-
-// setHealthBarPref persists whether this user sees the health panel's
-// distribution bar (SPEC-health-bar-visibility-toggle) via PATCH /api/me.
-// Session-gated server-side — a user sets only their own. Returns true on 200
-// so the caller can roll back an optimistic update (AC-010), the same shape as
-// setFavorite/setLayout. NOTE: unlike setDensityPref this result is NOT
-// fire-and-forget; AC-010 requires the toggle to revert on a failed write.
-export async function setHealthBarPref(show: boolean): Promise<boolean> {
-  return boolRequest('/api/me', 200, { method: 'PATCH', json: { showHealthBar: show } });
 }
 
 // setUptimeDisplayPref persists whether this user sees the per-tile uptime

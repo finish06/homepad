@@ -14,10 +14,9 @@ import AppHeader from './AppHeader';
 import AppGrid from '../grid/AppGrid';
 import { clearShapeCache } from '../grid/gridShapeCache';
 import { useTileDensity } from '../grid/tileDensity';
-import { useHealthBarPref } from './healthBarPref';
 import { useUptimeDisplayPref } from './uptimeDisplayPref';
 import type { SettingsScope, SettingsSection } from '../library/SettingsPanel';
-import StatusBar from './StatusBar';
+import WidgetArea from './WidgetArea';
 import CommandLauncher from '../launcher/CommandLauncher';
 import { LauncherProvider, useLauncher } from '../launcher/launcher';
 import { KID_POLL_MS, ServicesProvider, useServicesContext } from '../services';
@@ -29,7 +28,8 @@ import UpdateBanner from './UpdateBanner';
 import { ThemeProvider } from '../theme/theme';
 import { CONTENT_WIDTH } from '../lib/layout';
 import { ShowWidgetsContext, WidgetsInfoContext } from '../widgets/context';
-import { useShowWidgetsPref } from '../widgets/showWidgetsPref';
+import { useHiddenWidgetsPref } from '../widgets/hiddenWidgetsPref';
+import { visibleWidgets } from '../widgets/visibleWidgets';
 import { useWidgetsInfo } from '../widgets/useWidgetsInfo';
 import { shouldOpenWhatsNew } from './whatsNew';
 import ChunkErrorBoundary from '../ui/ChunkErrorBoundary';
@@ -71,10 +71,8 @@ function readLinkToken(): LinkToken | null {
 const readSsoError = () => /^#signin-error=(.*)/.exec(window.location.hash)?.[1];
 // SPEC-backup-import B-2 — the admin empty state opens the Homepage import here.
 const HomepageImportModal = lazy(() => import('../library/backup/HomepageImportModal'));
-// SPEC-status-widgets — the glance strip (clock, weather, its icons) is a lazy
-// chunk too: it renders only once the admin turns the clock or weather on, so
-// a dashboard without it never downloads it. Its CSS stays in the entry.
-const GlanceStrip = lazy(() => import('./GlanceStrip'));
+// SPEC-status-widgets / SPEC-health-widget — the clock and weather bodies are
+// a lazy chunk too, loaded by WidgetArea only while one of them shows.
 // The changelog overlay opens from the footer version badge, or on its own once
 // after an upgrade (whatsNew.ts, #590). It carries src/changelog.json (every
 // release ever shipped, ~47 kB raw). Lazy, so a dashboard load never downloads
@@ -235,22 +233,20 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // the per-device cache, choices write through to PATCH /api/me. The switch
   // lives in the dashboard header below.
   const [density, setDensity] = useTileDensity(user.densityPref);
-  // SPEC-health-bar-visibility-toggle — same per-USER shape as densityPref: the
-  // account's showHealthBar from /api/me seeds it and wins on every resolve,
-  // localStorage is only the first-paint cache. The setter is consumed by the
-  // settings control reached from UserMenu -> My Dashboard -> "My settings".
-  const [showHealthBar, setShowHealthBar] = useHealthBarPref(user.showHealthBar);
   // cap6 v2 — the uptime sparkline is a per-USER preference now, not the global
   // System setting. sysConfig.showUptimeDisplay still exists but only seeds NEW
   // accounts server-side; nothing on the grid reads it any more.
   const [showUptimeDisplay, setShowUptimeDisplay] = useUptimeDisplayPref(user.showUptimeDisplay);
-  // SPEC-status-widgets — "Show widgets" (AC-031, per user) and the info
-  // widgets read (clock, weather, web search). A kid never sees tile widget
-  // data (Q3 a) and has no switch, but does get the strip (UX §2.5).
-  const [showWidgetsPref, setShowWidgetsPref] = useShowWidgetsPref(user.showWidgets);
-  const [widgetsInfo, reloadWidgetsInfo] = useWidgetsInfo();
-  const showStrip =
-    !!widgetsInfo && (widgetsInfo.clock.enabled || widgetsInfo.weather.enabled) && (isKid || showWidgetsPref);
+  // SPEC-health-widget — the widgets: clock, weather and health, plus the
+  // numbers on tiles. Each shows when the household has it on (Admin →
+  // Widgets, read from /api/widgets/info with a per-device first-paint cache)
+  // and this person hasn't hidden it (their account's hiddenWidgets, same
+  // per-USER shape as densityPref). visibleWidgets is the one rule (AC-015).
+  // A kid's list comes from the account and has no switches; a kid never
+  // sees tile numbers (Q3 a).
+  const [hiddenWidgets, setHiddenWidgets] = useHiddenWidgetsPref(user);
+  const [widgetsInfo, reloadWidgetsInfo, household] = useWidgetsInfo();
+  const visible = visibleWidgets(household, hiddenWidgets, user.role);
   // Library browse + add-custom-app remain (service management, not layout),
   // lifted here so the header Gear can trigger them and their result flows into
   // the shared services context that AppGrid renders from.
@@ -441,7 +437,7 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
   // opened and filters that same array.
   return (
     <WidgetsInfoContext.Provider value={widgetsInfo}>
-    <ShowWidgetsContext.Provider value={!isKid && showWidgetsPref}>
+    <ShowWidgetsContext.Provider value={visible.tiles}>
       <main className="app-surface min-h-screen font-sans">
         <AppHeader
           user={user}
@@ -471,23 +467,12 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
           bellRef={bellRef}
         />
 
-        {/* SPEC-kid-accounts OQ-3 / AC-019 — a kid's health panel is off unless
-            the account says otherwise (kids are created with it off and cannot
-            change it). When it does render, it counts the served list, which is
-            already only that kid's apps, and offers no re-poll (kid-forbidden). */}
-        {showStrip && (
-          <div className={CONTENT_WIDTH}>
-            <ChunkErrorBoundary silent>
-              <Suspense fallback={null}>
-                <GlanceStrip info={widgetsInfo} />
-              </Suspense>
-            </ChunkErrorBoundary>
-          </div>
-        )}
-
-        {(!isKid || user.showHealthBar === true) && (
-          <StatusBar showHealthBar={showHealthBar} canRetry={!isKid} />
-        )}
+        {/* SPEC-health-widget §4.5 — clock, weather and health in one area.
+            A kid's health is off unless the kid's list says otherwise (kids
+            are created with it hidden and cannot change it). When it does
+            render, it counts the served list, which is already only that kid's
+            apps, and offers no re-poll (kid-forbidden). */}
+        <WidgetArea visible={visible} info={widgetsInfo} canRetry={!isKid} />
 
         <section className={`${CONTENT_WIDTH} py-6`}>
           {/* v19 §4.5 / #277 — the shared-catalog edit warning. editMode is
@@ -644,8 +629,10 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               currentUserId={user.id}
               email={user.email}
               hasPassword={user.hasPassword === true}
-              showHealthBar={showHealthBar}
-              onSetHealthBar={setShowHealthBar}
+              hiddenWidgets={hiddenWidgets}
+              onSetHiddenWidgets={isKid ? undefined : setHiddenWidgets}
+              household={household}
+              role={user.role}
               showUptimeDisplay={sysConfig.showUptimeDisplay}
               showUptimeDisplayPref={showUptimeDisplay}
               onSetUptimeDisplay={setShowUptimeDisplay}
@@ -654,8 +641,6 @@ function Home({ user, onLogout }: { user: User; onLogout: () => void }) {
               onSaveSettings={onSaveSettings}
               onServerSettingsChanged={() => void systemConfig().then(setSysConfig)}
               onCatalogChanged={onCatalogChanged}
-              showWidgets={showWidgetsPref}
-              onSetShowWidgets={isKid ? undefined : setShowWidgetsPref}
               onWidgetsChanged={reloadWidgetsInfo}
               onClose={() => setSettingsOpen(false)}
             />

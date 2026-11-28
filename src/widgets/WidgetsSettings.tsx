@@ -4,8 +4,9 @@ import { geocode, saveWidgetSettings, type Place, type WidgetSettingsPatch } fro
 import './widget-admin.css';
 
 // SPEC-status-widgets AC-026 / UX §7 — Admin Panel → Widgets, after System
-// (W-3). Clock, Weather and Web search, each saving on change like the System
-// switches. Lives in the lazy SettingsPanel chunk; styles in widget-admin.css.
+// (W-3). Health (SPEC-health-widget §4.6), Clock, Weather and Web search, each
+// saving on change like the System switches. Lives in the lazy SettingsPanel
+// chunk; styles in widget-admin.css.
 
 export const SEARCH_PRESETS: [string, string][] = [
   ['DuckDuckGo', 'https://duckduckgo.com/?q={query}'],
@@ -16,6 +17,7 @@ export const SEARCH_PRESETS: [string, string][] = [
 ];
 
 type State = {
+  healthEnabled: boolean;
   clockEnabled: boolean;
   clockHour12: boolean | null;
   weatherEnabled: boolean;
@@ -55,6 +57,8 @@ export default function WidgetsSettings({ onChanged }: { onChanged?: () => void 
       }
       const url = i.search.url;
       setState({
+        // An older API sends no health block; health is on there.
+        healthEnabled: i.health?.enabled !== false,
         clockEnabled: i.clock.enabled,
         clockHour12: i.clock.hour12,
         weatherEnabled: i.weather.enabled,
@@ -141,6 +145,23 @@ export default function WidgetsSettings({ onChanged }: { onChanged?: () => void 
         {flag === 'saving' ? 'Saving…' : flag === 'saved' ? 'Saved ✓' : flag === 'error' ? 'Couldn’t save — try again.' : ''}
       </span>
       <dl className="settings-kv">
+        <div className="settings-kv-row settings-kv-row--control">
+          <dt>
+            <span id="widgets-health-label">Health</span>
+            <span id="widgets-health-help" className="settings-kv-help">
+              The status summary above your apps. Turning it off hides it for everyone.
+            </span>
+          </dt>
+          <dd>
+            <Switch
+              labelId="widgets-health-label"
+              describedBy="widgets-health-help"
+              testId="widgets-health"
+              on={s.healthEnabled}
+              onClick={() => void save({ healthEnabled: !s.healthEnabled }, { healthEnabled: !s.healthEnabled })}
+            />
+          </dd>
+        </div>
         <div className="settings-kv-row settings-kv-row--control">
           <dt id="widgets-clock-label">Clock</dt>
           <dd>
@@ -332,11 +353,15 @@ export default function WidgetsSettings({ onChanged }: { onChanged?: () => void 
 
 function Switch({
   labelId,
+  describedBy,
+  testId,
   on,
   disabled,
   onClick,
 }: {
   labelId: string;
+  describedBy?: string;
+  testId?: string;
   on: boolean;
   disabled?: boolean;
   onClick: () => void;
@@ -347,6 +372,8 @@ function Switch({
       role="switch"
       aria-checked={on}
       aria-labelledby={labelId}
+      aria-describedby={describedBy}
+      data-testid={testId}
       disabled={disabled}
       className="settings-switch"
       onClick={onClick}

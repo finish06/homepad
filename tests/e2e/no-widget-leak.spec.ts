@@ -26,7 +26,7 @@ for (const role of ['member', 'kid'] as const) {
     const mock = await mockWidgets(page, { role, info: INFO_ON, savedWidget: true, density: 'compact' });
     await page.goto('/');
     await expect(page.getByTestId('tool-link').first()).toBeVisible();
-    await expect(page.getByTestId('glance-strip')).toBeVisible();
+    await expect(page.getByTestId('widget-clock')).toBeVisible();
 
     // Use the surfaces a viewer has: ⌘K with a query, and (adults) My settings.
     await page.getByTestId('launcher-trigger').click();
@@ -35,7 +35,7 @@ for (const role of ['member', 'kid'] as const) {
     if (role === 'member') {
       await page.getByTestId('user-menu-trigger').click();
       await page.getByTestId('menu-my-settings').click();
-      await expect(page.getByRole('switch', { name: 'Show widgets' })).toBeVisible();
+      await expect(page.getByRole('switch', { name: 'Numbers on tiles' })).toBeVisible();
     }
 
     const leaked = mock.responses.filter((r) => SENTINELS.some((s) => r.body.includes(s)));

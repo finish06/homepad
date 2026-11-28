@@ -149,7 +149,7 @@ test('Sign out returns to the login screen', async ({ page }) => {
 
 test('a kid with the health bar on sees only their own apps counted, and no Retry', async ({ page }) => {
   await page.setViewportSize({ width: 1180, height: 820 });
-  await mockKidSession(page, MAYA_APPS, { user: { ...kidUser(), showHealthBar: true } });
+  await mockKidSession(page, MAYA_APPS, { user: { ...kidUser(), hiddenWidgets: [], showHealthBar: true } });
   await page.goto('/');
   await expect(page.getByTestId('health-subline')).toContainText(`${MAYA_APPS.length} services`);
   await expect(page.getByTestId('health-retry')).toHaveCount(0);

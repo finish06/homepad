@@ -4,8 +4,19 @@
 // an error to viewers.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
-import GlanceStrip from './GlanceStrip';
+import GlanceBody from './GlanceStrip';
 import type { WidgetsInfo } from '../widgets/widgetsInfo';
+
+// SPEC-health-widget §4.5 — the clock and weather bodies now draw in their
+// own widget slots. This wrapper puts the two side by side, as the strip did.
+function GlanceStrip({ info }: { info: WidgetsInfo }) {
+  return (
+    <div data-testid="glance-strip">
+      {info.clock.enabled && <GlanceBody info={info} part="clock" />}
+      {info.weather.enabled && <GlanceBody info={info} part="weather" />}
+    </div>
+  );
+}
 
 const BASE: WidgetsInfo = {
   clock: { enabled: true, hour12: false },

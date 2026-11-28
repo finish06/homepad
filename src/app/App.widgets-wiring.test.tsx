@@ -1,7 +1,8 @@
-// SPEC-status-widgets — how Home wires the widgets together:
-//   - the glance strip shows only while the clock or the weather is on, and the
-//     viewer's "Show widgets" is on (AC-031, AC-035); a kid always gets it (UX
-//     §2.5) but never a tile line, even if a payload carried one (Q3 a);
+// SPEC-status-widgets / SPEC-health-widget — how Home wires the widgets:
+//   - one widget area: clock, weather, health; each shows while the household
+//     has it on and the person hasn't hidden it (AC-015); a kid gets the
+//     household's clock and weather (UX §2.5), health only if the kid's list
+//     allows it, and never a tile line, even if a payload carried one (Q3 a);
 //   - ⌘K gets the web row from the same /api/widgets/info read (AC-030);
 //   - an install with nothing configured looks exactly as today (AC-035).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -94,34 +95,76 @@ async function boot() {
   await screen.findAllByTestId('tool-link');
 }
 
-describe('glance strip wiring', () => {
-  it('nothing configured: no strip, and tiles as today (AC-035)', async () => {
-    serve({ ...ADULT, showWidgets: true }, OFF, [{ ...SONARR, widget: undefined }]);
+const slots = () => Array.from(document.querySelectorAll('[data-testid^="widget-"]'))
+  .map((el) => el.getAttribute('data-testid'))
+  .filter((id) => id === 'widget-clock' || id === 'widget-weather' || id === 'widget-health');
+
+describe('widget area wiring', () => {
+  it('nothing configured: health only, and tiles as today (AC-035)', async () => {
+    serve({ ...ADULT, hiddenWidgets: [] }, OFF, [{ ...SONARR, widget: undefined }]);
     await boot();
     await waitFor(() => expect(infoCalls).toBe(1));
-    expect(screen.queryByTestId('glance-strip')).not.toBeInTheDocument();
+    expect(slots()).toEqual(['widget-health']);
   });
 
-  it('clock or weather on: the strip shows above the health bar', async () => {
-    serve({ ...ADULT, showWidgets: true }, ON);
+  it('clock and weather on: clock, weather, health in that order, above the grid (AC-023)', async () => {
+    serve({ ...ADULT, hiddenWidgets: [] }, ON);
     await boot();
-    const strip = await screen.findByTestId('glance-strip');
-    const bar = screen.getByTestId('status-bar-content');
-    expect(strip.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await screen.findByTestId('glance-time');
+    await screen.findByTestId('glance-weather');
+    expect(slots()).toEqual(['widget-clock', 'widget-weather', 'widget-health']);
+    const area = screen.getByTestId('widget-area');
+    const grid = screen.getAllByTestId('tool-link')[0];
+    expect(area.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('the info read failing is the same as all off', async () => {
-    serve({ ...ADULT, showWidgets: true }, null);
+  it('the info read failing: clock and weather stay off, health stays (AC-018)', async () => {
+    serve({ ...ADULT, hiddenWidgets: [] }, null);
     await boot();
     await waitFor(() => expect(infoCalls).toBe(1));
-    expect(screen.queryByTestId('glance-strip')).not.toBeInTheDocument();
+    expect(slots()).toEqual(['widget-health']);
   });
 
-  it('Show widgets off: no strip and no tile lines (AC-031)', async () => {
+  it('a person hides one widget without touching the others (US-3)', async () => {
+    serve({ ...ADULT, hiddenWidgets: ['clock'] }, ON);
+    await boot();
+    await screen.findByTestId('glance-weather');
+    expect(slots()).toEqual(['widget-weather', 'widget-health']);
+    expect(screen.getByTestId('tile-statusline')).toHaveTextContent('3 this week');
+  });
+
+  it('health hidden: no health widget; details hidden: the verdict-only panel', async () => {
+    serve({ ...ADULT, hiddenWidgets: ['health'] }, OFF);
+    await boot();
+    await waitFor(() => expect(infoCalls).toBe(1));
+    expect(screen.queryByTestId('status-bar')).not.toBeInTheDocument();
+  });
+
+  it('details hidden: the health widget stays, without chips (US-4)', async () => {
+    serve({ ...ADULT, hiddenWidgets: ['healthDetails'] }, OFF);
+    await boot();
+    expect(await screen.findByTestId('health-headline')).toBeInTheDocument();
+    expect(screen.queryByTestId('status-bar-up')).not.toBeInTheDocument();
+  });
+
+  it('health off for the household: gone for this person', async () => {
+    serve({ ...ADULT, hiddenWidgets: [] }, { ...OFF, health: { enabled: false } });
+    await boot();
+    await waitFor(() => expect(screen.queryByTestId('widget-health')).not.toBeInTheDocument());
+    expect(screen.queryByTestId('widget-area')).not.toBeInTheDocument();
+  });
+
+  it('tiles hidden: no tile lines (OQ-2)', async () => {
+    serve({ ...ADULT, hiddenWidgets: ['tiles'] }, OFF);
+    await boot();
+    expect(screen.getByTestId('tile-statusline')).not.toHaveTextContent('this week');
+  });
+
+  it('an older API (no hiddenWidgets): Show widgets off hides clock, weather and tile lines', async () => {
     serve({ ...ADULT, showWidgets: false }, ON);
     await boot();
     await waitFor(() => expect(infoCalls).toBe(1));
-    expect(screen.queryByTestId('glance-strip')).not.toBeInTheDocument();
+    expect(slots()).toEqual(['widget-health']);
     expect(screen.getByTestId('tile-statusline')).not.toHaveTextContent('this week');
   });
 
@@ -131,10 +174,11 @@ describe('glance strip wiring', () => {
     expect(screen.getByTestId('tile-statusline')).toHaveTextContent('3 this week');
   });
 
-  it('a kid gets the strip but never a tile line (Q3 a, UX §2.5)', async () => {
-    serve(KID, ON);
+  it('a kid gets the clock and weather but no health and never a tile line (Q3 a, UX §2.5, AC-021)', async () => {
+    serve({ ...KID, hiddenWidgets: ['health'] }, ON);
     await boot();
-    expect(await screen.findByTestId('glance-strip')).toBeInTheDocument();
+    await screen.findByTestId('glance-time');
+    expect(slots()).toEqual(['widget-clock', 'widget-weather']);
     // Large density for a kid: a line would be the tile-widget element.
     expect(screen.queryByTestId('tile-widget')).not.toBeInTheDocument();
   });

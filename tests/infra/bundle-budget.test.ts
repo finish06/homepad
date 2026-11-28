@@ -144,6 +144,18 @@ import { describe, expect, inject, it } from 'vitest';
 //   lazy, new  ssoMessage 304: the single sign-on lines, loaded only when a
 //              code is present (UX S-1; inline they cost about 75 B more)
 // Budgets unchanged: 15,187 B JS and 793 B CSS of headroom remain.
+//
+// SPEC-health-widget, re-measured 2026-11-27 against gitea/main 7b61625, same
+// method:
+//   entry JS    96,741 →  96,846 B gzip (+105): WidgetArea, visibleWidgets,
+//              the hidden-widgets pref and the household cache, less the two
+//              prefs they replace
+//   entry CSS   20,471 →  20,420 B gzip (−51): the .widget frame and
+//              slot sizes, paid for by moving the clock/weather body styles to
+//              the lazy GlanceStrip chunk (src/app/glance.css) and the
+//              settings switch rules to widget-admin.css, and dropping two
+//              dead rules (.status-dot--pulse, .dashboard-toolbar)
+// Budgets unchanged.
 const ENTRY_JS_GZIP_BUDGET = 105_000;
 const ENTRY_CSS_GZIP_BUDGET = 20_500;
 

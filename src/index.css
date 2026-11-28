@@ -293,24 +293,6 @@
   .status-dot[data-status='NOT_MONITORED'] {
     box-shadow: none;
   }
-  /* v13 — a single-shot pulse played when a tile's status changes on a live
-     refresh (AC-006). Tailwind's animate-pulse loops; this fires once and
-     settles. The JS already skips the class under prefers-reduced-motion
-     (AC-007); this @media guard is belt-and-suspenders. */
-  @keyframes status-pulse {
-    0% { transform: scale(1); }
-    35% { transform: scale(1.9); }
-    100% { transform: scale(1); }
-  }
-  .status-dot--pulse {
-    animation: status-pulse 0.7s ease-out;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .status-dot--pulse {
-      animation: none;
-    }
-  }
-
   /* cap5 — toast slide/fade-in (AC-011 disables it under reduced motion, so the
      toast appears instantly). Independent of the tile pulse (AC-013). */
   @keyframes toast-in {
@@ -448,21 +430,67 @@
     box-shadow: 0 0 0 2px var(--accent-3);
   }
 
+  /* ===== SPEC-health-widget §4.5 — the widget area =====
+     Clock, weather and health in one row of glass cards above the grid. Every
+     card is one `.widget` frame, the glass the health panel had (v15 §4.2).
+     Layout (a proposal for Kare, OQ-3): at 1024px and up one row, clock and
+     weather at a fixed width, health takes the rest; below that clock and
+     weather share the first row and health is full width under them. Without
+     health, clock and weather share the row. The clock and weather slots have
+     a fixed minimum height, so they are the right size before their lazy
+     chunk arrives (#745). The frame sets no maximum, so health can grow. */
+  .widget-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 12px;
+  }
+  .widget {
+    min-width: 0;
+    color: var(--v-txt);
+    background: var(--v-glass);
+    backdrop-filter: blur(30px) saturate(112%);
+    border: 1px solid var(--v-brd);
+    border-radius: var(--r-panel);
+    box-shadow: 0 10px 34px var(--v-shadow), inset 0 1px 0 var(--v-hi);
+  }
+  .widget--clock,
+  .widget--weather {
+    display: flex;
+    align-items: center;
+    flex: 1 1 0;
+    min-height: 84px;
+    padding: 14px 24px;
+  }
+  .widget--health {
+    flex: 1 1 100%;
+    container-type: inline-size;
+  }
+  @media (min-width: 1024px) {
+    .widget-area[data-health='on'] .widget--clock {
+      flex: 0 0 220px;
+    }
+    .widget-area[data-health='on'] .widget--weather {
+      flex: 0 0 300px;
+    }
+    .widget-area[data-health='on'] .widget--health {
+      flex: 1 1 0;
+    }
+  }
+  /* AC-026 — reduced transparency: near-solid frames, with .app-grid-box
+     (its @media block, below). */
+
   /* ===== v15 health summary panel (design spec §4.2) =====
-     Glass verdict panel: a two-column grid (verdict | metrics) that collapses to
-     one column ≤720px. All chrome reads from the v15 --v-* glass/status tokens so
-     it is mode-aware and accent-independent (status color is never re-hued). */
+     The health widget's body: a two-column grid (verdict | metrics) that
+     collapses to one column when its card is narrow. All chrome reads from the
+     v15 --v-* glass/status tokens so it is mode-aware and accent-independent
+     (status color is never re-hued). */
   .health {
     display: grid;
     grid-template-columns: minmax(0, auto) minmax(0, 1fr);
     align-items: center;
     gap: 20px 40px;
     padding: 24px 32px;
-    background: var(--v-glass);
-    backdrop-filter: blur(30px) saturate(112%);
-    border: 1px solid var(--v-brd);
-    border-radius: var(--r-panel);
-    box-shadow: 0 10px 34px var(--v-shadow), inset 0 1px 0 var(--v-hi);
   }
   @media (max-width: 720px) {
     .health {
@@ -470,6 +498,22 @@
       gap: 20px;
       padding: 20px;
     }
+  }
+  /* Beside the clock and weather at 1024–1279px the card is narrower than the
+     two columns need, so it stacks there too. */
+  @container (max-width: 640px) {
+    .health {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    .health-metrics {
+      justify-self: stretch;
+    }
+  }
+  /* #745 — the loading state's held details area: the loaded boxes' size, not
+     shown and not announced (AC-025). */
+  .health-reserve {
+    visibility: hidden;
   }
 
   .health-verdict {
@@ -601,6 +645,12 @@
     grid-column: 2;
     font-size: 13px;
     color: var(--v-muted);
+  }
+  /* SPEC-health-widget §4.5 — with the details hidden, the counts sit on a
+     line of their own under the subline. The " · " before them is for screen
+     readers; on screen the line break separates them. */
+  .health-subline-counts {
+    display: block;
   }
   @media (max-width: 480px) {
     .health-headline { font-size: 24px; }
@@ -740,9 +790,12 @@
   .health-updated[data-stale='red'] { color: var(--v-down); }
 
   /* Reduced-motion / no-blur fallback — keep the panel legible without the
-     backdrop-filter (v14 glass-v2 contract) and freeze the LED pulse. */
+     backdrop-filter (v14 glass-v2 contract) and freeze the LED pulse. AC-026:
+     nothing in the widget area moves, the chips' hover lift included. */
   @media (prefers-reduced-motion: reduce) {
     .health-led { animation: none; }
+    .health-chip { transition: none; }
+    .health-chip:hover { transform: none; }
   }
 
   /* §6.1 Wordmark — accent gradient text via background-clip (re-hues on accent
@@ -3169,6 +3222,15 @@
     .dark .app-grid-box {
       background: rgba(30, 30, 40, 0.97);
     }
+    /* SPEC-health-widget AC-026 — the widget frames, health included. */
+    .widget {
+      background: rgba(255, 255, 255, 0.96);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+    .dark .widget {
+      background: rgba(30, 30, 40, 0.97);
+    }
   }
   .app-grid-box-header {
     display: flex;
@@ -4270,77 +4332,6 @@
     min-height: 14px;
     margin-top: -4px;
   }
-  /* SPEC-status-widgets UX §4 — the glance strip: one slim row on the page
-     surface, no card. Clock left, weather right (or left when alone). The place
-     and the high/low drop first as the screen narrows. */
-  .glance-strip {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    min-height: 44px;
-    padding-top: 8px;
-    color: var(--v-txt);
-  }
-  .glance-clock,
-  .glance-weather,
-  .glance-weather-read {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    min-width: 0;
-  }
-  .glance-clock + .glance-weather {
-    margin-left: auto;
-  }
-  .glance-weather-read {
-    align-items: center;
-    gap: 8px;
-  }
-  .glance-time {
-    font-size: 22px;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
-  .glance-temp {
-    font-size: 18px;
-    font-weight: 600;
-  }
-  .glance-date,
-  .glance-meta {
-    font-size: 13px;
-    color: var(--v-muted);
-    white-space: nowrap;
-  }
-  .glance-icon {
-    width: 22px;
-    height: 22px;
-    flex: none;
-  }
-  .glance-credit {
-    font-size: 11px;
-    color: var(--v-muted);
-  }
-  .glance-date-short {
-    display: none;
-  }
-  @media (max-width: 1023px) {
-    .glance-date-long,
-    .glance-place {
-      display: none;
-    }
-    .glance-date-short {
-      display: inline;
-    }
-  }
-  @media (max-width: 639px) {
-    .glance-time {
-      font-size: 18px;
-    }
-    .glance-date-short,
-    .glance-range {
-      display: none;
-    }
-  }
   .launcher-web-glyph {
     color: var(--v-muted);
   }
@@ -4464,25 +4455,6 @@
     transform: translateY(-50%);
   }
 
-  /* ── SPEC-tile-density — the dashboard header (label + density switch) ─────── */
-  .dashboard-toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 16px;
-  }
-  .dashboard-toolbar-label {
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: rgba(28, 32, 42, 0.62);
-  }
-  .dark .dashboard-toolbar-label {
-    color: rgba(226, 232, 240, 0.6);
-  }
   /* Segmented pill — one rounded track, the active option filled (never colour
      alone: it also carries the shadow/weight + aria-checked). */
   .density-toggle {

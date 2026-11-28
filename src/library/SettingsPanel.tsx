@@ -6,6 +6,7 @@ import ChangePassword from './ChangePassword';
 import BackupSection from './backup/BackupSection';
 import WidgetsSettings from '../widgets/WidgetsSettings';
 import type { TileDensity } from '../grid/tileDensity';
+import { visibleWidgets, type Household, type WidgetKey } from '../widgets/visibleWidgets';
 import SystemSettings from './SystemSettings';
 import SettingsDialog from './SettingsDialog';
 import type { ServerSettings } from './serverSettingsApi';
@@ -49,8 +50,10 @@ export default function SettingsPanel({
   isAdmin,
   scope = 'admin',
   showUptimeDisplay,
-  showHealthBar,
-  onSetHealthBar,
+  hiddenWidgets = [],
+  onSetHiddenWidgets,
+  household = ALL_ON,
+  role = 'member',
   showUptimeDisplayPref,
   onSetUptimeDisplay,
   density,
@@ -61,8 +64,6 @@ export default function SettingsPanel({
   currentUserId,
   initialSection,
   onCatalogChanged,
-  showWidgets = true,
-  onSetShowWidgets,
   onWidgetsChanged,
   email = '',
   hasPassword = false,
@@ -80,8 +81,14 @@ export default function SettingsPanel({
   // SPEC-admin-server-settings §8 — a server setting was saved or reset. App
   // re-reads what it shows from it (the "Slow" threshold on tiles).
   onServerSettingsChanged?: (next: ServerSettings) => void;
-  showHealthBar: boolean;
-  onSetHealthBar: (show: boolean) => void;
+  // SPEC-health-widget §4.6 — My settings → Widgets. The person's hidden list
+  // and its setter (no setter, no group: a kid has no widget settings), the
+  // household's switches (a household-off widget's row is disabled) and the
+  // role, for visibleWidgets.
+  hiddenWidgets?: readonly string[];
+  onSetHiddenWidgets?: (next: readonly string[]) => void;
+  household?: Household;
+  role?: string;
   showUptimeDisplayPref: boolean;
   onSetUptimeDisplay: (show: boolean) => void;
   // SPEC-density-to-my-settings — density joins the per-user preferences here.
@@ -89,11 +96,8 @@ export default function SettingsPanel({
   onSetDensity: (d: TileDensity) => void;
   onSaveSettings: (patch: Partial<SystemConfig>) => Promise<void>;
   onClose: () => void;
-  // SPEC-status-widgets AC-031 — My settings → Show widgets. No setter, no row:
-  // a kid has no switch. onWidgetsChanged lets the dashboard re-read the info
-  // widgets after an Admin Panel change.
-  showWidgets?: boolean;
-  onSetShowWidgets?: (show: boolean) => void;
+  // onWidgetsChanged lets the dashboard re-read the info widgets after an
+  // Admin Panel change.
   onWidgetsChanged?: () => void;
   // SPEC-password-reset-link AC-020 — My settings → Password shows only for an
   // adult with a local password (GET /api/me hasPassword). The email fills the
@@ -177,15 +181,14 @@ export default function SettingsPanel({
           {personal ? (
             <>
               <PersonalSettings
-                showHealthBar={showHealthBar}
-                onSetHealthBar={onSetHealthBar}
                 showUptimeDisplay={showUptimeDisplayPref}
                 onSetUptimeDisplay={onSetUptimeDisplay}
                 density={density}
                 onSetDensity={onSetDensity}
-                showWidgets={showWidgets}
-                onSetShowWidgets={onSetShowWidgets}
               />
+              {onSetHiddenWidgets && (
+                <WidgetPrefs hidden={hiddenWidgets} onSet={onSetHiddenWidgets} household={household} role={role} />
+              )}
               {hasPassword && <ChangePassword email={email} />}
             </>
           ) : !isAdmin ? (
@@ -247,30 +250,22 @@ export default function SettingsPanel({
 
 // SPEC-health-bar-visibility-toggle §4 — the per-user section. Reuses the cap6
 // switch markup and styling verbatim (role="switch" + aria-labelledby +
-// .settings-switch, already a 44x44 target per v19), so this row behaves and
+// .settings-switch, already a 44x44 target per v19), so each row behaves and
 // measures exactly like the System toggles an admin already knows.
 //
-// No save flag here: unlike the cap6 System toggle, persistence is owned by the
-// caller's useHealthBarPref, which is optimistic and rolls back on failure
-// (AC-010). This control reports the value it is given and asks for the inverse.
+// No save flag here: persistence is owned by the caller's hooks, which are
+// optimistic and roll back on failure (AC-010). These controls report the
+// value they are given and ask for the inverse.
 function PersonalSettings({
-  showHealthBar,
-  onSetHealthBar,
   showUptimeDisplay,
   onSetUptimeDisplay,
   density,
   onSetDensity,
-  showWidgets,
-  onSetShowWidgets,
 }: {
-  showHealthBar: boolean;
-  onSetHealthBar: (show: boolean) => void;
   showUptimeDisplay: boolean;
   onSetUptimeDisplay: (show: boolean) => void;
   density: TileDensity;
   onSetDensity: (d: TileDensity) => void;
-  showWidgets: boolean;
-  onSetShowWidgets?: (show: boolean) => void;
 }) {
   return (
     <section
@@ -285,22 +280,6 @@ function PersonalSettings({
         These apply to your account on every device you sign in from.
       </p>
       <dl className="settings-kv">
-        <div className="settings-kv-row settings-kv-row--control">
-          <dt id="health-bar-toggle-label">Show status bar</dt>
-          <dd>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={showHealthBar}
-              aria-labelledby="health-bar-toggle-label"
-              className="settings-switch"
-              data-testid="setting-health-bar"
-              onClick={() => onSetHealthBar(!showHealthBar)}
-            >
-              <span className="settings-switch-thumb" aria-hidden="true" />
-            </button>
-          </dd>
-        </div>
         {/* cap6 v2 — the per-user uptime display. Was a global admin System
             setting until v2; the admin row now only seeds NEW accounts.
             SPEC-decisions-18.4.0 AC-009 (#488): the hint says what it shows at
@@ -328,29 +307,6 @@ function PersonalSettings({
             </button>
           </dd>
         </div>
-        {/* SPEC-status-widgets AC-031 / UX §8 — one switch for every widget
-            surface this user sees: the tile lines and the clock/weather strip. */}
-        {onSetShowWidgets && (
-          <div className="settings-kv-row settings-kv-row--control">
-            <dt>
-              <span id="show-widgets-toggle-label">Show widgets</span>
-              <span className="settings-kv-help">Numbers on tiles, and the clock and weather.</span>
-            </dt>
-            <dd>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={showWidgets}
-                aria-labelledby="show-widgets-toggle-label"
-                className="settings-switch"
-                data-testid="setting-show-widgets"
-                onClick={() => onSetShowWidgets(!showWidgets)}
-              >
-                <span className="settings-switch-thumb" aria-hidden="true" />
-              </button>
-            </dd>
-          </div>
-        )}
         {/* SPEC-density-to-my-settings AC-001/AC-005 — density moves here from
             the dashboard toolbar. It is the first row in this list that is NOT
             a switch: three options, so the control stays a radiogroup and is
@@ -364,6 +320,82 @@ function PersonalSettings({
             <TileDensityToggle density={density} onChange={onSetDensity} />
           </dd>
         </div>
+      </dl>
+    </section>
+  );
+}
+
+const ALL_ON: Household = { clock: true, weather: true, health: true };
+
+// SPEC-health-widget §4.6 / AC-028 — My settings → Widgets. One switch per
+// widget and widget part; on means "I see it". Each shows the person's own
+// choice, even while the household has that widget off (the choice is kept
+// for when it comes back). Every change saves the whole list, once.
+const WIDGET_ROWS: { key: WidgetKey; label: string; testId: string; sub?: boolean }[] = [
+  { key: 'clock', label: 'Clock', testId: 'setting-widget-clock' },
+  { key: 'weather', label: 'Weather', testId: 'setting-widget-weather' },
+  { key: 'health', label: 'Health', testId: 'setting-widget-health' },
+  // The old "Show status bar" switch's test id, so its tests carry over.
+  { key: 'healthDetails', label: 'Counts and meter', testId: 'setting-health-bar', sub: true },
+  { key: 'tiles', label: 'Numbers on tiles', testId: 'setting-widget-tiles' },
+];
+
+const HOUSEHOLD_OFF = 'Off for everyone. An admin can turn it on.';
+
+function WidgetPrefs({
+  hidden,
+  onSet,
+  household,
+  role,
+}: {
+  hidden: readonly string[];
+  onSet: (next: readonly string[]) => void;
+  household: Household;
+  role: string;
+}) {
+  const shown = visibleWidgets(household, hidden, role);
+  const toggle = (k: WidgetKey) => onSet(hidden.includes(k) ? hidden.filter((h) => h !== k) : [...hidden, k]);
+  return (
+    <section data-testid="settings-widget-prefs" aria-labelledby="settings-widget-prefs-h" className="settings-section">
+      <h3 id="settings-widget-prefs-h" className="settings-section-title">
+        Widgets
+      </h3>
+      <p className="settings-section-note">Choose what you see at the top of your dashboard.</p>
+      <dl className="settings-kv">
+        {WIDGET_ROWS.map(({ key, label, testId, sub }) => {
+          const householdOff = key in household && !household[key as keyof Household];
+          // "Counts and meter" needs Health, from this person and the household.
+          const disabled = householdOff || (key === 'healthDetails' && !shown.health);
+          const labelId = `widget-pref-${key}-label`;
+          const helpId = `widget-pref-${key}-help`;
+          return (
+            <div key={key} className={`settings-kv-row settings-kv-row--control${sub ? ' settings-kv-row--sub' : ''}`}>
+              <dt>
+                <span id={labelId}>{label}</span>
+                {householdOff && (
+                  <span id={helpId} className="settings-kv-help">
+                    {HOUSEHOLD_OFF}
+                  </span>
+                )}
+              </dt>
+              <dd>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={!hidden.includes(key)}
+                  aria-labelledby={labelId}
+                  aria-describedby={householdOff ? helpId : undefined}
+                  disabled={disabled}
+                  className="settings-switch"
+                  data-testid={testId}
+                  onClick={() => toggle(key)}
+                >
+                  <span className="settings-switch-thumb" aria-hidden="true" />
+                </button>
+              </dd>
+            </div>
+          );
+        })}
       </dl>
     </section>
   );

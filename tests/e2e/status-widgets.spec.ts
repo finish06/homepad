@@ -32,7 +32,7 @@ test('TC-001 — an admin attaches Jellyfin, tests it and saves', async ({ page 
   });
 });
 
-test('TC-008 — the admin turns on the clock and the weather; the strip appears', async ({ page }) => {
+test('TC-008 — the admin turns on the clock and the weather; their cards appear', async ({ page }) => {
   const external: string[] = [];
   page.on('request', (r) => {
     if (/open-meteo\.com/.test(r.url())) external.push(r.url());
@@ -40,7 +40,8 @@ test('TC-008 — the admin turns on the clock and the weather; the strip appears
   const mock = await mockWidgets(page, { role: 'admin', density: 'compact', info: INFO_OFF });
   await page.goto('/');
   await expect(page.getByTestId('tool-link').first()).toBeVisible();
-  await expect(page.getByTestId('glance-strip')).toHaveCount(0);
+  await expect(page.getByTestId('widget-clock')).toHaveCount(0);
+  await expect(page.getByTestId('widget-weather')).toHaveCount(0);
 
   await page.getByTestId('user-menu-trigger').click();
   await page.getByTestId('menu-admin-settings').click();
@@ -59,10 +60,8 @@ test('TC-008 — the admin turns on the clock and the weather; the strip appears
   ]);
   await page.getByTestId('settings-close').click();
 
-  const strip = page.getByTestId('glance-strip');
-  await expect(strip).toBeVisible();
-  await expect(strip.getByTestId('glance-time')).toBeVisible();
-  await expect(strip.getByRole('link', { name: 'Open-Meteo' })).toBeVisible();
+  await expect(page.getByTestId('widget-clock').getByTestId('glance-time')).toBeVisible();
+  await expect(page.getByTestId('widget-weather').getByRole('link', { name: 'Open-Meteo' })).toBeVisible();
   expect(external, 'the browser called Open-Meteo').toEqual([]);
 });
 
@@ -91,20 +90,70 @@ test('TC-009 — ⌘K searches the web after the app matches', async ({ page, co
   expect(tab.url()).toContain('q=jelly%20fin%20subtitles');
 });
 
-test('TC-011 — Show widgets off hides the tile lines and the strip, for this user only', async ({ page }) => {
+// SPEC-health-widget §4.6 — "Show widgets" became one switch per widget and
+// "Numbers on tiles" (OQ-2), each saving the whole list.
+test('TC-011 — a member hides the tile numbers and the clock, for this user only', async ({ page }) => {
   const mock = await mockWidgets(page, { role: 'member', density: 'compact', info: INFO_ON });
   await page.goto('/');
   const line = page.locator('.app-grid-tool-wrap', { hasText: 'Sonarr' }).getByTestId('tile-statusline');
   await expect(line).toHaveText('3 this week · 1 in queue');
-  await expect(page.getByTestId('glance-strip')).toBeVisible();
+  await expect(page.getByTestId('widget-clock')).toBeVisible();
 
   await page.getByTestId('user-menu-trigger').click();
   await page.getByTestId('menu-my-settings').click();
-  await page.getByRole('switch', { name: 'Show widgets' }).click();
+  await page.getByRole('switch', { name: 'Numbers on tiles' }).click();
+  await page.getByRole('switch', { name: 'Clock' }).click();
   await page.getByTestId('settings-close').click();
 
   await expect(line).toHaveText('Online · 41 ms');
-  await expect(page.getByTestId('glance-strip')).toHaveCount(0);
-  const patch = mock.responses.find((r) => r.method === 'PATCH' && r.path === '/api/me');
-  expect(patch, 'the choice is saved on the account').toBeDefined();
+  await expect(page.getByTestId('widget-clock')).toHaveCount(0);
+  await expect(page.getByTestId('widget-weather')).toBeVisible();
+  const patches = mock.responses.filter((r) => r.method === 'PATCH' && r.path === '/api/me');
+  expect(patches, 'each choice is saved on the account').toHaveLength(2);
+  expect(JSON.parse(patches[1].body).hiddenWidgets).toEqual(['clock', 'tiles']);
+});
+
+// SPEC-health-widget §9 — the household switch and a person's own choice are
+// separate: an admin turns Health off and on, and a member who hid the clock
+// still has no clock afterwards.
+test('TC-012 — the admin turns Health off for everyone and back on; a member keeps their own choices', async ({
+  page,
+  context,
+}) => {
+  const admin = await mockWidgets(page, { role: 'admin', density: 'compact', info: INFO_ON });
+  const memberPage = await context.newPage();
+  await mockWidgets(memberPage, {
+    role: 'member',
+    density: 'compact',
+    info: INFO_ON,
+    hiddenWidgets: ['clock'],
+    household: admin,
+  });
+
+  await memberPage.goto('/');
+  await expect(memberPage.getByTestId('widget-health')).toBeVisible();
+  await expect(memberPage.getByTestId('widget-weather')).toBeVisible();
+  await expect(memberPage.getByTestId('widget-clock')).toHaveCount(0);
+
+  await page.goto('/');
+  await page.getByTestId('user-menu-trigger').click();
+  await page.getByTestId('menu-admin-settings').click();
+  const widgets = page.getByTestId('settings-widgets');
+  const health = widgets.getByRole('switch', { name: 'Health' });
+  await expect(health).toHaveAttribute('aria-checked', 'true');
+  await health.click();
+  await expect(health).toHaveAttribute('aria-checked', 'false');
+  expect(admin.settings).toContainEqual({ healthEnabled: false });
+
+  await memberPage.reload();
+  await expect(memberPage.getByTestId('widget-weather')).toBeVisible();
+  await expect(memberPage.getByTestId('widget-health')).toHaveCount(0);
+  // Status still reaches them: the bell is there (AC-022).
+  await expect(memberPage.getByTestId('alert-bell')).toBeVisible();
+
+  await health.click();
+  await expect(health).toHaveAttribute('aria-checked', 'true');
+  await memberPage.reload();
+  await expect(memberPage.getByTestId('widget-health')).toBeVisible();
+  await expect(memberPage.getByTestId('widget-clock')).toHaveCount(0);
 });

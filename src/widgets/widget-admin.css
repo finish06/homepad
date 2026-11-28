@@ -143,3 +143,15 @@
   flex: 1 1 180px;
   min-width: 0;
 }
+
+/* SPEC-health-widget AC-028 — My settings → Widgets lives in the same lazy
+   settings chunk. A widget the household has off (and Counts and meter while
+   Health is off): the switch keeps the person's choice but can't be changed. */
+.settings-switch:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+/* "Counts and meter" sits under Health. */
+.settings-kv-row--sub dt {
+  padding-left: 16px;
+}
